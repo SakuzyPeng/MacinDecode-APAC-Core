@@ -1,0 +1,31 @@
+[package]
+name = "macindecode-apac-tools"
+version = "0.1.0"
+edition = "2024"
+description = "AudioToolbox reference tools for Apple Positional Audio Codec research"
+build = "build.rs"
+
+[[bin]]
+name = "apac-tool"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+
+[build-dependencies]
+cc = "1.2"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
+
+[profile.release]
+debug = 0
+strip = "debuginfo"

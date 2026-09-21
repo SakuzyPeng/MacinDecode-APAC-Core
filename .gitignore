@@ -1,0 +1,13 @@
+/target/
+/artifacts/
+# Research documents have their own local Git history; this is not a submodule.
+/docs/
+# Local corpus inventories and validation outputs contain private source paths.
+/reports/
+/MacinDecode-APAC-Core.xcworkspace/
+**/xcuserdata/
+.DS_Store
+__pycache__/
+.env
+.env.*
+!.env.example

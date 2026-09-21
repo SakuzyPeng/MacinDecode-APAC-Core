@@ -1,4 +1,7 @@
+#[cfg(target_os = "macos")]
+pub mod collect;
 pub mod compare;
+pub mod config;
 pub mod error;
 pub mod model;
 #[cfg(target_os = "macos")]

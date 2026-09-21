@@ -9,6 +9,8 @@ pub struct Error {
     pub message: String,
     pub os_status: Option<i32>,
     pub os_status_fourcc: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bit_offset: Option<usize>,
 }
 
 impl Error {
@@ -18,6 +20,7 @@ impl Error {
             message: message.into(),
             os_status: None,
             os_status_fourcc: None,
+            bit_offset: None,
         }
     }
     pub fn native(operation: impl Into<String>, status: i32) -> Self {
@@ -31,6 +34,7 @@ impl Error {
             message: format!("AudioToolbox returned OSStatus {status}"),
             os_status: Some(status),
             os_status_fourcc: fourcc,
+            bit_offset: None,
         }
     }
     pub fn io(operation: impl Into<String>, error: impl fmt::Display) -> Self {

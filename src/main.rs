@@ -24,6 +24,14 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Parse a standalone APAC cookie with the platform-independent Rust parser.
+    ParseCookie { file: PathBuf },
+    /// Collect deduplicated, hash-verified APAC cookies from an existing scan JSONL.
+    CollectConfigs {
+        manifest: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Inspect native format, layout, packet table and magic cookie fingerprint.
     Inspect { file: PathBuf },
     /// Recursively index CAF/M4A files without decoding their audio.
@@ -99,17 +107,25 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
         let passed = result.passed;
         return Ok((serde_json::to_value(result)?, passed));
     }
+    if let Command::ParseCookie { file } = &cli.command {
+        let result = macindecode_apac_tools::config::parse_file(file)?;
+        let complete = result.is_complete();
+        return Ok((serde_json::to_value(result)?, complete));
+    }
     #[cfg(not(target_os = "macos"))]
     {
         let _ = limit;
         Err(Error::new(
             "platform",
-            "this command requires macOS AudioToolbox; compare is portable",
+            "this command requires macOS AudioToolbox; compare and parse-cookie are portable",
         ))
     }
     #[cfg(target_os = "macos")]
     {
         let result = match cli.command {
+            Command::CollectConfigs { manifest, out } => {
+                return macindecode_apac_tools::collect::collect_configs(&manifest, &out, limit);
+            }
             Command::Inspect { file } => serde_json::to_value(research::inspect(&file)?)?,
             Command::Scan { directory, output } => {
                 return research::scan(&directory, &output, limit);
@@ -153,7 +169,7 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
                     limit,
                 )?
             }
-            Command::Compare { .. } => unreachable!(),
+            Command::Compare { .. } | Command::ParseCookie { .. } => unreachable!(),
         };
         Ok((result, true))
     }

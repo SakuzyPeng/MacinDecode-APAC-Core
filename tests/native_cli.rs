@@ -1,6 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use macindecode_apac_tools::{
+    collect::collect_configs,
     model::*,
     native::NativeFile,
     research::{self, FixtureOptions},
@@ -44,6 +45,48 @@ impl Temp {
         .unwrap();
         out.join("sine/encoded.caf")
     }
+}
+
+#[test]
+fn collect_deduplicates_verifies_hashes_and_records_read_failures() {
+    let t = Temp::new();
+    let path = t.fixture();
+    let info = research::inspect(&path).unwrap();
+    let good = serde_json::json!({"schema_version":1,"status":"ok","file":info});
+    let mut missing = good.clone();
+    missing["file"]["source"] = serde_json::json!(t.0.join("missing.caf"));
+    missing["file"]["file_bytes"] = serde_json::json!(0);
+    let manifest = t.0.join("sources.jsonl");
+    fs::write(&manifest, format!("{missing}\n{good}\n{good}\n")).unwrap();
+    let out = t.0.join("collected");
+    let (summary, passed) = collect_configs(&manifest, &out, 1024 * 1024).unwrap();
+    assert!(passed);
+    assert_eq!(summary["source_records"], 3);
+    assert_eq!(summary["unique_configs"], 1);
+    let index: Value = serde_json::from_slice(&fs::read(out.join("index.json")).unwrap()).unwrap();
+    let config = &index["configs"][0];
+    assert_eq!(config["failed_attempts"].as_array().unwrap().len(), 1);
+    let cookie = fs::read(out.join(config["cookie_file"].as_str().unwrap())).unwrap();
+    assert_eq!(sha256(&cookie), config["sha256"].as_str().unwrap());
+    assert!(collect_configs(&manifest, &out, 1024 * 1024).is_err());
+    let mut mismatch = good.clone();
+    mismatch["file"]["cookie"]["value"]["sha256"] = serde_json::json!("0".repeat(64));
+    fs::write(
+        &manifest,
+        format!("{mismatch}\n{{\"schema_version\":99}}\n"),
+    )
+    .unwrap();
+    let failed = t.0.join("failed");
+    let (summary, passed) = collect_configs(&manifest, &failed, 1024 * 1024).unwrap();
+    assert!(!passed);
+    assert_eq!(summary["failed"], 1);
+    assert_eq!(summary["input_error_count"], 1);
+    let result: Value =
+        serde_json::from_slice(&fs::read(failed.join("index.json")).unwrap()).unwrap();
+    assert!(result["configs"][0]["cookie_file"].is_null());
+    let limited = t.0.join("quota");
+    assert!(collect_configs(&manifest, &limited, 256).is_err());
+    assert!(limited.join(".incomplete.json").exists());
 }
 impl Drop for Temp {
     fn drop(&mut self) {

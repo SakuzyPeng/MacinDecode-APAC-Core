@@ -1,8 +1,8 @@
 # MacinDecode APAC Research Tools
 
-`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、原始配置和数据包导出、苹果参考编解码、测试信号及 PCM 比较。
+`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置解析、数据包导出、苹果参考编解码、测试信号及 PCM 比较。
 
-当前版本的编解码由 **macOS AudioToolbox** 完成。独立 APAC 解码算法尚未实现；通用数据格式、信号生成和比较器已与苹果接口分离。`compare` 不依赖苹果框架，但本轮平台验收仅覆盖 macOS。
+当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare` 和 `parse-cookie` 的实现不调用苹果接口。配置解析已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
 ## 构建
 
@@ -29,6 +29,12 @@ target/debug/apac-tool inspect "$APAC_SAMPLE"
 # 递归索引，只读元数据；不复制源音频，不全曲解码
 target/debug/apac-tool scan "$APAC_CORPUS" --output artifacts/demo/corpus.jsonl
 
+# 按配置哈希去重采集，校验配置仍与索引一致
+target/debug/apac-tool collect-configs artifacts/demo/corpus.jsonl --out artifacts/demo/configs
+
+# 从集合的 index.json 选择 cookie_file，替换以下 CONFIG_SHA256
+target/debug/apac-tool parse-cookie 'artifacts/demo/configs/cookies/CONFIG_SHA256.bin'
+
 # 默认导出前 150 包；范围可显式调整
 target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets
 target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets-75 --start-packet 75 --packets 32
@@ -51,13 +57,27 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 
-退出码：`0` 表示成功或比较通过；`1` 表示运行、输入或完整性错误；`2` 表示 PCM 超出容差或索引存在失败项。命令行语法错误也由 clap 返回 `2`。
+退出码：`0` 表示成功、比较通过或配置结构解析完整；`1` 表示运行、输入或完整性错误；`2` 表示 PCM 超出容差、索引/配置采集存在未解决错误，或配置解析为 `partial` / `unsupported`。命令行语法错误也由 clap 返回 `2`。
 
 ## 导出数据
 
 所有 JSON/JSONL 记录采用 `schema_version: 1`。系统可选属性统一写为 `{"value": ..., "error": null}`；不支持或读取失败时 `value` 为 `null`，`error` 保留操作名和原始 `OSStatus`。
 
 **`inspect` / `scan`**：保存容器、ASBD 格式字段、数值声道布局与可读名称、包数、packet table、magic cookie 的字节数和 SHA-256。索引按格式、布局和配置哈希分组，不将哈希组称为已经识别的 profile。索引不遍历符号链接，跳过数量写入汇总；坏文件写入错误记录后继续处理其他文件。
+
+**`collect-configs`**：接受现有 schema v1 的扫描 JSONL，按 cookie SHA-256 去重。每组优先读取体积较小的来源；失败时记录原因并尝试同组其他来源，原始来源映射保留在 `index.json`。配置写为 `cookies/<sha256>.bin`。实际字节数或哈希与索引不符时记录错误，不以新配置悄然替代旧配置。`complete` 表示采集流程正常结束，`all_collected` 才表示所有配置组和输入记录均成功；来源路径使该目录仍属于本地研究数据。
+
+**`parse-cookie`**：接受完整的独立 `dapa` cookie，输入上限 8 MiB。当前支持版本字段 `0x0800` 的部分 channel/lbr 配置结构及其场景、来源扩展；不按文件长度或哈希识别格式。输出：
+
+- `status`：`complete`、`partial` 或 `unsupported`。
+- `fields`：已确认的线上字段和值，`bit_offset` 从整个 cookie 的起点计数，`bit_length` 是实际占用的位数，位序为 MSB-first。
+- `derived`：从配置字段计算的采样率、声道数、帧长度、布局等，不读取旁路容器元数据作为解析值。
+- `unknown_ranges`：未解析的位范围及原始十六进制字节。`raw_hex` 从包含起始位的字节开始，首字节应跳过 `first_byte_skip_bits` 个高位。
+- `diagnostics`：停止原因和位置。损坏或截断输入的错误另含 `bit_offset`。
+
+`complete` 严格表示当前实现已覆盖整份输入的**语法结构**，包括有证据的填充位；不意味着实现了音频解码、所有配置的语义合法性检查或空间渲染。少数字段暂用 `parameter_*`、`flag_*`、`content_origin.values` 等中性名称保留数值，没有为未确认的操作含义命名。未知分支立即停止并保留剩余数据；非零且尚未核实的填充返回 `partial`。
+
+本机 64 份不同配置的当前覆盖为 12 份结构完整、52 份部分解析；其中目标的三份 54 字节 8 声道配置全部完整。剩余停止点为 50 份 loudness/DRC 分支和 2 份 HOA ASC 分支。长度只用于验收选样，不参与解析器分派。
 
 **`dump`**：
 
@@ -92,6 +112,18 @@ python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
 Python 回归测试需要 macOS，使用临时生成的音频验证短样本和正常长度样本的切片，并与 `afconvert` 顺序解码结果比较；完成后自动清理。
 
+配置覆盖和单变量编码对照可单独复核，输出路径必须未存在：
+
+```sh
+python3 scripts/validate_configs.py \
+  --collection artifacts/demo/configs/index.json \
+  --output reports/config-validation-new.json
+cargo check --offline --target x86_64-unknown-linux-gnu
+cargo check --offline --target x86_64-pc-windows-msvc
+```
+
+配置验收默认预期 64 份配置、3 份首批目标，可通过 `--expected-configs` / `--expected-targets` 调整。`--skip-fixtures` 只复核已有 cookie，可用于没有 AudioToolbox 的环境；默认另生成 10 组短小的单变量编码样本，检查解析值与系统元数据，结束后清理。跨目标 `cargo check` 不是对应操作系统的原生运行测试。
+
 本机已保存验收报告、机器验证结果、样本清单和索引汇总，位于 `reports/`；这些输出包含本地来源信息，不纳入代码版本控制。可重新生成的双声道测试向量位于 `artifacts/fixtures/stereo/`，同样只在本地保留。研究文档仓库的 `docs/validation.md` 单独记录阶段总结。
 
 完整验收脚本仅使用 Python 标准库。再次运行需使用新的报告目录和测试向量目录：
@@ -109,7 +141,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具用于建立研究基准：尚未解析 APAC cookie 的内部语法，也未实现独立解码、空间渲染或实时播放。
+当前工具已建立研究基准并实现部分 cookie 语法解析；逐包参考回放、帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
 
 ## 仓库与数据边界
 

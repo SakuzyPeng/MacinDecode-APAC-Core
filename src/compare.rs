@@ -75,7 +75,18 @@ pub fn compare(reference: &Path, candidate: &Path, atol: f64, rtol: f64) -> Resu
     }
     let (a, pa) = load(reference)?;
     let (b, pb) = load(candidate)?;
-    let same_layout = match (&a.layout.value, &b.layout.value) {
+    // Core Audio's Unknown tag only carries a channel count in its low 16 bits.
+    let reference_layout = a
+        .layout
+        .value
+        .as_ref()
+        .filter(|layout| layout.tag >> 16 != 0xffff);
+    let candidate_layout = b
+        .layout
+        .value
+        .as_ref()
+        .filter(|layout| layout.tag >> 16 != 0xffff);
+    let same_layout = match (reference_layout, candidate_layout) {
         (Some(a), Some(b)) => a.equivalent(b),
         (None, None) => true,
         _ => false,
@@ -188,7 +199,7 @@ pub fn compare(reference: &Path, candidate: &Path, atol: f64, rtol: f64) -> Resu
         schema_version: SCHEMA_VERSION,
         passed: failures.iter().all(|&n| n == 0),
         bit_identical: exact,
-        layout_verified: a.layout.value.is_some(),
+        layout_verified: reference_layout.is_some(),
         frames: a.frames,
         atol,
         rtol,
@@ -266,12 +277,36 @@ mod tests {
         let b = t.bundle("b", &[0.25, 1., -0.25, -1.], 2);
         let same = compare(&a, &a, 1e-6, 1e-5).unwrap();
         assert!(same.passed && same.bit_identical);
+        assert!(same.layout_verified);
         let changed = compare(&a, &b, 1e-6, 1e-5).unwrap();
         assert!(!changed.passed && !changed.bit_identical);
         assert_eq!(changed.channels[0].rms_error, 0.);
         assert_eq!(changed.channels[1].rms_error, 0.5);
         assert_eq!(changed.channels[1].samples_outside_tolerance, 2);
         assert!(compare(&a, &b, 0.5, 0.).unwrap().passed);
+    }
+    #[test]
+    fn unknown_and_missing_layouts_compare_without_verification() {
+        let t = Temp::new();
+        let known = t.bundle("known", &[0.25, 0.5], 2);
+        let mut info: PcmInfo = serde_json::from_slice(&fs::read(&known).unwrap()).unwrap();
+        info.layout = Property::known(ChannelLayout::tagged(0xffff0002, 2, None));
+        let unknown = t.0.join("unknown.json");
+        fs::write(&unknown, serde_json::to_vec(&info).unwrap()).unwrap();
+        info.layout =
+            Property::from_result(Err(crate::error::Error::new("test layout", "unavailable")));
+        let missing = t.0.join("missing.json");
+        fs::write(&missing, serde_json::to_vec(&info).unwrap()).unwrap();
+
+        for reference in [&unknown, &missing] {
+            for candidate in [&unknown, &missing] {
+                let result = compare(reference, candidate, 0., 0.).unwrap();
+                assert!(result.passed && result.bit_identical);
+                assert!(!result.layout_verified);
+            }
+            assert!(compare(&known, reference, 0., 0.).is_err());
+            assert!(compare(reference, &known, 0., 0.).is_err());
+        }
     }
     #[test]
     fn silence_signed_zero_and_nonfinite_are_handled() {

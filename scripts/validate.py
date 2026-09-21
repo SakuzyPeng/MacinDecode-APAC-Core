@@ -190,20 +190,22 @@ class Validator:
             root = Path(tmp)
             result["packets"] = self.check_dump(source, root / "packets")
             count = info["packet_count"]["value"]
-            result["packet_tail"] = self.check_dump(source, root / "tail-packets", 64, count - 3)
-            require(result["packet_tail"]["actual"] == 3, "tail packet read did not stop at EOF")
+            tail_packets = min(3, count)
+            result["packet_tail"] = self.check_dump(source, root / "tail-packets", 64, count - tail_packets)
+            require(result["packet_tail"]["actual"] == tail_packets, "tail packet read did not stop at EOF")
             reference = root / "reference.caf"
             self.afconvert(source, reference)
             refinfo = self.command("inspect", reference)
             require(refinfo["layout"]["value"] == info["layout"]["value"], "afconvert changed layout")
-            frames = min(8192, total)
-            for name, start in [("start", 0), ("middle", total // 2), ("end", total - frames)]:
+            for name, start in [("start", 0), ("middle", total // 2), ("end", max(0, total - 8192))]:
+                frames = min(8192, total - start)
                 print(f"  {name}: {source.name}", flush=True)
                 native_dir = root / name
                 self.command("decode", source, "--out", native_dir, "--start-frame", start, "--frames", frames)
                 result["ranges"].append(self.compare_slice(info, native_dir, reference, start, frames, root / (name + "-afconvert")))
-            partial = self.command("decode", source, "--out", root / "partial-tail", "--start-frame", total - 17, "--frames", 8192)
-            require(partial["frames"] == 17, "partial PCM tail did not stop at EOF")
+            tail_frames = min(17, total)
+            partial = self.command("decode", source, "--out", root / "partial-tail", "--start-frame", total - tail_frames, "--frames", 8192)
+            require(partial["frames"] == tail_frames, "partial PCM tail did not stop at EOF")
             result["partial_tail_frames"] = partial["frames"]
         result["passed"] = True
         return result

@@ -11,6 +11,22 @@ use std::{collections::BTreeMap, fs::File, io::Read, path::Path};
 const MAX_MANIFEST_BYTES: u64 = 64 * 1024 * 1024;
 
 pub fn collect_configs(manifest: &Path, destination: &Path, limit: u64) -> Result<(Value, bool)> {
+    let marker = manifest.with_file_name(format!(
+        "{}.incomplete",
+        manifest
+            .file_name()
+            .ok_or_else(|| Error::new("collect-configs", "invalid manifest path"))?
+            .to_string_lossy()
+    ));
+    if marker.try_exists()? {
+        return Err(Error::new(
+            "collect-configs",
+            format!(
+                "scan manifest still has an incomplete marker: {}; finish the scan or rescan before collecting",
+                marker.display()
+            ),
+        ));
+    }
     let mut text = String::new();
     File::open(manifest)?
         .take(MAX_MANIFEST_BYTES + 1)

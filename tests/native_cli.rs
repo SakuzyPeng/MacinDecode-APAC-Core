@@ -88,6 +88,50 @@ fn collect_deduplicates_verifies_hashes_and_records_read_failures() {
     assert!(collect_configs(&manifest, &limited, 256).is_err());
     assert!(limited.join(".incomplete.json").exists());
 }
+
+#[test]
+fn collect_rejects_incomplete_scan_without_creating_output() {
+    let t = Temp::new();
+    let info = research::inspect(&t.fixture()).unwrap();
+    let record = serde_json::json!({"schema_version":1,"status":"ok","file":info});
+    let manifest = t.0.join("索引.jsonl");
+    let contents = format!("{record}\n");
+    fs::write(&manifest, &contents).unwrap();
+    let marker = t.0.join("索引.jsonl.incomplete");
+    fs::write(&marker, []).unwrap();
+    let out = t.0.join("collected");
+    let run = || {
+        Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+            .arg("collect-configs")
+            .arg(&manifest)
+            .arg("--out")
+            .arg(&out)
+            .output()
+            .unwrap()
+    };
+    let result = run();
+    assert_eq!(result.status.code(), Some(1));
+    assert!(result.stdout.is_empty());
+    let error: Value = serde_json::from_slice(&result.stderr).unwrap();
+    assert_eq!(error["error"]["operation"], "collect-configs");
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("incomplete")
+    );
+    assert!(!out.exists());
+    assert_eq!(fs::read_to_string(&manifest).unwrap(), contents);
+    assert!(marker.exists());
+
+    fs::remove_file(&marker).unwrap();
+    let result = run();
+    assert!(result.status.success());
+    let summary: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(summary["all_collected"], true);
+    assert_eq!(summary["unique_configs"], 1);
+}
+
 impl Drop for Temp {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);

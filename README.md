@@ -110,10 +110,24 @@ Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/a
 
 ## 仓库与数据边界
 
-代码与研究文档使用两个独立的本地 Git 仓库：
+代码与研究文档使用两个独立的 Git 仓库，各自同步至 private 远端：
 
 - 当前仓库保存 Rust/C 源码、测试、构建配置、验证脚本和本 README。
 - `docs/` 保存调查笔记和阶段总结，有自己的 Git 历史；整个目录被当前仓库忽略，不是子模块。只获取代码仓库时不会包含这些本地研究文档。
 - `reports/`、`artifacts/`、`target/` 和本地 Xcode workspace 被代码仓库忽略。原始报告可能记录用户路径与音乐库文件名，分享时需另外生成脱敏版本。
 
+| 仓库 | 远端 | 可见性 |
+| --- | --- | --- |
+| 代码 | [MacinDecode-APAC-Core](https://github.com/SakuzyPeng/MacinDecode-APAC-Core) | Private |
+| 研究文档 | [MacinDecode-APAC-Docs](https://github.com/SakuzyPeng/MacinDecode-APAC-Docs) | Private |
+
 从项目根目录使用 `git status` 检查代码，使用 `git -C docs status` 检查文档。研究结论在文档仓库中记录对应的代码提交，分别提交可以保持两套历史清晰。
+
+首次获取项目时分别克隆，文档仓库放入已被代码仓库忽略的 `docs/`：
+
+```sh
+git clone https://github.com/SakuzyPeng/MacinDecode-APAC-Core.git
+git clone https://github.com/SakuzyPeng/MacinDecode-APAC-Docs.git MacinDecode-APAC-Core/docs
+```
+
+两个仓库分别配置 `origin`。从项目根目录运行 `git push` 推送代码，运行 `git -C docs push` 推送文档。

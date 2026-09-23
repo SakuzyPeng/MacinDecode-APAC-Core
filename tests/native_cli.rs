@@ -127,6 +127,62 @@ fn drc_cli_controls_preserve_requests_readback_and_cookie_presence() {
 }
 
 #[test]
+fn hoa_fixture_layouts_keep_acn_sn3d_and_parse_without_container_input() {
+    let t = Temp::new();
+    for (layout, order, channels) in [("hoa1", 1, 4), ("hoa2", 2, 9), ("hoa3", 3, 16)] {
+        let out = t.0.join(layout);
+        let result = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+            .args([
+                "fixture",
+                "--layout",
+                layout,
+                "--signals",
+                "channel-solo",
+                "--duration",
+                "0.125",
+                "--drc-configuration",
+                "none",
+                "--max-output-mib",
+                "2",
+                "--out",
+            ])
+            .arg(&out)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let manifest: Value =
+            serde_json::from_slice(&fs::read(out.join("channel-solo/manifest.json")).unwrap())
+                .unwrap();
+        assert_eq!(manifest["encoded"]["format"]["channels"], channels);
+        assert_eq!(
+            manifest["encoded"]["layout"]["value"]["ambisonic_order"],
+            order
+        );
+        assert_eq!(
+            manifest["encoded"]["layout"]["value"]["ambisonic_channel_order"],
+            "ACN"
+        );
+        assert_eq!(
+            manifest["encoded"]["layout"]["value"]["ambisonic_normalization"],
+            "SN3D"
+        );
+        let file = NativeFile::open(&out.join("channel-solo/encoded.caf")).unwrap();
+        let parsed = parse_cookie(&file.cookie().unwrap()).unwrap();
+        assert!(parsed.is_complete());
+        assert_eq!(parsed.derived["components[0].hoa.order"], order);
+        assert_eq!(parsed.derived["components[0].channels"], channels);
+        assert_eq!(
+            parsed.derived["components[0].ambisonic_normalization"],
+            "SN3D"
+        );
+    }
+}
+
+#[test]
 fn collect_deduplicates_verifies_hashes_and_records_read_failures() {
     let t = Temp::new();
     let path = t.fixture();

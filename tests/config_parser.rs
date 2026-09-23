@@ -144,7 +144,7 @@ fn unknown_version_type_and_reserved_flags_preserve_unparsed_bits() {
     for (name, value, status) in [
         ("bitstream_version", 0x0801, ParseStatus::Unsupported),
         ("box.version_flags", 1, ParseStatus::Unsupported),
-        ("components[0].type", 2, ParseStatus::Partial),
+        ("components[0].type", 7, ParseStatus::Partial),
         ("global.frame_size_index", 1, ParseStatus::Partial),
     ] {
         let mut changed = bytes.clone();

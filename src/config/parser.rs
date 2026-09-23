@@ -254,62 +254,22 @@ impl Parser<'_> {
             let prefix = format!("components[{i}]");
             let start = self.take(&format!("{prefix}.lowest_channel_index"), 8)?;
             let kind = self.take(&format!("{prefix}.type"), 3)?;
-            if kind != 0 {
-                return self.stop(format!("ASC type {kind} is not implemented"));
-            }
-            self.flag(&format!("{prefix}.lbr_flag"))?;
-            let count = self.esc(&format!("{prefix}.tce_count"), [5, 10, 16])?;
-            let count = self.count(count, 3)?;
-            let mut component_channels = 0;
-            for t in 0..count {
-                let value = self.take(&format!("{prefix}.tce[{t}].type"), 3)?;
-                component_channels += match value {
-                    0 | 3 | 4 => 1,
-                    1 => 2,
-                    _ => return self.stop(format!("unverified TCE type {value}")),
-                };
-            }
-            if component_channels == 0
-                || start
-                    .checked_add(component_channels)
-                    .is_none_or(|end| end > channels)
-            {
-                return self.invalid(
-                    "channel-range",
-                    "component channels exceed the declared layout",
-                );
-            }
+            let component_channels = match kind {
+                0 => self.lbr_component(&prefix, start, channels)?,
+                2 => self.hoa_component(&prefix, start, channels)?,
+                _ => return self.stop(format!("ASC type {kind} is not implemented")),
+            };
             for c in start..start + component_channels {
                 if std::mem::replace(&mut occupied[c as usize], true) {
                     return self.invalid("channel-range", "overlapping component channel ranges");
                 }
             }
-            total += component_channels;
-            let family = self.take(&format!("{prefix}.layout_family"), 16)?;
-            if family == 0 {
-                for c in 0..component_channels {
-                    self.take(&format!("{prefix}.channel_labels[{c}]"), 7)?;
-                }
-            } else if family == 1 {
-                self.take(&format!("{prefix}.channel_bitmap"), 27)?;
-            } else {
-                self.report.derived.insert(
-                    format!("{prefix}.layout_tag"),
-                    json!((family << 16) | component_channels),
-                );
-            }
+            total = total.checked_add(component_channels).ok_or_else(|| {
+                ParseError::new(self.pos(), "overflow", "component channel sum overflow")
+            })?;
             self.report
                 .derived
                 .insert(format!("{prefix}.channels"), json!(component_channels));
-            if self.flag(&format!("{prefix}.remapping_present"))? {
-                let width = (64 - (component_channels - 1).leading_zeros()) as usize;
-                for c in 0..component_channels {
-                    if self.take(&format!("{prefix}.remapping[{c}]"), width)? >= component_channels
-                    {
-                        return self.invalid("channel-remapping", "remapping index out of range");
-                    }
-                }
-            }
         }
         if total != channels {
             return self.invalid(
@@ -333,6 +293,52 @@ impl Parser<'_> {
         self.absent("ancillary.custom_data_present")?;
         self.extensions()?;
         Ok(())
+    }
+    pub(super) fn component_range(&self, start: u64, count: u64, total: u64) -> PResult<()> {
+        if count == 0 || start.checked_add(count).is_none_or(|end| end > total) {
+            return self.invalid(
+                "channel-range",
+                "component channels exceed the declared layout",
+            );
+        }
+        Ok(())
+    }
+    fn lbr_component(&mut self, prefix: &str, start: u64, total: u64) -> PResult<u64> {
+        self.flag(&format!("{prefix}.lbr_flag"))?;
+        let count = self.esc(&format!("{prefix}.tce_count"), [5, 10, 16])?;
+        let count = self.count(count, 3)?;
+        let mut channels = 0u64;
+        for t in 0..count {
+            let value = self.take(&format!("{prefix}.tce[{t}].type"), 3)?;
+            channels += match value {
+                0 | 3 | 4 => 1,
+                1 => 2,
+                _ => return self.stop(format!("unverified TCE type {value}")),
+            };
+        }
+        self.component_range(start, channels, total)?;
+        let family = self.take(&format!("{prefix}.layout_family"), 16)?;
+        if family == 0 {
+            for c in 0..channels {
+                self.take(&format!("{prefix}.channel_labels[{c}]"), 7)?;
+            }
+        } else if family == 1 {
+            self.take(&format!("{prefix}.channel_bitmap"), 27)?;
+        } else {
+            self.report.derived.insert(
+                format!("{prefix}.layout_tag"),
+                json!((family << 16) | channels),
+            );
+        }
+        if self.flag(&format!("{prefix}.remapping_present"))? {
+            let width = (64 - (channels - 1).leading_zeros()) as usize;
+            for c in 0..channels {
+                if self.take(&format!("{prefix}.remapping[{c}]"), width)? >= channels {
+                    return self.invalid("channel-remapping", "remapping index out of range");
+                }
+            }
+        }
+        Ok(channels)
     }
     fn extensions(&mut self) -> PResult<()> {
         let mut index = 0;

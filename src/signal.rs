@@ -9,6 +9,8 @@ pub enum LayoutPreset {
     Stereo,
     Surround71,
     Surround714,
+    Hoa1,
+    Hoa2,
     Hoa3,
     Surround222,
 }
@@ -19,6 +21,8 @@ impl LayoutPreset {
             Self::Stereo => 2,
             Self::Surround71 => 8,
             Self::Surround714 => 12,
+            Self::Hoa1 => 4,
+            Self::Hoa2 => 9,
             Self::Hoa3 => 16,
             Self::Surround222 => 24,
         }
@@ -29,7 +33,7 @@ impl LayoutPreset {
             Self::Stereo => 101,
             Self::Surround71 => 128,
             Self::Surround714 => 192,
-            Self::Hoa3 => 190,
+            Self::Hoa1 | Self::Hoa2 | Self::Hoa3 => 190,
             Self::Surround222 => 204,
         };
         (family << 16) | self.channels()

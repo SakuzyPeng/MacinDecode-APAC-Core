@@ -135,6 +135,18 @@ pub fn dump(
     requested: u64,
     limit: u64,
 ) -> Result<Value> {
+    dump_with_options(path, destination, start, requested, false, limit)
+}
+
+pub fn dump_with_options(
+    path: &Path,
+    destination: &Path,
+    start: u64,
+    requested: u64,
+    with_preroll: bool,
+    limit: u64,
+) -> Result<Value> {
+    use crate::packets::{ReplayWindow, add, check_access, required, select_preroll};
     if requested == 0 {
         return Err(Error::new("packet range", "packet count must be positive"));
     }
@@ -151,14 +163,51 @@ pub fn dump(
         .checked_add(requested)
         .ok_or_else(|| Error::new("packet range", "range overflow"))?
         .min(total);
+    if with_preroll && start == end {
+        return Err(Error::new(
+            "dump preroll",
+            "requested packet window is empty",
+        ));
+    }
+    let stored_start = if with_preroll {
+        select_preroll(
+            start,
+            |p| file.packet_access(p),
+            |p| file.previous_independent(p),
+        )?
+    } else {
+        start
+    };
+    let raw_total = if with_preroll {
+        let table = required(&info.packet_table, "packet table for replay export")?;
+        let value = add(
+            add(table.priming_frames as u64, table.valid_frames as u64)?,
+            table.remainder_frames as u64,
+        )?;
+        if info.format.frames_per_packet != 0
+            && total.checked_mul(u64::from(info.format.frames_per_packet)) != Some(value)
+        {
+            return Err(Error::new(
+                "dump preroll",
+                "packet table disagrees with stream duration",
+            ));
+        }
+        Some(value)
+    } else {
+        None
+    };
     let cookie = file.cookie()?;
     let out = OutputDir::create(destination, Budget::new(limit))?;
     out.bytes("cookie.bin", &cookie)?;
     let mut data = out.writer("packets.bin")?;
     let mut index = out.writer("packets.jsonl")?;
-    let mut position = start;
+    let mut position = stored_start;
     let mut offset = 0u64;
     let mut hash = Sha256::new();
+    let mut first_access = None;
+    let mut target_access = None;
+    let mut target_raw_start = None;
+    let mut raw_end = None;
     while position < end {
         let (buffer, packets, _eof) =
             file.read_packets(position, (end - position).min(64) as u32)?;
@@ -176,26 +225,66 @@ pub fn dump(
                 .ok_or_else(|| Error::new("packet", "out-of-bounds packet description"))?;
             data.write_all(bytes)?;
             hash.update(bytes);
-            let prop = |status, operation, value: Value| {
-                Property::from_result(if status == 0 {
-                    Ok(value)
-                } else {
-                    Err(Error::native(operation, status))
-                })
-            };
-            let record = json!({"schema_version":SCHEMA_VERSION,"packet_index":position,"export_offset":offset,"bytes":packet.bytes,"frames":packet.frames,"sha256":sha256(bytes),
-                "raw_frame_position":prop(packet.frame_status,"AudioFileGetProperty(PacketToFrame)",json!(packet.frame)),
-                "dependency":prop(packet.dependency_status,"AudioFileGetProperty(PacketToDependencyInfo)",json!({"independently_decodable":packet.independently_decodable != 0,"preroll_packet_count":packet.preroll_packet_count})),
-                "roll_distance":prop(packet.roll_status,"AudioFileGetProperty(PacketToRollDistance)",json!(packet.roll_distance))});
+            let record = packet.record(position, offset, bytes);
+            if with_preroll {
+                let raw = record.raw_frame()?;
+                if packet.frames == 0
+                    || raw_end.is_some_and(|v| v != raw)
+                    || (position == 0 && raw != 0)
+                    || (info.format.frames_per_packet != 0
+                        && position.checked_mul(u64::from(info.format.frames_per_packet))
+                            != Some(raw))
+                {
+                    return Err(Error::new(
+                        "dump preroll",
+                        "packet timeline is missing or inconsistent",
+                    ));
+                }
+                let next = add(raw, u64::from(packet.frames))?;
+                if raw_total.is_some_and(|v| next > v || (position + 1 == total && next != v)) {
+                    return Err(Error::new(
+                        "dump preroll",
+                        "packet timeline exceeds or disagrees with packet table",
+                    ));
+                }
+                raw_end = Some(next);
+                if position == stored_start {
+                    first_access = Some(record.access());
+                }
+                if position == start {
+                    target_access = Some(record.access());
+                    target_raw_start = Some(raw);
+                }
+            }
             serde_json::to_writer(&mut index, &record)?;
             index.write_all(b"\n")?;
-            offset += u64::from(packet.bytes);
+            offset = add(offset, u64::from(packet.bytes))?;
             position += 1;
         }
     }
     data.finish()?;
     index.finish()?;
-    let manifest = json!({"schema_version":SCHEMA_VERSION,"complete":true,"file":info,"start_packet":start,"requested_packets":requested,"actual_packets":position-start,"packet_data_file":"packets.bin","packet_index_file":"packets.jsonl","cookie_file":"cookie.bin","packet_data_bytes":offset,"packet_data_sha256":format!("{:x}",hash.finalize()),"offset_origin":"exported packets.bin; frame positions are untrimmed packet timeline","dependency_note":"raw range only; preroll dependencies are annotated, not automatically added"});
+    let mut manifest = json!({"schema_version":SCHEMA_VERSION,"complete":true,"file":info,"start_packet":stored_start,"requested_packets":requested,"actual_packets":position-stored_start,"packet_data_file":"packets.bin","packet_index_file":"packets.jsonl","cookie_file":"cookie.bin","packet_data_bytes":offset,"packet_data_sha256":format!("{:x}",hash.finalize()),"offset_origin":"exported packets.bin; frame positions are untrimmed packet timeline","dependency_note":"raw range only; preroll dependencies are annotated, not automatically added"});
+    if with_preroll {
+        let first = first_access
+            .ok_or_else(|| Error::new("dump preroll", "no access point was exported"))?;
+        let target = target_access
+            .ok_or_else(|| Error::new("dump preroll", "target packet was not exported"))?;
+        check_access(&first, &target)?;
+        manifest["replay_window"] = serde_json::to_value(ReplayWindow {
+            requested_start_packet: start,
+            requested_packets: requested,
+            actual_target_packets: position - start,
+            included_preroll_packets: start - stored_start,
+            target_raw_start: target_raw_start
+                .ok_or_else(|| Error::new("dump preroll", "missing target frame"))?,
+            target_raw_end: raw_end
+                .ok_or_else(|| Error::new("dump preroll", "missing frame end"))?,
+        })?;
+        manifest["dependency_note"] = json!(
+            "stored range includes prerequisite packets; replay_window identifies the requested target range"
+        );
+    }
     out.json("manifest.json", &manifest)?;
     out.complete()?;
     Ok(manifest)

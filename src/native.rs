@@ -1,6 +1,7 @@
 use crate::{
     error::{Error, Result},
     model::*,
+    packets::{DependencyInfo, PacketAccess, PacketRecord},
 };
 use serde_json::{Value, json};
 use std::{
@@ -62,18 +63,67 @@ unsafe extern "C" {
         out: *mut *mut c_void,
     ) -> i32;
     fn apac_write_pcm(h: *mut c_void, buffer: *const f32, frames: u32) -> i32;
+    fn apac_packet_metadata(h: *mut c_void, packet: i64, out: *mut RawPacket) -> i32;
+    fn apac_previous_independent(h: *mut c_void, packet: i64, previous: *mut i64) -> i32;
 }
 
 fn id(code: &[u8; 4]) -> u32 {
     u32::from_be_bytes(*code)
 }
-fn checked(status: i32, detail: &str) -> Result<()> {
+pub(crate) fn checked(status: i32, detail: &str) -> Result<()> {
     if status == 0 {
         return Ok(());
     }
     // The bridge returns a thread-local static string, valid until the next call.
     let operation = unsafe { CStr::from_ptr(apac_last_operation()) }.to_string_lossy();
     Err(Error::native(format!("{operation} ({detail})"), status))
+}
+
+impl RawPacket {
+    pub fn access(&self, packet_index: u64) -> PacketAccess {
+        fn prop<T>(status: i32, operation: &str, value: T) -> Property<T> {
+            Property::from_result(if status == 0 {
+                Ok(value)
+            } else {
+                Err(Error::native(operation, status))
+            })
+        }
+        PacketAccess {
+            packet_index,
+            raw_frame_position: prop(
+                self.frame_status,
+                "AudioFileGetProperty(PacketToFrame)",
+                self.frame,
+            ),
+            dependency: prop(
+                self.dependency_status,
+                "AudioFileGetProperty(PacketToDependencyInfo)",
+                DependencyInfo {
+                    independently_decodable: self.independently_decodable != 0,
+                    preroll_packet_count: self.preroll_packet_count,
+                },
+            ),
+            roll_distance: prop(
+                self.roll_status,
+                "AudioFileGetProperty(PacketToRollDistance)",
+                self.roll_distance,
+            ),
+        }
+    }
+    pub fn record(&self, packet_index: u64, export_offset: u64, data: &[u8]) -> PacketRecord {
+        let access = self.access(packet_index);
+        PacketRecord {
+            schema_version: SCHEMA_VERSION,
+            packet_index,
+            export_offset,
+            bytes: self.bytes,
+            frames: self.frames,
+            sha256: sha256(data),
+            raw_frame_position: access.raw_frame_position,
+            dependency: access.dependency,
+            roll_distance: access.roll_distance,
+        }
+    }
 }
 fn word(bytes: &[u8]) -> Result<u32> {
     Ok(u32::from_ne_bytes(bytes.try_into().map_err(|_| {
@@ -198,6 +248,26 @@ impl NativeFile {
     }
     pub fn format(&self) -> &AudioFormat {
         &self.format
+    }
+    pub fn packet_access(&self, packet: u64) -> Result<PacketAccess> {
+        let index =
+            i64::try_from(packet).map_err(|_| Error::new("packet access", "index exceeds i64"))?;
+        let mut raw = RawPacket::default();
+        checked(
+            unsafe { apac_packet_metadata(self.raw(), index, &mut raw) },
+            "packet metadata",
+        )?;
+        Ok(raw.access(packet))
+    }
+    pub fn previous_independent(&self, packet: u64) -> Result<i64> {
+        let index =
+            i64::try_from(packet).map_err(|_| Error::new("packet access", "index exceeds i64"))?;
+        let mut previous = -1;
+        checked(
+            unsafe { apac_previous_independent(self.raw(), index, &mut previous) },
+            "previous independent packet",
+        )?;
+        Ok(previous)
     }
     pub fn property(&self, code: &[u8; 4]) -> Result<Vec<u8>> {
         let mut data = ptr::null_mut();

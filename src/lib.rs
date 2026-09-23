@@ -7,6 +7,9 @@ pub mod model;
 #[cfg(target_os = "macos")]
 pub mod native;
 pub mod output;
+pub mod packets;
+#[cfg(target_os = "macos")]
+pub mod replay;
 #[cfg(target_os = "macos")]
 pub mod research;
 pub mod signal;

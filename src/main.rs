@@ -50,6 +50,22 @@ enum Command {
         start_packet: u64,
         #[arg(long, default_value_t = 150)]
         packets: u64,
+        /// Include prerequisite packets and a replayable target window.
+        #[arg(long)]
+        with_preroll: bool,
+    },
+    /// Replay an exported packet directory through Apple's reference converter.
+    Replay {
+        directory: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+        /// Absolute valid-audio frame; omitted starts at the exported target window.
+        #[arg(long)]
+        start_frame: Option<u64>,
+        #[arg(long, default_value_t = 8192)]
+        frames: u64,
+        #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=64))]
+        input_batch_packets: u32,
     },
     /// Decode a short valid-frame range to interleaved Float32 + JSON.
     Decode {
@@ -139,7 +155,29 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
                 out,
                 start_packet,
                 packets,
-            } => research::dump(&file, &out, start_packet, packets, limit)?,
+                with_preroll,
+            } => research::dump_with_options(
+                &file,
+                &out,
+                start_packet,
+                packets,
+                with_preroll,
+                limit,
+            )?,
+            Command::Replay {
+                directory,
+                out,
+                start_frame,
+                frames,
+                input_batch_packets,
+            } => macindecode_apac_tools::replay::replay(
+                &directory,
+                &out,
+                start_frame,
+                frames,
+                input_batch_packets,
+                limit,
+            )?,
             Command::Decode {
                 file,
                 out,

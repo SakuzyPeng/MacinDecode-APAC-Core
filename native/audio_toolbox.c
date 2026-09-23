@@ -31,9 +31,56 @@ typedef struct {
     int64_t roll_distance;
 } ApacPacket;
 
+// Only bridge-owned scalar structures cross FFI; SDK structs are built below.
+typedef struct { uint32_t label, flags; float coordinates[3]; } ApacLayoutDescription;
+typedef struct { uint32_t offset, bytes, frames; } ApacInputPacket;
+typedef struct {
+    double sample_rate;
+    uint32_t fields[7];
+    uint32_t has_layout, layout_tag, layout_bitmap, description_count;
+    const ApacLayoutDescription *descriptions;
+    const uint8_t *cookie;
+    uint32_t cookie_bytes;
+} ApacReplayConfig;
+typedef int32_t (*ApacInputProc)(void *, uint32_t, const uint8_t **, uint32_t *, const ApacInputPacket **, uint32_t *);
+typedef struct {
+    AudioConverterRef converter;
+    AudioChannelLayout *layout;
+    AudioStreamBasicDescription input, output;
+    ApacInputProc input_proc;
+    void *context;
+    AudioStreamPacketDescription descriptions[64];
+} ApacReplay;
+
 static _Thread_local const char *last_operation = "AudioToolbox";
 const char *apac_last_operation(void) { return last_operation; }
 void apac_free(void *p) { free(p); }
+
+int32_t apac_packet_metadata(ApacFile *h, int64_t packet, ApacPacket *p) {
+    if (packet < 0) return kAudio_ParamError;
+    memset(p, 0, sizeof(*p));
+    AudioFramePacketTranslation frame = {0}; frame.mPacket = packet;
+    UInt32 size = sizeof(frame);
+    p->frame_status = AudioFileGetProperty(h->file, kAudioFilePropertyPacketToFrame, &size, &frame);
+    p->frame = frame.mFrame;
+    AudioPacketDependencyInfoTranslation dep = {0}; dep.mPacket = packet; size = sizeof(dep);
+    p->dependency_status = AudioFileGetProperty(h->file, kAudioFilePropertyPacketToDependencyInfo, &size, &dep);
+    p->independently_decodable = dep.mIsIndependentlyDecodable;
+    p->preroll_packet_count = dep.mNumberPrerollPackets;
+    AudioPacketRollDistanceTranslation roll = {0}; roll.mPacket = packet; size = sizeof(roll);
+    p->roll_status = AudioFileGetProperty(h->file, kAudioFilePropertyPacketToRollDistance, &size, &roll);
+    p->roll_distance = roll.mRollDistance;
+    return 0;
+}
+
+int32_t apac_previous_independent(ApacFile *h, int64_t packet, int64_t *previous) {
+    AudioIndependentPacketTranslation info = {0}; info.mPacket = packet;
+    UInt32 size = sizeof(info);
+    last_operation = "AudioFileGetProperty(PreviousIndependentPacket)";
+    OSStatus s = AudioFileGetProperty(h->file, kAudioFilePropertyPreviousIndependentPacket, &size, &info);
+    if (!s) *previous = info.mIndependentlyDecodablePacket;
+    return s;
+}
 
 int32_t apac_close(ApacFile *h) {
     if (!h) return 0;
@@ -151,6 +198,116 @@ static AudioStreamBasicDescription pcm_format(double rate, uint32_t channels) {
     pcm.mBytesPerPacket = pcm.mBytesPerFrame = channels * sizeof(float);
     pcm.mFramesPerPacket = 1; pcm.mChannelsPerFrame = channels; pcm.mBitsPerChannel = 32;
     return pcm;
+}
+
+int32_t apac_replay_close(ApacReplay *h) {
+    if (!h) return 0;
+    OSStatus s = h->converter ? AudioConverterDispose(h->converter) : 0;
+    free(h->layout); free(h);
+    return s;
+}
+
+static OSStatus replay_input(AudioConverterRef converter, UInt32 *packets, AudioBufferList *data,
+                             AudioStreamPacketDescription **descriptions, void *context) {
+    (void)converter;
+    ApacReplay *h = context;
+    const uint8_t *bytes = NULL; const ApacInputPacket *input = NULL;
+    uint32_t size = 0, count = 0, wanted = *packets < 64 ? *packets : 64;
+    if (!wanted) return kAudio_ParamError;
+    OSStatus s = h->input_proc(h->context, wanted, &bytes, &size, &input, &count);
+    if (s) { *packets = 0; return s; }
+    if (count > wanted || size > 16 * 1024 * 1024 || (count && (!bytes || !input))) return kAudio_ParamError;
+    uint64_t end = 0;
+    for (uint32_t i = 0; i < count; ++i) {
+        if (input[i].offset != end || !input[i].bytes || !input[i].frames) return kAudio_ParamError;
+        end += input[i].bytes; if (end > size) return kAudio_ParamError;
+        h->descriptions[i].mStartOffset = input[i].offset;
+        h->descriptions[i].mDataByteSize = input[i].bytes;
+        h->descriptions[i].mVariableFramesInPacket = h->input.mFramesPerPacket ? 0 : input[i].frames;
+    }
+    if (end != size) return kAudio_ParamError;
+    *packets = count;
+    data->mNumberBuffers = 1;
+    data->mBuffers[0].mNumberChannels = h->input.mChannelsPerFrame;
+    data->mBuffers[0].mData = (void *)bytes;
+    data->mBuffers[0].mDataByteSize = size;
+    if (descriptions) *descriptions = count ? h->descriptions : NULL;
+    return 0;
+}
+
+int32_t apac_replay_create(const ApacReplayConfig *config, ApacInputProc input_proc, void *context, ApacReplay **out) {
+    *out = NULL;
+    if (!config || !input_proc || !config->fields[5] || config->fields[5] > 1024
+        || config->description_count > 1024 || config->sample_rate <= 0
+        || config->fields[0] != kAudioFormatAPAC) return kAudio_ParamError;
+    ApacReplay *h = calloc(1, sizeof(*h));
+    if (!h) return kAudio_MemFullError;
+    h->input_proc = input_proc; h->context = context;
+    h->input.mSampleRate = config->sample_rate;
+    h->input.mFormatID = config->fields[0]; h->input.mFormatFlags = config->fields[1];
+    h->input.mBytesPerPacket = config->fields[2]; h->input.mFramesPerPacket = config->fields[3];
+    h->input.mBytesPerFrame = config->fields[4]; h->input.mChannelsPerFrame = config->fields[5];
+    h->input.mBitsPerChannel = config->fields[6];
+    h->output = pcm_format(config->sample_rate, config->fields[5]);
+    last_operation = "AudioConverterNew(APAC replay)";
+    OSStatus s = AudioConverterNew(&h->input, &h->output, &h->converter);
+    if (s) goto fail;
+    last_operation = "AudioConverterSetProperty(DecompressionMagicCookie)";
+    s = AudioConverterSetProperty(h->converter, kAudioConverterDecompressionMagicCookie, config->cookie_bytes, config->cookie);
+    if (s) goto fail;
+    if (config->has_layout) {
+        UInt32 size = offsetof(AudioChannelLayout, mChannelDescriptions) + config->description_count * sizeof(AudioChannelDescription);
+        h->layout = calloc(1, size);
+        if (!h->layout) { s = kAudio_MemFullError; goto fail; }
+        h->layout->mChannelLayoutTag = config->layout_tag;
+        h->layout->mChannelBitmap = config->layout_bitmap;
+        h->layout->mNumberChannelDescriptions = config->description_count;
+        for (uint32_t i = 0; i < config->description_count; ++i) {
+            AudioChannelDescription *d = &h->layout->mChannelDescriptions[i];
+            d->mChannelLabel = config->descriptions[i].label;
+            d->mChannelFlags = config->descriptions[i].flags;
+            memcpy(d->mCoordinates, config->descriptions[i].coordinates, sizeof(d->mCoordinates));
+        }
+        last_operation = "AudioConverterSetProperty(InputChannelLayout/replay)";
+        s = AudioConverterSetProperty(h->converter, kAudioConverterInputChannelLayout, size, h->layout);
+        if (s) goto fail;
+        last_operation = "AudioConverterSetProperty(OutputChannelLayout/replay)";
+        s = AudioConverterSetProperty(h->converter, kAudioConverterOutputChannelLayout, size, h->layout);
+        if (s) goto fail;
+    }
+    AudioStreamBasicDescription actual = {0}; UInt32 size = sizeof(actual);
+    last_operation = "AudioConverterGetProperty(CurrentInputStreamDescription/replay)";
+    s = AudioConverterGetProperty(h->converter, kAudioConverterCurrentInputStreamDescription, &size, &actual);
+    if (s) goto fail;
+    if (actual.mSampleRate != h->input.mSampleRate || actual.mChannelsPerFrame != h->input.mChannelsPerFrame
+        || actual.mFormatID != h->input.mFormatID) { s = kAudioConverterErr_FormatNotSupported; goto fail; }
+    size = sizeof(actual);
+    last_operation = "AudioConverterGetProperty(CurrentOutputStreamDescription/replay)";
+    s = AudioConverterGetProperty(h->converter, kAudioConverterCurrentOutputStreamDescription, &size, &actual);
+    if (s) goto fail;
+    if (actual.mSampleRate != h->output.mSampleRate || actual.mChannelsPerFrame != h->output.mChannelsPerFrame
+        || actual.mFormatID != kAudioFormatLinearPCM || actual.mFormatFlags != h->output.mFormatFlags
+        || actual.mBitsPerChannel != 32 || actual.mBytesPerFrame != h->output.mBytesPerFrame
+        || actual.mFramesPerPacket != 1) { s = kAudioConverterErr_FormatNotSupported; goto fail; }
+    *out = h; return 0;
+fail:
+    apac_replay_close(h); return s;
+}
+
+int32_t apac_replay_read(ApacReplay *h, float *buffer, uint32_t *frames) {
+    if (!h || !*frames || *frames > 8192) return kAudio_ParamError;
+    AudioBufferList data = {0}; data.mNumberBuffers = 1;
+    data.mBuffers[0].mData = buffer; data.mBuffers[0].mNumberChannels = h->output.mChannelsPerFrame;
+    data.mBuffers[0].mDataByteSize = *frames * h->output.mBytesPerFrame;
+    last_operation = "AudioConverterFillComplexBuffer(replay)";
+    return AudioConverterFillComplexBuffer(h->converter, replay_input, h, frames, &data, NULL);
+}
+
+int32_t apac_replay_property(ApacReplay *h, uint32_t property, uint32_t *words, uint32_t count) {
+    UInt32 size = count * sizeof(uint32_t);
+    last_operation = "AudioConverterGetProperty(replay)";
+    OSStatus s = AudioConverterGetProperty(h->converter, property, &size, words);
+    return s ? s : (size == count * sizeof(uint32_t) ? 0 : kAudioConverterErr_BadPropertySizeError);
 }
 
 int32_t apac_prepare_decode(ApacFile *h, int64_t start, int64_t *length) {

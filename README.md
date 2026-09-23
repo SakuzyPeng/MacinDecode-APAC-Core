@@ -1,6 +1,6 @@
 # MacinDecode APAC Research Tools
 
-`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置解析、数据包导出、苹果参考编解码、测试信号及 PCM 比较。
+`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
 当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare` 和 `parse-cookie` 的实现不调用苹果接口。配置解析已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
@@ -38,6 +38,10 @@ target/debug/apac-tool parse-cookie 'artifacts/demo/configs/cookies/CONFIG_SHA25
 # 默认导出前 150 包；范围可显式调整
 target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets
 target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets-75 --start-packet 75 --packets 32
+
+# 包目录回放：补齐前置依赖后，回放过程不访问原始音频
+target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/replay-packets --start-packet 75 --packets 32 --with-preroll
+target/debug/apac-tool replay artifacts/demo/replay-packets --out artifacts/demo/replayed --frames 8192
 
 # 默认从有效音频起点解码 8192 帧；帧是所有声道共享的采样时刻
 target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/start
@@ -95,7 +99,21 @@ HOA 字段位于 `components[i].hoa.*`。派生的 `hoa.coefficient_count`、`ho
 
 包序号从 0 开始，`export_offset` 只指向导出的 `packets.bin`。`raw_frame_position` 是尚未扣除 priming 的包时间线；不能直接当成 `decode --start-frame` 的有效音频位置。
 
-依赖字段直接保留苹果 API 的含义：`PacketToDependencyInfo` 的 preroll 是从该独立包起解码后，为刷新状态需要继续解码的包数；`PacketToRollDistance` 是目标包之前需要解码的包数。**`independently_decodable=true` 不代表不需要 preroll。** 本次样本中普通包也可能返回 true，同时 preroll/roll 为 1；包 0、75 等位置则为 0。工具不自动为导出范围补齐这些依赖，`dump` 结果尚不是可单独播放的音频文件。
+依赖字段直接保留苹果 API 的含义：`PacketToDependencyInfo` 的 preroll 是从该独立包起解码后，为刷新状态需要继续解码的包数；`PacketToRollDistance` 是目标包之前需要解码的包数。**`independently_decodable=true` 不代表不需要 preroll。** 默认 `dump` 仍只导出原请求范围；指定 `--with-preroll` 后会选择满足这两种约束的独立起点，最多向前 4096 包。所需属性缺失、距离越界或查询没有进展时明确失败。
+
+preroll 导出的 `start_packet`、`actual_packets` 描述实际存储范围，`requested_packets` 仍是用户请求的目标包数，因此实际包数可能更大。新增 `replay_window` 保存 `requested_start_packet`、`requested_packets`、`actual_target_packets`、`included_preroll_packets` 和 `target_raw_start/end`。这些原始帧边界不含有效音频裁剪。
+
+**`replay`**：接受包含 `manifest.json`、cookie、包文件和索引的完整目录，使用独立 AudioConverter 输出 `pcm.f32le` / `pcm.json` 及诊断文件 `replay.json`。兼容旧的从包 0 开始的原始导出；旧的非零起点导出需要重新添加 `--with-preroll`。`file.source` 仅保留来源标识，不打开它。
+
+`--start-frame` 使用与 `decode` 相同的有效音频坐标；省略时从导出目标窗口的首个有效帧开始。`--frames` 默认 8192，输出在窗口或源文件的有效音频末尾裁剪；`range.clipped_by` 区分 `window_end` 与 `source_eof`。起点超出窗口、零请求帧数或整数溢出报错。采样率、声道数和布局保持源声明，PCM 仍是交错小端 Float32。
+
+`--input-batch-packets` 默认为 1，范围 1–64，每批数据最多 16 MiB。`replay.json` 分开记录已供给包数／帧数、实际产生的原始 PCM 帧数、前后丢弃帧数及保存帧数；供给数据可能因解码器预读多于已产生的 PCM。请求到达窗口末尾时发送 EOF 并排空；较短请求取得所需范围后停止解码，继续完成剩余文件的完整性检查。
+
+时间换算使用索引的包帧位置与 packet table 的 priming/valid/remainder，不硬编码延迟。`converter_prime_info` 与 `converter_prime_method` 单独记录查询结果；属性不支持时保留原始 `OSStatus`，不将其当作零，也不依靠它自动裁剪容器 priming。默认不修改系统处理设置、不重采样、不下混、不归一化。
+
+包目录校验为纯 Rust：检查完成标记、schema、包序号、连续字节／帧范围、数据大小、逐包及整体哈希、cookie 与已知格式字段的一致性。拒绝目录外引用，包括越界符号链接。manifest 上限 1 MiB、索引行上限 64 KiB、cookie 上限 8 MiB、单包上限 16 MiB。配置解析为 partial/unsupported 并不直接阻止苹果回放；已确认字段冲突或损坏输入仍会被拒绝。
+
+通用库入口 `packets::PacketBundle::open` 完成初始校验，`range` 计算帧窗口，`next_batch` 提供包数据与相对批次偏移。读取部分数据的调用方应在信任结果前调用 `verify_remaining`，完成第二次流式完整性检查；CLI 已自动执行。
 
 **`decode`**：生成 `pcm.f32le` 和 `pcm.json`。PCM 是交错、小端 32 位浮点，保持输入采样率、声道数和布局。HOA 保留 ACN 顺序、SN3D/N3D 归一化和可确定的阶数。`start_frame=0` 指系统已经处理 priming 后的有效音频起点；请求到达文件尾部时实际帧数可少于请求帧数，超出尾部的起点报错。
 
@@ -149,6 +167,16 @@ cargo check --offline --target x86_64-pc-windows-msvc
 
 `--skip-fixtures` 只复核已有 cookie，可用于没有 AudioToolbox 的环境；默认另生成 23 组短小控制样本（原有 16 组加 7 组 HOA 对照），全部要求完整解析。新增 HOA 对照以 HOA3 为基线，分别改变阶数、DRC 设置、采样率、质量或信号，检查解析值、系统元数据和参数回读，结束后清理。跨目标 `cargo check` 不是对应操作系统的原生运行测试。
 
+逐包回放验收使用第一阶段报告中记录的五类代表来源，只解码短窗口：
+
+```sh
+python3 -B scripts/validate_replay.py \
+  --representatives reports/validation.json \
+  --output reports/replay-validation-new.json
+```
+
+该脚本验证 15 个代表范围和 42 个短向量，均使用 1/7/64 包输入批次；短向量在删除临时原始音频后回放，并与 `afconvert` 交叉核对。保持比较器默认容差，报告逐位一致性及每项失败原因。整个流程不生成完整歌曲的参考 PCM。
+
 本机已保存验收报告、机器验证结果、样本清单和索引汇总，位于 `reports/`；这些输出包含本地来源信息，不纳入代码版本控制。可重新生成的双声道测试向量位于 `artifacts/fixtures/stereo/`，同样只在本地保留。研究文档仓库的 `docs/validation.md` 单独记录阶段总结。
 
 完整验收脚本仅使用 Python 标准库。再次运行需使用新的报告目录和测试向量目录：
@@ -166,7 +194,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立研究基准并实现部分 cookie 语法解析；逐包参考回放、帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
+当前工具已建立配置解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
 
 ## 仓库与数据边界
 

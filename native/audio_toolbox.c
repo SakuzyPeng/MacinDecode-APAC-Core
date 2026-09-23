@@ -233,7 +233,8 @@ static OSStatus resize_cb(void *ctx, SInt64 size) {
 }
 
 int32_t apac_create_encoder(const char *path, double rate, uint32_t channels, uint32_t layout_tag,
-                            uint32_t bitrate, uint32_t quality, uint64_t limit, ApacFile **out) {
+                            uint32_t bitrate, uint32_t quality, uint32_t drc_configuration,
+                            uint64_t limit, ApacFile **out) {
     *out = NULL;
     if (!channels || channels > 1024 || rate <= 0) return kAudio_ParamError;
     ApacFile *h = calloc(1, sizeof(*h));
@@ -282,7 +283,23 @@ int32_t apac_create_encoder(const char *path, double rate, uint32_t channels, ui
         s = AudioConverterSetProperty(converter, kAudioConverterCodecQuality, sizeof(quality), &quality);
         if (s) goto fail;
     }
-    if (bitrate || quality != UINT32_MAX) {
+    if (drc_configuration != UINT32_MAX) {
+        UInt32 setting;
+        last_operation = "DRC configuration selector";
+        switch (drc_configuration) {
+            case 0: setting = kAudioCodecDynamicRangeControlConfiguration_None; break;
+            case 1: setting = kAudioCodecDynamicRangeControlConfiguration_Music; break;
+            case 2: setting = kAudioCodecDynamicRangeControlConfiguration_Speech; break;
+            case 3: setting = kAudioCodecDynamicRangeControlConfiguration_Movie; break;
+            case 4: setting = kAudioCodecDynamicRangeControlConfiguration_Capture; break;
+            default: s = kAudio_ParamError; goto fail;
+        }
+        last_operation = "AudioConverterSetProperty(DynamicRangeControlConfiguration/cdrc)";
+        s = AudioConverterSetProperty(converter, kAudioCodecPropertyDynamicRangeControlConfiguration,
+                                      sizeof(setting), &setting);
+        if (s) goto fail;
+    }
+    if (bitrate || quality != UINT32_MAX || drc_configuration != UINT32_MAX) {
         CFArrayRef config = NULL;
         last_operation = "ExtAudioFileSetProperty(ConverterConfig)";
         s = ExtAudioFileSetProperty(h->ext, kExtAudioFileProperty_ConverterConfig, sizeof(config), &config);

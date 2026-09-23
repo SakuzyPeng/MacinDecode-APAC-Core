@@ -4,6 +4,7 @@ use macindecode_apac_tools::research;
 use macindecode_apac_tools::{
     compare,
     error::{Error, Result},
+    model::DrcConfiguration,
     signal::{LayoutPreset, Signal},
 };
 use serde_json::{Value, json};
@@ -79,6 +80,9 @@ enum Command {
         bitrate: Option<u32>,
         #[arg(long)]
         quality: Option<u32>,
+        /// Encoder DRC configuration; omitted preserves the system default.
+        #[arg(long, value_enum)]
+        drc_configuration: Option<DrcConfiguration>,
     },
     /// Compare bundles without alignment, gain correction, resampling or padding.
     Compare {
@@ -151,6 +155,7 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
                 mut signals,
                 bitrate,
                 quality,
+                drc_configuration,
             } => {
                 if signals.is_empty() {
                     signals = Signal::ALL.to_vec();
@@ -165,6 +170,7 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
                         signals,
                         bitrate,
                         quality,
+                        drc_configuration,
                     },
                     limit,
                 )?

@@ -57,6 +57,7 @@ unsafe extern "C" {
         tag: u32,
         bitrate: u32,
         quality: u32,
+        drc_configuration: u32,
         limit: u64,
         out: *mut *mut c_void,
     ) -> i32;
@@ -85,6 +86,13 @@ pub struct NativeFile {
     handle: Option<NonNull<c_void>>,
     format: AudioFormat,
     _not_send_sync: PhantomData<Rc<()>>,
+}
+
+#[derive(Default)]
+pub struct EncoderOptions {
+    pub bitrate: Option<u32>,
+    pub quality: Option<u32>,
+    pub drc_configuration: Option<DrcConfiguration>,
 }
 impl Drop for NativeFile {
     fn drop(&mut self) {
@@ -150,8 +158,7 @@ impl NativeFile {
         rate: f64,
         channels: u32,
         tag: u32,
-        bitrate: Option<u32>,
-        quality: Option<u32>,
+        options: &EncoderOptions,
         limit: u64,
     ) -> Result<Self> {
         let path = CString::new(path.as_os_str().as_bytes())
@@ -164,8 +171,11 @@ impl NativeFile {
                     rate,
                     channels,
                     tag,
-                    bitrate.unwrap_or(0),
-                    quality.unwrap_or(u32::MAX),
+                    options.bitrate.unwrap_or(0),
+                    options.quality.unwrap_or(u32::MAX),
+                    options
+                        .drc_configuration
+                        .map_or(u32::MAX, DrcConfiguration::selector),
                     limit,
                     &mut raw,
                 )

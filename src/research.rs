@@ -291,6 +291,7 @@ pub struct FixtureOptions {
     pub signals: Vec<Signal>,
     pub bitrate: Option<u32>,
     pub quality: Option<u32>,
+    pub drc_configuration: Option<DrcConfiguration>,
 }
 
 pub fn fixture(destination: &Path, options: &FixtureOptions, limit: u64) -> Result<Value> {
@@ -347,8 +348,11 @@ pub fn fixture(destination: &Path, options: &FixtureOptions, limit: u64) -> Resu
             f64::from(options.sample_rate),
             channels,
             options.layout.tag(),
-            options.bitrate,
-            options.quality,
+            &crate::native::EncoderOptions {
+                bitrate: options.bitrate,
+                quality: options.quality,
+                drc_configuration: options.drc_configuration,
+            },
             case.budget.remaining() - reserve,
         )?;
         let mut writer = case.writer("source.f32le")?;
@@ -421,7 +425,14 @@ pub fn fixture(destination: &Path, options: &FixtureOptions, limit: u64) -> Resu
             ));
         }
         reference_out.complete()?;
-        let case_manifest = json!({"schema_version":SCHEMA_VERSION,"complete":true,"signal":kind,"seed":options.seed,"amplitudes":"impulse=0.5, sine/sweep/channel-solo=0.25, noise=0.2","requested":{"sample_rate":options.sample_rate,"layout":options.layout,"frames":frames,"bitrate":options.bitrate,"quality":options.quality},"actual_encoder_settings":encoder_settings,"encoded":encoded_info,"source_pcm":"source.json","reference_pcm":"reference/pcm.json","note":"APAC is lossy: source PCM is not an equality reference for decoded PCM"});
+        let drc_verified = options.drc_configuration.map(|requested| {
+            encoder_settings
+                .get("cdrc")
+                .and_then(|p| p.value.as_ref())
+                .and_then(Value::as_u64)
+                == Some(u64::from(requested.selector()))
+        });
+        let case_manifest = json!({"schema_version":SCHEMA_VERSION,"complete":true,"signal":kind,"seed":options.seed,"amplitudes":"impulse=0.5, sine/sweep/channel-solo=0.25, noise=0.2","requested":{"sample_rate":options.sample_rate,"layout":options.layout,"frames":frames,"bitrate":options.bitrate,"quality":options.quality,"drc_configuration":options.drc_configuration},"actual_encoder_settings":encoder_settings,"drc_configuration_verified":drc_verified,"encoded":encoded_info,"source_pcm":"source.json","reference_pcm":"reference/pcm.json","note":"APAC is lossy: source PCM is not an equality reference for decoded PCM"});
         case.json("manifest.json", &case_manifest)?;
         case.complete()?;
         cases.push(json!({"signal":kind,"manifest":format!("{}/manifest.json",kind.name()),"reference_sha256":reference.sha256}));

@@ -326,7 +326,9 @@ impl Parser<'_> {
         if self.flag("ancillary.audio_scenes_present")? {
             self.audio_scenes()?;
         }
-        self.absent("ancillary.loudness_drc_present")?;
+        if self.flag("ancillary.loudness_drc_present")? {
+            self.loudness_drc(channels)?;
+        }
         self.absent("ancillary.metadata_present")?;
         self.absent("ancillary.custom_data_present")?;
         self.extensions()?;

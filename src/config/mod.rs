@@ -1,5 +1,6 @@
 //! Independent APAC cookie syntax inspection. No Apple APIs are used here.
 mod bits;
+mod drc;
 mod parser;
 mod scenes;
 

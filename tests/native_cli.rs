@@ -2,6 +2,7 @@
 
 use macindecode_apac_tools::{
     collect::collect_configs,
+    config::parse_cookie,
     model::*,
     native::NativeFile,
     research::{self, FixtureOptions},
@@ -39,12 +40,90 @@ impl Temp {
                 signals: vec![Signal::Sine],
                 bitrate: None,
                 quality: None,
+                drc_configuration: None,
             },
             2 * 1024 * 1024,
         )
         .unwrap();
         out.join("sine/encoded.caf")
     }
+}
+
+#[test]
+fn drc_cli_controls_preserve_requests_readback_and_cookie_presence() {
+    let t = Temp::new();
+    for (index, mode) in [
+        None,
+        Some("none"),
+        Some("music"),
+        Some("speech"),
+        Some("movie"),
+        Some("capture"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let out = t.0.join(format!("DRC 对照 {index}"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_apac-tool"));
+        command.args([
+            "fixture",
+            "--signals",
+            "sine",
+            "--duration",
+            "0.125",
+            "--max-output-mib",
+            "2",
+            "--out",
+        ]);
+        command.arg(&out);
+        if let Some(mode) = mode {
+            command.args(["--drc-configuration", mode]);
+        }
+        let result = command.output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let manifest: Value =
+            serde_json::from_slice(&fs::read(out.join("sine/manifest.json")).unwrap()).unwrap();
+        assert_eq!(
+            manifest["requested"]["drc_configuration"],
+            serde_json::json!(mode)
+        );
+        if mode.is_some() {
+            assert_eq!(manifest["drc_configuration_verified"], true);
+            assert_eq!(
+                manifest["actual_encoder_settings"]["cdrc"]["value"],
+                index - 1
+            );
+            assert!(manifest["actual_encoder_settings"]["cdrc"]["error"].is_null());
+        } else {
+            assert!(manifest["drc_configuration_verified"].is_null());
+        }
+        let file = NativeFile::open(&out.join("sine/encoded.caf")).unwrap();
+        let cookie = file.cookie().unwrap();
+        let parsed = parse_cookie(&cookie).unwrap();
+        assert!(parsed.is_complete());
+        let present = parsed
+            .fields
+            .iter()
+            .find(|f| f.name == "ancillary.loudness_drc_present")
+            .unwrap();
+        assert_eq!(present.value, mode != Some("none"));
+        assert_eq!(
+            manifest["encoded"]["cookie"]["value"]["sha256"],
+            sha256(&cookie)
+        );
+    }
+    let out = t.0.join("invalid DRC");
+    let invalid = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        .args(["fixture", "--drc-configuration", "invalid", "--out"])
+        .arg(&out)
+        .output()
+        .unwrap();
+    assert_eq!(invalid.status.code(), Some(2));
+    assert!(!out.exists());
 }
 
 #[test]
@@ -247,8 +326,7 @@ fn output_quota_includes_native_encoder_and_partial_exports() {
         48000.,
         2,
         LayoutPreset::Stereo.tag(),
-        None,
-        None,
+        &Default::default(),
         128,
     );
     if let Ok(encoder) = result {

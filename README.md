@@ -49,11 +49,14 @@ target/debug/apac-tool fixture --out artifacts/demo/fixtures
 # 多声道或 HOA 的逐声道测试
 target/debug/apac-tool fixture --out artifacts/demo/hoa --layout hoa3 --signals channel-solo
 
+# 显式关闭编码端 DRC，生成短小的配置对照
+target/debug/apac-tool fixture --out artifacts/demo/drc-none --signals sine --duration 0.125 --drc-configuration none
+
 # 比较元数据所指向的 Float32 PCM
 target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/start/pcm.json
 ```
 
-`fixture` 的布局选项为 `mono`、`stereo`、`surround71`、`surround714`、`hoa3`、`surround222`。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate` 和 `--quality 0..127`。不支持的编码参数由系统返回明确错误。
+`fixture` 的布局选项为 `mono`、`stereo`、`surround71`、`surround714`、`hoa3`、`surround222`。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
 
 所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 
@@ -67,7 +70,7 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 **`collect-configs`**：接受现有 schema v1 的扫描 JSONL，按 cookie SHA-256 去重。如果索引仍带有 `<manifest>.incomplete` 标记，则在读取索引和创建输出目录之前拒绝采集，退出码为 `1`。每组优先读取体积较小的来源；失败时记录原因并尝试同组其他来源，原始来源映射保留在 `index.json`。配置写为 `cookies/<sha256>.bin`。实际字节数或哈希与索引不符时记录错误，不以新配置悄然替代旧配置。`complete` 表示采集流程正常结束，`all_collected` 才表示所有配置组和输入记录均成功；来源路径使该目录仍属于本地研究数据。
 
-**`parse-cookie`**：接受完整的独立 `dapa` cookie，输入上限 8 MiB。当前支持版本字段 `0x0800` 的部分 channel/lbr 配置结构及其场景、来源扩展；不按文件长度或哈希识别格式。输出：
+**`parse-cookie`**：接受完整的独立 `dapa` cookie，输入上限 8 MiB。当前支持版本字段 `0x0800` 的部分 channel/lbr 配置结构、响度／DRC 配置、场景及来源扩展；不按文件长度或哈希识别格式。输出：
 
 - `status`：`complete`、`partial` 或 `unsupported`。
 - `fields`：已确认的线上字段和值，`bit_offset` 从整个 cookie 的起点计数，`bit_length` 是实际占用的位数，位序为 MSB-first。
@@ -77,7 +80,9 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 `complete` 严格表示当前实现已覆盖整份输入的**语法结构**，包括有证据的填充位；不意味着实现了音频解码、所有配置的语义合法性检查或空间渲染。少数字段暂用 `parameter_*`、`flag_*`、`content_origin.values` 等中性名称保留数值，没有为未确认的操作含义命名。未知分支立即停止并保留剩余数据；非零且尚未核实的填充返回 `partial`。
 
-本机 64 份不同配置的当前覆盖为 12 份结构完整、52 份部分解析；其中目标的三份 54 字节 8 声道配置全部完整。剩余停止点为 50 份 loudness/DRC 分支和 2 份 HOA ASC 分支。长度只用于验收选样，不参与解析器分派。
+本机 64 份不同配置的当前覆盖为 **62 份结构完整、2 份部分解析**。第三阶段补齐了原先停在响度／DRC 分支的 50 份配置；剩余两份停在 HOA ASC 类型 2。长度只用于首批验收选样，不参与解析器分派。
+
+DRC 字段位于 `ancillary.loudness_drc.*`，包括系数、增益集合、指令、声道关联、响度及来源记录。`derived` 中的声道增益集合索引从零计数，`-1` 是线上零值转换得到的哨兵。`*_encoded` 保留编码数值，不自动赋予 dB 等物理单位；内部版本 8 来自已确认的 APAC 调用上下文，不伪装成额外读取的版本字段。未支持的下混、依赖指令、特殊 effect、EQ 或扩展分支返回 `partial`。
 
 **`dump`**：
 
@@ -95,6 +100,8 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 不执行重采样、下混、归一化或自动增益匹配。参考解码保留系统默认设置，元数据记录能查询到的 `mdrc`、`^pro`、`ptlc`、`pptl`。编码器也记录请求参数和返回的 `brat`、`cdqu`、`cdrc`；这些是原始系统属性值，不能将 `brat=0` 等值解释为文件的实测平均码率。
 
 **`fixture`**：每种信号有一个子目录，内含 `source.f32le` / `source.json`、`encoded.caf`、`reference/pcm.f32le` / `pcm.json` 和 `manifest.json`。源信号在相同实现与运行环境下可重复生成；跨系统或编解码器版本应比较记录的哈希和环境。APAC 是有损编码，编码前的 `source` 不是要求解码结果逐位一致的参考。
+
+每个信号的 `manifest.json` 记录 `requested.drc_configuration`、`actual_encoder_settings.cdrc` 和 `encoded.cookie` 的长度／哈希。`drc_configuration_verified` 为 `true` 表示显式请求与系统回读相符，`false` 表示未能核实，`null` 表示未显式请求。导出成功不等于参数对照有效；验收脚本拒绝将回读不支持或不一致的实验计为成功。系统默认回读可能是 `4294967295`，保留原值，不将它推断为某个模式。
 
 **`compare`**：接受两个 `pcm.json` 或 `source.json`，检查有效格式、采样率、声道、布局、起点、帧数、文件长度及 SHA-256。默认容差为 `abs(reference-candidate) <= 1e-6 + 1e-5 * abs(reference)`，支持 `--atol` / `--rtol`。不自动对齐、补零或调整增益。输出逐声道最大绝对误差、RMS、SNR、超限样本数，以及独立的 `bit_identical` 标记；通过容差不等于逐位一致。
 
@@ -118,11 +125,19 @@ Python 回归测试需要 macOS，使用临时生成的音频验证短样本和�
 python3 scripts/validate_configs.py \
   --collection artifacts/demo/configs/index.json \
   --output reports/config-validation-new.json
+
+# 第三阶段的严格验收：基线为先前的 12 complete / 52 partial 报告
+python3 scripts/validate_configs.py \
+  --collection artifacts/demo/configs/index.json \
+  --drc-baseline reports/config-validation-phase2.json \
+  --output reports/drc-validation-new.json
 cargo check --offline --target x86_64-unknown-linux-gnu
 cargo check --offline --target x86_64-pc-windows-msvc
 ```
 
-配置验收默认预期 64 份配置、3 份首批目标，可通过 `--expected-configs` / `--expected-targets` 调整。`--skip-fixtures` 只复核已有 cookie，可用于没有 AudioToolbox 的环境；默认另生成 10 组短小的单变量编码样本，检查解析值与系统元数据，结束后清理。跨目标 `cargo check` 不是对应操作系统的原生运行测试。
+配置验收默认预期 64 份配置、3 份首批目标，可通过 `--expected-configs` / `--expected-targets` 调整。指定 `--drc-baseline` 时，要求当前集合与基线哈希一致，从旧报告的 DRC 停止点固定 50 个目标，并强制验收 62 complete / 2 HOA partial；既有字段和值也必须保持一致。逐文件记录失败及新停止点，未达标返回非零退出码。
+
+`--skip-fixtures` 只复核已有 cookie，可用于没有 AudioToolbox 的环境；默认另生成 16 组短小控制样本（原有 10 组加默认及五种 DRC 设置），检查解析值、系统元数据和参数回读，结束后清理。跨目标 `cargo check` 不是对应操作系统的原生运行测试。
 
 本机已保存验收报告、机器验证结果、样本清单和索引汇总，位于 `reports/`；这些输出包含本地来源信息，不纳入代码版本控制。可重新生成的双声道测试向量位于 `artifacts/fixtures/stereo/`，同样只在本地保留。研究文档仓库的 `docs/validation.md` 单独记录阶段总结。
 

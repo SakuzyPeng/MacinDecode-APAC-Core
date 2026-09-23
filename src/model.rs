@@ -4,6 +4,28 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::PathBuf};
 
 pub const SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, clap::ValueEnum, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DrcConfiguration {
+    None,
+    Music,
+    Speech,
+    Movie,
+    Capture,
+}
+impl DrcConfiguration {
+    /// Bridge selector, translated to SDK constants by the C bridge.
+    pub fn selector(self) -> u32 {
+        match self {
+            Self::None => 0,
+            Self::Music => 1,
+            Self::Speech => 2,
+            Self::Movie => 3,
+            Self::Capture => 4,
+        }
+    }
+}
 pub fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }

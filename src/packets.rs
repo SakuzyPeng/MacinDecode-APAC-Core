@@ -425,7 +425,7 @@ impl PacketBundle {
             data_hash: Sha256::new(),
             verified_index_hash: None,
         };
-        while bundle.read_packet()?.is_some() {}
+        while bundle.next_packet()?.is_some() {}
         bundle.verified_index_hash = Some(bundle.index_hash.clone().finalize().to_vec());
         let first = bundle
             .first
@@ -475,8 +475,20 @@ impl PacketBundle {
     }
     /// Finish integrity checks without decoding unused packets of a shorter request.
     pub fn verify_remaining(&mut self) -> Result<()> {
-        while self.read_packet()?.is_some() {}
+        while self.next_packet()?.is_some() {}
         Ok(())
+    }
+
+    /// Read one hash-checked packet, retaining its original index and timeline.
+    /// Call `verify_remaining` before trusting a result obtained from a subset.
+    pub fn next_packet(&mut self) -> Result<Option<(PacketRecord, Vec<u8>)>> {
+        let index = (self.next < self.manifest.actual_packets)
+            .then(|| self.manifest.start_packet.checked_add(self.next))
+            .flatten();
+        self.read_packet().map_err(|mut error| {
+            error.packet_index = index;
+            error
+        })
     }
 
     pub fn range(&self, start: Option<u64>, requested: u64) -> Result<ReplayRange> {
@@ -636,7 +648,7 @@ impl PacketBundle {
             let old_frame = self.next_frame;
             let old_offset = self.offset;
             let old_next = self.next;
-            let Some((packet, data)) = self.read_packet()? else {
+            let Some((packet, data)) = self.next_packet()? else {
                 break;
             };
             if batch.data.len() + data.len() > MAX_PACKET_BUFFER {

@@ -1,8 +1,8 @@
 # MacinDecode APAC Research Tools
 
-`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
+`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
-当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare` 和 `parse-cookie` 的实现不调用苹果接口。配置解析已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
+当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare`、`parse-cookie` 和 `parse-packets` 的实现不调用苹果接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
 ## 构建
 
@@ -43,6 +43,10 @@ target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets-75 --sta
 target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/replay-packets --start-packet 75 --packets 32 --with-preroll
 target/debug/apac-tool replay artifacts/demo/replay-packets --out artifacts/demo/replayed --frames 8192
 
+# 逐包解析默认双声道 SQ 帧头，报告仍保留未解析的音频载荷
+target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes.jsonl
+target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes-75.jsonl --start-packet 75 --packets 8
+
 # 默认从有效音频起点解码 8192 帧；帧是所有声道共享的采样时刻
 target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/start
 target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/one-second --start-frame 48000 --frames 48000
@@ -64,7 +68,7 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 
-退出码：`0` 表示成功、比较通过或配置结构解析完整；`1` 表示运行、输入或完整性错误；`2` 表示 PCM 超出容差、索引/配置采集存在未解决错误，或配置解析为 `partial` / `unsupported`。命令行语法错误也由 clap 返回 `2`。
+退出码：`0` 表示成功、比较通过或结构解析完整；`1` 表示运行、输入或完整性错误；`2` 表示 PCM 超出容差、索引/配置采集存在未解决错误，或配置／帧解析为 `partial` / `unsupported`。命令行语法错误也由 clap 返回 `2`。`parse-packets` 达到前缀目标后通常仍返回 `2`，因为整包载荷没有解析。
 
 ## 导出数据
 
@@ -116,6 +120,18 @@ preroll 导出的 `start_packet`、`actual_packets` 描述实际存储范围，`
 cookie 已确认的 `frame_samples` 用于核对逐包帧数、绝对帧位置和 packet table 总帧数，即使容器的 `frames_per_packet=0` 也执行这些检查；容器声明的非零帧长必须与 cookie 一致。
 
 通用库入口 `packets::PacketBundle::open` 完成初始校验，`range` 计算帧窗口，`next_batch` 提供包数据与相对批次偏移。读取部分数据的调用方应在信任结果前调用 `verify_remaining`，完成第二次流式完整性检查；CLI 已自动执行。
+
+**`parse-packets`**：读取与 `replay` 相同的完整包目录，不访问 `file.source`，逐包写入指定 JSONL，并在 stdout 输出汇总。默认从实际存储的首包开始，包含补入的 preroll，最多 150 包；`--start-packet` 使用原文件包序号，遇目录末尾裁剪。零数量、起点越界、损坏配置、哈希或时间线冲突返回错误。
+
+当前目标为版本 `0x0800`、44.1/48 kHz、1024 帧、双声道、单个 channel ASC 和单个 CPE，配置中的 `lbr_flag` 与公共组件参数为零。解析 ASP 包装、元素存在位、SQ 分派、左声道 ICS 的窗口类型、最大频带数及短窗分组，到左声道流载荷入口停止。ASP 类型 2 的内嵌 preroll 按已确认的字节长度界定，原始载荷保留为未知范围；它不同于 `dump --with-preroll` 补入的前置包。
+
+报告的 `fields` 位偏移从当前包 bit 0 起算。`prefix_complete` 表示到达 SQ 载荷入口或 CPE 缺席终点；`status` 仍描述整包语法。`payload_bit_offset` 只标出已确认的载荷起点，`component_end_bit_offset` 保持 `null`，未知范围不复制原始载荷。只要仍有未解析内容，就不能称为整帧 complete。汇总中的 `complete` 仅表示报告已成功写完并通过包目录校验。
+
+LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_deferred` 停止，`prefix_complete=false`，保留剩余位。当前系统的默认双声道编码路径未启用该工具；这不意味着其他编码设置、系统版本或已有媒体不会使用它。未知 ASP 类型、重配置或未验证的保留位同样明确停止。
+
+库入口为 `frame::FrameContext::from_cookie(&[u8])` 和 `frame::parse_frame(&FrameContext, &[u8])`。上下文只使用 cookie 中已确认的字段；`is_supported()` 表示配置适合尝试当前前缀，不保证每包分支均已实现。`packets::PacketBundle::next_packet` 提供经过校验的原始包记录及字节，保留既有批次回放接口。
+
+单包语法错误记录包序号和包内位位置，继续保留其他包的结果，退出 `1` 并留下 `<REPORT.jsonl>.incomplete`。I/O 或目录完整性失败立即停止并保留已有的不完整输出；正常的 partial/unsupported 结果不会留下失败标记。报告结束前还会校验未选中的包。沿用 128 MiB 输出限额及拒绝覆盖机制；已验证的双声道 ASP 内嵌 preroll 上限为 4096 字节。
 
 **`decode`**：生成 `pcm.f32le` 和 `pcm.json`。PCM 是交错、小端 32 位浮点，保持输入采样率、声道数和布局。HOA 保留 ACN 顺序、SN3D/N3D 归一化和可确定的阶数。`start_frame=0` 指系统已经处理 priming 后的有效音频起点；请求到达文件尾部时实际帧数可少于请求帧数，超出尾部的起点报错。
 
@@ -179,6 +195,16 @@ python3 -B scripts/validate_replay.py \
 
 该脚本验证 15 个代表范围和 42 个短向量，均使用 1/7/64 包输入批次；短向量在删除临时原始音频后回放，并与 `afconvert` 交叉核对。保持比较器默认容差，报告逐位一致性及每项失败原因。整个流程不生成完整歌曲的参考 PCM。
 
+第六阶段的 SQ／ASP 前缀验收复用一份成功的第五阶段报告定位相同窗口，另生成 15 组短控制样本：
+
+```sh
+python3 -B scripts/validate_frames.py \
+  --replay-baseline reports/replay-validation-a76d2f4.json \
+  --output reports/frame-validation-new.json
+```
+
+脚本分别统计前缀目标和整包状态，并使用独立序列化规则与苹果解码器入口的实际读位位置核对结果。原生入口检查通过 Xcode 的 LLDB 启动本工具自己的回放进程，只读取状态；需要本机调试权限，当前固定验证 Apple Silicon 和指定组件哈希。组件改变或调试不可用会使验收明确失败，不影响 `parse-packets` 的跨平台实现。该原生跟踪不调用私有函数、不修改编码器或解码器状态。临时音频及跟踪产物按组清理。
+
 本机已保存验收报告、机器验证结果、样本清单和索引汇总，位于 `reports/`；这些输出包含本地来源信息，不纳入代码版本控制。可重新生成的双声道测试向量位于 `artifacts/fixtures/stereo/`，同样只在本地保留。研究文档仓库的 `docs/validation.md` 单独记录阶段总结。
 
 完整验收脚本仅使用 Python 标准库。再次运行需使用新的报告目录和测试向量目录：
@@ -196,7 +222,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
+当前工具已建立配置解析、SQ 帧前缀解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；LRVQ 前缀、频谱与其他帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
 
 ## 仓库与数据边界
 

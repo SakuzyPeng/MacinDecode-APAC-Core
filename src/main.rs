@@ -27,6 +27,17 @@ struct Cli {
 enum Command {
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
+    /// Inspect core frame prefixes from a validated packet bundle without Apple APIs.
+    ParsePackets {
+        directory: PathBuf,
+        #[arg(long)]
+        output: PathBuf,
+        /// Source packet index; omitted starts at the first stored packet, including preroll.
+        #[arg(long)]
+        start_packet: Option<u64>,
+        #[arg(long, default_value_t = 150)]
+        packets: u64,
+    },
     /// Collect deduplicated, hash-verified APAC cookies from an existing scan JSONL.
     CollectConfigs {
         manifest: PathBuf,
@@ -111,7 +122,7 @@ enum Command {
     },
 }
 
-fn run(cli: Cli) -> Result<(Value, bool)> {
+fn run(cli: Cli) -> Result<(Value, u8)> {
     let limit = cli
         .max_output_mib
         .checked_mul(1024 * 1024)
@@ -125,30 +136,47 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
     {
         let result = compare::compare(reference, candidate, *atol, *rtol)?;
         let passed = result.passed;
-        return Ok((serde_json::to_value(result)?, passed));
+        return Ok((serde_json::to_value(result)?, if passed { 0 } else { 2 }));
     }
     if let Command::ParseCookie { file } = &cli.command {
         let result = macindecode_apac_tools::config::parse_file(file)?;
         let complete = result.is_complete();
-        return Ok((serde_json::to_value(result)?, complete));
+        return Ok((serde_json::to_value(result)?, if complete { 0 } else { 2 }));
+    }
+    if let Command::ParsePackets {
+        directory,
+        output,
+        start_packet,
+        packets,
+    } = &cli.command
+    {
+        return macindecode_apac_tools::frame::parse_packets(
+            directory,
+            output,
+            *start_packet,
+            *packets,
+            limit,
+        );
     }
     #[cfg(not(target_os = "macos"))]
     {
         let _ = limit;
         Err(Error::new(
             "platform",
-            "this command requires macOS AudioToolbox; compare and parse-cookie are portable",
+            "this command requires macOS AudioToolbox; compare, parse-cookie and parse-packets are portable",
         ))
     }
     #[cfg(target_os = "macos")]
     {
         let result = match cli.command {
             Command::CollectConfigs { manifest, out } => {
-                return macindecode_apac_tools::collect::collect_configs(&manifest, &out, limit);
+                return macindecode_apac_tools::collect::collect_configs(&manifest, &out, limit)
+                    .map(|(value, passed)| (value, if passed { 0 } else { 2 }));
             }
             Command::Inspect { file } => serde_json::to_value(research::inspect(&file)?)?,
             Command::Scan { directory, output } => {
-                return research::scan(&directory, &output, limit);
+                return research::scan(&directory, &output, limit)
+                    .map(|(value, passed)| (value, if passed { 0 } else { 2 }));
             }
             Command::Dump {
                 file,
@@ -213,14 +241,16 @@ fn run(cli: Cli) -> Result<(Value, bool)> {
                     limit,
                 )?
             }
-            Command::Compare { .. } | Command::ParseCookie { .. } => unreachable!(),
+            Command::Compare { .. }
+            | Command::ParseCookie { .. }
+            | Command::ParsePackets { .. } => unreachable!(),
         };
-        Ok((result, true))
+        Ok((result, 0))
     }
 }
 fn main() {
     match run(Cli::parse()) {
-        Ok((value, passed)) => {
+        Ok((value, exit_code)) => {
             let mut stdout = std::io::stdout().lock();
             if let Err(e) = serde_json::to_writer_pretty(&mut stdout, &value)
                 .map_err(Error::from)
@@ -229,8 +259,8 @@ fn main() {
                 eprintln!("{e}");
                 std::process::exit(1);
             }
-            if !passed {
-                std::process::exit(2);
+            if exit_code != 0 {
+                std::process::exit(i32::from(exit_code));
             }
         }
         Err(error) => {

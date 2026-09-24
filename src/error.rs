@@ -11,6 +11,8 @@ pub struct Error {
     pub os_status_fourcc: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bit_offset: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub packet_index: Option<u64>,
 }
 
 impl Error {
@@ -21,6 +23,7 @@ impl Error {
             os_status: None,
             os_status_fourcc: None,
             bit_offset: None,
+            packet_index: None,
         }
     }
     pub fn native(operation: impl Into<String>, status: i32) -> Self {
@@ -35,6 +38,7 @@ impl Error {
             os_status: Some(status),
             os_status_fourcc: fourcc,
             bit_offset: None,
+            packet_index: None,
         }
     }
     pub fn io(operation: impl Into<String>, error: impl fmt::Display) -> Self {

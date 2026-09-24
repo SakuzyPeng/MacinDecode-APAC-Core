@@ -1,5 +1,5 @@
 //! Independent APAC cookie syntax inspection. No Apple APIs are used here.
-mod bits;
+pub(crate) mod bits;
 mod drc;
 mod hoa;
 mod parser;

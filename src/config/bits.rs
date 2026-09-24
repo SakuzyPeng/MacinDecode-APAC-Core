@@ -1,6 +1,6 @@
 use super::ParseError;
 
-/// MSB-first bounded reader; positions always refer to the original cookie.
+/// MSB-first bounded reader; positions always refer to the original input.
 pub struct BitReader<'a> {
     data: &'a [u8],
     position: usize,
@@ -19,6 +19,17 @@ impl<'a> BitReader<'a> {
     }
     pub fn remaining(&self) -> usize {
         self.end - self.position
+    }
+    pub fn skip(&mut self, width: usize) -> Result<(), ParseError> {
+        if width > self.remaining() {
+            return Err(ParseError::new(
+                self.position,
+                "truncated",
+                "skip exceeds input bounds",
+            ));
+        }
+        self.position += width;
+        Ok(())
     }
     pub fn read(&mut self, width: usize) -> Result<u64, ParseError> {
         if width > 64 {
@@ -69,6 +80,9 @@ mod tests {
         let before = r.position();
         assert!(r.read(1).is_err());
         assert_eq!(before, r.position());
+        assert!(r.skip(usize::MAX).is_err());
+        assert_eq!(before, r.position());
+        r.skip(0).unwrap();
         assert_eq!(BitReader::new(&[0xff; 8]).read(64).unwrap(), u64::MAX);
         assert!(BitReader::new(&[0; 16]).read(65).is_err());
     }

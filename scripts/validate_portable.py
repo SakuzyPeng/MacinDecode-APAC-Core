@@ -167,7 +167,7 @@ def check_pcm(binary, report, reference=None):
                     require(result['complete'] and result['numeric_profile'] == PROFILE
                             and result['experimental'] and not result['native_apis_used'], 'candidate identity mismatch')
                     require(result['numerical_qualification'] == 'independent_math_reference', 'wrong qualification')
-                    metadata = json.loads((root / 'pcm/pcm.json').read_text())
+                    metadata = json.loads((root / 'pcm/pcm.json').read_text(encoding="utf-8"))
                     implementation = metadata['decoder_settings']['implementation']['value']
                     require(implementation['tables_sha256'] == report['constant_model_sha256'],
                             'candidate constant fingerprint mismatch')
@@ -229,10 +229,10 @@ def main():
         parser.error('refusing to overwrite report')
     binary = args.binary.resolve(strict=True)
     report = dict(schema_version=1, numeric_profile=PROFILE, mode='bit_exact_replay' if args.reference_report else 'independent_math',
-                  code_commit=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True).strip(),
-                  tested_worktree_dirty=bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'], text=True).strip()),
+                  code_commit=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True, encoding="utf-8").strip(),
+                  tested_worktree_dirty=bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'], text=True, encoding="utf-8").strip()),
                   source_sha256=source_digest(), tables_sha256=sha256_file(ROOT / 'data/sq-math-v1.json'),
-                  constant_model_sha256=json.loads((ROOT / 'data/sq-math-v1.json').read_text())['tables_sha256'],
+                  constant_model_sha256=json.loads((ROOT / 'data/sq-math-v1.json').read_text(encoding="utf-8"))['tables_sha256'],
                   tool_sha256=sha256_file(binary), platform=platform.platform(), architecture=platform.machine(),
                   python=sys.version, started_utc=datetime.now(timezone.utc).isoformat(), atol=1e-6, rtol=1e-5,
                   implementation=None, spectra=[], pcm=[], errors=[], spectral_metrics=metrics())
@@ -241,7 +241,7 @@ def main():
         if args.reference_report:
             require(args.reference_report.stat().st_size <= LIMIT, 'reference report exceeds 128 MiB')
             report['reference_report_sha256'] = sha256_file(args.reference_report)
-            reference = json.loads(args.reference_report.read_text())
+            reference = json.loads(args.reference_report.read_text(encoding="utf-8"))
             validate_reference(reference, report)
         check_spectra(binary, report, reference)
         check_pcm(binary, report, reference)

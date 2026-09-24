@@ -23,7 +23,7 @@ class SpectrumTests(unittest.TestCase):
         bundle(self.root/'packets', payloads)
         return subprocess.run([str(self.binary), 'parse-packets', str(self.root/'packets'),
             '--depth', 'spectrum', '--output', str(self.root/'spectra.jsonl'), *args],
-            capture_output=True, text=True, timeout=30)
+            capture_output=True, text=True, encoding="utf-8", timeout=30)
 
     def metrics(self):
         return dict(max_absolute_error=0.0, max_ulp=0, coefficients=0)

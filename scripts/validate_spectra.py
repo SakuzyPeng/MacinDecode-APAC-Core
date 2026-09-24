@@ -71,10 +71,10 @@ def inspect(binary, path, root, count):
     summary = command(binary, 'parse-packets', path, '--depth','spectrum','--packets',count,'--output',output,allowed=(2,))
     require(summary['complete'] and summary['errors'] == 0, 'parser error')
     require(not output.with_name(output.name+'.incomplete').exists(), 'incomplete report')
-    rows = [json.loads(line) for line in output.read_text().splitlines()]
+    rows = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
     require(len(rows) == count == summary['actual_packets'], 'missing packets')
-    manifest = json.loads((path/'manifest.json').read_text())
-    index = [json.loads(line) for line in (path/'packets.jsonl').read_text().splitlines()]
+    manifest = json.loads((path/'manifest.json').read_text(encoding="utf-8"))
+    index = [json.loads(line) for line in (path/'packets.jsonl').read_text(encoding="utf-8").splitlines()]
     require(len(index) == count, 'index count differs')
     with (path/'packets.bin').open('rb') as data:
         for row, packet in zip(rows, index):
@@ -168,7 +168,7 @@ def native_cases():
 
 
 def real_cases(binary, baseline, report, metrics):
-    baseline=json.loads(baseline.read_text())
+    baseline=json.loads(baseline.read_text(encoding="utf-8"))
     require(baseline['passed'] and len(baseline['representatives'])==15,'requires successful replay baseline')
     for base in baseline['representatives']:
         record=dict(kind='representative',channels=base['channels'],range=base['range'],passed=False)
@@ -194,7 +194,7 @@ def real_cases(binary, baseline, report, metrics):
                 root=Path(tmp)
                 command(binary,'fixture','--out',root/'fixture','--signals',signal,'--duration',2,'--seed',1,'--max-output-mib',8,*extra)
                 case=root/'fixture'/signal
-                fixture=json.loads((case/'manifest.json').read_text())
+                fixture=json.loads((case/'manifest.json').read_text(encoding="utf-8"))
                 record['encoder']={k:fixture[k] for k in ['requested','actual_encoder_settings','drc_configuration_verified']}
                 if 'none' in extra:
                     require(fixture['drc_configuration_verified'] is True,'DRC none not verified')

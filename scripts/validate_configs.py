@@ -14,7 +14,7 @@ from validate import caf_payload, require, write_json
 
 
 def command(binary, *args, allowed=(0,)):
-    result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, timeout=120)
+    result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, encoding="utf-8", timeout=120)
     require(result.returncode in allowed, f"{args[0]} exited {result.returncode}: {result.stderr[-3000:]}")
     return result.returncode, json.loads(result.stdout or result.stderr)
 
@@ -280,8 +280,8 @@ def main():
     if args.hoa_baseline and counts != Counter({"complete": 64}):
         failures.append({"stage": "HOA coverage", "error": "expected all 64 configurations to be complete"})
     report = {"schema_version": 1, "finished_utc": datetime.now(timezone.utc).isoformat(),
-              "code_baseline": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
+              "code_baseline": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, encoding="utf-8").strip(),
+              "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True, encoding="utf-8").strip()),
               "collection": str(args.collection), "source_records": collection["source_records"],
               "configuration_count": len(collection["configs"]), "status_counts": dict(counts),
               "target_configurations": targets, "configurations": results, "controls": controls,

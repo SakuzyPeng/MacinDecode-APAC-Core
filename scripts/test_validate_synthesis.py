@@ -19,7 +19,7 @@ class SynthesisCliTests(unittest.TestCase):
         self.root=Path(self.tmp.name)
 
     def run_decoder(self, output='pcm', *extra):
-        return subprocess.run([str(self.binary),'decode-sq',str(self.root/'packets'),'--out',str(self.root/output),*extra],capture_output=True,text=True,timeout=30)
+        return subprocess.run([str(self.binary),'decode-sq',str(self.root/'packets'),'--out',str(self.root/output),*extra],capture_output=True,text=True, encoding="utf-8",timeout=30)
 
     def test_duration_channels_fingerprint_and_no_source_access(self):
         active,_=frame(dict(left={0:(1,[1,0,0,0],160)}))
@@ -73,6 +73,18 @@ class SynthesisCliTests(unittest.TestCase):
         self.assertEqual(result.returncode,1)
         self.assertTrue((self.root/'quota/.incomplete.json').exists())
         self.assertFalse((self.root/'quota/pcm.json').exists())
+
+    def test_unicode_error_output_is_decoded_completely(self):
+        zero, _ = frame({})
+        bundle(self.root/'packets', [zero])
+        name = '输出·PCM'
+        result = self.run_decoder(name)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.run_decoder(name)
+        self.assertEqual(result.returncode, 1)
+        error = json.loads(result.stderr)['error']
+        self.assertIn(name, error['operation'])
+        self.assertTrue(error['message'])
 
 
 if __name__=='__main__':unittest.main()

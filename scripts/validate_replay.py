@@ -23,7 +23,7 @@ def sha256_file(path):
 
 
 def command(binary, *args, allowed=(0,)):
-    result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, timeout=120)
+    result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, encoding="utf-8", timeout=120)
     require(result.returncode in allowed, f"{args[0]} returned {result.returncode}: {result.stderr[-4000:]}")
     return json.loads(result.stdout or result.stderr)
 
@@ -126,7 +126,7 @@ def short_vector(binary, signal, frames, records):
                                      info["packet_count"]["value"] + 3, "--with-preroll")
             caf = root / "afconvert.caf"
             result = subprocess.run(["/usr/bin/afconvert", str(source), str(caf), "-f", "caff", "-d", "LEF32"],
-                                    capture_output=True, text=True, timeout=120)
+                                    capture_output=True, text=True, encoding="utf-8", timeout=120)
             require(result.returncode == 0, f"afconvert failed: {result.stderr}")
             data, actual, channels, rate = caf_pcm(caf, 0, frames)
             require(actual == frames and channels == 2 and rate == 48000, "afconvert range/format mismatch")
@@ -167,9 +167,9 @@ def main():
     component = Path("/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs")
     component_sha = sha256_file(component)
     report = {"schema_version": 1, "started_utc": datetime.now(timezone.utc).isoformat(),
-              "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
-              "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
-              "system": subprocess.check_output(["sw_vers"], text=True).strip(), "architecture": platform.machine(),
+              "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, encoding="utf-8").strip(),
+              "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True, encoding="utf-8").strip()),
+              "system": subprocess.check_output(["sw_vers"], text=True, encoding="utf-8").strip(), "architecture": platform.machine(),
               "component_sha256": component_sha, "representative_baseline_sha256": hashlib.sha256(args.representatives.read_bytes()).hexdigest(),
               "atol": 1e-6, "rtol": 1e-5, "input_batches": [1, 7, 64],
               "representatives": [], "short_vectors": [], "failures": []}

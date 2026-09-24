@@ -7,6 +7,7 @@ No alignment search, gain adjustment, tolerance changes or implicit zero frames.
 import argparse
 from datetime import datetime, timezone
 import hashlib
+import itertools
 import json
 import math
 import os
@@ -38,6 +39,10 @@ def sequences():
     yield 'overlap_pressure',[{},high,high,{},{}]
     yield 'short_pressure',[{},dict(block=1),dict(high,block=2),dict(block=3),{},{}]
     yield 'mixed_windows',[{},dict(high,block=1,right_block=0),dict(block=2,right_block=0),dict(block=3,right_block=0),{},{}]
+    for values in itertools.product([-1,1],repeat=4):
+        signal=dict(gain=255,left={0:(1,list(values),255)})
+        yield 'heldout_sign_overlap',[{},signal,signal,{},{}]
+
 
 
 
@@ -52,7 +57,7 @@ def batch_cases(items, count=48):
         yield batch
 
 
-def run(binary, rate, batch, first_index, report, reference_fft=None):
+def run(binary, rate, batch, first_index, report, reference_fft=None, reference_mode="f64"):
     with tempfile.TemporaryDirectory(prefix='apac-synthesis-validation-') as tmp:
         root=Path(tmp)
         payloads=[frame(case)[0] for _,sequence in batch for case in sequence]
@@ -62,19 +67,33 @@ def run(binary, rate, batch, first_index, report, reference_fft=None):
             args=[name,root/'packets','--out',root/name]
             if name=='replay': args+=['--frames',len(payloads)*1024]
             if name=='replay' and reference_fft:
-                env=dict(os.environ,DYLD_INSERT_LIBRARIES=str(reference_fft),APAC_REFERENCE_FFT_AUDIT=str(root/'fft-audit.json'))
+                env=dict(os.environ,DYLD_INSERT_LIBRARIES=str(reference_fft),APAC_REFERENCE_FFT_AUDIT=str(root/'fft-audit.json'),APAC_REFERENCE_FFT_MODE=reference_mode)
                 result=subprocess.run([str(binary),*map(str,args)],env=env,capture_output=True,text=True,timeout=120)
                 require(result.returncode==0,result.stderr)
                 records[name]=json.loads(result.stdout)
                 audit=json.loads((root/'fft-audit.json').read_text())
-                require(audit['executions']>0 and audit['method']=='f64_dif_round_f32','reference DFT was not controlled')
+                require(audit['executions']>0 and audit['method']==('f64_dif_round_f32' if reference_mode=='f64' else 'vdsp_'+reference_mode),'reference DFT was not controlled')
                 report['reference_fft_executions']+=audit['executions']
             else:
                 records[name]=command(binary,*args)
+        backend=records['decode-sq'].get('backend')
+        profile=records['decode-sq'].get('numeric_profile')
+        require(isinstance(backend,str),'candidate backend was not reported')
+        if report.get('candidate') is None:
+            report['candidate']=backend
+            report['candidate_numeric_profile']=profile
+        require(report['candidate']==backend and report.get('candidate_numeric_profile')==profile,'candidate numerical profile changed')
         streams=[]
         for name in ['replay','decode-sq']:
             meta=json.loads((root/name/'pcm.json').read_text())
             require(meta['frames']==len(payloads)*1024 and meta['channels']==2 and meta['sample_rate']==rate and meta['all_finite'],'PCM shape mismatch')
+            if name=='replay':
+                settings=meta['decoder_settings']
+                for key in ['mdrc','^pro','ptlc','pptl']:
+                    require(settings[key]['error'] is None and settings[key]['value']==0, 'unexpected native processing setting: '+key)
+                if 'reference_decoder_settings' in report:
+                    require(report['reference_decoder_settings']==settings,'reference processing settings changed')
+                report['reference_decoder_settings']=settings
             data=(root/name/'pcm.f32le').read_bytes()
             require(hashlib.sha256(data).hexdigest()==meta['sha256'],'PCM hash mismatch')
             values=struct.unpack('<'+str(len(data)//4)+'f',data)
@@ -101,8 +120,10 @@ def main():
     parser.add_argument('--binary',type=Path,default=Path('target/debug/apac-tool'))
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--reference-fft',type=Path,help='Explicit diagnostic public-DFT replacement library; not unmodified Apple output.')
+    parser.add_argument('--reference-mode',choices=['f64','aligned64','offset16'],default='f64')
     parser.add_argument('--rates',type=int,nargs='+',default=[48000,44100])
     args=parser.parse_args()
+    if args.reference_mode!='f64' and not args.reference_fft:parser.error('alignment mode requires --reference-fft')
     if args.output.exists():parser.error('refusing to overwrite report')
     if sys.platform!='darwin':parser.error('Apple PCM reference validation requires macOS')
     binary=args.binary.resolve()
@@ -112,16 +133,21 @@ def main():
     report=dict(schema_version=1,component_sha256=component_sha,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
         tested_worktree_dirty=bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip()),
         tool_sha256=sha256_file(binary),started_utc=datetime.now(timezone.utc).isoformat(),atol=1e-6,rtol=1e-5,
-        reference='AudioToolbox with diagnostic Float64 DIF DFT' if reference_fft else 'unmodified AudioToolbox replay',
+        reference=('AudioToolbox with diagnostic Float64 DIF DFT' if args.reference_mode=='f64' else 'AudioToolbox vDSP with '+args.reference_mode+' output buffers') if reference_fft else 'unmodified AudioToolbox replay',
+        reference_mode=args.reference_mode if reference_fft else 'system',
         reference_fft_sha256=sha256_file(reference_fft) if reference_fft else None, reference_fft_executions=0,
-        candidate='rust_sq_f32_modulation_f64_fft_v1',cases=[],errors=[])
+        candidate=None,cases=[],errors=[])
     for rate in args.rates:
         first=0
         for batch in batch_cases(sequences()):
-            try:run(binary,rate,batch,first,report,reference_fft)
+            try:run(binary,rate,batch,first,report,reference_fft,args.reference_mode)
             except Exception as error:report['errors'].append(dict(rate=rate,first_case=first,error=str(error)))
             first+=len(batch)
             if first%480==0:print('PCM cases',rate,first,file=sys.stderr,flush=True)
+    if sha256_file(binary)!=report['tool_sha256']:
+        report['errors'].append({'error':'candidate executable changed during validation'})
+    if reference_fft and sha256_file(reference_fft)!=report['reference_fft_sha256']:
+        report['errors'].append({'error':'reference library changed during validation'})
     report.update(passed=not report['errors'] and all(c['passed'] for c in report['cases']),
         passed_cases=sum(c['passed'] for c in report['cases']),failed_cases=sum(not c['passed'] for c in report['cases']),
         max_absolute_error=max((c['max_absolute_error'] for c in report['cases']),default=0),finished_utc=datetime.now(timezone.utc).isoformat())

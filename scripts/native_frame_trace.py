@@ -24,9 +24,11 @@ SPECTRA = []
 RETURNS = {}
 CHANNEL_COUNT = 0
 TRACE_SPECTRA = False
+TRACE_WINDOWS = False
+WINDOWS = {}
 
 
-def trace_bundle(binary, bundle, root, spectra=False):
+def trace_bundle(binary, bundle, root, spectra=False, windows=False):
     output = root / "native-boundaries.json"
     if output.exists():
         raise RuntimeError("refusing to overwrite native boundary report")
@@ -37,6 +39,10 @@ def trace_bundle(binary, bundle, root, spectra=False):
         env["APAC_SPECTRUM_TRACE"] = "1"
     else:
         env.pop("APAC_SPECTRUM_TRACE", None)
+    if windows:
+        env["APAC_WINDOW_TRACE"] = "1"
+    else:
+        env.pop("APAC_WINDOW_TRACE", None)
     module = Path(__file__).resolve()
     replay = ["replay", str(bundle), "--out", str(root / "native-trace-pcm"), "--frames", str(frames)]
     process = subprocess.run(["xcrun", "lldb", "--batch", "-o", "command script import " + shlex.quote(str(module)),
@@ -120,6 +126,16 @@ def on_breakpoint(frame, location, _dict):
                 raise RuntimeError("native spectrum trace exceeded limit")
             return False
         kind = KINDS[bp_id]
+        if kind == "window":
+            if not WINDOWS:
+                instance = reg(frame, "x0")
+                for name, count, size_offset, pointer_offset in [("long", 1024, 0x28, 0x80), ("short", 128, 0x50, 0x78)]:
+                    actual = struct.unpack("<I", memory(frame, instance + size_offset, 4))[0]
+                    if actual != count:
+                        raise RuntimeError("unverified sine window size")
+                    pointer = struct.unpack("<Q", memory(frame, instance + pointer_offset, 8))[0]
+                    WINDOWS[name] = list(struct.unpack("<" + str(count) + "f", memory(frame, pointer, count * 4)))
+            return False
         if kind == "packet":
             base, size = reg(frame, "x1"), reg(frame, "x2")
             if not 0 < size <= 16 * 1024 * 1024:
@@ -161,7 +177,8 @@ def on_breakpoint(frame, location, _dict):
 
 
 def __lldb_init_module(debugger, _dict):
-    global TRACE_SPECTRA
+    global TRACE_SPECTRA, TRACE_WINDOWS
+    TRACE_WINDOWS = os.environ.get("APAC_WINDOW_TRACE") == "1"
     TRACE_SPECTRA = os.environ.get("APAC_SPECTRUM_TRACE") == "1"
     target = debugger.GetSelectedTarget()
     if not target.GetTriple().startswith("arm64"):
@@ -181,6 +198,8 @@ def __lldb_init_module(debugger, _dict):
         "sq_payload": r"^APACIndividualChannelStream::Deserialize\(",
         "cpe_reset": r"^APACChannelPairElement::Reset\(",
     }
+    if TRACE_WINDOWS:
+        points["window"] = r"^APACSynthesisFilterBank::FrequencyToTimeInPlace\("
     for kind, pattern in points.items():
         bp = target.BreakpointCreateByRegex(pattern)
         KINDS[bp.GetID()] = kind
@@ -200,5 +219,8 @@ def finish(debugger):
         if RETURNS:
             report["errors"].append("unreturned native channel streams")
         report["spectra"] = SPECTRA
+    if TRACE_WINDOWS:
+        report["method"] += "; read-only sine-window Float32 snapshots"
+        report["windows"] = WINDOWS
     with Path(os.environ["APAC_FRAME_TRACE_OUTPUT"]).open("x") as output:
         json.dump(report, output, indent=2)

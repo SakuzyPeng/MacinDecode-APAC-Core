@@ -2,7 +2,7 @@
 
 `apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀及 SQ 频谱解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
-参考音频编解码由 **macOS AudioToolbox** 完成。`decode-sq` 新增实验性的纯 Rust 受限 SQ PCM 后端，其完整数值兼容性验收尚未完成；`compare`、`parse-cookie`、`parse-packets` 和 `decode-sq` 的实现不调用苹果音频接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
+参考音频编解码由 **macOS AudioToolbox** 完成。`decode-sq` 新增实验性的纯 Rust 受限 SQ PCM 后端，采用明确的固定数值模型，系统默认 vDSP 输出的高幅度一致性另行统计；`compare`、`parse-cookie`、`parse-packets` 和 `decode-sq` 的实现不调用苹果音频接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
 ## 构建
 
@@ -172,9 +172,19 @@ PY
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
-库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float32 调制、窗口及舍入后的叠加状态，配合自行实现的 Float64 radix-2 FFT；没有 FFT 库依赖或运行时原生解码回退。
+库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float32 调制、带版本的 Float32 正弦窗和叠加状态，配合自行实现的 Float64 radix-2 FFT；没有 FFT 库依赖或运行时原生解码回退。
 
-当前保留 `experimental=true` 和数值验收待完成标识，PCM 元数据的 `decoder_settings.implementation` 也记录该信息。`complete` 只表示导出完整，**不表示高幅度压力矩阵已全部通过**。普通幅度的人工对照已通过，但苹果 DFT 路径和近似窗表与便携实现存在数值差异，强相消可以将其放大到固定容差之外；失败不会通过改增益、搜时延或放宽容差改记为通过。
+当前保留 `experimental=true`，`numerical_qualification=controlled_f64_fft_reference`；PCM 元数据的 `decoder_settings.implementation` 记录后端和数值配置。`complete` 只表示导出完整。固定 Float64 DFT 的诊断参考用于本阶段严格数值验收；默认 vDSP 参考保留独立报告，不以改增益、搜时延或放宽容差让它通过。
+
+数值配置 `apac-0800-stereo-sine-f32-26A428` 使用 `data/sq-sine-windows.json` 中的 1024／128 点上升半窗，下降半窗取逆序。数值来源为已验证 AudioCodecs 构建的 Float32 正弦窗，并附组件哈希；它是明确的数值兼容配置，不宣称所有 APAC 实现必须具有相同舍入。实现只携带数值常量，不携带组件二进制、反汇编或私有函数调用；跨平台运行不需要苹果系统文件。
+
+系数的逐位核对可重新运行：
+
+```sh
+python3 -B scripts/verify_sine_windows.py --output reports/sine-windows-new.json
+```
+
+该核对仅在匹配组件和 Apple Silicon 上通过 LLDB 读取自有回放进程中的窗值，不改解码状态；每种采样率核对完整的 1152 个系数。原始探针记录留在本地，代码中的数值配置单独版本管理。
 
 可复现默认苹果参考对照：
 
@@ -193,7 +203,17 @@ python3 -B scripts/validate_synthesis.py \
   --output reports/synthesis-controlled-new.json
 ```
 
-该库不参与正式构建，也不会由 `decode-sq` 自动加载。报告分别记录参考条件、组件／工具／诊断库哈希与实际 DFT 调用数；固定 DFT 后仍保留的跨帧压力差异也是未完成项。
+该库不参与正式构建，也不会由 `decode-sq` 自动加载。报告分别记录参考条件、组件／工具／诊断库哈希与实际 DFT 调用数；原有跨帧窗值差异已修正，矩阵另加入全部 16 种高增益四系数符号组合的相邻帧测试，两种采样率共 9948 个序列。
+
+同一个诊断库还支持 `--reference-mode aligned64` 或 `offset16`；这两个模式由原始 vDSP 完成运算，只控制其输出地址对齐。以下命令比较两条原生路径的容差区间：
+
+```sh
+python3 -B scripts/check_synthesis_reference.py \
+  --reference-fft target/research/sq-reference-fft.dylib \
+  --output reports/synthesis-reference-consistency-new.json
+```
+
+出现互不相交的区间时报告 `reference_consistent=false` 并退出 1：任何固定候选值都不可能同时满足两条原生路径。这是参考条件不唯一的证据，不会被合并成 Rust 的成功数或用于放宽比较容差。
 
 **`decode`**：生成 `pcm.f32le` 和 `pcm.json`。PCM 是交错、小端 32 位浮点，保持输入采样率、声道数和布局。HOA 保留 ACN 顺序、SN3D/N3D 归一化和可确定的阶数。`start_frame=0` 指系统已经处理 priming 后的有效音频起点；请求到达文件尾部时实际帧数可少于请求帧数，超出尾部的起点报错。
 

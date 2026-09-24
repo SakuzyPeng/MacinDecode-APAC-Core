@@ -8,6 +8,33 @@ use crate::{
 pub use bundle::decode_sq;
 use std::{f64::consts::PI, sync::OnceLock};
 
+pub const NUMERIC_PROFILE: &str = "apac-0800-stereo-sine-f32-26A428";
+
+/// Fixed, versioned numerical compatibility data. No native runtime is required.
+#[derive(serde::Deserialize)]
+struct SineWindows {
+    numeric_profile: String,
+    long: Vec<f32>,
+    short: Vec<f32>,
+}
+
+fn sine_windows() -> &'static SineWindows {
+    static WINDOWS: OnceLock<SineWindows> = OnceLock::new();
+    WINDOWS.get_or_init(|| {
+        let mut windows: SineWindows =
+            serde_json::from_str(include_str!("../../data/sq-sine-windows.json"))
+                .expect("built-in sine-window profile");
+        assert_eq!(windows.numeric_profile, NUMERIC_PROFILE);
+        for (values, n) in [(&mut windows.long, 1024), (&mut windows.short, 128)] {
+            assert_eq!(values.len(), n);
+            assert!(values.iter().all(|v| v.is_finite() && *v > 0. && *v < 1.));
+            assert!(values.windows(2).all(|w| w[0] < w[1]));
+            values.extend(values.clone().into_iter().rev());
+        }
+        windows
+    })
+}
+
 #[derive(Clone, Copy, Default)]
 struct Complex {
     re: f64,
@@ -119,14 +146,11 @@ fn imdct(input: &[f32]) -> Vec<f32> {
         .collect()
 }
 fn window(n: usize) -> &'static [f32] {
-    static LONG: OnceLock<Vec<f32>> = OnceLock::new();
-    static SHORT: OnceLock<Vec<f32>> = OnceLock::new();
-    let cell = if n == 1024 { &LONG } else { &SHORT };
-    cell.get_or_init(|| {
-        (0..2 * n)
-            .map(|i| (PI * (i as f64 + 0.5) / (2 * n) as f64).sin() as f32)
-            .collect()
-    })
+    if n == 1024 {
+        &sine_windows().long
+    } else {
+        &sine_windows().short
+    }
 }
 #[derive(Clone)]
 struct ChannelState {
@@ -319,6 +343,28 @@ impl SqDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn window_profile_preserves_float_bits_symmetry_and_complementarity() {
+        for (n, digest) in [
+            (
+                1024,
+                "1b44dedd53c577d9298b784de7c4ec346f939dbf1e0886de93aeb1d211c5587c",
+            ),
+            (
+                128,
+                "4a2c07e75def06dce3b3b106d6f14682f189cb62d65bdaca87a44220191cc638",
+            ),
+        ] {
+            let values = window(n);
+            let raw: Vec<u8> = values[..n].iter().flat_map(|v| v.to_le_bytes()).collect();
+            assert_eq!(crate::model::sha256(&raw), digest);
+            for i in 0..n {
+                assert_eq!(values[i].to_bits(), values[2 * n - 1 - i].to_bits());
+                let energy = f64::from(values[i]).powi(2) + f64::from(values[n - 1 - i]).powi(2);
+                assert!((energy - 1.).abs() < 2e-7);
+            }
+        }
+    }
     #[test]
     fn transform_matches_direct_definition() {
         for n in [128, 1024] {

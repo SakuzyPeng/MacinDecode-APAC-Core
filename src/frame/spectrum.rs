@@ -70,9 +70,9 @@ struct Node {
     children: [Option<usize>; 2],
     symbol: Option<usize>,
 }
-struct Trie(Vec<Node>);
+pub(super) struct Trie(Vec<Node>);
 impl Trie {
-    fn new(book: &Codebook) -> Self {
+    pub(super) fn new(book: &Codebook) -> Self {
         let mut nodes = vec![Node::default()];
         assert_eq!(book.codes.len(), book.bits.len());
         for (symbol, (&code, &width)) in book.codes.iter().zip(&book.bits).enumerate() {
@@ -94,7 +94,7 @@ impl Trie {
         }
         Self(nodes)
     }
-    fn read(&self, bits: &mut BitReader<'_>) -> Result<usize, ParseError> {
+    pub(super) fn read(&self, bits: &mut BitReader<'_>) -> Result<usize, ParseError> {
         let start = bits.position();
         let mut node = 0;
         loop {
@@ -178,7 +178,11 @@ fn inverse(q: i32, sf: i16) -> f32 {
     (if q < 0 { -magnitude } else { magnitude }) * gain
 }
 impl Parser<'_> {
-    fn stream(&mut self, ics: IcsInfo, channel_index: u8) -> Result<ChannelSpectrum, ParseError> {
+    pub(super) fn stream(
+        &mut self,
+        ics: IcsInfo,
+        channel_index: u8,
+    ) -> Result<ChannelSpectrum, ParseError> {
         let prefix = format!("components[0].tce[0].channels[{channel_index}]");
         let stream_bit_offset = self.bits.position();
         let global_gain = self.take(&format!("{prefix}.global_gain"), 8)? as u8;

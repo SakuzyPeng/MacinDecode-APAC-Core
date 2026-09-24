@@ -78,6 +78,8 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
             Property::known(json!({
                 "backend":super::BACKEND, "experimental":true,
                 "numeric_profile":super::NUMERIC_PROFILE,
+                "cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,
+                "cac_tables_sha256":crate::frame::cac_math_sha256(),
                 "qualification":super::QUALIFICATION,
                 "compiler":env!("APAC_BUILD_RUSTC"),
                 "debug_assertions":cfg!(debug_assertions),
@@ -87,7 +89,7 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
         all_finite: true,
     };
     out.json("pcm.json", &pcm)?;
-    let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"numerical_qualification":super::QUALIFICATION,"backend":super::BACKEND,"native_apis_used":false,
+    let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"numerical_qualification":super::QUALIFICATION,"backend":super::BACKEND,"native_apis_used":false,
         "packets":bundle.consumed_packets(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
     out.json("decode-sq.json", &report)?;
     out.complete()?;

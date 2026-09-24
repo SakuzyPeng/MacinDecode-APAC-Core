@@ -26,16 +26,19 @@ CHANNEL_COUNT = 0
 TRACE_SPECTRA = False
 TRACE_WINDOWS = False
 WINDOWS = {}
+TRACE_CAC = False
+CACS = []
+FRAME_READER = None
 
 
-def trace_bundle(binary, bundle, root, spectra=False, windows=False):
+def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False):
     output = root / "native-boundaries.json"
     if output.exists():
         raise RuntimeError("refusing to overwrite native boundary report")
     manifest = json.loads((bundle / "manifest.json").read_text())
     frames = manifest["file"]["packet_table"]["value"]["valid_frames"]
     env = dict(os.environ, APAC_FRAME_TRACE_OUTPUT=str(output))
-    if spectra:
+    if spectra or cac:
         env["APAC_SPECTRUM_TRACE"] = "1"
     else:
         env.pop("APAC_SPECTRUM_TRACE", None)
@@ -43,6 +46,10 @@ def trace_bundle(binary, bundle, root, spectra=False, windows=False):
         env["APAC_WINDOW_TRACE"] = "1"
     else:
         env.pop("APAC_WINDOW_TRACE", None)
+    if cac:
+        env['APAC_CAC_TRACE'] = '1'
+    else:
+        env.pop('APAC_CAC_TRACE', None)
     module = Path(__file__).resolve()
     replay = ["replay", str(bundle), "--out", str(root / "native-trace-pcm"), "--frames", str(frames)]
     process = subprocess.run(["xcrun", "lldb", "--batch", "-o", "command script import " + shlex.quote(str(module)),
@@ -105,7 +112,7 @@ def capture(frame, pointer, boundary):
 
 
 def on_breakpoint(frame, location, _dict):
-    global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT
+    global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT, FRAME_READER
     try:
         bp_id = location.GetBreakpoint().GetID()
         if bp_id in RETURNS:
@@ -113,6 +120,17 @@ def on_breakpoint(frame, location, _dict):
             frame.GetThread().GetProcess().GetTarget().BreakpointDelete(bp_id)
             if reg(frame, "w0") != 0:
                 raise RuntimeError("native channel stream rejected input")
+            if saved.get('kind') == 'cac':
+                event = saved['event']
+                position = reader(frame, saved['reader'])
+                if position != event['end_bit_offset']:
+                    raise RuntimeError('CAC transform consumed unexpected bits')
+                event['after'] = [list(struct.unpack('<1024f', memory(frame, p, 4096))) for p in saved['buffers']]
+                event['tns_start_bit_offset'] = position
+                CACS.append(event)
+                if len(CACS) > 8192:
+                    raise RuntimeError('CAC trace exceeded limit')
+                return False
             position = reader(frame, saved["reader"])
             if position is None:
                 raise RuntimeError("native stream reader changed identity")
@@ -144,7 +162,7 @@ def on_breakpoint(frame, location, _dict):
             CHANNEL_COUNT = 0
             CURRENT = {"end": base + size, "packet_bytes": size, "sequence": SEQUENCE,
                        "packet_sha256": hashlib.sha256(memory(frame, base, size)).hexdigest()}
-            PENDING = CORE_READER = None
+            PENDING = CORE_READER = FRAME_READER = None
         elif kind == "core":
             pointer = reg(frame, "x1")
             if reader(frame, pointer) is not None:
@@ -153,6 +171,40 @@ def on_breakpoint(frame, location, _dict):
             pointer = reg(frame, "x1")
             if reader(frame, pointer) is not None:
                 PENDING = {"reader": pointer, "ics": []}
+                FRAME_READER = pointer
+        elif kind == 'cac' and FRAME_READER is not None:
+            position = reader(frame, FRAME_READER)
+            if position is None:
+                return False
+            own_streams = [s for s in SPECTRA if s['sequence'] == CURRENT['sequence']]
+            if len(own_streams) != 2:
+                raise RuntimeError('CAC entered without two current-frame spectra')
+            info = ics_info(frame, reg(frame, 'x1'))
+            instance = reg(frame, 'x0')
+            runs = []
+            if info['max_sfb']:
+                arrays = []
+                for offset in (0x20, 0x38):
+                    first, end = struct.unpack('<QQ', memory(frame, instance+offset, 16))
+                    if end-first != 120:
+                        raise RuntimeError('unverified CAC run-vector layout')
+                    arrays.append(memory(frame, first, 120))
+                for value, repeat in zip(*arrays):
+                    runs.append(dict(gain_index=value, repeat_code=repeat))
+                    if repeat == 43:
+                        break
+                else:
+                    raise RuntimeError('native CAC runs have no terminal code')
+            buffers = [reg(frame, 'x2'), reg(frame, 'x3')]
+            event = dict(sequence=CURRENT['sequence'], packet_sha256=CURRENT['packet_sha256'],
+                         ics=info, runs=runs, start_bit_offset=own_streams[-1]['end_bit_offset'],
+                         end_bit_offset=position,
+                         before=[list(struct.unpack('<1024f', memory(frame, p, 4096))) for p in buffers])
+            target = frame.GetThread().GetProcess().GetTarget()
+            bp = target.BreakpointCreateByAddress(frame.GetThread().GetFrameAtIndex(1).GetPC())
+            bp.SetThreadID(frame.GetThread().GetThreadID())
+            RETURNS[bp.GetID()] = dict(kind='cac', reader=FRAME_READER, event=event, buffers=buffers)
+            bp.SetScriptCallbackFunction(__name__ + '.on_breakpoint')
         elif kind == "ics" and PENDING and reg(frame, "x1") == PENDING["reader"]:
             PENDING["ics"].append(reg(frame, "x0"))
         elif kind == "sq_payload":
@@ -177,9 +229,10 @@ def on_breakpoint(frame, location, _dict):
 
 
 def __lldb_init_module(debugger, _dict):
-    global TRACE_SPECTRA, TRACE_WINDOWS
+    global TRACE_SPECTRA, TRACE_WINDOWS, TRACE_CAC
     TRACE_WINDOWS = os.environ.get("APAC_WINDOW_TRACE") == "1"
     TRACE_SPECTRA = os.environ.get("APAC_SPECTRUM_TRACE") == "1"
+    TRACE_CAC = os.environ.get('APAC_CAC_TRACE') == '1'
     target = debugger.GetSelectedTarget()
     if not target.GetTriple().startswith("arm64"):
         raise RuntimeError("native boundary oracle is verified only for arm64 macOS")
@@ -200,6 +253,8 @@ def __lldb_init_module(debugger, _dict):
     }
     if TRACE_WINDOWS:
         points["window"] = r"^APACSynthesisFilterBank::FrequencyToTimeInPlace\("
+    if TRACE_CAC:
+        points['cac'] = r'^APACCACDecoder::ProcessCac\('
     for kind, pattern in points.items():
         bp = target.BreakpointCreateByRegex(pattern)
         KINDS[bp.GetID()] = kind
@@ -222,5 +277,8 @@ def finish(debugger):
     if TRACE_WINDOWS:
         report["method"] += "; read-only sine-window Float32 snapshots"
         report["windows"] = WINDOWS
+    if TRACE_CAC:
+        report['method'] += '; read-only CAC runs and pre/post spectra before TNS'
+        report['cac'] = CACS
     with Path(os.environ["APAC_FRAME_TRACE_OUTPUT"]).open("x") as output:
         json.dump(report, output, indent=2)

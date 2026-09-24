@@ -1,4 +1,4 @@
-use super::{FrameContext, parse_frame, parse_spectrum};
+use super::{FrameContext, parse_cac, parse_frame, parse_spectrum};
 use serde::Serialize;
 
 use crate::{
@@ -16,6 +16,7 @@ use std::{collections::BTreeMap, fs, io::Write, path::Path};
 pub enum ParseDepth {
     Prefix,
     Spectrum,
+    Cac,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -45,6 +46,7 @@ pub fn parse_packets_with_depth(
     depth: ParseDepth,
 ) -> Result<(Value, u8)> {
     let (mut spectra, mut left, mut right, mut absent) = (0u64, 0u64, 0u64, 0u64);
+    let (mut cac_complete, mut shared_ics) = (0u64, 0u64);
     if requested == 0 {
         return Err(Error::new("parse-packets", "packet count must be positive"));
     }
@@ -113,7 +115,22 @@ pub fn parse_packets_with_depth(
                 left += u64::from(!spectrum.channels.is_empty());
                 right += u64::from(spectrum.channels.len() == 2);
                 absent += u64::from(spectrum.frame.stop_reason == "cpe_absent");
-                (spectrum.frame.clone(), Some(spectrum))
+                (
+                    spectrum.frame.clone(),
+                    Some(serde_json::to_value(spectrum).expect("finite spectrum report")),
+                )
+            }),
+            ParseDepth::Cac => parse_cac(&context, &bytes).map(|cac| {
+                spectra += u64::from(cac.spectrum.spectrum_complete);
+                left += u64::from(!cac.spectrum.channels.is_empty());
+                right += u64::from(cac.spectrum.channels.len() == 2);
+                absent += u64::from(cac.spectrum.frame.stop_reason == "cpe_absent");
+                cac_complete += u64::from(cac.cac_complete);
+                shared_ics += u64::from(cac.shared_ics);
+                (
+                    cac.spectrum.frame.clone(),
+                    Some(serde_json::to_value(cac).expect("finite CAC report")),
+                )
             }),
         };
         let row = match result {
@@ -122,7 +139,7 @@ pub fn parse_packets_with_depth(
                 whole += u64::from(report.status == ParseStatus::Complete);
                 *stops.entry(report.stop_reason.clone()).or_default() += 1;
                 let report = if let Some(spectrum) = spectrum {
-                    serde_json::to_value(spectrum)?
+                    spectrum
                 } else {
                     serde_json::to_value(&report)?
                 };
@@ -167,12 +184,16 @@ pub fn parse_packets_with_depth(
         "prefix_complete_packets":prefixes, "all_prefixes_complete":prefixes == parsed,
         "whole_frame_complete_packets":whole, "errors":errors, "stops":stops,
         "exit_code":exit_code});
-    if depth == ParseDepth::Spectrum {
+    if depth != ParseDepth::Prefix {
         summary["depth"] = json!(depth);
         summary["spectrum_complete_packets"] = json!(spectra);
         summary["left_spectrum_packets"] = json!(left);
         summary["right_spectrum_packets"] = json!(right);
         summary["cpe_absent_packets"] = json!(absent);
+    }
+    if depth == ParseDepth::Cac {
+        summary["cac_complete_packets"] = json!(cac_complete);
+        summary["shared_ics_packets"] = json!(shared_ics);
     }
     Ok((summary, exit_code))
 }

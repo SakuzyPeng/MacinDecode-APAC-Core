@@ -810,3 +810,163 @@ mod synthesis_tests {
         assert!(SqDecoder::from_cookie(&c).is_err());
     }
 }
+
+mod cac_tests {
+    use super::*;
+    use macindecode_apac_tools::{
+        frame::{parse_cac, parse_spectrum},
+        synthesis::SqDecoder,
+    };
+
+    fn packet(block: u64, gain: usize) -> Vec<u8> {
+        let books: serde_json::Value =
+            serde_json::from_str(include_str!("../data/sq-codebooks.json")).unwrap();
+        let cac: serde_json::Value =
+            serde_json::from_str(include_str!("../data/cac-codebooks.json")).unwrap();
+        let mut b = Bits::default();
+        let short = block == 2;
+        b.fields(&[
+            (1, 2),
+            (1, 1),
+            (0, 1),
+            (block, 2),
+            (1, if short { 4 } else { 6 }),
+        ]);
+        if short {
+            b.put(0x55, 7);
+        }
+        b.put(160, 8);
+        for _ in 0..if short { 4 } else { 1 } {
+            b.fields(&[(1, 4), (1, if short { 3 } else { 5 })]);
+            b.put(
+                books["scalefactor"]["codes"][60].as_u64().unwrap(),
+                books["scalefactor"]["bits"][60].as_u64().unwrap() as usize,
+            );
+        }
+        for _ in 0..if short { 8 } else { 1 } {
+            b.put(
+                books["spectral"][0]["codes"][67].as_u64().unwrap(),
+                books["spectral"][0]["bits"][67].as_u64().unwrap() as usize,
+            );
+        }
+        b.fields(&[(1, 1), (160, 8)]);
+        for _ in 0..if short { 4 } else { 1 } {
+            b.fields(&[(0, 4), (1, if short { 3 } else { 5 })]);
+        }
+        b.put(
+            cac["gain"]["codes"][gain].as_u64().unwrap(),
+            cac["gain"]["bits"][gain].as_u64().unwrap() as usize,
+        );
+        b.put(0, 4); // terminal repeat
+        b.put(0, 4); // TNS/BWE2 flags
+        b.put(0, (8 - b.1 % 8) % 8);
+        b.put(0, 8);
+        b.0
+    }
+    #[test]
+    fn cac_preserves_legacy_spectrum_and_exposes_both_stages() {
+        for block in [0, 1, 2, 3] {
+            let bytes = packet(block, 9);
+            let original = parse_spectrum(&context(), &bytes).unwrap();
+            assert_eq!(original.channels.len(), 1);
+            assert_eq!(original.frame.stop_reason, "shared_ics_cac_deferred");
+            let result = parse_cac(&context(), &bytes).unwrap();
+            assert!(result.cac_complete && result.spectrum.spectrum_complete && result.shared_ics);
+            check_coverage(&bytes, &result.spectrum.frame);
+            assert_eq!(
+                result.spectrum.channels[0].quantized,
+                original.channels[0].quantized
+            );
+            assert!(
+                result.spectrum.channels[1]
+                    .quantized
+                    .iter()
+                    .all(|v| *v == 0)
+            );
+            assert_eq!(
+                result.channels_after_cac[0].scaled,
+                result.channels_after_cac[1].scaled
+            );
+            assert_eq!(
+                result.channels_after_cac[0].scaled[0],
+                (32768. * std::f64::consts::FRAC_1_SQRT_2) as f32
+            );
+            assert_eq!(
+                result.spectrum.frame.stop_bit_offset,
+                result.cac.as_ref().unwrap().end_bit_offset
+            );
+        }
+        let absent = parse_cac(&context(), &[0x40]).unwrap();
+        assert!(!absent.cac_complete && absent.channels_after_cac.is_empty());
+        let deferred = parse_cac(&context(), &[0x70]).unwrap();
+        assert!(!deferred.cac_complete && deferred.channels_after_cac.is_empty());
+    }
+    #[test]
+    fn cac_errors_leave_overlap_untouched_and_reset_is_exact() {
+        let cookie = cookie(3, 2, false);
+        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut reference = SqDecoder::from_cookie(&cookie).unwrap();
+        let first = actual.decode_frame(&packet(0, 9)).unwrap();
+        reference.decode_frame(&packet(0, 9)).unwrap();
+        let mut bad = packet(0, 34);
+        let end = parse_cac(&context(), &bad)
+            .unwrap()
+            .spectrum
+            .frame
+            .stop_bit_offset;
+        bad[end / 8] |= 1 << (7 - end % 8);
+        assert_eq!(actual.decode_frame(&bad).unwrap_err().bit_offset, Some(end));
+        assert!(actual.decode_frame(&packet(2, 26)).is_err());
+        assert!(actual.decode_frame(&bad[..bad.len() / 2]).is_err());
+        assert_eq!(
+            actual.decode_frame(&packet(0, 26)).unwrap(),
+            reference.decode_frame(&packet(0, 26)).unwrap()
+        );
+        actual.reset();
+        assert_eq!(actual.decode_frame(&packet(0, 9)).unwrap(), first);
+    }
+    #[test]
+    fn cac_truncation_tools_and_bit_mutations_preserve_boundaries() {
+        let good = packet(0, 34);
+        let report = parse_cac(&context(), &good).unwrap();
+        let start = report.cac.as_ref().unwrap().start_bit_offset;
+        let end = report.spectrum.frame.stop_bit_offset;
+        let cookie = cookie(3, 2, false);
+        for cut in 0..good.len() {
+            assert!(
+                SqDecoder::from_cookie(&cookie)
+                    .unwrap()
+                    .decode_frame(&good[..cut])
+                    .is_err()
+            );
+        }
+        for bit in end..end + 4 {
+            let mut bad = good.clone();
+            bad[bit / 8] |= 1 << (7 - bit % 8);
+            assert_eq!(
+                SqDecoder::from_cookie(&cookie)
+                    .unwrap()
+                    .decode_frame(&bad)
+                    .unwrap_err()
+                    .bit_offset,
+                Some(bit)
+            );
+        }
+        for bit in start..good.len() * 8 {
+            let mut changed = good.clone();
+            changed[bit / 8] ^= 1 << (7 - bit % 8);
+            match parse_cac(&context(), &changed) {
+                Ok(r) => {
+                    check_coverage(&changed, &r.spectrum.frame);
+                    assert!(
+                        r.channels_after_cac
+                            .iter()
+                            .flat_map(|c| &c.scaled)
+                            .all(|v| v.is_finite())
+                    );
+                }
+                Err(e) => assert!(e.bit_offset <= changed.len() * 8),
+            }
+        }
+    }
+}

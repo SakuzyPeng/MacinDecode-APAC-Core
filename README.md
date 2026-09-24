@@ -48,6 +48,8 @@ target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output arti
 target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes-75.jsonl --start-packet 75 --packets 8
 # 继续读取基础 SQ 频谱，输出量化整数和 CAC/TNS 之前的缩放后频谱
 target/debug/apac-tool parse-packets artifacts/demo/replay-packets --depth spectrum --output artifacts/demo/spectra.jsonl
+# 继续读取共享头右流与 CAC，输出 TNS 之前的左右频谱
+target/debug/apac-tool parse-packets artifacts/demo/replay-packets --depth cac --output artifacts/demo/cac.jsonl
 
 # 默认从有效音频起点解码 8192 帧；帧是所有声道共享的采样时刻
 target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/start
@@ -147,6 +149,30 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
 
+**CAC 深度**：`parse-packets --depth cac` 及 `frame::parse_cac(&FrameContext, &[u8]) -> Result<CacReport, config::ParseError>` 完成共享 ICS 下的右声道流与 CAC。原 `prefix`／`spectrum` 行为保持不变；`spectrum` 仍在共享头标志之后保留左流并停止。
+
+`CacReport.spectrum` 保存原始频谱报告，JSON 平铺其字段。`channels` 中的量化整数和 `scaled` 始终表示 CAC 前的编码流；`channels_after_cac` 才是左右声道的恢复频谱，标记为 `output_stage=scaled_after_cac_before_tns`。报告另含 `shared_ics`、`cac_complete`、`cac_numeric_profile`，以及 `cac` 中的游程、按组／频带展开的增益索引、CAC 起止位。逐声道 `end_bit_offset` 仍是原始流终点，外层 `stop_bit_offset` 为本深度的停止位置；整包状态仍为 partial，组件终点仍未知。
+
+独立声道头没有 CAC 载荷，`cac=null`，两路完整时按恒等处理完成该阶段；共享头的 `max_sfb=0` 不读取 CAC 码字，`cac.runs=[]`。CPE 缺席／LRVQ 等不产生虚构声道，`cac_complete=false`。汇总新增 `cac_complete_packets` 与 `shared_ics_packets`。
+
+CAC 共有 35 个增益索引及 44 个重复码；普通重复码 0..42 表示 1..43 槽，游程跨组连续，终止码 43（`0000`）最多覆盖剩余 44 槽。覆盖不足、普通游程耗尽／超过范围、缺少终止码、截断或超过 120 条记录均报错。增益索引 0 不变换；其余索引按 −12..+12 dB、1.5 dB 步长及正／负相关分支定义恢复矩阵。`apac-cac-math-v1` 使用 100／200 位 Decimal 公式生成的 Float64 系数，乘加分别舍入，输出一次转换为 Float32，再交给既有合成器。
+
+共享头人工包可独立生成：
+
+```sh
+python3 -B - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "scripts")
+from cac_vectors import frame
+from spectrum_vectors import bundle
+path = Path("artifacts/demo/shared-sq-packets")
+path.parent.mkdir(parents=True, exist_ok=True)
+cases = [{}, {"gain": 200, "cac_gain": 9, "left": {0: (1, [1, 0, 0, 0], 200)}}, {}, {}]
+bundle(path, [frame(case)[0] for case in cases])
+PY
+```
+
 **实验性 `decode-sq`**：从自包含包目录输出独立 PCM：
 
 ```sh
@@ -168,13 +194,13 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包只支持 ASP 类型 0/1、CPE 存在、SQ、独立右声道头，左右 TNS 与 BWE2 标志均为零；共享头、LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
+当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包支持 ASP 类型 0/1、CPE 存在、SQ、独立或共享声道头及已验证 CAC，左右 TNS 与 BWE2 标志均须为零；LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
 库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float64 调制、正弦窗、叠加状态和自行实现的 radix-2 DIT FFT；乘法与加法分别舍入，仅最终 PCM 转为 Float32，浮点零统一为正零。没有 FFT 库依赖或运行时原生解码回退。
 
-默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_f64_fft_v3`。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
+默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_cac_f64_fft_v4`，另记录 `cac_numeric_profile=apac-cac-math-v1` 与 CAC 常量摘要。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
 
 `data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
 
@@ -193,6 +219,20 @@ python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
 ```
 
 数学参考使用 Decimal 直接 IMDCT 求和，不读取生产数值表、不调用生产 FFT，也不把候选输出当作真值。PCM 仍按 `atol=1e-6, rtol=1e-5` 验收，另记录 ULP；频谱还要求符合分别舍入的精确结果。第二关必须使用同一提交、源码与常量指纹下成功的完整数学报告，逐位比较所有阶段；不以容差代替摘要一致。必需用例缺失、非有限数值、执行中二进制或源码变化均失败。
+
+新增 CAC 矩阵包含两采样率下共 2,912 个频谱用例、2,984 个 PCM 序列；它分别核对原始编码流、CAC 参数和边界、恢复后频谱以及 PCM。新旧矩阵独立运行，原有 17,800／9,948 用例及输出摘要保留。
+
+```sh
+python3 -B scripts/generate_cac_math.py --check
+python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --output reports/cac-math-new.json
+python3 -B scripts/validate_cac.py --binary target/release/apac-tool \
+  --reference-report reports/cac-math-new.json --output reports/cac-release-new.json
+# 可选：受组件哈希约束的原生参数／边界／频谱对照及真实控制样本
+python3 -B scripts/verify_cac_codebooks.py
+python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --native --output reports/cac-native-new.json
+```
+
+原生核对要求参数、位边界和全部单位幅度基向量通过。其他原生浮点差异记录在 `native_artificial[].numeric_passed`、误差指标及 `native_float_comparison_passed` 中，不删除压力案例、不放宽容差；独立数学与六构建逐位检查仍是硬性验收。真实样本单列 CAC 完成率和 PCM 的明确停止原因，后续工具关闭之前不能将 CAC 完成理解为整包可播放。
 
 Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
 
@@ -333,7 +373,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀及基础频谱解析和逐包苹果参考回放基准。参考解码使用 macOS AudioToolbox，受限独立 PCM 合成为实验状态；完整数值验收、CAC、TNS、BWE2、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC 和逐包苹果参考回放基准。独立公式数值模型已建立完整人工矩阵与三平台逐位验收，受限 PCM 仍保留实验标识；TNS、BWE2、ASP 内嵌 preroll 状态、DRC 增益、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

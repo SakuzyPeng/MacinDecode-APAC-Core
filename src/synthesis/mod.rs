@@ -4,11 +4,11 @@ mod bundle;
 use crate::{
     config::{self, bits::BitReader},
     error::{Error, Result},
-    frame::{FrameContext, parse_spectrum},
+    frame::{FrameContext, parse_cac},
 };
 pub use bundle::decode_sq;
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_f64_fft_v3";
+pub const BACKEND: &str = "rust_sq_cac_f64_fft_v4";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
@@ -169,7 +169,7 @@ impl ChannelState {
     }
 }
 
-/// Strict subset: two independent SQ channel streams, no tools or ancillary data.
+/// Strict subset: independent/shared SQ streams with CAC, no other tools or ancillary data.
 /// One packet produces exactly 1024 interleaved stereo frames. Errors do not advance state.
 pub struct SqDecoder {
     context: FrameContext,
@@ -223,12 +223,13 @@ impl SqDecoder {
         self.channels = [ChannelState::new(), ChannelState::new()];
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
-        let report = parse_spectrum(&self.context, packet).map_err(|e| {
+        let decoded = parse_cac(&self.context, packet).map_err(|e| {
             let mut error = Error::new("SQ spectrum", e.to_string());
             error.bit_offset = Some(e.bit_offset);
             error
         })?;
-        if !report.spectrum_complete {
+        let report = &decoded.spectrum;
+        if !decoded.cac_complete {
             return Err(Error::new(
                 "SQ decoder",
                 format!("unsupported frame: {}", report.frame.stop_reason),
@@ -269,11 +270,11 @@ impl SqDecoder {
         }
         let mut next = self.channels.clone();
         let left = next[0].render(
-            &report.channels[0].scaled,
+            &decoded.channels_after_cac[0].scaled,
             report.channels[0].ics.block_type,
         )?;
         let right = next[1].render(
-            &report.channels[1].scaled,
+            &decoded.channels_after_cac[1].scaled,
             report.channels[1].ics.block_type,
         )?;
         let mut output = Vec::with_capacity(2048);

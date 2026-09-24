@@ -1,6 +1,6 @@
 # MacinDecode APAC Research Tools
 
-`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
+`apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀及 SQ 频谱解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
 当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare`、`parse-cookie` 和 `parse-packets` 的实现不调用苹果接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
@@ -46,6 +46,8 @@ target/debug/apac-tool replay artifacts/demo/replay-packets --out artifacts/demo
 # 逐包解析默认双声道 SQ 帧头，报告仍保留未解析的音频载荷
 target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes.jsonl
 target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes-75.jsonl --start-packet 75 --packets 8
+# 继续读取基础 SQ 频谱，输出量化整数和 CAC/TNS 之前的缩放后频谱
+target/debug/apac-tool parse-packets artifacts/demo/replay-packets --depth spectrum --output artifacts/demo/spectra.jsonl
 
 # 默认从有效音频起点解码 8192 帧；帧是所有声道共享的采样时刻
 target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/start
@@ -133,6 +135,18 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 单包语法错误记录包序号和包内位位置，继续保留其他包的结果，退出 `1` 并留下 `<REPORT.jsonl>.incomplete`。I/O 或目录完整性失败立即停止并保留已有的不完整输出；正常的 partial/unsupported 结果不会留下失败标记。报告结束前还会校验未选中的包。沿用 128 MiB 输出限额及拒绝覆盖机制；已验证的双声道 ASP 内嵌 preroll 上限为 4096 字节。
 
+**SQ 频谱深度**：`parse-packets --depth spectrum` 沿相同配置范围继续解析 section、缩放因子、codebook 0–11、符号和逃逸。先完成左声道；独立右声道头分支完成右声道；共享头分支在标志之后以 `shared_ics_cac_deferred` 停止，保留左声道结果。两路完成后以 `sq_spectra_before_tools` 停止，尚未读取 TNS、ancillary 或组件尾部。ASP 内嵌 preroll 仍只按长度跳过，不输出其频谱。
+
+`report` 保留原有字段并增加 `spectrum_complete`、`spectral_stage=scaled_before_cac_tns` 和 `channels`。每声道记录 ICS、global gain、section、按组／频带排列的 `scale_factors`（零码本为 null）、1024 个 `quantized` 整数和 1024 个 `scaled` Float32 值，以及声道流起点、频谱码字起点和终点。短窗数组依次为八个 128 点窗口；长窗为一个 1024 点窗口。频带外的零值由语法确定，截断输入不会补零。
+
+`spectrum_complete=true` 只表示两路 SQ 流完成。CPE 缺席时 `channels=[]`、`spectrum_complete=false`，汇总单列 `cpe_absent_packets`；LRVQ 和范围外配置同样不伪造频谱。整包状态仍为 partial，通常退出 `2`。`prefix_complete` 保留原目标含义，`payload_bit_offset` 仍指左声道流起点，`component_end_bit_offset` 保持 null。汇总另列 `left_spectrum_packets`、`right_spectrum_packets` 和 `spectrum_complete_packets`。
+
+库入口 `frame::parse_spectrum(&FrameContext, &[u8]) -> Result<SpectrumReport, config::ParseError>` 提供类型化结果；`SpectrumReport.frame` 是原 `FrameReport`，JSON 序列化时平铺它。`parse_packets_with_depth(..., ParseDepth)` 提供包目录接口，原 `parse_frame`、`parse_packets` 及 CLI 默认 `--depth prefix` 保持原有行为。
+
+缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。反量化以 double 计算 `|q|^(4/3)`，转换为 Float32；缩放 `2^((sf-100)/4)` 独立转换为 Float32，再作 Float32 乘法。该数学路径不承诺与苹果查表逐位相同，以固定 `atol=1e-6, rtol=1e-5` 核对。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
+
+码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
+
 **`decode`**：生成 `pcm.f32le` 和 `pcm.json`。PCM 是交错、小端 32 位浮点，保持输入采样率、声道数和布局。HOA 保留 ACN 顺序、SN3D/N3D 归一化和可确定的阶数。`start_frame=0` 指系统已经处理 priming 后的有效音频起点；请求到达文件尾部时实际帧数可少于请求帧数，超出尾部的起点报错。
 
 不执行重采样、下混、归一化或自动增益匹配。参考解码保留系统默认设置，元数据记录能查询到的 `mdrc`、`^pro`、`ptlc`、`pptl`。编码器也记录请求参数和返回的 `brat`、`cdqu`、`cdrc`；这些是原始系统属性值，不能将 `brat=0` 等值解释为文件的实测平均码率。
@@ -205,6 +219,15 @@ python3 -B scripts/validate_frames.py \
 
 脚本分别统计前缀目标和整包状态，并使用独立序列化规则与苹果解码器入口的实际读位位置核对结果。原生入口检查通过 Xcode 的 LLDB 启动本工具自己的回放进程，只读取状态；需要本机调试权限，当前固定验证 Apple Silicon 和指定组件哈希。组件改变或调试不可用会使验收明确失败，不影响 `parse-packets` 的跨平台实现。该原生跟踪不调用私有函数、不修改编码器或解码器状态。临时音频及跟踪产物按组清理。
 
+第七阶段的频谱验收可以在已构建工具的任何受支持平台运行；`--native` 额外启用当前 macOS 组件的只读频谱快照和真实／控制窗口验收：
+
+```sh
+python3 -B scripts/validate_spectra.py --output reports/spectrum-portable-new.json
+python3 -B scripts/validate_spectra.py --native --output reports/spectrum-native-new.json
+```
+
+便携矩阵在两种采样率下分别验证全部 4730 组码字／增益／逃逸条件，以及全部长短窗频带、左右位置、多 section、跨组缩放因子和负缩放因子。原生快照另选取全部增益／逃逸边界及代表码本／频带位置，读取声道流返回点的原始频谱；报告披露实际数量。真实样本允许共享头／CAC 明确停止，并分别统计左右声道覆盖率。验证脚本只使用标准库，人工生成器和正式测试不依赖 `docs/local/`；原生模式还需要已有的第五阶段成功报告定位代表源文件。大型矩阵只保留计数、误差、哈希及失败原因，临时频谱和参考 PCM 逐批清理。
+
 本机已保存验收报告、机器验证结果、样本清单和索引汇总，位于 `reports/`；这些输出包含本地来源信息，不纳入代码版本控制。可重新生成的双声道测试向量位于 `artifacts/fixtures/stereo/`，同样只在本地保留。研究文档仓库的 `docs/validation.md` 单独记录阶段总结。
 
 完整验收脚本仅使用 Python 标准库。再次运行需使用新的报告目录和测试向量目录：
@@ -222,7 +245,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；LRVQ 前缀、频谱与其他帧载荷解析、独立音频解码、空间渲染和实时播放属于后续阶段。
+当前工具已建立配置解析、SQ 帧前缀及基础频谱解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；CAC、TNS、LRVQ 与其他帧载荷解析、独立 PCM 解码、空间渲染和实时播放属于后续阶段。
 
 ## 仓库与数据边界
 

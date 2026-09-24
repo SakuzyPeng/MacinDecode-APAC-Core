@@ -1,4 +1,6 @@
-use super::{FrameContext, parse_frame};
+use super::{FrameContext, parse_frame, parse_spectrum};
+use serde::Serialize;
+
 use crate::{
     config::ParseStatus,
     error::{Error, Result},
@@ -9,6 +11,13 @@ use crate::{
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs, io::Write, path::Path};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum ParseDepth {
+    Prefix,
+    Spectrum,
+}
+
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
 pub fn parse_packets(
     directory: &Path,
@@ -17,6 +26,25 @@ pub fn parse_packets(
     requested: u64,
     limit: u64,
 ) -> Result<(Value, u8)> {
+    parse_packets_with_depth(
+        directory,
+        output,
+        start,
+        requested,
+        limit,
+        ParseDepth::Prefix,
+    )
+}
+
+pub fn parse_packets_with_depth(
+    directory: &Path,
+    output: &Path,
+    start: Option<u64>,
+    requested: u64,
+    limit: u64,
+    depth: ParseDepth,
+) -> Result<(Value, u8)> {
+    let (mut spectra, mut left, mut right, mut absent) = (0u64, 0u64, 0u64, 0u64);
     if requested == 0 {
         return Err(Error::new("parse-packets", "packet count must be positive"));
     }
@@ -78,14 +106,29 @@ pub fn parse_packets(
             continue;
         }
         eprintln!("parse packet {}", packet.packet_index);
-        let row = match parse_frame(&context, &bytes) {
-            Ok(report) => {
+        let result = match depth {
+            ParseDepth::Prefix => parse_frame(&context, &bytes).map(|frame| (frame, None)),
+            ParseDepth::Spectrum => parse_spectrum(&context, &bytes).map(|spectrum| {
+                spectra += u64::from(spectrum.spectrum_complete);
+                left += u64::from(!spectrum.channels.is_empty());
+                right += u64::from(spectrum.channels.len() == 2);
+                absent += u64::from(spectrum.frame.stop_reason == "cpe_absent");
+                (spectrum.frame.clone(), Some(spectrum))
+            }),
+        };
+        let row = match result {
+            Ok((report, spectrum)) => {
                 prefixes += u64::from(report.prefix_complete);
                 whole += u64::from(report.status == ParseStatus::Complete);
                 *stops.entry(report.stop_reason.clone()).or_default() += 1;
+                let report = if let Some(spectrum) = spectrum {
+                    serde_json::to_value(spectrum)?
+                } else {
+                    serde_json::to_value(&report)?
+                };
                 json!({"schema_version": SCHEMA_VERSION, "packet_index":packet.packet_index,
                     "export_offset":packet.export_offset, "frames":packet.frames,
-                    "raw_frame_position":packet.raw_frame_position, "status":report.status,
+                    "raw_frame_position":packet.raw_frame_position, "status":report["status"],
                     "report":report})
             }
             Err(error) => {
@@ -117,14 +160,19 @@ pub fn parse_packets(
     } else {
         2
     };
-    Ok((
-        json!({"schema_version":SCHEMA_VERSION, "complete":errors == 0,
+    let mut summary = json!({"schema_version":SCHEMA_VERSION, "complete":errors == 0,
         "bundle":directory, "output":output, "context":context,
         "start_packet":start, "requested_packets":requested, "actual_packets":parsed,
         "clipped_at_bundle_end":end - start < requested,
         "prefix_complete_packets":prefixes, "all_prefixes_complete":prefixes == parsed,
         "whole_frame_complete_packets":whole, "errors":errors, "stops":stops,
-        "exit_code":exit_code}),
-        exit_code,
-    ))
+        "exit_code":exit_code});
+    if depth == ParseDepth::Spectrum {
+        summary["depth"] = json!(depth);
+        summary["spectrum_complete_packets"] = json!(spectra);
+        summary["left_spectrum_packets"] = json!(left);
+        summary["right_spectrum_packets"] = json!(right);
+        summary["cpe_absent_packets"] = json!(absent);
+    }
+    Ok((summary, exit_code))
 }

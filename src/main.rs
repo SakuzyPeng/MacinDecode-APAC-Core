@@ -27,9 +27,11 @@ struct Cli {
 enum Command {
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
-    /// Inspect core frame prefixes from a validated packet bundle without Apple APIs.
+    /// Inspect SQ prefixes or pre-tool spectra from a validated packet bundle.
     ParsePackets {
         directory: PathBuf,
+        #[arg(long, value_enum, default_value_t = macindecode_apac_tools::frame::ParseDepth::Prefix)]
+        depth: macindecode_apac_tools::frame::ParseDepth,
         #[arg(long)]
         output: PathBuf,
         /// Source packet index; omitted starts at the first stored packet, including preroll.
@@ -144,18 +146,20 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
         return Ok((serde_json::to_value(result)?, if complete { 0 } else { 2 }));
     }
     if let Command::ParsePackets {
+        depth,
         directory,
         output,
         start_packet,
         packets,
     } = &cli.command
     {
-        return macindecode_apac_tools::frame::parse_packets(
+        return macindecode_apac_tools::frame::parse_packets_with_depth(
             directory,
             output,
             *start_packet,
             *packets,
             limit,
+            *depth,
         );
     }
     #[cfg(not(target_os = "macos"))]

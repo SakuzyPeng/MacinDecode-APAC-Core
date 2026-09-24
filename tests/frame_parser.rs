@@ -509,3 +509,152 @@ mod bundles {
         assert!(!t.0.join("bad.jsonl").exists());
     }
 }
+
+mod spectrum_tests {
+    use super::*;
+    use macindecode_apac_tools::frame::parse_spectrum;
+
+    fn book(name: &str) -> serde_json::Value {
+        serde_json::from_str::<serde_json::Value>(include_str!("../data/sq-codebooks.json"))
+            .unwrap()[name]
+            .clone()
+    }
+    fn delta(b: &mut Bits, value: i16) {
+        let table = book("scalefactor");
+        let i = (value + 60) as usize;
+        b.put(
+            table["codes"][i].as_u64().unwrap(),
+            table["bits"][i].as_u64().unwrap() as usize,
+        );
+    }
+    fn left(max_sfb: u64, gain: u64) -> Bits {
+        let mut b = Bits::default();
+        b.fields(&[(1, 2), (1, 1), (0, 1), (0, 2), (max_sfb, 6), (gain, 8)]);
+        b
+    }
+    #[test]
+    fn spectrum_completion_is_separate_and_shared_ics_preserves_left_only() {
+        for shared in [0, 1] {
+            let mut b = left(1, 160);
+            b.fields(&[(0, 4), (1, 5), (shared, 1)]);
+            if shared == 0 {
+                b.fields(&[(2, 2), (0, 4), (0x55, 7), (160, 8)]);
+            }
+            let end = b.1;
+            let bytes = b.opaque();
+            let parsed = parse_spectrum(&context(), &bytes).unwrap();
+            check_coverage(&bytes, &parsed.frame);
+            assert_eq!(parsed.frame.payload_bit_offset, Some(12));
+            assert_eq!(parsed.frame.stop_bit_offset, end);
+            assert_eq!(parsed.spectrum_complete, shared == 0);
+            assert_eq!(parsed.channels.len(), if shared == 0 { 2 } else { 1 });
+            assert!(
+                parsed
+                    .channels
+                    .iter()
+                    .all(|c| c.quantized == vec![0; 1024] && c.scaled == vec![0.; 1024])
+            );
+            assert_eq!(
+                parsed.frame.stop_reason,
+                if shared == 0 {
+                    "sq_spectra_before_tools"
+                } else {
+                    "shared_ics_cac_deferred"
+                }
+            );
+        }
+        for bytes in [&[0x40u8][..], &[0x70][..], &[0xa0][..]] {
+            let parsed = parse_spectrum(&context(), bytes).unwrap();
+            assert!(parsed.channels.is_empty());
+            assert!(!parsed.spectrum_complete);
+        }
+    }
+    #[test]
+    fn invalid_sections_scalefactors_and_right_truncations_are_errors() {
+        for (cb, length, kind) in [
+            (12, 1, "codebook"),
+            (1, 0, "section-length"),
+            (1, 2, "section-length"),
+        ] {
+            let mut b = left(1, 160);
+            b.fields(&[(cb, 4), (length, 5)]);
+            let e = parse_spectrum(&context(), &b.opaque()).unwrap_err();
+            assert_eq!(e.kind, kind);
+            assert!(e.bit_offset >= 20);
+        }
+        for (gain, deltas) in [(255, vec![1]), (0, vec![-60, -60, -60, -60, -17])] {
+            let mut b = left(deltas.len() as u64, gain);
+            b.fields(&[(1, 4), (deltas.len() as u64, 5)]);
+            for d in deltas {
+                delta(&mut b, d);
+            }
+            assert_eq!(
+                parse_spectrum(&context(), &b.opaque()).unwrap_err().kind,
+                "scale-factor"
+            );
+        }
+        // A prefix can be complete while the spectral body is truncated.
+        assert!(
+            parse_frame(&context(), &[0x60, 0x10])
+                .unwrap()
+                .prefix_complete
+        );
+        assert_eq!(
+            parse_spectrum(&context(), &[0x60, 0x10]).unwrap_err().kind,
+            "truncated"
+        );
+        let mut b = left(0, 160);
+        b.fields(&[
+            (0, 1),
+            (2, 2),
+            (14, 4),
+            (0, 7),
+            (160, 8),
+            (0, 4),
+            (7, 3),
+            (7, 3),
+            (0, 3),
+        ]);
+        let bytes = b.opaque();
+        for end in 2..bytes.len() - 1 {
+            assert!(parse_spectrum(&context(), &bytes[..end]).is_err());
+        }
+    }
+    #[test]
+    fn minimum_scale_factor_is_accepted_without_saturation() {
+        let mut b = left(5, 0);
+        b.fields(&[(1, 4), (5, 5)]);
+        for d in [-60, -60, -60, -60, -16] {
+            delta(&mut b, d);
+        }
+        let spectral = book("spectral");
+        // Five four-line bands, each with the all-zero signed tuple.
+        for _ in 0..5 {
+            b.put(
+                spectral[0]["codes"][40].as_u64().unwrap(),
+                spectral[0]["bits"][40].as_u64().unwrap() as usize,
+            );
+        }
+        b.put(1, 1);
+        let report = parse_spectrum(&context(), &b.opaque()).unwrap();
+        assert_eq!(
+            report.channels[0].scale_factors[0],
+            vec![Some(-60), Some(-120), Some(-180), Some(-240), Some(-256)]
+        );
+        assert_eq!(report.channels[0].scaled, vec![0.; 1024]);
+    }
+    #[test]
+    fn spectrum_mutations_never_panic_or_claim_whole_frames() {
+        for value in 0..=u16::MAX {
+            let mut bytes = value.to_be_bytes().to_vec();
+            bytes.extend([0; 16]);
+            match parse_spectrum(&context(), &bytes) {
+                Ok(report) => {
+                    check_coverage(&bytes, &report.frame);
+                    assert!(report.channels.len() <= 2);
+                }
+                Err(error) => assert!(error.bit_offset <= bytes.len() * 8),
+            }
+        }
+    }
+}

@@ -20,15 +20,23 @@ CURRENT = None
 PENDING = None
 CORE_READER = None
 SEQUENCE = -1
+SPECTRA = []
+RETURNS = {}
+CHANNEL_COUNT = 0
+TRACE_SPECTRA = False
 
 
-def trace_bundle(binary, bundle, root):
+def trace_bundle(binary, bundle, root, spectra=False):
     output = root / "native-boundaries.json"
     if output.exists():
         raise RuntimeError("refusing to overwrite native boundary report")
     manifest = json.loads((bundle / "manifest.json").read_text())
     frames = manifest["file"]["packet_table"]["value"]["valid_frames"]
     env = dict(os.environ, APAC_FRAME_TRACE_OUTPUT=str(output))
+    if spectra:
+        env["APAC_SPECTRUM_TRACE"] = "1"
+    else:
+        env.pop("APAC_SPECTRUM_TRACE", None)
     module = Path(__file__).resolve()
     replay = ["replay", str(bundle), "--out", str(root / "native-trace-pcm"), "--frames", str(frames)]
     process = subprocess.run(["xcrun", "lldb", "--batch", "-o", "command script import " + shlex.quote(str(module)),
@@ -38,7 +46,7 @@ def trace_bundle(binary, bundle, root):
         raise RuntimeError("native boundary trace failed: " + (process.stdout + process.stderr)[-2000:])
     result = json.loads(output.read_text())
     if result["errors"] or result["process_exit_code"] != 0:
-        raise RuntimeError("native boundary trace incomplete: " + json.dumps(result))
+        raise RuntimeError("native boundary trace incomplete: " + json.dumps({k: result[k] for k in ["errors", "process_exit_code", "packet_calls"]}))
     return result
 
 
@@ -91,14 +99,33 @@ def capture(frame, pointer, boundary):
 
 
 def on_breakpoint(frame, location, _dict):
-    global CURRENT, PENDING, CORE_READER, SEQUENCE
+    global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT
     try:
-        kind = KINDS[location.GetBreakpoint().GetID()]
+        bp_id = location.GetBreakpoint().GetID()
+        if bp_id in RETURNS:
+            saved = RETURNS.pop(bp_id)
+            frame.GetThread().GetProcess().GetTarget().BreakpointDelete(bp_id)
+            if reg(frame, "w0") != 0:
+                raise RuntimeError("native channel stream rejected input")
+            position = reader(frame, saved["reader"])
+            if position is None:
+                raise RuntimeError("native stream reader changed identity")
+            first, end = struct.unpack("<QQ", memory(frame, saved["stream"] + 0x2f0, 16))
+            if end - first != 4096:
+                raise RuntimeError("unverified native spectrum size")
+            values = list(struct.unpack("<1024f", memory(frame, first, 4096)))
+            SPECTRA.append(dict(sequence=CURRENT["sequence"], packet_sha256=CURRENT["packet_sha256"],
+                channel_index=saved["channel_index"], stream_bit_offset=saved["start"], end_bit_offset=position, scaled=values))
+            if len(SPECTRA) > 8192:
+                raise RuntimeError("native spectrum trace exceeded limit")
+            return False
+        kind = KINDS[bp_id]
         if kind == "packet":
             base, size = reg(frame, "x1"), reg(frame, "x2")
             if not 0 < size <= 16 * 1024 * 1024:
                 raise RuntimeError("unexpected native packet size")
             SEQUENCE += 1
+            CHANNEL_COUNT = 0
             CURRENT = {"end": base + size, "packet_bytes": size, "sequence": SEQUENCE,
                        "packet_sha256": hashlib.sha256(memory(frame, base, size)).hexdigest()}
             PENDING = CORE_READER = None
@@ -112,8 +139,19 @@ def on_breakpoint(frame, location, _dict):
                 PENDING = {"reader": pointer, "ics": []}
         elif kind == "ics" and PENDING and reg(frame, "x1") == PENDING["reader"]:
             PENDING["ics"].append(reg(frame, "x0"))
-        elif kind == "sq_payload" and PENDING:
-            capture(frame, reg(frame, "x1"), "sq_left_channel_stream")
+        elif kind == "sq_payload":
+            pointer = reg(frame, "x1")
+            position = reader(frame, pointer)
+            if TRACE_SPECTRA and position is not None:
+                target = frame.GetThread().GetProcess().GetTarget()
+                address = frame.GetThread().GetFrameAtIndex(1).GetPC()
+                bp = target.BreakpointCreateByAddress(address)
+                bp.SetThreadID(frame.GetThread().GetThreadID())
+                RETURNS[bp.GetID()] = dict(reader=pointer, stream=reg(frame, "x0"), start=position, channel_index=CHANNEL_COUNT)
+                CHANNEL_COUNT += 1
+                bp.SetScriptCallbackFunction(__name__ + ".on_breakpoint")
+            if PENDING:
+                capture(frame, pointer, "sq_left_channel_stream")
         elif kind == "cpe_reset" and CORE_READER is not None and PENDING is None:
             capture(frame, CORE_READER, "cpe_absent")
         return False
@@ -123,6 +161,8 @@ def on_breakpoint(frame, location, _dict):
 
 
 def __lldb_init_module(debugger, _dict):
+    global TRACE_SPECTRA
+    TRACE_SPECTRA = os.environ.get("APAC_SPECTRUM_TRACE") == "1"
     target = debugger.GetSelectedTarget()
     if not target.GetTriple().startswith("arm64"):
         raise RuntimeError("native boundary oracle is verified only for arm64 macOS")
@@ -155,5 +195,10 @@ def finish(debugger):
               "method": "LLDB read-only bit-reader and ICS snapshots at native function entries",
               "process_exit_code": exit_code,
               "packet_calls": SEQUENCE + 1, "events": EVENTS, "errors": ERRORS}
+    if TRACE_SPECTRA:
+        report["method"] = "LLDB read-only prefix entries and channel-return bit-reader / Float32 spectrum snapshots"
+        if RETURNS:
+            report["errors"].append("unreturned native channel streams")
+        report["spectra"] = SPECTRA
     with Path(os.environ["APAC_FRAME_TRACE_OUTPUT"]).open("x") as output:
         json.dump(report, output, indent=2)

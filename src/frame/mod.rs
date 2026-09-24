@@ -1,6 +1,8 @@
-//! Bounded stereo SQ prefixes and ASP framing. Spectral payloads are not decoded.
+//! Bounded stereo SQ prefixes, ASP framing and spectra before CAC/TNS.
 mod bundle;
-pub use bundle::parse_packets;
+mod spectrum;
+pub use bundle::{ParseDepth, parse_packets, parse_packets_with_depth};
+pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 
 use crate::{
     config::{self, ConfigField, Diagnostic, ParseError, ParseStatus, bits::BitReader},
@@ -233,7 +235,7 @@ impl Parser<'_> {
         self.derived("core_frame_start_bit", json!(self.bits.position()));
         Ok(None)
     }
-    fn ics(&mut self, prefix: &str) -> Result<(), ParseError> {
+    fn ics(&mut self, prefix: &str) -> Result<IcsInfo, ParseError> {
         let block = self.take(&format!("{prefix}.block_type"), 2)?;
         // The two supported rates both initialize long/short limits to 49/14.
         let short = block == 2;
@@ -267,7 +269,11 @@ impl Parser<'_> {
             format!("{prefix}.active_group_count"),
             json!(if max_sfb == 0 { 0 } else { groups.len() }),
         );
-        Ok(())
+        Ok(IcsInfo {
+            block_type: block as u8,
+            max_sfb: max_sfb as usize,
+            window_groups: groups,
+        })
     }
     fn finish(
         mut self,

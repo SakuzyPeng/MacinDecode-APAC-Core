@@ -209,6 +209,90 @@ fn corrupt_cookie_is_rejected_even_if_its_hash_is_updated() {
 }
 
 #[test]
+fn known_cookie_duration_constrains_unspecified_packet_timing() {
+    let t = Temp::new();
+    t.build(1, 2, 4, true);
+    // Synthetic partial cookie: 48 kHz stereo, 1024 samples per frame;
+    // stop at the unimplemented global.flag_c after these confirmed fields.
+    let mut cookie = b"\x00\x00\x00\x00dapa\x00\x00\x00\x00".to_vec();
+    let mut bit = 96;
+    for (value, width) in [
+        (0x0800u64, 16),
+        (31, 6),
+        (2, 4),
+        (0, 1),
+        (3, 6),
+        (0, 6),
+        (2, 8),
+        (2, 8),
+        (1, 1),
+    ] {
+        for shift in (0..width).rev() {
+            if bit / 8 == cookie.len() {
+                cookie.push(0);
+            }
+            cookie[bit / 8] |= (((value >> shift) & 1) as u8) << (7 - bit % 8);
+            bit += 1;
+        }
+    }
+    let size = cookie.len() as u32;
+    cookie[..4].copy_from_slice(&size.to_be_bytes());
+    let parsed = macindecode_apac_tools::config::parse_cookie(&cookie).unwrap();
+    assert_eq!(
+        parsed.status,
+        macindecode_apac_tools::config::ParseStatus::Partial
+    );
+    assert_eq!(parsed.derived["frame_samples"], 1024);
+    fs::write(t.0.join("cookie.bin"), &cookie).unwrap();
+    let mut original = t.read_manifest();
+    original["file"]["cookie"]["value"] = json!({"bytes":cookie.len(),"sha256":sha256(&cookie)});
+    let original_rows = t.read_rows();
+
+    // Each invalid case is internally consistent without the cookie constraint.
+    // The export ends before source EOF, so its last packet cannot verify the
+    // source duration or anchor an otherwise shifted timeline.
+    for (case, declared, frames, shift, total, valid) in [
+        ("unspecified duration", 0, 1024u64, 0, 5120, true),
+        ("matching fixed duration", 1024, 1024, 0, 5120, true),
+        ("conflicting fixed duration", 2048, 2048, 0, 10240, false),
+        ("stretched timeline", 0, 2048, 0, 10240, false),
+        ("shortened packets", 0, 512, 0, 5120, false),
+        ("shifted origin", 0, 1024, 1024, 5120, false),
+        ("incorrect source duration", 0, 1024, 0, 6144, false),
+    ] {
+        let mut manifest = original.clone();
+        manifest["file"]["format"]["frames_per_packet"] = json!(declared);
+        manifest["file"]["packet_table"]["value"]["valid_frames"] = json!(total - 6);
+        manifest["replay_window"]["target_raw_start"] = json!(2 * frames + shift);
+        manifest["replay_window"]["target_raw_end"] = json!(4 * frames + shift);
+        t.manifest(&manifest);
+        let mut rows = original_rows.clone();
+        for row in &mut rows {
+            row["frames"] = json!(frames);
+            row["raw_frame_position"]["value"] =
+                json!(row["packet_index"].as_u64().unwrap() * frames + shift);
+        }
+        t.rows(&rows);
+        let result = PacketBundle::open(&t.0);
+        if valid {
+            let mut bundle = result.unwrap_or_else(|error| panic!("{case}: {error}"));
+            let range = bundle.range(None, 128).unwrap();
+            assert_eq!((range.start_frame, range.frames), (2045, 128));
+            assert!(
+                bundle
+                    .next_batch(64)
+                    .unwrap()
+                    .packets
+                    .iter()
+                    .all(|p| p.frames == 1024)
+            );
+        } else {
+            assert!(result.is_err(), "accepted {case}");
+        }
+    }
+}
+
+#[test]
 fn legacy_nonzero_and_insufficient_dependency_information_are_rejected() {
     let t = Temp::new();
     t.build(1, 1, 4, false);

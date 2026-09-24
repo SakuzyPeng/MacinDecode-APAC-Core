@@ -244,6 +244,7 @@ pub struct PacketBatch {
 pub struct PacketBundle {
     manifest: PacketManifest,
     cookie: Vec<u8>,
+    frames_per_packet: Option<u64>,
     data: BufReader<File>,
     index: BufReader<File>,
     line: Vec<u8>,
@@ -342,11 +343,6 @@ impl PacketBundle {
             add(table.priming_frames as u64, table.valid_frames as u64)?,
             table.remainder_frames as u64,
         )?;
-        if format.frames_per_packet != 0
-            && packet_count.checked_mul(u64::from(format.frames_per_packet)) != Some(raw_total)
-        {
-            return Err(invalid("packet table and packet duration disagree"));
-        }
         if let Some(window) = &manifest.replay_window {
             if window.actual_target_packets == 0
                 || window.requested_packets != manifest.requested_packets
@@ -385,6 +381,24 @@ impl PacketBundle {
                 )));
             }
         }
+        let cookie_frames = parsed.derived.get("frame_samples").and_then(|v| v.as_u64());
+        if format.frames_per_packet != 0
+            && cookie_frames.is_some_and(|v| v != u64::from(format.frames_per_packet))
+        {
+            return Err(invalid(
+                "cookie-derived frame_samples disagrees with manifest",
+            ));
+        }
+        // A zero ASBD duration leaves packet timing unspecified; a known cookie
+        // duration still constrains every packet and its absolute frame position.
+        let frames_per_packet = cookie_frames.or_else(|| {
+            (format.frames_per_packet != 0).then_some(u64::from(format.frames_per_packet))
+        });
+        if frames_per_packet
+            .is_some_and(|frames| packet_count.checked_mul(frames) != Some(raw_total))
+        {
+            return Err(invalid("packet table and packet duration disagree"));
+        }
         let data = open_member(&root, &manifest.packet_data_file)?;
         if data.metadata()?.len() != manifest.packet_data_bytes {
             return Err(invalid("packet data length mismatch"));
@@ -393,6 +407,7 @@ impl PacketBundle {
         let mut bundle = Self {
             manifest,
             cookie,
+            frames_per_packet,
             data: BufReader::new(data),
             index: BufReader::new(index),
             line: Vec::new(),
@@ -550,11 +565,13 @@ impl PacketBundle {
             ));
         }
         let format = &self.manifest.file.format;
-        if (format.frames_per_packet != 0 && record.frames != format.frames_per_packet)
+        if self
+            .frames_per_packet
+            .is_some_and(|frames| u64::from(record.frames) != frames)
             || (format.bytes_per_packet != 0 && record.bytes != format.bytes_per_packet)
         {
             return Err(invalid(
-                "packet description disagrees with stream description",
+                "packet description disagrees with stream description or cookie",
             ));
         }
         let raw = record.raw_frame()?;
@@ -563,8 +580,9 @@ impl PacketBundle {
         }
         if self.next_frame.is_some_and(|v| v != raw)
             || (source_packet == 0 && raw != 0)
-            || (format.frames_per_packet != 0
-                && source_packet.checked_mul(u64::from(format.frames_per_packet)) != Some(raw))
+            || self
+                .frames_per_packet
+                .is_some_and(|frames| source_packet.checked_mul(frames) != Some(raw))
         {
             return Err(invalid("packet frame timeline has a gap or overlap"));
         }

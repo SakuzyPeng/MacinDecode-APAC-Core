@@ -14,6 +14,14 @@ import tempfile
 from validate import caf_pcm, require, write_json
 
 
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def command(binary, *args, allowed=(0,)):
     result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, timeout=120)
     require(result.returncode in allowed, f"{args[0]} returned {result.returncode}: {result.stderr[-4000:]}")
@@ -157,8 +165,7 @@ def main():
     require(len(reps) == 5 and {r["channels"] for r in reps} == {2, 8, 12, 16, 24}, "requires the five representative groups")
     binary = args.binary.resolve()
     component = Path("/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs")
-    with component.open("rb") as f:
-        component_sha = hashlib.file_digest(f, "sha256").hexdigest()
+    component_sha = sha256_file(component)
     report = {"schema_version": 1, "started_utc": datetime.now(timezone.utc).isoformat(),
               "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),

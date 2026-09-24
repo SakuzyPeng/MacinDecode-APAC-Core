@@ -1,8 +1,21 @@
 """Acceptance guard tests: a comparison must not hide range or drain errors."""
 import copy
+import hashlib
+from pathlib import Path
+import tempfile
 import unittest
 
-from validate_replay import check_accounting
+from validate_replay import check_accounting, sha256_file
+
+
+class FileHashTests(unittest.TestCase):
+    def test_empty_file_and_final_partial_chunk(self):
+        with tempfile.TemporaryDirectory(prefix="apac-replay-hash-test-") as tmp:
+            path = Path(tmp) / "component"
+            for data in [b"", b"APAC" * (256 * 1024) + b"tail"]:
+                with self.subTest(bytes=len(data)):
+                    path.write_bytes(data)
+                    self.assertEqual(sha256_file(path), hashlib.sha256(data).hexdigest())
 
 
 class ReplayAccountingTests(unittest.TestCase):

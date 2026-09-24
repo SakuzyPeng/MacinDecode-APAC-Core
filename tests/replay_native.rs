@@ -135,6 +135,75 @@ fn legacy_full_bundle_drains_eof_and_removes_container_padding() {
 }
 
 #[test]
+fn unspecified_packet_duration_replays_but_conflicting_timing_fails_before_output() {
+    let t = Temp::new();
+    let source = t.fixture();
+    let bundle = t.0.join("packets");
+    let mut manifest =
+        research::dump_with_options(&source, &bundle, 3, 7, true, 2 * 1024 * 1024).unwrap();
+    manifest["file"]["format"]["frames_per_packet"] = json!(0);
+    fs::write(
+        bundle.join("manifest.json"),
+        serde_json::to_vec(&manifest).unwrap(),
+    )
+    .unwrap();
+    let reference = t.0.join("reference");
+    research::decode(&source, &reference, 1225, 128, 2 * 1024 * 1024).unwrap();
+    fs::remove_file(source).unwrap();
+    let output = t.0.join("valid");
+    replay(&bundle, &output, Some(1225), 128, 1, 2 * 1024 * 1024).unwrap();
+    assert!(
+        compare::compare(
+            &reference.join("pcm.json"),
+            &output.join("pcm.json"),
+            1e-6,
+            1e-5
+        )
+        .unwrap()
+        .passed
+    );
+
+    // Keep cookie and compressed bytes unchanged, but make all advertised packet
+    // timing consistently twice as long. A short replay used to accept this and
+    // label audio from valid frame 2048 as starting at frame 4096.
+    let table = &mut manifest["file"]["packet_table"]["value"];
+    let raw_total = table["priming_frames"].as_u64().unwrap()
+        + table["valid_frames"].as_u64().unwrap()
+        + table["remainder_frames"].as_u64().unwrap();
+    table["valid_frames"] = json!(table["valid_frames"].as_u64().unwrap() + raw_total);
+    for key in ["target_raw_start", "target_raw_end"] {
+        manifest["replay_window"][key] =
+            json!(manifest["replay_window"][key].as_u64().unwrap() * 2);
+    }
+    fs::write(
+        bundle.join("manifest.json"),
+        serde_json::to_vec(&manifest).unwrap(),
+    )
+    .unwrap();
+    let mut rows: Vec<Value> = fs::read_to_string(bundle.join("packets.jsonl"))
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    for row in &mut rows {
+        row["frames"] = json!(row["frames"].as_u64().unwrap() * 2);
+        row["raw_frame_position"]["value"] =
+            json!(row["raw_frame_position"]["value"].as_u64().unwrap() * 2);
+    }
+    fs::write(
+        bundle.join("packets.jsonl"),
+        rows.iter()
+            .map(|row| format!("{row}\n"))
+            .collect::<String>(),
+    )
+    .unwrap();
+    let invalid = t.0.join("invalid");
+    let error = replay(&bundle, &invalid, None, 128, 1, 2 * 1024 * 1024).unwrap_err();
+    assert_eq!(error.operation, "packet bundle");
+    assert!(!invalid.exists());
+}
+
+#[test]
 fn native_cookie_rejection_preserves_status_and_incomplete_output() {
     let t = Temp::new();
     let source = t.fixture();

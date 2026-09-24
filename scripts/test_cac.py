@@ -62,6 +62,11 @@ class CacTests(unittest.TestCase):
         with self.assertRaises(AssertionError):check_native([row],wrong)
         wrong=copy.deepcopy(trace);wrong['cac'][0]['after'][0]=[0.]*1024
         self.assertFalse(check_native([row],wrong)[0]['numeric_passed'])
+        wrong=copy.deepcopy(trace);wrong['cac'][0]['after'][1]=[0.]*1024
+        failure=check_native([row],wrong)[0]['metrics'][1]['first_failure']
+        self.assertEqual(failure['channel'],1)
+        self.assertEqual(failure['coefficient_index'],0)
+        self.assertNotIn('sample',failure)
 
     def test_zero_max_sfb_independent_and_absent_have_distinct_semantics(self):
         empty,truth=frame({});independent,other=packet(dict(independent=True))

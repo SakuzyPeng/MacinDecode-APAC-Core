@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Independent SQ mathematics and exact cross-platform stage fingerprints.
 
-Without --reference-report, every PCM sample is checked against a Decimal
-direct-sum oracle. With it, the complete matrix must reproduce a successful
-mathematical report's input, integer, spectral and PCM fingerprints exactly.
+Without a reference, every PCM sample is checked against a Decimal direct-sum
+oracle. --reference-report requires the same code and source fingerprint;
+--regression-report allows an older revision with the same numerical profile
+and constants. Both execute the complete matrix and require identical input,
+integer, spectral, structural and PCM fingerprints from a successful math report.
 No native reference, optional test skip, gain adjustment or implicit flush.
 """
 import argparse
@@ -90,7 +92,7 @@ def compare_pcm(actual, expected):
                 failed_samples=failed, first_failure=first)
 
 
-def validate_reference(reference, current):
+def validate_reference(reference, current, regression=False):
     require(reference.get('passed') is True and reference.get('mode') == 'independent_math',
             'requires a successful independent mathematical reference report')
     require(reference.get('errors') == [] and reference.get('counts') == COUNTS
@@ -98,6 +100,8 @@ def validate_reference(reference, current):
             'reference completeness or mathematical metrics disagree')
     for key in ('schema_version', 'numeric_profile', 'code_commit', 'source_sha256', 'tables_sha256',
                 'atol', 'rtol'):
+        if regression and key in ('code_commit','source_sha256'):
+            continue
         require(reference.get(key) == current[key], 'reference identity mismatch: ' + key)
     for stage, count in COUNTS.items():
         records = reference.get(stage, [])
@@ -223,12 +227,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--reference-report', type=Path)
+    references=parser.add_mutually_exclusive_group()
+    references.add_argument('--reference-report', type=Path)
+    references.add_argument('--regression-report', type=Path,
+                            help='Compare every stage with an older successful math report of the same numerical profile/constants.')
     args = parser.parse_args()
     if args.output.exists():
         parser.error('refusing to overwrite report')
     binary = args.binary.resolve(strict=True)
-    report = dict(schema_version=1, numeric_profile=PROFILE, mode='bit_exact_replay' if args.reference_report else 'independent_math',
+    reference_path=args.reference_report or args.regression_report
+    report = dict(schema_version=1, numeric_profile=PROFILE, mode='bit_exact_regression' if args.regression_report else 'bit_exact_replay' if args.reference_report else 'independent_math',
                   code_commit=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True, encoding="utf-8").strip(),
                   tested_worktree_dirty=bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'], text=True, encoding="utf-8").strip()),
                   source_sha256=source_digest(), tables_sha256=sha256_file(ROOT / 'data/sq-math-v1.json'),
@@ -238,17 +246,18 @@ def main():
                   implementation=None, spectra=[], pcm=[], errors=[], spectral_metrics=metrics())
     reference = None
     try:
-        if args.reference_report:
-            require(args.reference_report.stat().st_size <= LIMIT, 'reference report exceeds 128 MiB')
-            report['reference_report_sha256'] = sha256_file(args.reference_report)
-            reference = json.loads(args.reference_report.read_text(encoding="utf-8"))
-            validate_reference(reference, report)
+        if reference_path:
+            require(reference_path.stat().st_size <= LIMIT, 'reference report exceeds 128 MiB')
+            report['reference_report_sha256'] = sha256_file(reference_path)
+            reference = json.loads(reference_path.read_text(encoding="utf-8"))
+            report['reference_code_commit']=reference['code_commit']
+            validate_reference(reference, report, regression=bool(args.regression_report))
         check_spectra(binary, report, reference)
         check_pcm(binary, report, reference)
         require(sha256_file(binary) == report['tool_sha256'], 'candidate executable changed during validation')
         require(source_digest() == report['source_sha256'], 'sources changed during validation')
-        if args.reference_report:
-            require(sha256_file(args.reference_report) == report['reference_report_sha256'], 'reference report changed')
+        if reference_path:
+            require(sha256_file(reference_path) == report['reference_report_sha256'], 'reference report changed')
     except Exception as error:
         report['errors'].append(dict(stage='validation', error=str(error)))
     finalize(report)

@@ -96,6 +96,12 @@ class AcceptanceGateTests(unittest.TestCase):
             reference[stage] = [dict(rate=rate, index=i, passed=True)
                                 for rate in (48000, 44100) for i in range(count//2)]
         validate_reference(reference, current)
+        older=dict(reference,code_commit='older',source_sha256='older source')
+        validate_reference(older,current,regression=True)
+        with self.assertRaises(AssertionError):validate_reference(older,current)
+        for key in ('tables_sha256','numeric_profile'):
+            with self.assertRaises(AssertionError):
+                validate_reference(dict(older,**{key:'changed'}),current,regression=True)
         for key in ('source_sha256', 'tables_sha256', 'code_commit', 'mode', 'passed'):
             with self.subTest(key=key), self.assertRaises(AssertionError):
                 validate_reference(dict(reference, **{key:'wrong'}), current)

@@ -32,6 +32,16 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
+def compare_spectra(actual, expected, channel=None):
+    result=compare_pcm(actual,expected)
+    failure=result['first_failure']
+    if failure:
+        position=failure.pop('sample')
+        failure['channel']=position//1024 if channel is None else channel
+        failure['coefficient_index']=position%1024 if channel is None else position
+    return result
+
+
 def inspect(binary, directory, root, count):
     path = root/'cac.jsonl'
     summary = command(binary, 'parse-packets', directory, '--depth', 'cac', '--packets', count,
@@ -62,7 +72,7 @@ def check_expected(report, truth):
     wanted = coupled(truth)
     actual = [float32(c['scaled']) for c in report['channels_after_cac']]
     require([c['channel_index'] for c in report['channels_after_cac']]==[0,1], 'wrong output channel order')
-    metrics = compare_pcm([v for c in actual for v in c], [v for c in wanted for v in c])
+    metrics = compare_spectra([v for c in actual for v in c], [v for c in wanted for v in c])
     require(metrics['passed'], 'CAC matrix differs: '+json.dumps(metrics))
     require(bytes_of([v for c in actual for v in c],'f')==bytes_of([v for c in wanted for v in c],'f'),
             'CAC matrix does not follow the prescribed separate rounding')
@@ -171,7 +181,7 @@ def check_native(rows, trace):
             require(event is not None and event['packet_sha256']==r['packet_sha256'], 'native raw stream identity mismatch')
             for key in ('stream_bit_offset','end_bit_offset'):
                 require(event[key]==channel[key], 'native raw boundary mismatch: '+key)
-            raw_metrics = compare_pcm(float32(channel['scaled']),event['scaled'])
+            raw_metrics = compare_spectra(float32(channel['scaled']),event['scaled'],channel['channel_index'])
             require(raw_metrics['passed'], 'native raw spectrum differs: '+json.dumps(raw_metrics))
         if r['shared_ics']:
             event = coupled_events.get(i)
@@ -181,7 +191,7 @@ def check_native(rows, trace):
             require(event['runs']==[{k:run[k] for k in ('gain_index','repeat_code')} for run in r['cac']['runs']], 'native CAC integer parameters differ')
             for index,channel in enumerate(r['channels_after_cac']):
                 require(event['before'][index]==streams[(i,index)]['scaled'], 'CAC input snapshot moved beyond the raw stream')
-                numeric.append(compare_pcm(float32(channel['scaled']),event['after'][index]))
+                numeric.append(compare_spectra(float32(channel['scaled']),event['after'][index],index))
         records.append(dict(packet_index=row['packet_index'],packet_sha256=r['packet_sha256'],shared_ics=r['shared_ics'],
                             structural_passed=True,numeric_passed=all(m['passed'] for m in numeric),metrics=numeric))
     return records

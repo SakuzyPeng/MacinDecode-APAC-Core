@@ -222,6 +222,8 @@ python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
 
 新增 CAC 矩阵包含两采样率下共 2,912 个频谱用例、2,984 个 PCM 序列；它分别核对原始编码流、CAC 参数和边界、恢复后频谱以及 PCM。新旧矩阵独立运行，原有 17,800／9,948 用例及输出摘要保留。
 
+验证旧 SQ 输出不变时，可对 `validate_portable.py` 显式使用 `--regression-report reports/previous-sq-math.json`：允许参考来自旧提交，但要求相同数值配置、常量和完整用例身份，并重新运行所有输入逐项比较摘要。它与要求同一提交／源码的 `--reference-report` 互斥，报告会记录旧参考提交；不会默许改变输入、常量或期望结果。
+
 ```sh
 python3 -B scripts/generate_cac_math.py --check
 python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --output reports/cac-math-new.json

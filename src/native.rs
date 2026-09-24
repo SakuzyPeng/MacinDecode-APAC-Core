@@ -327,7 +327,7 @@ impl NativeFile {
         });
         let mut layout = ChannelLayout::tagged(tag, self.format.channels, name);
         layout.bitmap = bitmap;
-        for raw in bytes[12..12 + count * 20].chunks_exact(20) {
+        for raw in bytes[12..12 + count * 20].as_chunks::<20>().0 {
             let coordinates = [
                 f32::from_bits(word(&raw[8..12])?),
                 f32::from_bits(word(&raw[12..16])?),

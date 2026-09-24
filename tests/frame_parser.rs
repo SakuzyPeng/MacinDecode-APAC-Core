@@ -543,6 +543,12 @@ mod spectrum_tests {
             let end = b.1;
             let bytes = b.opaque();
             let parsed = parse_spectrum(&context(), &bytes).unwrap();
+            assert_eq!(parsed.numeric_profile.as_deref(), Some("apac-sq-math-v1"));
+            let mut legacy = serde_json::to_value(&parsed).unwrap();
+            legacy.as_object_mut().unwrap().remove("numeric_profile");
+            let legacy: macindecode_apac_tools::frame::SpectrumReport =
+                serde_json::from_value(legacy).unwrap();
+            assert!(legacy.numeric_profile.is_none());
             check_coverage(&bytes, &parsed.frame);
             assert_eq!(parsed.frame.payload_bit_offset, Some(12));
             assert_eq!(parsed.frame.stop_bit_offset, end);

@@ -146,7 +146,9 @@ mod tests {
             assert!(all.iter().all(|v| v.is_finite() && v.abs() <= 0.5));
         }
         for (i, frame) in generate(Signal::ChannelSolo, 0, 96, 96, 48000, 24, 42)
-            .chunks_exact(24)
+            .as_chunks::<24>()
+            .0
+            .iter()
             .enumerate()
         {
             for (ch, &v) in frame.iter().enumerate() {

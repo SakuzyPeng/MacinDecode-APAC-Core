@@ -41,6 +41,9 @@ pub struct SpectrumReport {
     pub spectrum_complete: bool,
     pub spectral_stage: String,
     pub channels: Vec<ChannelSpectrum>,
+    /// Absent in older reports; new outputs identify their deterministic model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub numeric_profile: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -163,14 +166,15 @@ fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<Vec<i32>, ParseError> {
     }
     Ok(values)
 }
-/// Double precision power, then round the inverse quantizer and gain separately
-/// to f32 before their f32 product. No fused operations or native lookup tables.
+/// Formula-generated, separately rounded inverse quantizer and gain, followed
+/// by one f32 product. Every entry is a fixed IEEE value, independent of libm.
 fn inverse(q: i32, sf: i16) -> f32 {
     if q == 0 {
         return 0.;
     }
-    let magnitude = (q.unsigned_abs() as f64).powf(4. / 3.) as f32;
-    let gain = 2f64.powf((f64::from(sf) - 100.) / 4.) as f32;
+    let tables = crate::numeric::tables();
+    let magnitude = tables.inverse[q.unsigned_abs() as usize];
+    let gain = tables.gains[(sf + 256) as usize];
     (if q < 0 { -magnitude } else { magnitude }) * gain
 }
 impl Parser<'_> {
@@ -319,6 +323,7 @@ pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumR
             spectrum_complete: false,
             spectral_stage: stage,
             channels: vec![],
+            numeric_profile: Some(crate::numeric::PROFILE.into()),
         });
     }
     let payload = report.payload_bit_offset;
@@ -351,6 +356,7 @@ pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumR
         spectrum_complete: !shared,
         spectral_stage: stage,
         channels,
+        numeric_profile: Some(crate::numeric::PROFILE.into()),
     })
 }
 

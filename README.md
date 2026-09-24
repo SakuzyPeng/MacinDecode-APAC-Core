@@ -2,11 +2,11 @@
 
 `apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀及 SQ 频谱解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
-参考音频编解码由 **macOS AudioToolbox** 完成。`decode-sq` 新增实验性的纯 Rust 受限 SQ PCM 后端，采用明确的固定数值模型，系统默认 vDSP 输出的高幅度一致性另行统计；`compare`、`parse-cookie`、`parse-packets` 和 `decode-sq` 的实现不调用苹果音频接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
+参考音频编解码由 **macOS AudioToolbox** 完成。`decode-sq` 新增实验性的纯 Rust 受限 SQ PCM 后端，采用独立公式定义的固定数值模型，苹果参考输出的数值差异另行统计；`compare`、`parse-cookie`、`parse-packets` 和 `decode-sq` 的实现不调用苹果音频接口。通用命令可在 Windows／Linux 构建和运行；是否达到跨平台逐位一致，以对应提交的完整运行报告为准，跨目标编译不能代替运行验收。
 
 ## 构建
 
-需要 Rust 和 Xcode Command Line Tools。当前机器已用 Rust 1.96.0、macOS 27.0（26A428）验证。
+数值验收使用 Rust 1.98.0；macOS 的参考工具还需要 Xcode Command Line Tools。Windows／Linux 的纯 Rust 命令不需要苹果 SDK。
 
 ```sh
 cargo build --offline
@@ -143,7 +143,7 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 库入口 `frame::parse_spectrum(&FrameContext, &[u8]) -> Result<SpectrumReport, config::ParseError>` 提供类型化结果；`SpectrumReport.frame` 是原 `FrameReport`，JSON 序列化时平铺它。`parse_packets_with_depth(..., ParseDepth)` 提供包目录接口，原 `parse_frame`、`parse_packets` 及 CLI 默认 `--depth prefix` 保持原有行为。
 
-缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。反量化以 double 计算 `|q|^(4/3)`，转换为 Float32；缩放 `2^((sf-100)/4)` 独立转换为 Float32，再作 Float32 乘法。该数学路径不承诺与苹果查表逐位相同，以固定 `atol=1e-6, rtol=1e-5` 核对。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
+缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。反量化 `|q|^(4/3)` 和缩放 `2^((sf-100)/4)` 分别按最近值、平局取偶舍入为 Float32，再作 Float32 乘法。全部幅度与缩放因子的 IEEE 位模式由高精度公式离线生成，运行时不使用系统 `powf`。频谱报告新增可选 `numeric_profile`，新输出为 `apac-sq-math-v1`；旧报告缺失该字段时仍可读取。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
 
 码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
 
@@ -172,11 +172,31 @@ PY
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
-库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float32 调制、带版本的 Float32 正弦窗和叠加状态，配合自行实现的 Float64 radix-2 FFT；没有 FFT 库依赖或运行时原生解码回退。
+库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float64 调制、正弦窗、叠加状态和自行实现的 radix-2 DIT FFT；乘法与加法分别舍入，仅最终 PCM 转为 Float32，浮点零统一为正零。没有 FFT 库依赖或运行时原生解码回退。
 
-当前保留 `experimental=true`，`numerical_qualification=controlled_f64_fft_reference`；PCM 元数据的 `decoder_settings.implementation` 记录后端和数值配置。`complete` 只表示导出完整。固定 Float64 DFT 的诊断参考用于本阶段严格数值验收；默认 vDSP 参考保留独立报告，不以改增益、搜时延或放宽容差让它通过。
+默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_f64_fft_v3`。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
 
-数值配置 `apac-0800-stereo-sine-f32-26A428` 使用 `data/sq-sine-windows.json` 中的 1024／128 点上升半窗，下降半窗取逆序。数值来源为已验证 AudioCodecs 构建的 Float32 正弦窗，并附组件哈希；它是明确的数值兼容配置，不宣称所有 APAC 实现必须具有相同舍入。实现只携带数值常量，不携带组件二进制、反汇编或私有函数调用；跨平台运行不需要苹果系统文件。
+`data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
+
+```sh
+# 检查已提交的常量；不覆盖文件
+python3 -B scripts/generate_sq_math.py --check
+# 从头生成到一个新路径以供审查
+python3 -B scripts/generate_sq_math.py --output artifacts/sq-math-regenerated.json
+
+# 第一关：17,800 个频谱用例及 9,948 个 PCM 序列的独立数学验收
+python3 -B scripts/validate_portable.py --binary target/debug/apac-tool \
+  --output reports/sq-math-baseline.json
+# 第二关：用另一个构建复现相同输入、整数、频谱与 PCM 的字节摘要
+python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
+  --reference-report reports/sq-math-baseline.json --output reports/sq-math-release.json
+```
+
+数学参考使用 Decimal 直接 IMDCT 求和，不读取生产数值表、不调用生产 FFT，也不把候选输出当作真值。PCM 仍按 `atol=1e-6, rtol=1e-5` 验收，另记录 ULP；频谱还要求符合分别舍入的精确结果。第二关必须使用同一提交、源码与常量指纹下成功的完整数学报告，逐位比较所有阶段；不以容差代替摘要一致。必需用例缺失、非有限数值、执行中二进制或源码变化均失败。
+
+Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
+
+旧 `data/sq-sine-windows.json` 是 `26A428` 的 Float32 窗值观测，仅保留为历史诊断资料，不进入默认合成路径。下面的苹果核对与混合参考属于独立诊断，失败仍返回非零退出码，不用来改写数学模型的通过结果。
 
 系数的逐位核对可重新运行：
 
@@ -203,7 +223,7 @@ python3 -B scripts/validate_synthesis.py \
   --output reports/synthesis-controlled-new.json
 ```
 
-该库不参与正式构建，也不会由 `decode-sq` 自动加载。报告分别记录参考条件、组件／工具／诊断库哈希与实际 DFT 调用数；原有跨帧窗值差异已修正，矩阵另加入全部 16 种高增益四系数符号组合的相邻帧测试，两种采样率共 9948 个序列。
+该库不参与正式构建，也不会由 `decode-sq` 自动加载。报告分别记录参考条件、组件／工具／诊断库哈希与实际 DFT 调用数；矩阵包含全部 16 种高增益四系数符号组合的相邻帧测试，两种采样率共 9948 个序列。旧版本的受控参考通过结果不能直接沿用为新公式基线的苹果兼容性结论。
 
 同一个诊断库还支持 `--reference-mode aligned64` 或 `offset16`；这两个模式由原始 vDSP 完成运算，只控制其输出地址对齐。以下命令比较两条原生路径的容差区间：
 

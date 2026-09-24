@@ -6,15 +6,15 @@ import subprocess
 import tempfile
 import unittest
 
+from portable_tools import required_binary
+
 from spectrum_vectors import bundle, frame, matrix_cases, band_cases
 from validate_spectra import check_expected, check_native
 
 
 class SpectrumTests(unittest.TestCase):
     def setUp(self):
-        self.binary = Path(__file__).resolve().parents[1] / 'target/debug/apac-tool'
-        if not self.binary.exists():
-            self.skipTest('build apac-tool before CLI acceptance tests')
+        self.binary = required_binary()
         self.tmp = tempfile.TemporaryDirectory(prefix='apac-spectra-test-')
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)

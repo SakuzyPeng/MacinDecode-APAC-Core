@@ -6,13 +6,14 @@ import subprocess
 import tempfile
 import unittest
 
+from portable_tools import required_binary
+
 from spectrum_vectors import frame, bundle
 
 
 class SynthesisCliTests(unittest.TestCase):
     def setUp(self):
-        self.binary=Path(__file__).resolve().parents[1]/'target/debug/apac-tool'
-        if not self.binary.exists(): self.skipTest('build apac-tool first')
+        self.binary = required_binary()
         self.tmp=tempfile.TemporaryDirectory(prefix='sq-pcm-test-')
         self.addCleanup(self.tmp.cleanup)
         self.root=Path(self.tmp.name)

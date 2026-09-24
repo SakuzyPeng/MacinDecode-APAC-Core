@@ -1,4 +1,5 @@
-//! Portable sine-window SQ synthesis. Float32 modulation and windows, Float64 radix-2 FFT.
+//! Independent SQ mathematics: fixed IEEE constants, Float64 synthesis and overlap.
+//! Ordinary products and sums round separately; only final PCM is cast to Float32.
 mod bundle;
 use crate::{
     config::{self, bits::BitReader},
@@ -6,34 +7,9 @@ use crate::{
     frame::{FrameContext, parse_spectrum},
 };
 pub use bundle::decode_sq;
-use std::{f64::consts::PI, sync::OnceLock};
-
-pub const NUMERIC_PROFILE: &str = "apac-0800-stereo-sine-f32-26A428";
-
-/// Fixed, versioned numerical compatibility data. No native runtime is required.
-#[derive(serde::Deserialize)]
-struct SineWindows {
-    numeric_profile: String,
-    long: Vec<f32>,
-    short: Vec<f32>,
-}
-
-fn sine_windows() -> &'static SineWindows {
-    static WINDOWS: OnceLock<SineWindows> = OnceLock::new();
-    WINDOWS.get_or_init(|| {
-        let mut windows: SineWindows =
-            serde_json::from_str(include_str!("../../data/sq-sine-windows.json"))
-                .expect("built-in sine-window profile");
-        assert_eq!(windows.numeric_profile, NUMERIC_PROFILE);
-        for (values, n) in [(&mut windows.long, 1024), (&mut windows.short, 128)] {
-            assert_eq!(values.len(), n);
-            assert!(values.iter().all(|v| v.is_finite() && *v > 0. && *v < 1.));
-            assert!(values.windows(2).all(|w| w[0] < w[1]));
-            values.extend(values.clone().into_iter().rev());
-        }
-        windows
-    })
-}
+pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
+pub const BACKEND: &str = "rust_sq_f64_fft_v3";
+pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
 struct Complex {
@@ -42,17 +18,7 @@ struct Complex {
 }
 fn fft(data: &mut [Complex]) {
     let n = data.len();
-    static SHORT: OnceLock<Vec<Complex>> = OnceLock::new();
-    static LONG: OnceLock<Vec<Complex>> = OnceLock::new();
-    let cell = if n == 64 { &SHORT } else { &LONG };
-    let twiddles = cell.get_or_init(|| {
-        (0..n / 2)
-            .map(|k| {
-                let (im, re) = (-2. * PI * k as f64 / n as f64).sin_cos();
-                Complex { re, im }
-            })
-            .collect()
-    });
+    let twiddles = &crate::numeric::tables().transform(2 * n).twiddles;
     let mut j = 0;
     for i in 1..n {
         let mut bit = n >> 1;
@@ -69,7 +35,7 @@ fn fft(data: &mut [Complex]) {
     while size <= n {
         for chunk in data.chunks_exact_mut(size) {
             for k in 0..size / 2 {
-                let Complex { re: cos, im: sin } = twiddles[k * n / size];
+                let [cos, sin] = twiddles[k * n / size];
                 let a = chunk[k];
                 let b = chunk[k + size / 2];
                 let re = b.re * cos - b.im * sin;
@@ -87,50 +53,28 @@ fn fft(data: &mut [Complex]) {
         size *= 2;
     }
 }
-fn modulation(n: usize) -> &'static [(f32, f32)] {
-    static SHORT: OnceLock<Vec<(f32, f32)>> = OnceLock::new();
-    static LONG: OnceLock<Vec<(f32, f32)>> = OnceLock::new();
-    let cell = if n == 128 { &SHORT } else { &LONG };
-    cell.get_or_init(|| {
-        (0..n / 2)
-            .map(|k| {
-                let (sin, cos) = (PI * (k as f64 + 0.125) / n as f64).sin_cos();
-                // A uniform decimal quantizer reproduces the verified modulation rule;
-                // no binary lookup tables or index-specific coefficient patches.
-                let quantize = |x: f64| ((x * 1e10).round() / 1e10) as f32;
-                (quantize(sin), quantize(cos))
-            })
-            .collect()
-    })
+fn modulation(n: usize) -> &'static [[f64; 2]] {
+    &crate::numeric::tables().transform(n).modulation
 }
-fn imdct(input: &[f32]) -> Vec<f32> {
+fn imdct(input: &[f32]) -> Vec<f64> {
     let n = input.len();
     let mut data = vec![Complex::default(); n / 2];
-    let normalization = 1. / (n as f32 * 32768.);
+    let normalization = 1. / (n as f64 * 32768.);
     for (k, z) in data.iter_mut().enumerate() {
-        let (sin, cos) = modulation(n)[k];
-        let a = input[2 * k] * normalization;
-        let b = input[n - 1 - 2 * k] * normalization;
+        let [sin, cos] = modulation(n)[k];
+        let a = f64::from(input[2 * k]) * normalization;
+        let b = f64::from(input[n - 1 - 2 * k]) * normalization;
         *z = Complex {
-            re: f64::from(if k < n / 4 {
-                b.mul_add(sin, a * cos)
-            } else {
-                a.mul_add(cos, b * sin)
-            }),
-            im: f64::from(b.mul_add(cos, -a * sin)),
+            re: a * cos + b * sin,
+            im: b * cos - a * sin,
         };
     }
     fft(&mut data);
-    let mut dct = vec![0f32; n];
+    let mut dct = vec![0f64; n];
     for (k, z) in data.iter().enumerate() {
-        let (sin, cos) = modulation(n)[k];
-        let (re, im) = (z.re as f32, z.im as f32);
-        dct[2 * k] = im.mul_add(sin, re * cos);
-        dct[n - 1 - 2 * k] = if k < n / 4 {
-            re.mul_add(sin, -im * cos)
-        } else {
-            -im.mul_add(cos, -re * sin)
-        };
+        let [sin, cos] = modulation(n)[k];
+        dct[2 * k] = z.re * cos + z.im * sin;
+        dct[n - 1 - 2 * k] = z.re * sin - z.im * cos;
     }
     (0..2 * n)
         .map(|i| {
@@ -145,16 +89,12 @@ fn imdct(input: &[f32]) -> Vec<f32> {
         })
         .collect()
 }
-fn window(n: usize) -> &'static [f32] {
-    if n == 1024 {
-        &sine_windows().long
-    } else {
-        &sine_windows().short
-    }
+fn window(n: usize) -> &'static [f64] {
+    &crate::numeric::tables().transform(n).window
 }
 #[derive(Clone)]
 struct ChannelState {
-    overlap: Vec<f32>,
+    overlap: Vec<f64>,
     previous: u8,
 }
 impl ChannelState {
@@ -214,8 +154,13 @@ impl ChannelState {
                 time[i] = samples[i] * gain;
             }
         }
-        let output: Vec<f32> = (0..1024).map(|i| time[i] + self.overlap[i]).collect();
-        if output.iter().any(|v| !v.is_finite()) {
+        let output: Vec<f32> = (0..1024)
+            .map(|i| {
+                let value = (time[i] + self.overlap[i]) as f32;
+                if value == 0. { 0. } else { value }
+            })
+            .collect();
+        if output.iter().any(|v| !v.is_finite()) || time.iter().any(|v| !v.is_finite()) {
             return Err(Error::new("SQ synthesis", "nonfinite PCM"));
         }
         self.overlap.copy_from_slice(&time[1024..]);
@@ -343,25 +288,17 @@ impl SqDecoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
     #[test]
-    fn window_profile_preserves_float_bits_symmetry_and_complementarity() {
-        for (n, digest) in [
-            (
-                1024,
-                "1b44dedd53c577d9298b784de7c4ec346f939dbf1e0886de93aeb1d211c5587c",
-            ),
-            (
-                128,
-                "4a2c07e75def06dce3b3b106d6f14682f189cb62d65bdaca87a44220191cc638",
-            ),
-        ] {
+    fn mathematical_windows_are_symmetric_and_power_complementary() {
+        for n in [128, 1024] {
             let values = window(n);
-            let raw: Vec<u8> = values[..n].iter().flat_map(|v| v.to_le_bytes()).collect();
-            assert_eq!(crate::model::sha256(&raw), digest);
+            assert!(values[..n].windows(2).all(|w| w[0] < w[1]));
             for i in 0..n {
                 assert_eq!(values[i].to_bits(), values[2 * n - 1 - i].to_bits());
-                let energy = f64::from(values[i]).powi(2) + f64::from(values[n - 1 - i]).powi(2);
-                assert!((energy - 1.).abs() < 2e-7);
+                let a = values[i];
+                let b = values[n - 1 - i];
+                assert!((a * a + b * b - 1.).abs() < 3e-16);
             }
         }
     }
@@ -383,7 +320,23 @@ mod tests {
                     })
                     .sum::<f64>()
                     / (n as f64 * 32768.);
-                assert!((f64::from(x) - sum).abs() < 1e-12, "{n} {i} {x} {sum}");
+                assert!((x - sum).abs() < 1e-12, "{n} {i} {x} {sum}");
+            }
+        }
+    }
+    #[test]
+    fn every_long_and_short_frequency_has_the_correct_basis() {
+        for n in [128, 1024] {
+            let mut input = vec![0.; n];
+            for k in 0..n {
+                input[k] = 1.;
+                for (i, actual) in imdct(&input).into_iter().enumerate() {
+                    let expected =
+                        (PI / n as f64 * (i as f64 + 0.5 + n as f64 / 2.) * (k as f64 + 0.5)).cos()
+                            / (n as f64 * 32768.);
+                    assert!((actual - expected).abs() < 1e-18, "{n} {k} {i}");
+                }
+                input[k] = 0.;
             }
         }
     }
@@ -392,7 +345,13 @@ mod tests {
         let mut state = ChannelState::new();
         let zero = vec![0.; 1024];
         for block in [0, 1, 2, 2, 3, 0] {
-            assert_eq!(state.render(&zero, block).unwrap(), vec![0.; 1024]);
+            assert!(
+                state
+                    .render(&zero, block)
+                    .unwrap()
+                    .iter()
+                    .all(|v| v.to_bits() == 0)
+            );
         }
         assert!(state.render(&zero, 2).is_err());
         assert!(state.render(&[f32::NAN; 1024], 0).is_err());

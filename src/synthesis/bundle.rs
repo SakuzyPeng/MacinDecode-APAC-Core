@@ -76,16 +76,18 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
         decoder_settings: BTreeMap::from([(
             "implementation".into(),
             Property::known(json!({
-                "backend":"rust_sq_f32_refwindow_f64_fft_v2", "experimental":true,
+                "backend":super::BACKEND, "experimental":true,
                 "numeric_profile":super::NUMERIC_PROFILE,
-                "qualification":"controlled_f64_fft_reference",
-                "default_reference":"vDSP output-alignment dependent"
+                "qualification":super::QUALIFICATION,
+                "compiler":env!("APAC_BUILD_RUSTC"),
+                "debug_assertions":cfg!(debug_assertions),
+                "tables_sha256":crate::numeric::tables().sha256
             })),
         )]),
         all_finite: true,
     };
     out.json("pcm.json", &pcm)?;
-    let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"numerical_qualification":"controlled_f64_fft_reference","backend":"rust_sq_f32_refwindow_f64_fft_v2","native_apis_used":false,
+    let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"numerical_qualification":super::QUALIFICATION,"backend":super::BACKEND,"native_apis_used":false,
         "packets":bundle.consumed_packets(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
     out.json("decode-sq.json", &report)?;
     out.complete()?;

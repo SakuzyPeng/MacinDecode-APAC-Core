@@ -134,12 +134,14 @@ pub fn compare(reference: &Path, candidate: &Path, atol: f64, rtol: f64) -> Resu
         hb.update(&bb[..bytes]);
         exact &= ba[..bytes] == bb[..bytes];
         for (i, (x, y)) in ba[..bytes]
-            .chunks_exact(4)
-            .zip(bb[..bytes].chunks_exact(4))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .zip(bb[..bytes].as_chunks::<4>().0)
             .enumerate()
         {
-            let x = f64::from(f32::from_le_bytes(x.try_into().unwrap()));
-            let y = f64::from(f32::from_le_bytes(y.try_into().unwrap()));
+            let x = f64::from(f32::from_le_bytes(*x));
+            let y = f64::from(f32::from_le_bytes(*y));
             if !x.is_finite() || !y.is_finite() {
                 return Err(Error::new(
                     "compare PCM",

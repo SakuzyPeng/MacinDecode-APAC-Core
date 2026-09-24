@@ -7,6 +7,7 @@ pub mod frame;
 pub mod model;
 #[cfg(target_os = "macos")]
 pub mod native;
+mod numeric;
 pub mod output;
 pub mod packets;
 #[cfg(target_os = "macos")]

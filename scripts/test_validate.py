@@ -8,13 +8,15 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
+from portable_tools import required_binary
+
 from validate import Validator
 
 
 @unittest.skipUnless(sys.platform == "darwin", "requires macOS AudioToolbox")
 class RepresentativeTests(unittest.TestCase):
     def test_short_and_full_ranges_match_sequential_reference(self):
-        binary = Path(__file__).resolve().parents[1] / "target/debug/apac-tool"
+        binary = required_binary()
         cases = [
             (1, [(0, 1), (0, 1), (0, 1)], 1),
             (16, [(0, 16), (8, 8), (0, 16)], 16),

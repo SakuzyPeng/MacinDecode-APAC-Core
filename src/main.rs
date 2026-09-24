@@ -25,6 +25,12 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Experimental portable PCM for the restricted independent-ICS SQ subset.
+    DecodeSq {
+        directory: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
     /// Inspect SQ prefixes or pre-tool spectra from a validated packet bundle.
@@ -162,12 +168,18 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
             *depth,
         );
     }
+    if let Command::DecodeSq { directory, out } = &cli.command {
+        return Ok((
+            macindecode_apac_tools::synthesis::decode_sq(directory, out, limit)?,
+            0,
+        ));
+    }
     #[cfg(not(target_os = "macos"))]
     {
         let _ = limit;
         Err(Error::new(
             "platform",
-            "this command requires macOS AudioToolbox; compare, parse-cookie and parse-packets are portable",
+            "this command requires macOS AudioToolbox; compare, parse-cookie, parse-packets and decode-sq are portable",
         ))
     }
     #[cfg(target_os = "macos")]
@@ -247,7 +259,8 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
             }
             Command::Compare { .. }
             | Command::ParseCookie { .. }
-            | Command::ParsePackets { .. } => unreachable!(),
+            | Command::ParsePackets { .. }
+            | Command::DecodeSq { .. } => unreachable!(),
         };
         Ok((result, 0))
     }

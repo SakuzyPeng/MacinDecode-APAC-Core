@@ -658,3 +658,149 @@ mod spectrum_tests {
         }
     }
 }
+
+mod synthesis_tests {
+    use super::*;
+    use macindecode_apac_tools::{frame::parse_spectrum, synthesis::SqDecoder};
+    fn packet(block: u64, active: bool) -> Vec<u8> {
+        let mut b = Bits::default();
+        b.fields(&[
+            (1, 2),
+            (1, 1),
+            (0, 1),
+            (block, 2),
+            (u64::from(active), if block == 2 { 4 } else { 6 }),
+        ]);
+        if block == 2 {
+            b.put(0x7f, 7);
+        }
+        b.put(160, 8);
+        if active {
+            b.fields(&[(1, 4), (1, if block == 2 { 3 } else { 5 }), (0, 1)]);
+            let books: serde_json::Value =
+                serde_json::from_str(include_str!("../data/sq-codebooks.json")).unwrap();
+            for _ in 0..if block == 2 { 8 } else { 1 } {
+                b.put(
+                    books["spectral"][0]["codes"][67].as_u64().unwrap(),
+                    books["spectral"][0]["bits"][67].as_u64().unwrap() as usize,
+                );
+            }
+        }
+        b.fields(&[(0, 1), (block, 2), (0, if block == 2 { 4 } else { 6 })]);
+        if block == 2 {
+            b.put(0, 7);
+        }
+        b.fields(&[(160, 8), (0, 4)]);
+        b.put(0, (8 - b.1 % 8) % 8);
+        b.put(0, 8);
+        b.0
+    }
+    #[test]
+    fn independent_pcm_keeps_channels_and_window_history() {
+        let mut decoder = SqDecoder::from_cookie(&cookie(3, 2, false)).unwrap();
+        let mut nonzero = 0;
+        for block in [0, 1, 2, 2, 3, 0, 0] {
+            let samples = decoder.decode_frame(&packet(block, true)).unwrap();
+            assert_eq!(samples.len(), 2048);
+            assert!(samples.iter().all(|s| s.is_finite()));
+            assert!(samples.iter().skip(1).step_by(2).all(|s| *s == 0.));
+            nonzero += samples.iter().filter(|v| **v != 0.).count();
+        }
+        assert!(nonzero > 1024);
+    }
+    #[test]
+    fn errors_do_not_advance_overlap_and_reset_restarts_exactly() {
+        let c = cookie(3, 2, false);
+        let mut a = SqDecoder::from_cookie(&c).unwrap();
+        let mut b = SqDecoder::from_cookie(&c).unwrap();
+        let active = packet(0, true);
+        let zero = packet(0, false);
+        let original = a.decode_frame(&active).unwrap();
+        b.decode_frame(&active).unwrap();
+        assert!(a.decode_frame(&packet(2, true)).is_err());
+        let mut bad = active.clone();
+        let bit = parse_spectrum(&context(), &bad)
+            .unwrap()
+            .frame
+            .stop_bit_offset;
+        bad[bit / 8] |= 1 << (7 - bit % 8);
+        assert!(a.decode_frame(&bad).is_err());
+        assert_eq!(
+            a.decode_frame(&zero).unwrap(),
+            b.decode_frame(&zero).unwrap()
+        );
+        a.reset();
+        assert_eq!(a.decode_frame(&active).unwrap(), original);
+    }
+    #[test]
+    fn active_tools_truncation_and_extra_tail_are_rejected() {
+        let c = cookie(3, 2, false);
+        let good = packet(0, true);
+        let stop = parse_spectrum(&context(), &good)
+            .unwrap()
+            .frame
+            .stop_bit_offset;
+        for bit in stop..stop + 4 {
+            let mut bad = good.clone();
+            bad[bit / 8] |= 1 << (7 - bit % 8);
+            let error = SqDecoder::from_cookie(&c)
+                .unwrap()
+                .decode_frame(&bad)
+                .unwrap_err();
+            assert_eq!(error.bit_offset, Some(bit));
+        }
+        for end in 0..good.len() {
+            assert!(
+                SqDecoder::from_cookie(&c)
+                    .unwrap()
+                    .decode_frame(&good[..end])
+                    .is_err()
+            );
+        }
+        let mut extra = good.clone();
+        extra.push(0);
+        assert!(
+            SqDecoder::from_cookie(&c)
+                .unwrap()
+                .decode_frame(&extra)
+                .is_err()
+        );
+        let mut shared = good.clone();
+        let left_end = parse_spectrum(&context(), &good).unwrap().channels[0].end_bit_offset;
+        shared[left_end / 8] |= 1 << (7 - left_end % 8);
+        assert!(
+            SqDecoder::from_cookie(&c)
+                .unwrap()
+                .decode_frame(&shared)
+                .is_err()
+        );
+        assert!(
+            SqDecoder::from_cookie(&c)
+                .unwrap()
+                .decode_frame(&[0x40])
+                .is_err()
+        );
+        assert!(
+            SqDecoder::from_cookie(&c)
+                .unwrap()
+                .decode_frame(&[0x70])
+                .is_err()
+        );
+    }
+    #[test]
+    fn unverified_configurations_cannot_enter_pcm_synthesis() {
+        for data in [cookie(5, 2, false), cookie(3, 8, false), cookie(3, 2, true)] {
+            assert!(SqDecoder::from_cookie(&data).is_err());
+        }
+        let mut c = cookie(3, 2, false);
+        let parsed = parse_cookie(&c).unwrap();
+        let offset = parsed
+            .fields
+            .iter()
+            .find(|f| f.name == "ancillary.metadata_present")
+            .unwrap()
+            .bit_offset;
+        c[offset / 8] |= 1 << (7 - offset % 8);
+        assert!(SqDecoder::from_cookie(&c).is_err());
+    }
+}

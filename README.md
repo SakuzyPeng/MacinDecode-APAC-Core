@@ -2,7 +2,7 @@
 
 `apac-tool` 是苹果 APAC（Apple Positional Audio Codec）的研究工具集，提供样本索引、配置采集与纯 Rust 配置／帧前缀及 SQ 频谱解析、数据包导出、独立包目录回放、苹果参考编解码、测试信号及 PCM 比较。
 
-当前版本的音频编解码由 **macOS AudioToolbox** 完成。独立 APAC 音频解码算法尚未实现；`compare`、`parse-cookie` 和 `parse-packets` 的实现不调用苹果接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
+参考音频编解码由 **macOS AudioToolbox** 完成。`decode-sq` 新增实验性的纯 Rust 受限 SQ PCM 后端，其完整数值兼容性验收尚未完成；`compare`、`parse-cookie`、`parse-packets` 和 `decode-sq` 的实现不调用苹果音频接口。通用模块已通过 Windows/Linux 目标编译检查，原生运行验收目前仍只覆盖 macOS。
 
 ## 构建
 
@@ -147,6 +147,54 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
 
+**实验性 `decode-sq`**：从自包含包目录输出独立 PCM：
+
+```sh
+target/debug/apac-tool decode-sq artifacts/demo/independent-sq-packets --out artifacts/demo/rust-pcm
+```
+
+一个可重建的独立声道头人工包目录可这样生成（目的目录须不存在）：
+
+```sh
+python3 -B - <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, "scripts")
+from spectrum_vectors import frame, bundle
+path = Path("artifacts/demo/independent-sq-packets")
+path.parent.mkdir(parents=True, exist_ok=True)
+cases = [{}, {"gain": 200, "left": {0: (1, [1, 0, 0, 0], 200)}}, {}, {}]
+bundle(path, [frame(case)[0] for case in cases])
+PY
+```
+
+当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包只支持 ASP 类型 0/1、CPE 存在、SQ、独立右声道头，左右 TNS 与 BWE2 标志均为零；共享头、LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
+
+输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
+
+库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float32 调制、窗口及舍入后的叠加状态，配合自行实现的 Float64 radix-2 FFT；没有 FFT 库依赖或运行时原生解码回退。
+
+当前保留 `experimental=true` 和数值验收待完成标识，PCM 元数据的 `decoder_settings.implementation` 也记录该信息。`complete` 只表示导出完整，**不表示高幅度压力矩阵已全部通过**。普通幅度的人工对照已通过，但苹果 DFT 路径和近似窗表与便携实现存在数值差异，强相消可以将其放大到固定容差之外；失败不会通过改增益、搜时延或放宽容差改记为通过。
+
+可复现默认苹果参考对照：
+
+```sh
+python3 -B scripts/validate_synthesis.py --output reports/synthesis-default-new.json
+```
+
+脚本始终使用 `atol=1e-6, rtol=1e-5`，保留全部压力失败，存在失败时退出 1。另有**诊断性混合参考**：只在参考回放进程中，将公开 vDSP DFT 替换为独立的 Float64 DIF FFT，其他 codec 运算保持原生；这用于隔离数值差异，不能作为“未修改苹果解码器”的验收结果：
+
+```sh
+mkdir -p target/research
+xcrun clang -dynamiclib -O2 -g0 -ffp-contract=off scripts/reference_fft.c \
+  -framework Accelerate -o target/research/sq-reference-fft.dylib
+python3 -B scripts/validate_synthesis.py \
+  --reference-fft target/research/sq-reference-fft.dylib \
+  --output reports/synthesis-controlled-new.json
+```
+
+该库不参与正式构建，也不会由 `decode-sq` 自动加载。报告分别记录参考条件、组件／工具／诊断库哈希与实际 DFT 调用数；固定 DFT 后仍保留的跨帧压力差异也是未完成项。
+
 **`decode`**：生成 `pcm.f32le` 和 `pcm.json`。PCM 是交错、小端 32 位浮点，保持输入采样率、声道数和布局。HOA 保留 ACN 顺序、SN3D/N3D 归一化和可确定的阶数。`start_frame=0` 指系统已经处理 priming 后的有效音频起点；请求到达文件尾部时实际帧数可少于请求帧数，超出尾部的起点报错。
 
 不执行重采样、下混、归一化或自动增益匹配。参考解码保留系统默认设置，元数据记录能查询到的 `mdrc`、`^pro`、`ptlc`、`pptl`。编码器也记录请求参数和返回的 `brat`、`cdqu`、`cdrc`；这些是原始系统属性值，不能将 `brat=0` 等值解释为文件的实测平均码率。
@@ -245,7 +293,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀及基础频谱解析和逐包苹果参考回放基准。实际音频解码仍由 macOS AudioToolbox 完成；CAC、TNS、LRVQ 与其他帧载荷解析、独立 PCM 解码、空间渲染和实时播放属于后续阶段。
+当前工具已建立配置解析、SQ 帧前缀及基础频谱解析和逐包苹果参考回放基准。参考解码使用 macOS AudioToolbox，受限独立 PCM 合成为实验状态；完整数值验收、CAC、TNS、BWE2、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

@@ -14,3 +14,5 @@ pub mod replay;
 #[cfg(target_os = "macos")]
 pub mod research;
 pub mod signal;
+
+pub mod synthesis;

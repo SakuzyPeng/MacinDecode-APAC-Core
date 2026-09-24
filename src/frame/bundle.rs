@@ -50,7 +50,20 @@ pub fn parse_packets(
     // Reserve the report first so an existing report is never touched, including
     // when its old incomplete marker is still present.
     let mut writer = LimitedWriter::create(output, budget.clone())?;
-    let mut mark = LimitedWriter::create(&marker, budget)?;
+    let mut mark = match LimitedWriter::create(&marker, budget) {
+        Ok(mark) => mark,
+        Err(mut error) => {
+            // Close the new, still-empty report before removing it on all platforms.
+            drop(writer);
+            if let Err(cleanup) = fs::remove_file(output) {
+                error.message.push_str(&format!(
+                    "; failed to remove new report {}: {cleanup}",
+                    output.display()
+                ));
+            }
+            return Err(error);
+        }
+    };
     mark.write_all(
         b"Packet parsing did not finish successfully; inspect errors before using this report.\n",
     )?;

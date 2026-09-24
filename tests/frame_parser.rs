@@ -427,6 +427,44 @@ mod bundles {
         reader.verify_remaining().unwrap();
     }
     #[test]
+    fn marker_creation_failure_removes_only_the_new_report() {
+        let t = Temp::new();
+        let input = t.0.join("packets");
+        build(&input, &[&[0x60, 0, 0xa5]]);
+        let out = t.0.join("prefix.jsonl");
+        let marker = t.0.join("prefix.jsonl.incomplete");
+        let old_marker = b"existing incomplete report";
+        fs::write(&marker, old_marker).unwrap();
+
+        assert!(parse_packets(&input, &out, None, 1, 1 << 20).is_err());
+        assert!(!out.exists());
+        assert_eq!(fs::read(&marker).unwrap(), old_marker);
+
+        fs::remove_file(&marker).unwrap();
+        assert_eq!(parse_packets(&input, &out, None, 1, 1 << 20).unwrap().1, 2);
+        let contents = fs::read(&out).unwrap();
+        fs::write(&marker, old_marker).unwrap();
+        assert!(parse_packets(&input, &out, None, 1, 1 << 20).is_err());
+        assert_eq!(fs::read(&out).unwrap(), contents);
+        assert_eq!(fs::read(&marker).unwrap(), old_marker);
+    }
+    #[cfg(unix)]
+    #[test]
+    fn overlong_marker_name_does_not_leave_an_unmarked_report() {
+        let t = Temp::new();
+        let input = t.0.join("packets");
+        build(&input, &[&[0x60, 0, 0xa5]]);
+        let filename = format!("{}.jsonl", "x".repeat(249));
+        let out = t.0.join(&filename);
+        // The report name fits NAME_MAX; only the appended marker suffix fails.
+        fs::write(&out, b"probe").unwrap();
+        fs::remove_file(&out).unwrap();
+
+        let error = parse_packets(&input, &out, None, 1, 1 << 20).unwrap_err();
+        assert!(error.operation.contains(&format!("{filename}.incomplete")));
+        assert!(!out.exists());
+    }
+    #[test]
     fn syntax_errors_keep_per_packet_results_and_failure_marker() {
         let t = Temp::new();
         let input = t.0.join("packets");

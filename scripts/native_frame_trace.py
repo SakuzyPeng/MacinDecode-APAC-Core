@@ -29,16 +29,21 @@ WINDOWS = {}
 TRACE_CAC = False
 CACS = []
 FRAME_READER = None
+TRACE_TNS = False
+TNS = []
+TNS_APPLY = []
+BWE_ENTRIES = []
+CPE = None
 
 
-def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False):
+def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False, tns=False, allow_replay_failure=False):
     output = root / "native-boundaries.json"
     if output.exists():
         raise RuntimeError("refusing to overwrite native boundary report")
     manifest = json.loads((bundle / "manifest.json").read_text())
     frames = manifest["file"]["packet_table"]["value"]["valid_frames"]
     env = dict(os.environ, APAC_FRAME_TRACE_OUTPUT=str(output))
-    if spectra or cac:
+    if spectra or cac or tns:
         env["APAC_SPECTRUM_TRACE"] = "1"
     else:
         env.pop("APAC_SPECTRUM_TRACE", None)
@@ -50,6 +55,10 @@ def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False):
         env['APAC_CAC_TRACE'] = '1'
     else:
         env.pop('APAC_CAC_TRACE', None)
+    if tns:
+        env['APAC_TNS_TRACE'] = '1'
+    else:
+        env.pop('APAC_TNS_TRACE', None)
     module = Path(__file__).resolve()
     replay = ["replay", str(bundle), "--out", str(root / "native-trace-pcm"), "--frames", str(frames)]
     process = subprocess.run(["xcrun", "lldb", "--batch", "-o", "command script import " + shlex.quote(str(module)),
@@ -58,7 +67,7 @@ def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False):
     if process.returncode or not output.exists():
         raise RuntimeError("native boundary trace failed: " + (process.stdout + process.stderr)[-2000:])
     result = json.loads(output.read_text())
-    if result["errors"] or result["process_exit_code"] != 0:
+    if result["errors"] or (result["process_exit_code"] != 0 and not allow_replay_failure):
         raise RuntimeError("native boundary trace incomplete: " + json.dumps({k: result[k] for k in ["errors", "process_exit_code", "packet_calls"]}))
     return result
 
@@ -111,15 +120,60 @@ def capture(frame, pointer, boundary):
     CORE_READER = None
 
 
+def tns_data(frame, pointer, info):
+    data = memory(frame, pointer, 190)
+    short = info['block_type'] == 2
+    windows = []
+    for w in range(8 if short else 1):
+        count = (data[1] >> (7-w)) & 1 if short else data[1]
+        if count > (1 if short else 3):
+            raise RuntimeError('unverified native TNS filter count')
+        filters = []
+        for i in range(count):
+            offset = 2+23*(w if short else i)
+            direction, length, order = data[offset:offset+3]
+            if order > (7 if short else 12):
+                raise RuntimeError('unverified native TNS order')
+            codes = list(data[offset+3:offset+3+order])
+            filters.append(dict(direction=bool(direction) if order else None, length=length, order=order,
+                                quantized=[(v & 15)-8 for v in codes],
+                                resolution=(3+(codes[0] >> 4)) if codes else None))
+        windows.append(dict(window_index=w, filters=filters))
+    return dict(present=bool(data[0]), windows=windows, limits=list(data[186:190]))
+
+
+def return_breakpoint(frame, saved):
+    target = frame.GetThread().GetProcess().GetTarget()
+    bp = target.BreakpointCreateByAddress(frame.GetThread().GetFrameAtIndex(1).GetPC())
+    bp.SetThreadID(frame.GetThread().GetThreadID())
+    RETURNS[bp.GetID()] = saved
+    bp.SetScriptCallbackFunction(__name__ + '.on_breakpoint')
+
+
 def on_breakpoint(frame, location, _dict):
-    global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT, FRAME_READER
+    global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT, FRAME_READER, CPE
     try:
         bp_id = location.GetBreakpoint().GetID()
         if bp_id in RETURNS:
             saved = RETURNS.pop(bp_id)
             frame.GetThread().GetProcess().GetTarget().BreakpointDelete(bp_id)
+            if saved.get('kind') == 'tns_apply':  # Apply returns void, not a status.
+                event = saved['event']
+                event['after'] = list(struct.unpack('<1024f', memory(frame, saved['buffer'], 4096)))
+                TNS_APPLY.append(event)
+                return False
             if reg(frame, "w0") != 0:
                 raise RuntimeError("native channel stream rejected input")
+            if saved.get('kind') == 'tns_read':
+                event = saved['event']
+                event['end_bit_offset'] = reader(frame, saved['reader'])
+                event['data'] = tns_data(frame, saved['pointer'], event['ics'])
+                TNS.append(event)
+                return False
+            if saved.get('kind') == 'bwe':
+                BWE_ENTRIES.append(dict(sequence=CURRENT['sequence'], packet_sha256=CURRENT['packet_sha256'],
+                                        bit_offset=reader(frame, saved['reader'])))
+                return False
             if saved.get('kind') == 'cac':
                 event = saved['event']
                 position = reader(frame, saved['reader'])
@@ -162,7 +216,7 @@ def on_breakpoint(frame, location, _dict):
             CHANNEL_COUNT = 0
             CURRENT = {"end": base + size, "packet_bytes": size, "sequence": SEQUENCE,
                        "packet_sha256": hashlib.sha256(memory(frame, base, size)).hexdigest()}
-            PENDING = CORE_READER = FRAME_READER = None
+            PENDING = CORE_READER = FRAME_READER = CPE = None
         elif kind == "core":
             pointer = reg(frame, "x1")
             if reader(frame, pointer) is not None:
@@ -172,6 +226,30 @@ def on_breakpoint(frame, location, _dict):
             if reader(frame, pointer) is not None:
                 PENDING = {"reader": pointer, "ics": []}
                 FRAME_READER = pointer
+                CPE = reg(frame, 'x0')
+                if TRACE_TNS:
+                    return_breakpoint(frame, dict(kind='bwe', reader=pointer))
+        elif kind in ('tns_read', 'tns_apply') and FRAME_READER is not None:
+            pointer = reg(frame, 'x0')
+            if pointer not in (CPE+0x80, CPE+0x13e):
+                return False
+            channel = int(pointer == CPE+0x13e)
+            if kind == 'tns_read':
+                source = reg(frame, 'x1')
+                position = reader(frame, source)
+                if position is None:
+                    return False
+                event = dict(sequence=CURRENT['sequence'], packet_sha256=CURRENT['packet_sha256'],
+                             channel_index=channel, start_bit_offset=position, ics=ics_info(frame, reg(frame,'x2')))
+                return_breakpoint(frame, dict(kind=kind, event=event, reader=source, pointer=pointer))
+            else:
+                info = ics_info(frame, reg(frame, 'x1'))
+                buffer = reg(frame, 'x4')
+                event = dict(sequence=CURRENT['sequence'], packet_sha256=CURRENT['packet_sha256'],
+                             channel_index=channel, bit_offset=reader(frame, FRAME_READER), ics=info,
+                             full_band_count=reg(frame,'w2'), data=tns_data(frame,pointer,info),
+                             before=list(struct.unpack('<1024f', memory(frame,buffer,4096))))
+                return_breakpoint(frame, dict(kind=kind, event=event, buffer=buffer))
         elif kind == 'cac' and FRAME_READER is not None:
             position = reader(frame, FRAME_READER)
             if position is None:
@@ -229,10 +307,11 @@ def on_breakpoint(frame, location, _dict):
 
 
 def __lldb_init_module(debugger, _dict):
-    global TRACE_SPECTRA, TRACE_WINDOWS, TRACE_CAC
+    global TRACE_SPECTRA, TRACE_WINDOWS, TRACE_CAC, TRACE_TNS
     TRACE_WINDOWS = os.environ.get("APAC_WINDOW_TRACE") == "1"
     TRACE_SPECTRA = os.environ.get("APAC_SPECTRUM_TRACE") == "1"
     TRACE_CAC = os.environ.get('APAC_CAC_TRACE') == '1'
+    TRACE_TNS = os.environ.get('APAC_TNS_TRACE') == '1'
     target = debugger.GetSelectedTarget()
     if not target.GetTriple().startswith("arm64"):
         raise RuntimeError("native boundary oracle is verified only for arm64 macOS")
@@ -255,6 +334,9 @@ def __lldb_init_module(debugger, _dict):
         points["window"] = r"^APACSynthesisFilterBank::FrequencyToTimeInPlace\("
     if TRACE_CAC:
         points['cac'] = r'^APACCACDecoder::ProcessCac\('
+    if TRACE_TNS:
+        points['tns_read'] = r'^APACTNSData::ParseTNSData\('
+        points['tns_apply'] = r'^APACTNSData::Apply\('
     for kind, pattern in points.items():
         bp = target.BreakpointCreateByRegex(pattern)
         KINDS[bp.GetID()] = kind
@@ -280,5 +362,8 @@ def finish(debugger):
     if TRACE_CAC:
         report['method'] += '; read-only CAC runs and pre/post spectra before TNS'
         report['cac'] = CACS
+    if TRACE_TNS:
+        report['method'] += '; read-only TNS parse/apply returns and BWE2 entry'
+        report.update(tns=TNS, tns_apply=TNS_APPLY, bwe_entries=BWE_ENTRIES)
     with Path(os.environ["APAC_FRAME_TRACE_OUTPUT"]).open("x") as output:
         json.dump(report, output, indent=2)

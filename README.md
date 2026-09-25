@@ -173,6 +173,29 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
+**TNS 深度**：`parse-packets --depth tns` 及 `frame::parse_tns(&FrameContext, &[u8]) -> Result<TnsReport, config::ParseError>` 依次读取完整左 TNS、完整右 TNS，停在 BWE2 入口。原 `prefix`／`spectrum`／`cac` 深度的默认值、结果与停止位置保持不变。
+
+`TnsReport.cac` 保留前阶段报告，JSON 继续平铺。`channels` 是原始整数及 CAC 前频谱，`channels_after_cac` 保留 TNS 输入，`channels_after_tns` 为滤波后输出，`tns_stage=scaled_after_tns_before_bwe2`。`tns` 逐声道、窗口、滤波器记录存在位、分辨率、长度／阶数、方向／压缩、补码整数、Float64 反射系数、有效谱线区间和起止位。`tns_complete` 及汇总 `tns_complete_packets` 只表示此阶段完成；整包仍是 partial，组件终点仍未知。CPE 缺席不产生虚构频谱。
+
+长窗支持 0..3 个滤波器、0..12 阶；短窗逐一处理八个窗口，每窗 0..1 个滤波器、0..7 阶，不依赖分组。长度必须非零，零阶不读取方向和系数但仍推进频带游标。长／短游标从完整 49／14 带开始，实际范围再裁至 `max_sfb` 和 TNS 上限（48 kHz 长窗 40、44.1 kHz 长窗 42、短窗 14）；空作用范围仍完整读完参数。截断、超阶及非有限结果明确报错，不补零或截断阶数。
+
+`apac-tns-math-v1` 以正弦公式定义反射系数，Decimal 100／200 位计算结果须舍入到同一 Float64 位模式。运行时采用固定顺序 Float64 格型滤波，每个滤波器重置状态，各谱线最后一次转换为 Float32；无 TNS 时原有 SQ／CAC 输出不变。配置拒绝消息保持原操作名称及退出码，并列出拒绝字段、实际值和 cookie 位位置；配置范围没有扩大。
+
+```sh
+python3 -B scripts/generate_tns_math.py --check
+# 4,326 个频谱用例、4,330 个 PCM 序列；独立 LPC 递推及 Decimal 直接 IMDCT
+python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --output reports/tns-math.json
+# 同提交、同源码、同常量的逐位验收
+python3 -B scripts/validate_tns.py --binary target/release/apac-tool \
+  --reference-report reports/tns-math.json --output reports/tns-release.json
+# 可选原生只读诊断，仍单独保留高阶密集压力差异
+python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --native-only --output reports/tns-native.json
+```
+
+人工包使用 `scripts/tns_vectors.py` 的 `packet(case, rate)` 与原 `bundle` 写入器生成；`left_tns`／`right_tns` 为按窗口索引的参数字典，缺失表示关闭，空字典表示存在但所有窗口零滤波器。例如 `left_tns={0: {"resolution": 4, "filters": [{"length": 49, "q": [1, -1], "direction": False, "compression": False}]}}`。同一窗口共用分辨率；压缩只改变编码宽度。
+
+TNS 数学参考从公式重新计算系数，转换为 200 位 LPC，再作直接式递推；不复用生产格型或常量表。频谱和 PCM 保持 `atol=1e-6, rtol=1e-5`，记录最大误差、ULP 及失败坐标。另对量化整数、CAC 参数／频谱、TNS 参数／频谱和 PCM 的小端字节摘要要求完全一致。完整验收包含原有 SQ 17,800／9,948、CAC 2,912／2,984 两套矩阵；`validate_cac.py` 也支持显式 `--regression-report` 核对旧提交的固定输出。`--native-only` 属于诊断报告，不能作为便携数学或跨平台验收参考。
+
 **实验性 `decode-sq`**：从自包含包目录输出独立 PCM：
 
 ```sh
@@ -194,13 +217,13 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包支持 ASP 类型 0/1、CPE 存在、SQ、独立或共享声道头及已验证 CAC，左右 TNS 与 BWE2 标志均须为零；LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
+当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包支持 ASP 类型 0/1、CPE 存在、SQ、独立或共享声道头及已验证 CAC／TNS，左右 BWE2 标志须为零；LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
 库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float64 调制、正弦窗、叠加状态和自行实现的 radix-2 DIT FFT；乘法与加法分别舍入，仅最终 PCM 转为 Float32，浮点零统一为正零。没有 FFT 库依赖或运行时原生解码回退。
 
-默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_cac_f64_fft_v4`，另记录 `cac_numeric_profile=apac-cac-math-v1` 与 CAC 常量摘要。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
+默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_cac_tns_f64_fft_v5`，另记录 `cac_numeric_profile=apac-cac-math-v1` 、`tns_numeric_profile=apac-tns-math-v1` 与两者的常量摘要。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
 
 `data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
 
@@ -375,7 +398,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC 和逐包苹果参考回放基准。独立公式数值模型已建立完整人工矩阵与三平台逐位验收，受限 PCM 仍保留实验标识；TNS、BWE2、ASP 内嵌 preroll 状态、DRC 增益、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS 和逐包苹果参考回放基准。独立公式数值模型已建立完整人工矩阵与三平台逐位验收，受限 PCM 仍保留实验标识；BWE2、ASP 内嵌 preroll 状态、DRC 增益、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

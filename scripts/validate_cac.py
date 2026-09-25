@@ -92,10 +92,12 @@ def exact(actual, expected):
         require(actual[key]==expected[key], 'CAC fingerprint mismatch: '+key)
 
 
-def validate_reference(reference, report):
+def validate_reference(reference, report, regression=False):
     require(reference.get('passed') is True and reference.get('mode')=='independent_math', 'requires successful CAC mathematical report')
     require(reference.get('counts')==COUNTS and reference.get('errors')==[], 'incomplete CAC reference')
-    for key in ('schema_version','code_commit','source_sha256','numeric_profile','format_sha256','tables_sha256','atol','rtol'):
+    keys = ('schema_version','numeric_profile','format_sha256','tables_sha256','atol','rtol')
+    if not regression: keys += ('code_commit','source_sha256')
+    for key in keys:
         require(reference[key]==report[key], 'CAC reference identity differs: '+key)
     for stage,count in COUNTS.items():
         require(len(reference[stage])==count and all(r['passed'] for r in reference[stage]), 'missing or failed CAC reference cases')
@@ -201,6 +203,7 @@ def pcm_stop(result):
     error=result.get('error',{})
     require(error.get('operation')=='SQ decoder','unexpected PCM failure: '+json.dumps(error))
     message=error.get('message','')
+    if message.startswith('unsupported configuration: '):return 'configuration'
     exact_messages={
         'requires verified stereo configuration without ancillary data, extensions or remapping':'configuration',
         'decode from source packet zero; random-access state is not implemented':'nonzero_origin',
@@ -234,7 +237,7 @@ def native_artificial(binary, report):
             if first%320==0:print('CAC native',rate,first,flush=True,file=sys.stderr)
 
 
-def native_real(binary, baseline, report):
+def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_native, tns=False):
     previous=json.loads(baseline.read_text(encoding='utf-8'))
     require(previous['passed'] and len(previous['representatives'])==15,'requires verified replay representatives')
     specs=[('representative',base,None) for base in previous['representatives']]
@@ -258,9 +261,10 @@ def native_real(binary, baseline, report):
                     for flag,key in [('--quality','cdqu'),('--bitrate','brat')]:
                         if flag in extra:require(settings['actual_encoder_settings'][key]['error'] is None and settings['actual_encoder_settings'][key]['value']==int(extra[extra.index(flag)+1]),'encoder control differs')
                     dumped=command(binary,'dump',generated/'encoded.caf','--out',root/'packets','--with-preroll')
-                summary,rows=inspect(binary,root/'packets',root,dumped['actual_packets']);record['summary']=summary
+                summary,rows=inspect_fn(binary,root/'packets',root,dumped['actual_packets']);record['summary']=summary
                 if summary['context']['channels']==2:
-                    record['native_cac_checks']=check_native(rows,trace_bundle(binary,root/'packets',root,True,cac=True))
+                    record['native_tns_checks' if tns else 'native_cac_checks']=check_fn(rows,trace_bundle(binary,root/'packets',root,True,cac=True,tns=tns))
+                    if tns:require(summary['tns_complete_packets']==summary['cac_complete_packets'],'real TNS stage incomplete')
                     require(summary['cac_complete_packets']+summary['cpe_absent_packets']==summary['actual_packets'],
                             'supported real/control packets did not complete CAC')
                 else:require(summary['cac_complete_packets']==0,'unsupported context acquired CAC')
@@ -285,7 +289,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--reference-report',type=Path)
+    group=parser.add_mutually_exclusive_group()
+    group.add_argument('--reference-report',type=Path)
+    group.add_argument('--regression-report',type=Path)
     parser.add_argument('--native',action='store_true')
     parser.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))
     args=parser.parse_args()
@@ -300,18 +306,21 @@ def main():
                 mode='bit_exact_replay' if args.reference_report else 'independent_math',implementation=None,atol=1e-6,rtol=1e-5,
                 spectra=[],pcm=[],errors=[],native_artificial=[],real=[],started_utc=datetime.now(timezone.utc).isoformat())
     reference=None
+    reference_path=args.reference_report or args.regression_report
+    if args.regression_report: report['mode']='regression_replay'
     try:
-        if args.reference_report:
-            require(args.reference_report.stat().st_size<=LIMIT,'reference exceeds 128 MiB')
-            report['reference_report_sha256']=sha256_file(args.reference_report)
-            reference=json.loads(args.reference_report.read_text(encoding='utf-8'));validate_reference(reference,report)
+        if reference_path:
+            require(reference_path.stat().st_size<=LIMIT,'reference exceeds 128 MiB')
+            report['reference_report_sha256']=sha256_file(reference_path)
+            reference=json.loads(reference_path.read_text(encoding='utf-8'));validate_reference(reference,report,bool(args.regression_report))
+            report['reference_code_commit']=reference['code_commit']
         portable(binary,report,reference)
         if args.native:
             report['component_sha256']=COMPONENT_SHA256
             native_artificial(binary,report);native_real(binary,args.replay_baseline,report)
             require(len(report['native_artificial'])==COUNTS['spectra'] and len(report['real'])==30,'incomplete native CAC coverage')
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
-        if args.reference_report:require(sha256_file(args.reference_report)==report['reference_report_sha256'],'reference report changed')
+        if reference_path:require(sha256_file(reference_path)==report['reference_report_sha256'],'reference report changed')
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))
     report['counts']={stage:len(report[stage]) for stage in COUNTS}
     report['passed']=not report['errors'] and report['counts']==COUNTS and all(r['passed'] for stage in COUNTS for r in report[stage]) and all(r['passed'] for r in report['real'])

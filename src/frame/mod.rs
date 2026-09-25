@@ -1,12 +1,16 @@
-//! Bounded stereo SQ prefixes, ASP framing, raw spectra and CAC before TNS.
+//! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC and TNS before BWE2.
 mod bundle;
 mod cac;
 mod spectrum;
+mod tns;
 pub use bundle::{ParseDepth, parse_packets, parse_packets_with_depth};
 pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
 pub(crate) use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
+pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
+pub(crate) use tns::math_sha256 as tns_math_sha256;
+pub use tns::{TnsChannel, TnsChannelSpectrum, TnsFilter, TnsReport, TnsWindow, parse_tns};
 
 use crate::{
     config::{self, ConfigField, Diagnostic, ParseError, ParseStatus, bits::BitReader},

@@ -25,7 +25,7 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Experimental portable PCM for the restricted independent-ICS SQ subset.
+    /// Experimental portable PCM for the restricted SQ/CAC/TNS subset.
     DecodeSq {
         directory: PathBuf,
         #[arg(long)]
@@ -33,7 +33,7 @@ enum Command {
     },
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
-    /// Inspect SQ prefixes or pre-tool spectra from a validated packet bundle.
+    /// Inspect SQ prefixes, raw spectra, CAC or TNS from a validated packet bundle.
     ParsePackets {
         directory: PathBuf,
         #[arg(long, value_enum, default_value_t = macindecode_apac_tools::frame::ParseDepth::Prefix)]

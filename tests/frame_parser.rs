@@ -746,7 +746,7 @@ mod synthesis_tests {
             .unwrap()
             .frame
             .stop_bit_offset;
-        for bit in stop..stop + 4 {
+        for bit in stop + 2..stop + 4 {
             let mut bad = good.clone();
             bad[bit / 8] |= 1 << (7 - bit % 8);
             let error = SqDecoder::from_cookie(&c)
@@ -818,7 +818,7 @@ mod cac_tests {
         synthesis::SqDecoder,
     };
 
-    fn packet(block: u64, gain: usize) -> Vec<u8> {
+    pub(super) fn packet(block: u64, gain: usize) -> Vec<u8> {
         let books: serde_json::Value =
             serde_json::from_str(include_str!("../data/sq-codebooks.json")).unwrap();
         let cac: serde_json::Value =
@@ -914,8 +914,9 @@ mod cac_tests {
             .spectrum
             .frame
             .stop_bit_offset;
-        bad[end / 8] |= 1 << (7 - end % 8);
-        assert_eq!(actual.decode_frame(&bad).unwrap_err().bit_offset, Some(end));
+        let bwe = end + 2;
+        bad[bwe / 8] |= 1 << (7 - bwe % 8);
+        assert_eq!(actual.decode_frame(&bad).unwrap_err().bit_offset, Some(bwe));
         assert!(actual.decode_frame(&packet(2, 26)).is_err());
         assert!(actual.decode_frame(&bad[..bad.len() / 2]).is_err());
         assert_eq!(
@@ -940,7 +941,7 @@ mod cac_tests {
                     .is_err()
             );
         }
-        for bit in end..end + 4 {
+        for bit in end + 2..end + 4 {
             let mut bad = good.clone();
             bad[bit / 8] |= 1 << (7 - bit % 8);
             assert_eq!(
@@ -968,5 +969,89 @@ mod cac_tests {
                 Err(e) => assert!(e.bit_offset <= changed.len() * 8),
             }
         }
+    }
+}
+
+mod tns_tests {
+    use super::*;
+    use macindecode_apac_tools::{
+        frame::{parse_cac, parse_tns},
+        synthesis::SqDecoder,
+    };
+    fn packet(order: u64, length: u64, bwe: u64) -> Vec<u8> {
+        let source = super::cac_tests::packet(0, 9);
+        let end = parse_cac(&context(), &source)
+            .unwrap()
+            .spectrum
+            .frame
+            .stop_bit_offset;
+        let mut b = Bits::default();
+        for i in 0..end {
+            b.put(u64::from((source[i / 8] >> (7 - i % 8)) & 1), 1);
+        }
+        b.fields(&[(1, 1), (1, 2), (1, 1), (length, 6), (order, 5)]);
+        if order > 0 {
+            b.fields(&[(0, 1), (0, 1)]);
+            for _ in 0..order {
+                b.put(1, 4);
+            }
+        }
+        b.fields(&[(0, 1), (bwe, 1), (0, 1)]);
+        b.put(0, (8 - b.1 % 8) % 8);
+        b.put(0, 8);
+        b.0
+    }
+    #[test]
+    fn filtered_spectra_and_pcm_errors_are_transactional_and_reset_exactly() {
+        let cookie = cookie(3, 2, false);
+        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut expected = SqDecoder::from_cookie(&cookie).unwrap();
+        let good = packet(3, 49, 0);
+        let parsed = parse_tns(&context(), &good).unwrap();
+        check_coverage(&good, &parsed.cac.spectrum.frame);
+        assert!(parsed.tns_complete);
+        assert_ne!(
+            parsed.channels_after_tns[0].scaled,
+            parsed.cac.channels_after_cac[0].scaled
+        );
+        let first = actual.decode_frame(&good).unwrap();
+        assert_eq!(first, expected.decode_frame(&good).unwrap());
+        for bad in [
+            packet(1, 0, 0),
+            packet(13, 49, 0),
+            packet(3, 49, 1),
+            good[..good.len() - 2].to_vec(),
+        ] {
+            assert!(actual.decode_frame(&bad).is_err());
+        }
+        assert_eq!(
+            actual.decode_frame(&good).unwrap(),
+            expected.decode_frame(&good).unwrap()
+        );
+        actual.reset();
+        assert_eq!(actual.decode_frame(&good).unwrap(), first);
+    }
+    #[test]
+    fn configuration_errors_name_fields_values_and_cookie_positions() {
+        let bytes = cookie(5, 2, false);
+        let result = SqDecoder::from_cookie(&bytes).err().unwrap();
+        assert_eq!(result.operation, "SQ decoder");
+        assert!(
+            result
+                .message
+                .contains("global.sample_rate_index=5 at cookie bit")
+        );
+        let mut bytes = cookie(3, 2, false);
+        let fields = parse_cookie(&bytes).unwrap().fields;
+        let bit = fields
+            .iter()
+            .find(|f| f.name == "ancillary.metadata_present")
+            .unwrap()
+            .bit_offset;
+        bytes[bit / 8] |= 1 << (7 - bit % 8);
+        let error = SqDecoder::from_cookie(&bytes).err().unwrap();
+        assert!(error.message.contains(&format!(
+            "ancillary.metadata_present=true at cookie bit {bit}"
+        )));
     }
 }

@@ -214,17 +214,19 @@ def check_native(rows, trace, diagnostic=False):
         records.append(dict(sequence=i,packet_sha256=report['packet_sha256'],integer_boundary_passed=True,
                             tns_present=[c['present'] for c in report['tns']],input_metrics=inputs,output_metrics=outputs,
                             isolated_tns_metrics=isolated,numeric_passed=all(m['passed'] for m in outputs),
-                            isolated_numeric_passed=all(m['passed'] for m in isolated),native_replay_exit_code=trace['process_exit_code']))
+                            isolated_numeric_passed=all(m['passed'] for m in isolated),native_replay_exit_code=trace['process_exit_code'],
+                            native_batch_packets=trace['packet_calls']))
     return records
 
 
 def native_artificial(binary, report):
     for rate in (48000,44100):
         first=0
-        # Isolate dense stress packets: native nonfinite PCM may abort playback,
-        # but each packet must still reach both TNS returns and BWE2 entry.
+        # Replay validates PCM in blocks of eight packets. Bound dense stress to
+        # one such block: all eight TNS/BWE2 returns are captured even if PCM is
+        # nonfinite. A missing return is still a hard failure, never a skipped case.
         batches=(batch for dense,group in itertools.groupby(cases(),key=lambda c:c['kind']=='dense_stress')
-                 for batch in batch_cases(group,1 if dense else 64))
+                 for batch in batch_cases(group,8 if dense else 64))
         for batch in batches:
             with tempfile.TemporaryDirectory(prefix='tns-native-') as tmp:
                 root=Path(tmp);generated=[packet(c,rate) for c in batch]
@@ -237,6 +239,7 @@ def native_artificial(binary, report):
                     require(len(checked)==len(batch),'missing native artificial TNS')
                     for i,(case,record) in enumerate(zip(batch,checked)):
                         record.update(rate=rate,index=first+i,kind=case['kind'])
+                        record['native_trace_sha256']=sha256_file(root/'native-boundaries.json')
                         if case['kind']!='dense_stress':
                             require(record['numeric_passed'] and record['isolated_numeric_passed'],'bounded native TNS differs: '+json.dumps(record))
                         report['native_artificial'].append(record)

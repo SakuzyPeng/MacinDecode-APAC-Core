@@ -7,7 +7,7 @@ from pathlib import Path
 from bwe2_vectors import cases, sequences, packet
 from spectrum_vectors import cookie
 
-DESTINATION=Path(__file__).resolve().parents[1]/'data/bwe2-vectors-v1.json'
+DESTINATION=Path(__file__).resolve().parents[1]/'data/bwe2-vectors-v2.json'
 
 
 def document():
@@ -23,7 +23,7 @@ def document():
                 records.append(dict(rate=rate,index=index,kind=kind,packets=len(sequence),input_sha256=identity.hexdigest()))
         stages[stage]=records
     digest=hashlib.sha256(json.dumps(stages,sort_keys=True,separators=(',',':')).encode()).hexdigest()
-    return dict(schema_version=1,vector_profile='apac-bwe2-vectors-v1',generator='generate_bwe2_manifest.py',
+    return dict(schema_version=1,vector_profile='apac-bwe2-vectors-v2',generator='generate_bwe2_manifest.py',
                 counts={k:len(v) for k,v in stages.items()},inputs_sha256=digest,**stages)
 
 

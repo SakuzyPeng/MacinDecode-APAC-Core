@@ -9,8 +9,8 @@ from pathlib import Path
 
 from sq_math import cos_pi, sin_pi, pi, ieee_bits
 
-PROFILE='apac-bwe2-math-v1'
-DESTINATION=Path(__file__).resolve().parents[1]/'data/bwe2-math-v1.json'
+PROFILE='apac-bwe2-math-v2'
+DESTINATION=Path(__file__).resolve().parents[1]/'data/bwe2-math-v2.json'
 SIZES=(32,64,96,128,256,512,768,1024)  # 32/256 are the radix-3 subtransforms.
 
 

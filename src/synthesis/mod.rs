@@ -8,7 +8,7 @@ use crate::{
 };
 pub use bundle::decode_sq;
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v6";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v7";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]

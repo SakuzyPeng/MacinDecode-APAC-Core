@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::OnceLock};
 
-pub const PROFILE: &str = "apac-bwe2-math-v1";
+pub const PROFILE: &str = "apac-bwe2-math-v2";
 #[derive(Deserialize)]
 struct Format {
     format_profile: String,
@@ -36,7 +36,7 @@ fn constants() -> &'static Constants {
     DATA.get_or_init(|| {
         let format: Format = serde_json::from_str(include_str!("../data/bwe2-format-v1.json"))
             .expect("built-in BWE2 format constants");
-        let math: Math = serde_json::from_str(include_str!("../data/bwe2-math-v1.json"))
+        let math: Math = serde_json::from_str(include_str!("../data/bwe2-math-v2.json"))
             .expect("built-in BWE2 mathematical constants");
         assert_eq!(format.format_profile, "apac-bwe2-format-v1");
         assert_eq!(math.numeric_profile, PROFILE);
@@ -313,10 +313,39 @@ fn envelope(a: &[f64; 17], bins: usize) -> Vec<f64> {
         })
         .collect()
 }
+fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
+    let cosines = lsf.map(lsf_cosine);
+    let grid = &constants().twiddles[&(2 * bins)];
+    // On the unit circle each LSF factor is 2*z*(cos(w)-cos(lsf)).
+    // A(z) = (P(z)*(1+z) + Q(z)*(1-z))/2, so after removing its
+    // unit-magnitude phase, its real/imaginary parts are P*cos(w/2)
+    // and Q*sin(w/2). Keep the products factored: expanding LPC first
+    // loses significant digits when the target envelope is near zero.
+    grid[..bins]
+        .iter()
+        .enumerate()
+        .map(|(k, z)| {
+            let (mut p, mut q) = (1., 1.);
+            for pair in cosines.chunks_exact(2) {
+                p *= 2. * (z.re - pair[0]);
+                q *= 2. * (z.re - pair[1]);
+            }
+            // Both grids are dyadic; the existing bounded trigonometric
+            // kernel evaluates these half angles without platform libm.
+            let half_frequency = 6000. * k as f64 / bins as f64;
+            let re = p * lsf_cosine(half_frequency);
+            let im = q * lsf_cosine(6000. - half_frequency);
+            let re2 = re * re;
+            let im2 = im * im;
+            (re2 + im2).sqrt()
+        })
+        .collect()
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Analysis {
     pub conditioned_lsf: [f64; 16],
     pub source_lpc: [f64; 17],
+    /// Diagnostic expansion; the target envelope is evaluated from LSF factors.
     pub target_lpc: [f64; 17],
 }
 pub(crate) fn restore(
@@ -339,7 +368,7 @@ pub(crate) fn restore(
     let conditioned_lsf = conditioned_lsf(indices);
     let target_lpc = lsf_lpc(&conditioned_lsf);
     let source_envelope = envelope(&source_lpc, cutoff);
-    let target_envelope = envelope(&target_lpc, high_bins);
+    let target_envelope = lsf_envelope(&conditioned_lsf, high_bins);
     let mut ratios = Vec::with_capacity(high_bins);
     let width = cutoff - source_start;
     for (k, denominator) in target_envelope.into_iter().enumerate() {
@@ -414,6 +443,35 @@ mod tests {
             );
         }
         assert_eq!(lsf_cosine(6000.).to_bits(), 0);
+    }
+    #[test]
+    fn factored_lsf_envelope_preserves_small_magnitudes() {
+        // Independent 100-digit Decimal polynomial evaluation from
+        // bwe2_oracle.envelope(target_lpc(indices), bins), rounded to Float64.
+        for (indices, bins, k, expected) in [
+            ([163, 24], 512, 2, 4.386340692426195e-6),
+            ([163, 24], 512, 12, 5.329975346645111e-5),
+            ([67, 492], 512, 0, 4.636794014927362e-6),
+            ([482, 48], 512, 508, 9.947070962182992e-8),
+            ([163, 24], 64, 0, 3.193970327321313e-5),
+            ([482, 48], 64, 63, 3.4222970478685607e-7),
+        ] {
+            let actual = lsf_envelope(&conditioned_lsf(indices), bins)[k];
+            assert!(
+                (actual / expected - 1.).abs() < 2e-11,
+                "{indices:?}/{bins}/{k}: {actual}"
+            );
+        }
+    }
+    #[test]
+    fn uniformly_spaced_lsf_has_unit_envelope() {
+        // A(z)=1 has roots at j*pi/17 in its interlaced P/Q polynomials.
+        let lsf = std::array::from_fn(|j| 12000. * (j + 1) as f64 / 17.);
+        for bins in [64, 512] {
+            for value in lsf_envelope(&lsf, bins) {
+                assert!((value - 1.).abs() < 1e-12);
+            }
+        }
     }
     #[test]
     fn every_transform_basis_and_inverse_has_the_prescribed_sign_and_scale() {

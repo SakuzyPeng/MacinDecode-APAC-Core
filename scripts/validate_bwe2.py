@@ -28,8 +28,8 @@ from validate_replay import command, sha256_file
 from validate_spectra import coverage
 from validate_synthesis import batch_cases
 
-COUNTS=dict(spectra=8122,pcm=8122)
-MANIFEST=json.loads((ROOT/'data/bwe2-vectors-v1.json').read_text())
+COUNTS=dict(spectra=8218,pcm=8218)
+MANIFEST=json.loads((ROOT/'data/bwe2-vectors-v2.json').read_text())
 HARD_NATIVE={'boundary','reuse_shape','right_only','left_only','gain_control','window_control','zero_source'}
 
 
@@ -249,7 +249,7 @@ def native_artificial(binary,report):
         # Ordinary index/copy scans can share a process. Bound high-gain/combined
         # pressure to one replay block; retain any unexpectedly partial trace and
         # retry its full batch in blocks of eight, without dropping any case.
-        batches=(batch for pressure,group in itertools.groupby(cases(),key=lambda c:c['kind'] in ('escape_pressure','combined_pressure'))
+        batches=(batch for pressure,group in itertools.groupby(cases(),key=lambda c:c['kind'] in ('escape_pressure','combined_pressure','lpc_conditioning'))
                  for batch in batch_cases(group,8 if pressure else 64))
         for batch in batches:
             with tempfile.TemporaryDirectory(prefix='bwe2-native-') as tmp:
@@ -304,7 +304,7 @@ def main():
                 tested_worktree_dirty=bool(subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain'],text=True,encoding='utf-8').strip()),
                 source_sha256=source_digest(),tables_sha256=sha256_file(DESTINATION),format_sha256=sha256_file(ROOT/'data/bwe2-format-v1.json'),
                 constant_model_sha256=json.loads(DESTINATION.read_text())['tables_sha256'],
-                vector_manifest_sha256=sha256_file(ROOT/'data/bwe2-vectors-v1.json'),
+                vector_manifest_sha256=sha256_file(ROOT/'data/bwe2-vectors-v2.json'),
                 upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v1.json','cac-math-v1.json','tns-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
                 tool_sha256=sha256_file(binary),platform=platform.platform(),architecture=platform.machine(),python=sys.version,
                 mode='native_diagnostic' if args.native_only else 'bit_exact_replay' if args.reference_report else 'independent_math',

@@ -89,6 +89,20 @@ def source_case(block=0,grouping=0,upper=False,position=None,flat=False,side='le
     return case
 
 
+def conditioning_cases():
+    # Interior dictionary pairs missed by the axis sweeps. Their small target
+    # envelopes expose cancellation in expanded LPC coefficients at both ends
+    # of the frequency grid; quarter-step gains exercise Float32 rounding.
+    for indices in ((163,24),(67,492),(482,48)):
+        for block,grouping in ((0,0),(2,0x55)):
+            for upper in (False,True):
+                for gain in (159,255):
+                    for side in ('left','right'):
+                        case=source_case(block,grouping,upper,flat=True,side=side,gain=gain)
+                        case[side+'_bwe2']=dict(lsf=list(indices),gains=[63]*(4 if block==2 else 1))
+                        yield dict(case,kind='lpc_conditioning')
+
+
 def cases():
     yield from boundary_cases()
     for axis in (0,1):
@@ -150,6 +164,7 @@ def cases():
         yield dict(case,kind='preserved_high_band')
         zero=dict(block=block,grouping=grouping,max_sfb=sfb+1,left_bwe2={},left={sfb:(1,[1,0,0,0],100)},gain=100)
         yield dict(zero,kind='zero_source')
+    yield from conditioning_cases()
 
 
 def sequences():

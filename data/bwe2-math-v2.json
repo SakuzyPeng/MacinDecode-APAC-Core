@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "numeric_profile": "apac-bwe2-math-v1",
+  "numeric_profile": "apac-bwe2-math-v2",
   "decimal_precisions": [
     100,
     200

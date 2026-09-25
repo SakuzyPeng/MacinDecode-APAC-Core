@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 import unittest
@@ -12,7 +13,8 @@ from bwe2_vectors import packet, source_case, cases, sequences
 from generate_bwe2_math import DESTINATION,document
 from verify_bwe2_format import extract
 from validate_bwe2 import check_expected, check_native, native_conditioned_lsf, exact, validate_reference, COUNTS
-from bwe2_oracle import conditioned_transform
+from bwe2_oracle import Decoder, conditioned_transform
+from validate_portable import compare_pcm
 
 
 class Bwe2Tests(unittest.TestCase):
@@ -70,6 +72,25 @@ class Bwe2Tests(unittest.TestCase):
         result=self.parse([data],'tns');self.assertEqual(result.returncode,2,result.stderr)
         r=json.loads((self.root/'out.jsonl').read_text())['report']
         self.assertEqual(r['stop_bit_offset'],truth['tns_end_bit_offset']);self.assertNotIn('bwe2',r)
+    def test_conditioned_lsf_cancellation_stays_within_pcm_tolerance(self):
+        # The expanded Float64 LPC loses enough precision for one-ULP spectral
+        # errors to exceed the PCM tolerance after overlap-add on the next frame.
+        case=source_case(flat=True,gain=159)
+        case['left_bwe2']=dict(lsf=[163,24],gains=[63])
+        for rate in (48000,44100):
+            with self.subTest(rate=rate):
+                generated=[packet(c,rate) for c in (case,{},{})]
+                root=self.root/str(rate);root.mkdir()
+                bundle(root/'packets',[p for p,_ in generated],rate)
+                result=subprocess.run([str(self.binary),'decode-sq',str(root/'packets'),'--out',str(root/'pcm')],
+                                      capture_output=True,text=True,encoding='utf-8')
+                self.assertEqual(result.returncode,0,result.stderr)
+                raw=(root/'pcm/pcm.f32le').read_bytes()
+                actual=struct.unpack('<'+str(len(raw)//4)+'f',raw)
+                oracle=Decoder()
+                expected=[v for _,truth in generated for v in oracle.decode(truth)]
+                metrics=compare_pcm(actual,expected)
+                self.assertTrue(metrics['passed'],metrics)
     def test_truncation_and_invalid_tail_preserve_failed_pcm_marker(self):
         data,truth=packet(source_case())
         truncated=data[:(truth['bwe2']['end_bit_offset']-1)//8]

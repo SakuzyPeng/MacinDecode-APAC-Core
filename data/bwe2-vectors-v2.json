@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "vector_profile": "apac-bwe2-vectors-v1",
+  "vector_profile": "apac-bwe2-vectors-v2",
   "generator": "generate_bwe2_manifest.py",
   "counts": {
-    "spectra": 8122,
-    "pcm": 8122
+    "spectra": 8218,
+    "pcm": 8218
   },
-  "inputs_sha256": "918d72150d79a79f5dd870870b49520276c060c64d3f9032986491afadc1f450",
+  "inputs_sha256": "e72887a577dfeccbe7dbf54bb1e2fe9bf73b41b11d1a00a9dc01cb6339deabe7",
   "spectra": [
     {
       "rate": 48000,
@@ -28436,6 +28436,342 @@
       "input_sha256": "4f43efff8762b5bb7a9414ac5f951dbfb364c13553708efba08080d322b491fb"
     },
     {
+      "rate": 48000,
+      "index": 4061,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "d2af819e8996ab773d990c600ef050939e133962496dafc89c875a2682f4d3e8"
+    },
+    {
+      "rate": 48000,
+      "index": 4062,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "c72d15fe1acfcdd3e567c69e0df3c5211b8db892a135172d43b7ded376d58912"
+    },
+    {
+      "rate": 48000,
+      "index": 4063,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "152bedee3c194ac21900dcc3ff3863dffe9139ebdbc4c3c396d8191e77e51190"
+    },
+    {
+      "rate": 48000,
+      "index": 4064,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "11c9cc6d5467bca00af8803e42042bb4a93c987ed0664e8b090f59574314464b"
+    },
+    {
+      "rate": 48000,
+      "index": 4065,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "b226ff22371ed3b906a79bc806a7ef165343168613e69e006c77ce57eb4fb01a"
+    },
+    {
+      "rate": 48000,
+      "index": 4066,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "bc654d43d52a3742cbac1ffd85eb7ed680d90df77aee96a8df4db969cf607e49"
+    },
+    {
+      "rate": 48000,
+      "index": 4067,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "93161029a80f1f99c050cae8775713913bcffad25c63eb3c724c0b66b2f953b9"
+    },
+    {
+      "rate": 48000,
+      "index": 4068,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "5f4c735a7a66219bb401c9903814bfaf99cef6ef8b9432f852f5e7912e5b634e"
+    },
+    {
+      "rate": 48000,
+      "index": 4069,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "7f473bbb40f5d7a0ecbaf3a4f5fcb4c5795ad89aa233672fa0d1d610c7b78d5f"
+    },
+    {
+      "rate": 48000,
+      "index": 4070,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4a690c1459829b2aeb1e68554c0afd18c038236c90ca4e4b18105f145a48dec2"
+    },
+    {
+      "rate": 48000,
+      "index": 4071,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "518fa3d2b22084c49cc697452e6022f908a8cbdbfb60ebd473d0250384378720"
+    },
+    {
+      "rate": 48000,
+      "index": 4072,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "f694eb345db2d9bdf92fce85fb7d2dae9ab31b820dfe891e886f7640a0416601"
+    },
+    {
+      "rate": 48000,
+      "index": 4073,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6e757d61963e8244e266c4b12ebf3221df79c7f1aafe90a31468fbc123629ae4"
+    },
+    {
+      "rate": 48000,
+      "index": 4074,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "7d32c741f75f656566d2b9d8478c1c9d9015e559387cf2b12597544c4a1fcc92"
+    },
+    {
+      "rate": 48000,
+      "index": 4075,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "41e0f04c39020d24756884fad3536984404d175632f8e91bc76c979f43206b4c"
+    },
+    {
+      "rate": 48000,
+      "index": 4076,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6ef8bfddec5a6cfb65faff82bfbce19615682efffd18fcb0fe6fd69eba97cf1d"
+    },
+    {
+      "rate": 48000,
+      "index": 4077,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "9a2ec8d2b17a9e450020a86fdd1b150f61bbec8d5f6192970c81bb383f0894fe"
+    },
+    {
+      "rate": 48000,
+      "index": 4078,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4120ad207dc99fcab86be34204266a26cf53ce8085c4e1aac7a6e28f02a3658a"
+    },
+    {
+      "rate": 48000,
+      "index": 4079,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "a4b7e45b906e39dfe049db5d0508be0ad35c08bc5aba8132c66e6fa715430e97"
+    },
+    {
+      "rate": 48000,
+      "index": 4080,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "9e6aeee503c942b3f9e28019d07d7113e2410686fda164481d9faac24add8331"
+    },
+    {
+      "rate": 48000,
+      "index": 4081,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "bdf5bf5084c010bac876012bbdcffb5cc28b0347e28bcd1b7e2e0b5ad0abac1a"
+    },
+    {
+      "rate": 48000,
+      "index": 4082,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "361a1f4fa7e9068424964c28fa5e2fa7da96759501b86d41bf1213535605a6b7"
+    },
+    {
+      "rate": 48000,
+      "index": 4083,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "b2bf5344a679e9a499e1a2489dfa17bbcceafdfffaed25060d35073ec129e949"
+    },
+    {
+      "rate": 48000,
+      "index": 4084,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "366531ada5133b67a049820b3554799db6baf5b351b79198f500ef14535139bd"
+    },
+    {
+      "rate": 48000,
+      "index": 4085,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4b0790ab47e22a8f26cfc870821dc228cc51221df7d4a380e036d5be952762d9"
+    },
+    {
+      "rate": 48000,
+      "index": 4086,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "044b3978c0e4b198e54cac8d4cf5b46f76b33a49d25315387e0fdbeeb2ece8c2"
+    },
+    {
+      "rate": 48000,
+      "index": 4087,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "8d432e1cb9ec92c651039b3c19872a61dd797b713fb9be1bec3b799eb1436adf"
+    },
+    {
+      "rate": 48000,
+      "index": 4088,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6ef87d746138ffe06dfd4e327cf6f6454f4b5c81e04334c19cef98b219b84735"
+    },
+    {
+      "rate": 48000,
+      "index": 4089,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "efeac412b47c09a6c0856876aa096615e268b5390773ab2d218fd5849eac5d73"
+    },
+    {
+      "rate": 48000,
+      "index": 4090,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "ea9f2e7a3ca5f52112bc700db1757495731da1e92f90f8695a29bf23ebbd2d51"
+    },
+    {
+      "rate": 48000,
+      "index": 4091,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "40528ae05651814250508a63fc22ff0d882b14d556134ce9f36747debca81fd0"
+    },
+    {
+      "rate": 48000,
+      "index": 4092,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "adc914061ee63dd5b280c3f668e90860144513671117c0d96b97387b64adf9b1"
+    },
+    {
+      "rate": 48000,
+      "index": 4093,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "0c7ff11e4095aa409ba37c4402ee9f4403c1158639c6dac7867e1ee6b713e61c"
+    },
+    {
+      "rate": 48000,
+      "index": 4094,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "68d57abfa6069b3cc906e277f9acc197cbf352eea44bea456ea565a1c97cc12f"
+    },
+    {
+      "rate": 48000,
+      "index": 4095,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "53f402957d62889ea5eb4c8ff86f195ae99411c3456d228c08e49bbac50f9342"
+    },
+    {
+      "rate": 48000,
+      "index": 4096,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "7d04b7f8caeb886c9e86a157036fa52c47750ca516edf5e8453edb3d6d9fceae"
+    },
+    {
+      "rate": 48000,
+      "index": 4097,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "f7a9ce0a64065ca0488b732a333fa870c220202d2293fbf1e6da9cd415996393"
+    },
+    {
+      "rate": 48000,
+      "index": 4098,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4a6917d26a3b2bd14a29670edba000d920b3d1f7e581506839f5a8e0b79de873"
+    },
+    {
+      "rate": 48000,
+      "index": 4099,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "c3af7d5512ff7c8bc89c9b468eeebf22d170ceba64ad0307a7b2627b0f3b42b6"
+    },
+    {
+      "rate": 48000,
+      "index": 4100,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4e6850e51cd05dcb01987741bbecb6a57e2cc89f77748d18efcbd09b9c4045ad"
+    },
+    {
+      "rate": 48000,
+      "index": 4101,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "bf1a071c8ab6b96b44f74719b64739a1c7564993dda961f08fe09707cc3774b6"
+    },
+    {
+      "rate": 48000,
+      "index": 4102,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "3cfc21f36ad8a9226c0ca909777690269eee7d7de7fe7d0e1e5ac27d4fa3b8bf"
+    },
+    {
+      "rate": 48000,
+      "index": 4103,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6800da568f60a2a1be62c0eb8c716fbddb70ca762361131bc4ac3d5050e1ee60"
+    },
+    {
+      "rate": 48000,
+      "index": 4104,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "78770f88857e15aaf60bd264fe2bf9779b02c739964a80c2d3f686316e9e30c9"
+    },
+    {
+      "rate": 48000,
+      "index": 4105,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "676a6dab2410336a985c28700db867430ca965e22c148750800afd36f1c55e52"
+    },
+    {
+      "rate": 48000,
+      "index": 4106,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "ea20b80305b42fb7f30716a30b63bd1b36cbab4cd6db28d6f16b0c36e405b8fd"
+    },
+    {
+      "rate": 48000,
+      "index": 4107,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4aa3c315b5f4f453360142cd86bc50efe2966091e028340a3ebd29ada731afc3"
+    },
+    {
+      "rate": 48000,
+      "index": 4108,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "248a4e5f1bdd83b74ab940c3ebdac547ad3884d3215868b790999f746f19194d"
+    },
+    {
       "rate": 44100,
       "index": 0,
       "kind": "boundary",
@@ -56861,6 +57197,342 @@
       "kind": "zero_source",
       "packets": 1,
       "input_sha256": "6a9620b45e207ffc03456a5d28fbb0e1c3c89969931a565aff65beab8a680306"
+    },
+    {
+      "rate": 44100,
+      "index": 4061,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "9592d8e8a5176a2eee0aa1c232c59be1c4a11a3c31dd33856411c97bbe42aef6"
+    },
+    {
+      "rate": 44100,
+      "index": 4062,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "cccb1bc13a6a2ec0734f86196415b15d4cabf09b61bf6a6fc07043057576aed7"
+    },
+    {
+      "rate": 44100,
+      "index": 4063,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "7f0da9a47054b277633a8b1558f07fe8afe27f3dc815f618cd465f04d55040b0"
+    },
+    {
+      "rate": 44100,
+      "index": 4064,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "d92c968f36271e28aef9078006da833654cba620baca006d202a1a2381354a6a"
+    },
+    {
+      "rate": 44100,
+      "index": 4065,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "7d3de49836e2ce6ac7872ed13b6b92d950c410b35c0afb1b9219875ffeccc349"
+    },
+    {
+      "rate": 44100,
+      "index": 4066,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "065262f9a3027365077a72466fe6ca28917f8f03f855c7da090587121ba41599"
+    },
+    {
+      "rate": 44100,
+      "index": 4067,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "adee18872a6da965c89732eb8fbaea3bc9510b98d43acedcd94b7c89722318c7"
+    },
+    {
+      "rate": 44100,
+      "index": 4068,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "33592eb2cb4ce1bbfcb1658a268782841ec71a0ccd1e91e6e2907106cac46e45"
+    },
+    {
+      "rate": 44100,
+      "index": 4069,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4a791739facafefd1b18917c0c3c7ede80896ec25b7f36fd7c75935f57b19aca"
+    },
+    {
+      "rate": 44100,
+      "index": 4070,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "90b3161df22dcff9fe882c8ffc326c7b953625bf57dddc50b00bee481aa8d3ca"
+    },
+    {
+      "rate": 44100,
+      "index": 4071,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "ca2d42b3fe158dc78689ebd33a196b51efa4a40090f9ea097d46f27127960603"
+    },
+    {
+      "rate": 44100,
+      "index": 4072,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "b76c79dc654af57213d6b7e8d3446bb690fdeac5f28c6975ab72109daf8770a4"
+    },
+    {
+      "rate": 44100,
+      "index": 4073,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "45ad87b7d71372fa3abe6cbaa89198560dc90f7e1e1d72b08941531308c05afb"
+    },
+    {
+      "rate": 44100,
+      "index": 4074,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4362fde113e367093025a8839980bd5ee4dc8cec5f9f87373d389d0d7dac5192"
+    },
+    {
+      "rate": 44100,
+      "index": 4075,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "727de84ab93badcb418e138cc8ffb05cacbdbec3745918074ce57397c9c035b0"
+    },
+    {
+      "rate": 44100,
+      "index": 4076,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "50a3e093f322132c920f0ae32b7b80466b3b662e15cf294ed96793184bc6b41f"
+    },
+    {
+      "rate": 44100,
+      "index": 4077,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "97a846033d16135811d311025fec38b7df05bf22a5f0c518639e195e8b0dd0df"
+    },
+    {
+      "rate": 44100,
+      "index": 4078,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "92603bbadd211da247964ee1136996e9ba92effebe5dc8d9d76e58e4fa6d45cb"
+    },
+    {
+      "rate": 44100,
+      "index": 4079,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "1c6e1aab82115afeeb41e0a8c4f618a2387c76e51fff5bb138a9f024e2759260"
+    },
+    {
+      "rate": 44100,
+      "index": 4080,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "d0cf652c87200ec977dfcfa83f2b1e895278957ac0903c28959834eacbbd75b6"
+    },
+    {
+      "rate": 44100,
+      "index": 4081,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "ce01ae609f6d87c8cc1f91edc9235e6baf9fa0f5e45dbe433645b2d7559acc46"
+    },
+    {
+      "rate": 44100,
+      "index": 4082,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "fe75b8ff5fec2bb468f66261431196484d6915c80c427a1d4863624eac3fd268"
+    },
+    {
+      "rate": 44100,
+      "index": 4083,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "0052bb4e46d4b3a008681bdceae5f7356441bdc6545c4d8eda57796c647990f7"
+    },
+    {
+      "rate": 44100,
+      "index": 4084,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6c269efe49fd8eccdb994a19fcaadd1f7d76f010cdc37f14bf90bc6929ca2067"
+    },
+    {
+      "rate": 44100,
+      "index": 4085,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "793c5c5d72666741134cc0b6ee69529d895d0ca4616617556e6e5204bb965dcb"
+    },
+    {
+      "rate": 44100,
+      "index": 4086,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "9f8727f22b66d10b3bdaf02e362e3574061dcc7bbb89d30739f857e3e0e5cd64"
+    },
+    {
+      "rate": 44100,
+      "index": 4087,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "fd303334d3f3a70a71a81bbd90992d468f3656886c17df64b409b14818929051"
+    },
+    {
+      "rate": 44100,
+      "index": 4088,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "642433538d54622a682cbdeb666f0180b9b6511a4d180f58af8676de4a02f825"
+    },
+    {
+      "rate": 44100,
+      "index": 4089,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "1f0d56fcc7cf5ac86d384a95011afd612639161e9c58a74b5fb8911fe86a894c"
+    },
+    {
+      "rate": 44100,
+      "index": 4090,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6ddeda6ceccebd7152785c9d9263d203097d9c1cf97088c59a5dcb05d178e38f"
+    },
+    {
+      "rate": 44100,
+      "index": 4091,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "838d70473c1c9125a5d9f6090c7a1d68ab31d9fd588cb23940ce625e079e9203"
+    },
+    {
+      "rate": 44100,
+      "index": 4092,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "3b5140e87caeb9159ae6b3448d367247a8aa98f9c5ecb88dd6a98dd6c4cdca46"
+    },
+    {
+      "rate": 44100,
+      "index": 4093,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "592c8ade19290b643afe4ba3764aadcac529c8728c3b49a1b6a94fee75965293"
+    },
+    {
+      "rate": 44100,
+      "index": 4094,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "042b7a1048bd37a72c345112129dae3fe1b16c80ba6062143bd914f829282b2d"
+    },
+    {
+      "rate": 44100,
+      "index": 4095,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "382246234aefab53eb1882698f2d3320fbd904cdd6869a644d5f7b7b1f503400"
+    },
+    {
+      "rate": 44100,
+      "index": 4096,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "b70c9a50c3bcbf592bef9075ae582ce2a4f11723f3b90158181d9f5819e6e29c"
+    },
+    {
+      "rate": 44100,
+      "index": 4097,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "6b47041731368867be90f8e52d76d6454bc8640392fa24f402c7e5b753e0bace"
+    },
+    {
+      "rate": 44100,
+      "index": 4098,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "276fa9d6b7058d35942292ca466dee334c900b98773836f077252a9e73f11b29"
+    },
+    {
+      "rate": 44100,
+      "index": 4099,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "b0bbc61062a7ff30ffe8e26a7c76fe35eeec2b5d718990134c618119678d7d04"
+    },
+    {
+      "rate": 44100,
+      "index": 4100,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "76ab5e24c5797a1f6cb269195f261922f632c409443e8117416a1ce584a74c2d"
+    },
+    {
+      "rate": 44100,
+      "index": 4101,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "2284f8b9927f4c429ed31deee9b0dd5cbd9ad202c5c59d025280d7e078176b52"
+    },
+    {
+      "rate": 44100,
+      "index": 4102,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "3ea1b8fc5e04a49dd773563166955552bc4ec0b5a54c23e849f694448110046e"
+    },
+    {
+      "rate": 44100,
+      "index": 4103,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "d4f4668bc0772d4e9cbfd0a5d796bf05f4b21adec2c942999d3991e9cfe1f254"
+    },
+    {
+      "rate": 44100,
+      "index": 4104,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "f3aed584b449304452bffe880ddcd6c635127ec442ea8fbaeb3b5c8cccc10fb7"
+    },
+    {
+      "rate": 44100,
+      "index": 4105,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "e5f2590800d59fd13e01a0df58284e89703e26167c268747927ece73ede33aa5"
+    },
+    {
+      "rate": 44100,
+      "index": 4106,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "31891f9f208b1966ef80e67bec77a355132024621a5d87be8e735af6aeb01a4c"
+    },
+    {
+      "rate": 44100,
+      "index": 4107,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "4d4e2b46409feda11ca089fbf9f2466ec6fd5e6a779b14cfba18b949a4051102"
+    },
+    {
+      "rate": 44100,
+      "index": 4108,
+      "kind": "lpc_conditioning",
+      "packets": 1,
+      "input_sha256": "3e15e0af2d54bcfc845c630b44ac6cb24aabe3c842d19d470c14f6f0afc7b8ca"
     }
   ],
   "pcm": [
@@ -85280,13 +85952,349 @@
     {
       "rate": 48000,
       "index": 4059,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "b08cae44370e01b9e361c4011eb64d3f4decd9206e336d0549d7f38263e9a5fc"
+    },
+    {
+      "rate": 48000,
+      "index": 4060,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "dadff0e050a34aa37e4f56430c9e0bc9112d6b3c866519556b8b4358bb859436"
+    },
+    {
+      "rate": 48000,
+      "index": 4061,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "7e1eed01dcbf1c15db51fbf8fb4b5015f1201a9ad6cc5941eac7dcf5ab1b4a0e"
+    },
+    {
+      "rate": 48000,
+      "index": 4062,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "f4ec15ed3b443e2e8bd66c03eac9717510b1cf466e37ed825988e5a805d985b0"
+    },
+    {
+      "rate": 48000,
+      "index": 4063,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "c14f04b1ad68f05d2a13cae6cf950245b38a280ce9ec2e2edc327b5a2600f9d1"
+    },
+    {
+      "rate": 48000,
+      "index": 4064,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "a37ac532ebcde7e1ab58774ce9f6cf849d65063e8f6a90f11642d49dc989b892"
+    },
+    {
+      "rate": 48000,
+      "index": 4065,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "83ea257d72407ac9224e99b2c28b5b6fa4f386a50fe5ed4e90a3acbe938772c8"
+    },
+    {
+      "rate": 48000,
+      "index": 4066,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "0350908db4614e1f5e6c28b016a5c15382c98fcd9dff9a3805f1396a1686adab"
+    },
+    {
+      "rate": 48000,
+      "index": 4067,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "46f4c2fe9597a826060c124f7c45be641e780ea9e28b75a94aaa433715705dfd"
+    },
+    {
+      "rate": 48000,
+      "index": 4068,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6da0e84254618d5d6958d9b82a2ae794801b9150ef60bd8964f09a06b65e6f21"
+    },
+    {
+      "rate": 48000,
+      "index": 4069,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "a1ee97fd1054b165c04f5758b26c9fe0ec5ad2cf5ba8807436e17e2e776e8dab"
+    },
+    {
+      "rate": 48000,
+      "index": 4070,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "ea72c78cc8258e60b439cd6303f277238255f0d649637dcc2d19763fe0834243"
+    },
+    {
+      "rate": 48000,
+      "index": 4071,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "7c70ea2638b82e590feb3c7c5fe76d02bc78f5037a2d08263aae7fde74a7476b"
+    },
+    {
+      "rate": 48000,
+      "index": 4072,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "f0e13387869bb77089bcbbaa418f02a2d2d215239251fa11d373c30f2bd9d13e"
+    },
+    {
+      "rate": 48000,
+      "index": 4073,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "fdce3b89f5156e72a5421a755bee293648e172d981745bba0fa49043acb0a679"
+    },
+    {
+      "rate": 48000,
+      "index": 4074,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "675a387edd7e858ce3aa140b07e049c9c8fa222e2c39d34566cbe24725e81035"
+    },
+    {
+      "rate": 48000,
+      "index": 4075,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "717a969804e186406f86aa042d1a7ed34788f3b52ea600f8e0ad19a78da71fc3"
+    },
+    {
+      "rate": 48000,
+      "index": 4076,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "4a4a159ce75b9d6aea0c883f5d499107f6a61aac058297013a3f8e6a585acf7d"
+    },
+    {
+      "rate": 48000,
+      "index": 4077,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "59dc6d2cedb48bd013870b33107c7fe02a5f4e25da25bf2ac3e859e54ce4ae38"
+    },
+    {
+      "rate": 48000,
+      "index": 4078,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "63179cc8d3f397b4be1e45a83f0f05c3bd9065fcc3b37af7052f7f8cf6ad6126"
+    },
+    {
+      "rate": 48000,
+      "index": 4079,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "e0d329c0dbb440b1514c0a50e3d28111dff52f997bdce1033066a0ab6ac89071"
+    },
+    {
+      "rate": 48000,
+      "index": 4080,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "003c94fe9e1ed934ffea47c6674ffb31859cffa3277750809c3e616edbdfc1b0"
+    },
+    {
+      "rate": 48000,
+      "index": 4081,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "b32741a7af88321c97ffd344e96dcf281d63527407fb16809f669d6ecf42bc5d"
+    },
+    {
+      "rate": 48000,
+      "index": 4082,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "327374e0d0fe91818680cfe0ebe98fb0eb0ea665db35e58d7678d166593ad3bd"
+    },
+    {
+      "rate": 48000,
+      "index": 4083,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "2ac349785f8ea65eefacef8962ff033440252bb4cf6b577a56ebb110d48d5251"
+    },
+    {
+      "rate": 48000,
+      "index": 4084,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "65381ee851862ee3d6a6bbfb8ec9b5c071eb5e65c787698107d5da72e08413e4"
+    },
+    {
+      "rate": 48000,
+      "index": 4085,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "33aa4aaab66f38fff2bda87e9d25806f3502a6b0f1e55d04d0c2874ba825040a"
+    },
+    {
+      "rate": 48000,
+      "index": 4086,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "62eed61847969607c97f248ba2423d97e2a85bf49e90c3bc6ea12608ec49789c"
+    },
+    {
+      "rate": 48000,
+      "index": 4087,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "5d3baf80bceebb9c69cc39623712e72571aa5a34f337b6db3257fcd5da74a569"
+    },
+    {
+      "rate": 48000,
+      "index": 4088,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6f45d8ab765948904a9ebd010f9c95a624fcb09bc042d54bc841d997fbc8b2c4"
+    },
+    {
+      "rate": 48000,
+      "index": 4089,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "976123aee2409e7d561c69e5c056391c4fe9331c85f812538bdf51cc1b24d0b2"
+    },
+    {
+      "rate": 48000,
+      "index": 4090,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "52c6121d48c0a35fe2939c3e02b6285053df9a1698e9bbd780176fe6c49b2cfc"
+    },
+    {
+      "rate": 48000,
+      "index": 4091,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "eaff8470d7e57077c38dc25969a0e16e15f5dd247d305f30df9d69577c34ad1e"
+    },
+    {
+      "rate": 48000,
+      "index": 4092,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "4b700f6c927e3b14aad37ec30e5cd32016d19485d277b897c230cbe499bd4ed1"
+    },
+    {
+      "rate": 48000,
+      "index": 4093,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "15199cc9edb6f2f957632c070b43fffb387520a69c68670edee78cd3f4959088"
+    },
+    {
+      "rate": 48000,
+      "index": 4094,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "b58f65b6da3fe59ded7f41f55f0b4c03fbbb8db2e3c7bbfb5b998b2da002c328"
+    },
+    {
+      "rate": 48000,
+      "index": 4095,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "dad8062426a27a1d1b3e4cf0983bdcc1c74c75c45afc2cd3607b9dbec5294d9e"
+    },
+    {
+      "rate": 48000,
+      "index": 4096,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "1408cb787dfa4a6c97c830828990009634b465030e93b0194309be49ceede3d9"
+    },
+    {
+      "rate": 48000,
+      "index": 4097,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "4a2f2491207211bda47d1a85da2677b9ba127bcf39ac317dd0b9240b05c19996"
+    },
+    {
+      "rate": 48000,
+      "index": 4098,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "44cd617f200d071a64635f17ab8b429d30b879fee09f920ce70395998cedbccf"
+    },
+    {
+      "rate": 48000,
+      "index": 4099,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "53ccbe6dcee72ec108c99ec9ef36b01c1cb180f41fee7e7288b5d2a6e988aeb7"
+    },
+    {
+      "rate": 48000,
+      "index": 4100,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "e8c08cb59c07150e70df1490b22dac86f3ea6657eddf8d20b6345bb8029f4bb5"
+    },
+    {
+      "rate": 48000,
+      "index": 4101,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "92a5b7267b5fddfc83efc26d4fccdb7b080a3ca32adba9f4e6067935936b1f56"
+    },
+    {
+      "rate": 48000,
+      "index": 4102,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "3d04bbcdb6641bec3b4dd26f27d372f0c24294e0d2da04bdb1f3b0beac49441f"
+    },
+    {
+      "rate": 48000,
+      "index": 4103,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6801e739989c83f8afa1ce67b3bd24c54b1093de72d24d1f111ecb69b5d2bcc1"
+    },
+    {
+      "rate": 48000,
+      "index": 4104,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "1ed7065f815df61227e560a8071a2310a19c9c048ecbc1e844e7c7aa5714973b"
+    },
+    {
+      "rate": 48000,
+      "index": 4105,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "c681c590ea54d429f4bc47acf71bc88b02098461feba7728f99a60f25805ba76"
+    },
+    {
+      "rate": 48000,
+      "index": 4106,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "14e0e20b97f34f7c27c0c06fdf593f97a4dd96174a545d1d0a3c2ab624de5928"
+    },
+    {
+      "rate": 48000,
+      "index": 4107,
       "kind": "tool_header_switch",
       "packets": 7,
       "input_sha256": "717aebcb3c7e7a4d0fb657cd9084183c93169f75ad152d8044281d4377222b66"
     },
     {
       "rate": 48000,
-      "index": 4060,
+      "index": 4108,
       "kind": "mixed_window_history",
       "packets": 6,
       "input_sha256": "5405e99f9ed39be1cfcd37e70c991cff27ea56426513eb310c4ecd4a55d2d4ea"
@@ -113707,13 +114715,349 @@
     {
       "rate": 44100,
       "index": 4059,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "e2ba3817b2f134616b8cacdfaff342a36c5ba97e14bd52d5a38a93180499ed4b"
+    },
+    {
+      "rate": 44100,
+      "index": 4060,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "97bc515ccc06536e41ef6118f85d0e73a7705effe4319360eec34f9e4d464c42"
+    },
+    {
+      "rate": 44100,
+      "index": 4061,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "14090397fc42a97072540a9a34ee73a87a135f777faf3358d82fb6fee28b5ac6"
+    },
+    {
+      "rate": 44100,
+      "index": 4062,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "79beaef2c58fb3416ebe6e43807e1ff10ea6c4b5519a4b9450d2860bc93948e7"
+    },
+    {
+      "rate": 44100,
+      "index": 4063,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "db42e7814490d79d0e052b1c44ec652ea2ca8dc910ed3bd8d327e00200598c63"
+    },
+    {
+      "rate": 44100,
+      "index": 4064,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "19cfa474f595dea45fb4a548a9216d568f929af3f7df5d519f7c4063ce2ab256"
+    },
+    {
+      "rate": 44100,
+      "index": 4065,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "85c7e99695529bcee7b56f919b231f52e09a04130cecb330a79a711150d6561c"
+    },
+    {
+      "rate": 44100,
+      "index": 4066,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "49887768dcd91ce9a37309d45a1171c7f40bdd6742c0e4cdd089d79b68e684b8"
+    },
+    {
+      "rate": 44100,
+      "index": 4067,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "bcbb18523bccca478f172b2381ca01d47b2380f03967c4aaa905ad638837a643"
+    },
+    {
+      "rate": 44100,
+      "index": 4068,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "0346e5fc4de532daa92aea03bea94b751990e9e0fc0037f6651266c4a663afdf"
+    },
+    {
+      "rate": 44100,
+      "index": 4069,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "0653e098759a6c5ccf6bac54cb7951397c51e2cef0d16cf740cd480b0453e9bc"
+    },
+    {
+      "rate": 44100,
+      "index": 4070,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "321b9bdc791b2793c9192fc2b98c11517af18b7b7d64894bb64ca382e9b62f67"
+    },
+    {
+      "rate": 44100,
+      "index": 4071,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "0cacd231717bd70794775c2db4dd513bf8795c65aa336988d777e187ea99b528"
+    },
+    {
+      "rate": 44100,
+      "index": 4072,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6317f90344f50f0278e0a46ef114119eacb2b2674f92313aa22c7376be354f8f"
+    },
+    {
+      "rate": 44100,
+      "index": 4073,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "2961cf3dc7112ce22a73c69e9740114e576c505b79ae1174f7b570bf99b0de49"
+    },
+    {
+      "rate": 44100,
+      "index": 4074,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "14a0ad381731410364f3b956e315247800ac0c44acd2cb0ec9be33bab69af571"
+    },
+    {
+      "rate": 44100,
+      "index": 4075,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "ecc28cf76c04b7a63045e7f298315d6b56d32f8c820fb3b5a5e234b9fa24e697"
+    },
+    {
+      "rate": 44100,
+      "index": 4076,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "564811088587520d81804d3cb8cf3d0bb41b2848fe93e93549ad035ba27edc77"
+    },
+    {
+      "rate": 44100,
+      "index": 4077,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "fe0be70ab36666d867cc092371922091933858993845fa73c4d70a6cf77b04df"
+    },
+    {
+      "rate": 44100,
+      "index": 4078,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "432332af882a0af8b05426dac524762dd5cfa87ad3560b8bdc1778561eaaa3ab"
+    },
+    {
+      "rate": 44100,
+      "index": 4079,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "f37798d9b3f9489adb08f5f70188a95c5d9d06a283b4593a13a37af43b9d1b58"
+    },
+    {
+      "rate": 44100,
+      "index": 4080,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "825144f1c786e0a50d53431a17fddd03f43aad4c54cca9eb49227902defd16fa"
+    },
+    {
+      "rate": 44100,
+      "index": 4081,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "785fa1645fe62adf062660edea99c7175ef09877d7919f326368ba53f0def44d"
+    },
+    {
+      "rate": 44100,
+      "index": 4082,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "a683792315a9eafc93bd9067bac5e08812c750e785e2410470b44ebb0117c2c8"
+    },
+    {
+      "rate": 44100,
+      "index": 4083,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "44db839cf89e848839c396bf5857bccca3f9e2aead74c75a85572bddd73d947e"
+    },
+    {
+      "rate": 44100,
+      "index": 4084,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6fa70d35f62609c2eaecd38b126b4f6925c0ba1da5525945eeead208747026f9"
+    },
+    {
+      "rate": 44100,
+      "index": 4085,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "18c57e89ee97932b1ef68906340f18a463cb106a4e5c817c38b791802687358f"
+    },
+    {
+      "rate": 44100,
+      "index": 4086,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "ca1a58a512df81f2c6e4c5b3df6be9c588cf82c7ae54d2fd43293dbe6ba2e013"
+    },
+    {
+      "rate": 44100,
+      "index": 4087,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "04064e1d4124e97209c80a1a3803d44806d7635598d41f3c56569a407aac536d"
+    },
+    {
+      "rate": 44100,
+      "index": 4088,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "4b18f3e592254cb02ee4929cbaa135f52b70c1fedf749f07304a9ecdc2b56217"
+    },
+    {
+      "rate": 44100,
+      "index": 4089,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "a742aa235ff80a0320c5ceb2357512012f734435d2385b9c010d22ad454d7fc6"
+    },
+    {
+      "rate": 44100,
+      "index": 4090,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "5bf89a7712a33d5a090697fdba4e275eb94f15192977edce22ab3335fc39f02a"
+    },
+    {
+      "rate": 44100,
+      "index": 4091,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "396a8d2824ae12761c4fa6ca9a7ebcd327401b046885858e941e19acd699581a"
+    },
+    {
+      "rate": 44100,
+      "index": 4092,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "d29f89f5e45c6e4d1cd4f6f70d43ee489742b5cab8e6af8416c39cdd19a47856"
+    },
+    {
+      "rate": 44100,
+      "index": 4093,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "fb5e82f105709cf842234a7fe2485afb27f3873457938d2be1c8fb81de193c8e"
+    },
+    {
+      "rate": 44100,
+      "index": 4094,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "4c0fe58bc430ab26645a31569959c65ef0038f9b4cf8915b0c85cb34097cd98a"
+    },
+    {
+      "rate": 44100,
+      "index": 4095,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "324d7bb3ef4aef5c4830743ec3243ccacde258ba3f535a1f0eb31374bc9c4503"
+    },
+    {
+      "rate": 44100,
+      "index": 4096,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "024df4f045a64354b20bd77dd0d12f94232d6ab19469cd24419ddcb2dacee861"
+    },
+    {
+      "rate": 44100,
+      "index": 4097,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "a8d356da4b25d2bf347a8b5834dfd061ec0f905c9df024cc643ae905cc43a8f2"
+    },
+    {
+      "rate": 44100,
+      "index": 4098,
+      "kind": "lpc_conditioning",
+      "packets": 5,
+      "input_sha256": "903b0a2855e1fd8b95cbd1296a49f66be29046049819de61976ba07b34122c4c"
+    },
+    {
+      "rate": 44100,
+      "index": 4099,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "97a728a13655ebcb998b3277efdae9d8de814a9199e84e584de653f0a2f7961a"
+    },
+    {
+      "rate": 44100,
+      "index": 4100,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "5e75a129a068c2388d8d2a020be091fb3d0666b27558a9d9b9264cf9d413eaa9"
+    },
+    {
+      "rate": 44100,
+      "index": 4101,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6bc1cafa503b7a7d8768c50c55aec7b612a6c4eb5909bf586caae455e55a49ee"
+    },
+    {
+      "rate": 44100,
+      "index": 4102,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "6b1ab81d20dc3af85b1bf8a4301f624bb6b52c87963ae0ecf19377a9b3012c61"
+    },
+    {
+      "rate": 44100,
+      "index": 4103,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "f1c57514cfb5aabe8325738f73d04a5fae93d81e4c3d015eeaf7b6f384e848d9"
+    },
+    {
+      "rate": 44100,
+      "index": 4104,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "cb94ab4ba097167e799319409a2a871bac6c4c7ff9d0fa174b1c76751c4356ca"
+    },
+    {
+      "rate": 44100,
+      "index": 4105,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "c8074465383cf07fa98d09115ef12fdc82ca0ff54902d8491336f94765a89ae2"
+    },
+    {
+      "rate": 44100,
+      "index": 4106,
+      "kind": "lpc_conditioning",
+      "packets": 6,
+      "input_sha256": "c8abf730326fe6884033c3a4f69e803c479b136d610b9709964209026d4e392d"
+    },
+    {
+      "rate": 44100,
+      "index": 4107,
       "kind": "tool_header_switch",
       "packets": 7,
       "input_sha256": "2d8be41999c6379b7081da8d1b351ac47b9ff3873d26d7f438d3eea72360ad71"
     },
     {
       "rate": 44100,
-      "index": 4060,
+      "index": 4108,
       "kind": "mixed_window_history",
       "packets": 6,
       "input_sha256": "f14fde538f0c029da9a1e18b0d93e6bef6ed3c5a8ed85fa8cf688edc4227c77e"

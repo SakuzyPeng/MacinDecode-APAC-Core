@@ -237,7 +237,7 @@ def native_artificial(binary, report):
             if first%320==0:print('CAC native',rate,first,flush=True,file=sys.stderr)
 
 
-def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_native, tns=False):
+def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_native, tns=False, bwe2=False):
     previous=json.loads(baseline.read_text(encoding='utf-8'))
     require(previous['passed'] and len(previous['representatives'])==15,'requires verified replay representatives')
     specs=[('representative',base,None) for base in previous['representatives']]
@@ -263,7 +263,8 @@ def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_nat
                     dumped=command(binary,'dump',generated/'encoded.caf','--out',root/'packets','--with-preroll')
                 summary,rows=inspect_fn(binary,root/'packets',root,dumped['actual_packets']);record['summary']=summary
                 if summary['context']['channels']==2:
-                    record['native_tns_checks' if tns else 'native_cac_checks']=check_fn(rows,trace_bundle(binary,root/'packets',root,True,cac=True,tns=tns))
+                    record['native_bwe2_checks' if bwe2 else 'native_tns_checks' if tns else 'native_cac_checks']=check_fn(rows,trace_bundle(binary,root/'packets',root,True,cac=True,tns=tns,bwe2=bwe2))
+                    if bwe2:require(summary['bwe2_complete_packets']==summary['tns_complete_packets'],'real BWE2 stage incomplete')
                     if tns:require(summary['tns_complete_packets']==summary['cac_complete_packets'],'real TNS stage incomplete')
                     require(summary['cac_complete_packets']+summary['cpe_absent_packets']==summary['actual_packets'],
                             'supported real/control packets did not complete CAC')

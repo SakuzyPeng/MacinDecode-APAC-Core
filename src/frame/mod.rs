@@ -1,9 +1,16 @@
-//! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC and TNS before BWE2.
+//! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC, TNS and BWE2 before core alignment.
 mod bundle;
+mod bwe2;
 mod cac;
 mod spectrum;
 mod tns;
+pub use crate::bwe2_math::Analysis as Bwe2Analysis;
 pub use bundle::{ParseDepth, parse_packets, parse_packets_with_depth};
+pub use bwe2::NUMERIC_PROFILE as BWE2_NUMERIC_PROFILE;
+pub use bwe2::{
+    Bwe2ChannelData, Bwe2ChannelSpectrum, Bwe2Data, Bwe2Parameters, Bwe2Region, Bwe2Report,
+    parse_bwe2,
+};
 pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
 pub(crate) use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};

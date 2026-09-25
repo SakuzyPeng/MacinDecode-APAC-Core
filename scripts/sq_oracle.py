@@ -58,7 +58,9 @@ def window(n):
     return tuple(grid[(2*n - (2*i+1)) % (8*n)] for i in range(2*n))
 
 
-@lru_cache(maxsize=32)
+# BWE2 produces dense spectra; retain both 64-gain long/short sweeps.
+# Immutable Decimal results only: cache size does not change the oracle arithmetic.
+@lru_cache(maxsize=128)
 def direct_imdct(n, nonzero):
     if not nonzero:
         return (D(0),) * (2*n)

@@ -746,14 +746,23 @@ mod synthesis_tests {
             .unwrap()
             .frame
             .stop_bit_offset;
-        for bit in stop + 2..stop + 4 {
+        // The right stream has max_sfb=0: its enabled flag now legally carries
+        // no payload. The left flag requires LSF data, which this packet lacks.
+        for bit in stop + 2..stop + 3 {
             let mut bad = good.clone();
             bad[bit / 8] |= 1 << (7 - bit % 8);
             let error = SqDecoder::from_cookie(&c)
                 .unwrap()
                 .decode_frame(&bad)
                 .unwrap_err();
-            assert_eq!(error.bit_offset, Some(bit));
+            let data_start = stop + 4;
+            let expected = data_start
+                + if good.len() * 8 - data_start >= 9 {
+                    9
+                } else {
+                    0
+                };
+            assert_eq!(error.bit_offset, Some(expected));
         }
         for end in 0..good.len() {
             assert!(
@@ -916,7 +925,17 @@ mod cac_tests {
             .stop_bit_offset;
         let bwe = end + 2;
         bad[bwe / 8] |= 1 << (7 - bwe % 8);
-        assert_eq!(actual.decode_frame(&bad).unwrap_err().bit_offset, Some(bwe));
+        let data_start = bwe + 2;
+        let expected_bit = data_start
+            + if bad.len() * 8 - data_start >= 9 {
+                9
+            } else {
+                0
+            };
+        assert_eq!(
+            actual.decode_frame(&bad).unwrap_err().bit_offset,
+            Some(expected_bit)
+        );
         assert!(actual.decode_frame(&packet(2, 26)).is_err());
         assert!(actual.decode_frame(&bad[..bad.len() / 2]).is_err());
         assert_eq!(
@@ -944,13 +963,20 @@ mod cac_tests {
         for bit in end + 2..end + 4 {
             let mut bad = good.clone();
             bad[bit / 8] |= 1 << (7 - bit % 8);
+            let data_start = end + 4;
+            let expected_bit = data_start
+                + if bad.len() * 8 - data_start >= 9 {
+                    9
+                } else {
+                    0
+                };
             assert_eq!(
                 SqDecoder::from_cookie(&cookie)
                     .unwrap()
                     .decode_frame(&bad)
                     .unwrap_err()
                     .bit_offset,
-                Some(bit)
+                Some(expected_bit)
             );
         }
         for bit in start..good.len() * 8 {
@@ -1053,5 +1079,50 @@ mod tns_tests {
         assert!(error.message.contains(&format!(
             "ancillary.metadata_present=true at cookie bit {bit}"
         )));
+    }
+}
+
+mod bwe2_tests {
+    use super::*;
+    use macindecode_apac_tools::{frame::parse_bwe2, synthesis::SqDecoder};
+    fn bytes(hex: &str) -> Vec<u8> {
+        let (pairs, remainder) = hex.as_bytes().as_chunks::<2>();
+        assert!(remainder.is_empty());
+        pairs
+            .iter()
+            .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
+            .collect()
+    }
+    #[test]
+    fn bwe2_tail_errors_and_window_errors_roll_back_and_reset_exactly() {
+        // Reproducible fixtures: bwe2_vectors.packet(source_case()), then
+        // independent right parameters [1,2], and source_case(2,0x55).
+        let active = bytes("614640988442c814808000080000");
+        let independent = bytes("61464098844028c81310881800010004050000");
+        let short = bytes("696ab204120824104820942108421085902850a16020000208208000");
+        let cookie = cookie(3, 2, false);
+        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut expected = SqDecoder::from_cookie(&cookie).unwrap();
+        let report = parse_bwe2(&context(), &active).unwrap();
+        assert!(report.bwe2_complete);
+        assert!(report.channels_after_bwe2[0].processing_applied);
+        check_coverage(&active, &report.tns.cac.spectrum.frame);
+        let first = actual.decode_frame(&active).unwrap();
+        assert_eq!(first, expected.decode_frame(&active).unwrap());
+        let mut tail = active.clone();
+        *tail.last_mut().unwrap() = 0x80;
+        assert!(actual.decode_frame(&tail).is_err());
+        assert!(actual.decode_frame(&active[..active.len() - 2]).is_err());
+        assert!(actual.decode_frame(&short).is_err());
+        assert_eq!(
+            actual.decode_frame(&independent).unwrap(),
+            expected.decode_frame(&independent).unwrap()
+        );
+        assert_eq!(
+            actual.decode_frame(&active).unwrap(),
+            expected.decode_frame(&active).unwrap()
+        );
+        actual.reset();
+        assert_eq!(actual.decode_frame(&active).unwrap(), first);
     }
 }

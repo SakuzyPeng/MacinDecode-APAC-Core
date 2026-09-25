@@ -1,4 +1,4 @@
-use super::{FrameContext, parse_cac, parse_frame, parse_spectrum, parse_tns};
+use super::{FrameContext, parse_bwe2, parse_cac, parse_frame, parse_spectrum, parse_tns};
 use serde::Serialize;
 
 use crate::{
@@ -18,6 +18,7 @@ pub enum ParseDepth {
     Spectrum,
     Cac,
     Tns,
+    Bwe2,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -49,6 +50,7 @@ pub fn parse_packets_with_depth(
     let (mut spectra, mut left, mut right, mut absent) = (0u64, 0u64, 0u64, 0u64);
     let (mut cac_complete, mut shared_ics) = (0u64, 0u64);
     let mut tns_complete = 0u64;
+    let mut bwe2_complete = 0u64;
     if requested == 0 {
         return Err(Error::new("parse-packets", "packet count must be positive"));
     }
@@ -148,6 +150,22 @@ pub fn parse_packets_with_depth(
                     Some(serde_json::to_value(tns).expect("finite TNS report")),
                 )
             }),
+            ParseDepth::Bwe2 => parse_bwe2(&context, &bytes).map(|bwe2| {
+                let tns = &bwe2.tns;
+                let cac = &tns.cac;
+                spectra += u64::from(cac.spectrum.spectrum_complete);
+                left += u64::from(!cac.spectrum.channels.is_empty());
+                right += u64::from(cac.spectrum.channels.len() == 2);
+                absent += u64::from(cac.spectrum.frame.stop_reason == "cpe_absent");
+                cac_complete += u64::from(cac.cac_complete);
+                shared_ics += u64::from(cac.shared_ics);
+                tns_complete += u64::from(tns.tns_complete);
+                bwe2_complete += u64::from(bwe2.bwe2_complete);
+                (
+                    cac.spectrum.frame.clone(),
+                    Some(serde_json::to_value(bwe2).expect("finite BWE2 report")),
+                )
+            }),
         };
         let row = match result {
             Ok((report, spectrum)) => {
@@ -207,12 +225,15 @@ pub fn parse_packets_with_depth(
         summary["right_spectrum_packets"] = json!(right);
         summary["cpe_absent_packets"] = json!(absent);
     }
-    if matches!(depth, ParseDepth::Cac | ParseDepth::Tns) {
+    if matches!(depth, ParseDepth::Cac | ParseDepth::Tns | ParseDepth::Bwe2) {
         summary["cac_complete_packets"] = json!(cac_complete);
         summary["shared_ics_packets"] = json!(shared_ics);
     }
-    if depth == ParseDepth::Tns {
+    if matches!(depth, ParseDepth::Tns | ParseDepth::Bwe2) {
         summary["tns_complete_packets"] = json!(tns_complete);
+    }
+    if depth == ParseDepth::Bwe2 {
+        summary["bwe2_complete_packets"] = json!(bwe2_complete);
     }
     Ok((summary, exit_code))
 }

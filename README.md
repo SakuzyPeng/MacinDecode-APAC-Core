@@ -196,6 +196,30 @@ python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --native-only
 
 TNS 数学参考从公式重新计算系数，转换为 200 位 LPC，再作直接式递推；不复用生产格型或常量表。频谱和 PCM 保持 `atol=1e-6, rtol=1e-5`，记录最大误差、ULP 及失败坐标。另对量化整数、CAC 参数／频谱、TNS 参数／频谱和 PCM 的小端字节摘要要求完全一致。完整验收包含原有 SQ 17,800／9,948、CAC 2,912／2,984 两套矩阵；`validate_cac.py` 也支持显式 `--regression-report` 核对旧提交的固定输出。`--native-only` 属于诊断报告，不能作为便携数学或跨平台验收参考。
 
+**BWE2 深度**：`parse-packets --depth bwe2` 及 `frame::parse_bwe2(&FrameContext, &[u8]) -> Result<Bwe2Report, config::ParseError>` 完成 TNS 后的带宽扩展，在核心对齐之前停止。旧深度不消费新增参数。`Bwe2Report.tns` 保留先前报告并在 JSON 中平铺；新增 `bwe2` 的控制位、有效启用状态、参数来源、两个 LSF 索引、按组增益及起止位。`channels_after_bwe2` 保存输出、复制区间、是否实际处理及可用的 LPC／LSF 诊断量，标识为 `bwe2_stage=scaled_after_bwe2_before_synthesis`。`bwe2_complete` 和汇总 `bwe2_complete_packets` 不替代整包完成状态，组件终点仍未知。
+
+两个控制位先于所有载荷：00 关闭，01 读取右参数，10 读取左参数并按有效声道条件复用到右侧，11 独立读取两侧。零 max_sfb 不读取该侧载荷。复用只接受已定义增益覆盖全部目标组的情况，缺失组明确报错，不借用上包缓存。两套 512×16 LSF 码本与 64 项激励增益是固定格式常量；增益索引 0 是非零小增益。短窗仍以八个 128 点窗口输出，每组增益作用于组内窗口。
+
+新数值配置为 `apac-bwe2-math-v1`，保留 SQ／CAC／TNS 配置和关闭 BWE2 时的旧输出。使用 Float64 自相关、16 阶 LPC、LSF 调理及包络恢复，乘加分别舍入，最终谱线转 Float32；准确零源分支保持输入。BWE2 专用 radix-2／radix-3 内核覆盖 64、96、128、512、768、1024 点，原有 SQ 合成内核不变。旋转因子及三角多项式常量由 Decimal 100／200 位分别生成并核对；正式构建无需 Python、苹果文件、网络或 FFT 依赖。
+
+```sh
+python3 -B scripts/verify_bwe2_format.py  # 可选，需匹配哈希的 macOS 组件
+python3 -B scripts/generate_bwe2_math.py --check
+python3 -B scripts/generate_bwe2_manifest.py --check
+# 8,122 个频谱用例、8,122 个 PCM 序列，输入清单预先冻结
+python3 -B scripts/validate_bwe2.py --binary target/debug/apac-tool --output reports/bwe2-math.json
+python3 -B scripts/validate_bwe2.py --binary target/release/apac-tool \
+  --reference-report reports/bwe2-math.json --output reports/bwe2-release.json
+# 原生可选诊断，不作为便携数学真值
+python3 -B scripts/validate_bwe2.py --binary target/debug/apac-tool --native-only --output reports/bwe2-native.json
+# 每个实际运行平台显式执行 release 性能门槛
+cargo test --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_fast_as_direct_dft -- --exact --ignored --nocapture
+```
+
+BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式求值，不复用生产 FFT、Levinson 或三角近似。数学容差仍为 `atol=1e-6, rtol=1e-5`；六构建另要求所有阶段摘要逐位相同。原生采用明确的分层验收：参数／边界精确，使用相同原生 LPC 输入后的变换、复制和增益控制通过原容差；完整原生路径与输入隔离路径的浮点差异均另行保留，不把苹果 Float32/FMA 的 LPC 舍入接入默认模型。
+
+所有验收入口显式接收二进制和报告路径，拒绝覆盖、缺失用例、指纹变化和执行中源码／二进制变化；便携测试不依赖 docs/local。旧 TNS 矩阵可用 `validate_tns.py --regression-report reports/previous-tns-math.json` 重新执行并对照原摘要，语义与 SQ／CAC 的显式跨版本回归一致。BWE2 元数据另记录 `bwe2_numeric_profile`、格式字典与数学常量摘要。配置、源包起点、DRC、ASP preroll、缺席 CPE、LRVQ 和多声道限制继续保留。
+
 **实验性 `decode-sq`**：从自包含包目录输出独立 PCM：
 
 ```sh
@@ -217,13 +241,13 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包支持 ASP 类型 0/1、CPE 存在、SQ、独立或共享声道头及已验证 CAC／TNS，左右 BWE2 标志须为零；LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
+当前用于受限人工 SQ 序列，**不是默认双声道媒体的通用解码入口**。配置须完整、44.1/48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，无 remapping、ancillary 或配置扩展。包支持 ASP 类型 0/1、CPE 存在、SQ、独立或共享声道头及已验证 CAC／TNS／BWE2；LRVQ、缺席 CPE、内嵌 preroll 和重配置明确报错。读取核心对齐、关闭的 trimming 标志及末字节零填充，额外尾部不被默默忽略。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。从原文件包 0 开始建立窗口状态，使用 packet table 裁掉 priming/remainder；不访问原始音频，不凭空增加刷新包或尾部帧。只允许长窗／long-start 开始，随后验证 long/start/short/stop 的过渡。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
 库入口为 `synthesis::SqDecoder::from_cookie`、`decode_frame` 和 `reset`；每包产生 1024 个交错双声道 Float32 帧。出错不推进解码状态。`synthesis::decode_sq` 提供包目录导出。实现使用 Float64 调制、正弦窗、叠加状态和自行实现的 radix-2 DIT FFT；乘法与加法分别舍入，仅最终 PCM 转为 Float32，浮点零统一为正零。没有 FFT 库依赖或运行时原生解码回退。
 
-默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_cac_tns_f64_fft_v5`，另记录 `cac_numeric_profile=apac-cac-math-v1` 、`tns_numeric_profile=apac-tns-math-v1` 与两者的常量摘要。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
+默认数值配置为 `apac-sq-math-v1`，后端为 `rust_sq_cac_tns_bwe2_f64_fft_v6`，另记录 `cac_numeric_profile=apac-cac-math-v1` 、`tns_numeric_profile=apac-tns-math-v1` 、`bwe2_numeric_profile=apac-bwe2-math-v1` 与各工具的常量／格式摘要。保留 `experimental=true`，`numerical_qualification=independent_math_reference`；`complete` 只表示导出完整。PCM 元数据记录数值配置、常量摘要、实际编译器及 debug assertions 设置。
 
 `data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
 
@@ -398,7 +422,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS 和逐包苹果参考回放基准。独立公式数值模型已建立完整人工矩阵与三平台逐位验收，受限 PCM 仍保留实验标识；BWE2、ASP 内嵌 preroll 状态、DRC 增益、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型已建立完整人工矩阵与三平台逐位验收，受限 PCM 仍保留实验标识；ASP 内嵌 preroll 状态、DRC 增益、LRVQ 与其他帧载荷解析、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

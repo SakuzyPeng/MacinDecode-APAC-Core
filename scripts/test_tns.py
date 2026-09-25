@@ -83,15 +83,16 @@ class TnsTests(unittest.TestCase):
             self.assertIsInstance(row['error']['bit_offset'],int)
         self.assertTrue((self.root/'tns.jsonl.incomplete').exists())
 
-    def test_decoder_rejects_bwe_after_tns_and_keeps_failed_artifact(self):
-        data,truth=packet(dict(left_tns=filter_spec([1]),bwe_flags='10'))
+    def test_decoder_rejects_truncated_bwe_after_tns_and_keeps_failed_artifact(self):
+        data,truth=packet(dict(left={0:(1,[1,0,0,0],100)},gain=100,left_tns=filter_spec([1]),bwe_flags='10'))
         bundle(self.root/'packets',[data])
         result=subprocess.run([str(self.binary),'decode-sq',str(self.root/'packets'),'--out',str(self.root/'pcm')],capture_output=True,text=True,encoding='utf-8')
         self.assertEqual(result.returncode,1)
         error=json.loads(result.stdout or result.stderr)['error']
-        self.assertEqual(error['bit_offset'],truth['tns_end_bit_offset'])
+        self.assertGreaterEqual(error['bit_offset'],truth['tns_end_bit_offset']+2)
         self.assertEqual(error['packet_index'],0)
-        self.assertEqual(pcm_stop(dict(error=error)),'left BWE2')
+        self.assertEqual(error['operation'],'SQ spectrum')
+        self.assertIn('truncated',error['message'])
         self.assertTrue((self.root/'pcm/.incomplete.json').exists())
         self.assertFalse((self.root/'pcm/pcm.json').exists())
 

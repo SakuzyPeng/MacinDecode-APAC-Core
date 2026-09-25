@@ -4,11 +4,11 @@ mod bundle;
 use crate::{
     config::{self, bits::BitReader},
     error::{Error, Result},
-    frame::{FrameContext, parse_tns},
+    frame::{FrameContext, parse_bwe2},
 };
 pub use bundle::decode_sq;
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_cac_tns_f64_fft_v5";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v6";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
@@ -169,7 +169,7 @@ impl ChannelState {
     }
 }
 
-/// Strict subset: independent/shared SQ streams with CAC/TNS, no later tools or ancillary data.
+/// Strict subset: independent/shared SQ streams with CAC/TNS/BWE2, no later tools or ancillary data.
 /// One packet produces exactly 1024 interleaved stereo frames. Errors do not advance state.
 pub struct SqDecoder {
     context: FrameContext,
@@ -274,13 +274,13 @@ impl SqDecoder {
         self.channels = [ChannelState::new(), ChannelState::new()];
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
-        let decoded = parse_tns(&self.context, packet).map_err(|e| {
+        let decoded = parse_bwe2(&self.context, packet).map_err(|e| {
             let mut error = Error::new("SQ spectrum", e.to_string());
             error.bit_offset = Some(e.bit_offset);
             error
         })?;
-        let report = &decoded.cac.spectrum;
-        if !decoded.tns_complete {
+        let report = &decoded.tns.cac.spectrum;
+        if !decoded.bwe2_complete {
             return Err(Error::new(
                 "SQ decoder",
                 format!("unsupported frame: {}", report.frame.stop_reason),
@@ -308,9 +308,7 @@ impl SqDecoder {
             }
             Ok(())
         };
-        zero(1, "left BWE2")?;
-        zero(1, "right BWE2")?;
-        let position = report.frame.stop_bit_offset + 2;
+        let position = report.frame.stop_bit_offset;
         zero((8 - position % 8) % 8, "core alignment")?;
         zero(1, "ancillary trimming")?;
         zero(7, "ancillary alignment")?;
@@ -319,11 +317,11 @@ impl SqDecoder {
         }
         let mut next = self.channels.clone();
         let left = next[0].render(
-            &decoded.channels_after_tns[0].scaled,
+            &decoded.channels_after_bwe2[0].scaled,
             report.channels[0].ics.block_type,
         )?;
         let right = next[1].render(
-            &decoded.channels_after_tns[1].scaled,
+            &decoded.channels_after_bwe2[1].scaled,
             report.channels[1].ics.block_type,
         )?;
         let mut output = Vec::with_capacity(2048);

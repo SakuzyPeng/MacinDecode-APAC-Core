@@ -9,21 +9,35 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path};
 
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SqDecodeOptions {
+    /// Absolute valid-audio coordinate; omitted starts at the exported target window.
+    pub start_frame: Option<u64>,
+    /// Omitted exports the remaining target window. Zero is rejected.
+    pub frames: Option<u64>,
+}
+
 pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Value> {
+    decode_sq_with_options(directory, destination, SqDecodeOptions::default(), limit)
+}
+
+pub fn decode_sq_with_options(
+    directory: &Path,
+    destination: &Path,
+    options: SqDecodeOptions,
+    limit: u64,
+) -> Result<Value> {
     let mut bundle = PacketBundle::open(directory)?;
-    if bundle.manifest().start_packet != 0 {
-        return Err(Error::new(
-            "SQ decoder",
-            "decode from source packet zero; random-access state is not implemented",
-        ));
-    }
     let info = bundle.manifest().file.clone();
     let table = info
         .packet_table
         .value
         .clone()
         .ok_or_else(|| Error::new("SQ decoder", "missing packet table"))?;
-    let range = bundle.range(Some(0), (table.valid_frames as u64).max(1))?;
+    let range = bundle.range(
+        options.start_frame,
+        options.frames.unwrap_or((table.valid_frames as u64).max(1)),
+    )?;
     let mut decoder = SqDecoder::from_cookie(bundle.cookie())?;
     let out = OutputDir::create(destination, Budget::new(limit))?;
     out.budget.ensure(
@@ -34,12 +48,27 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
     let mut writer = out.writer("pcm.f32le")?;
     let mut hash = Sha256::new();
     let mut saved = 0;
+    let (
+        mut decoded_packets,
+        mut warmup_packets,
+        mut absent_packets,
+        mut embedded_frames,
+        mut embedded_absent,
+    ) = (0u64, 0u64, 0u64, 0u64, 0u64);
     while let Some((packet, bytes)) = bundle.next_packet()? {
-        let samples = decoder.decode_frame(&bytes).map_err(|mut e| {
+        let raw = packet.raw_frame()?;
+        if !range.drain_to_eof && raw >= range.raw_end {
+            break;
+        }
+        let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|mut e| {
             e.packet_index = Some(packet.packet_index);
             e
         })?;
-        let raw = packet.raw_frame()?;
+        decoded_packets += 1;
+        warmup_packets += u64::from(raw + 1024 <= range.raw_start);
+        absent_packets += u64::from(counts.cpe_absent);
+        embedded_frames += counts.embedded_preroll_frames;
+        embedded_absent += counts.embedded_cpe_absent;
         let first = raw.max(range.raw_start);
         let last = (raw + 1024).min(range.raw_end);
         if first < last {
@@ -77,6 +106,8 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
             "implementation".into(),
             Property::known(json!({
                 "backend":super::BACKEND, "experimental":true,
+                "packet_state_profile":crate::frame::STATE_PROFILE,
+                "support_scope":"stereo_sq_no_drc_neutral_scene_asp",
                 "numeric_profile":super::NUMERIC_PROFILE,
                 "cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,
                 "cac_tables_sha256":crate::frame::cac_math_sha256(),
@@ -95,7 +126,12 @@ pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Val
     };
     out.json("pcm.json", &pcm)?;
     let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":super::BACKEND,"native_apis_used":false,
-        "packets":bundle.consumed_packets(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
+        "packet_state_profile":crate::frame::STATE_PROFILE,
+        "packets":decoded_packets,"integrity_checked_packets":bundle.consumed_packets(),
+        "warmup_packets":warmup_packets,"cpe_absent_packets":absent_packets,
+        "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
+        "raw_frames_decoded":decoded_packets*1024,
+        "range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
     out.json("decode-sq.json", &report)?;
     out.complete()?;
     Ok(report)

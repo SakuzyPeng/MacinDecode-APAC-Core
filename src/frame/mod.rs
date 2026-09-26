@@ -2,6 +2,8 @@
 mod bundle;
 mod bwe2;
 mod cac;
+mod packet;
+mod packet_config;
 mod spectrum;
 mod tns;
 pub use crate::bwe2_math::Analysis as Bwe2Analysis;
@@ -14,6 +16,7 @@ pub use bwe2::{
 pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
 pub(crate) use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
+pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
 pub(crate) use tns::math_sha256 as tns_math_sha256;
@@ -38,6 +41,8 @@ pub struct FrameContext {
     frame_samples: Option<u64>,
     asp_frame_header: bool,
     unsupported_reason: Option<String>,
+    #[serde(skip)]
+    packet_configuration: packet_config::PacketConfiguration,
 }
 impl FrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
@@ -112,6 +117,7 @@ impl FrameContext {
             .find(|(ok, _)| !ok)
             .map(|(_, reason)| reason.into());
         Ok(Self {
+            packet_configuration: packet_config::PacketConfiguration::from_cookie(&parsed),
             cookie_sha256: parsed.cookie_sha256,
             sample_rate_hz,
             channels,
@@ -125,6 +131,12 @@ impl FrameContext {
     }
     pub fn cookie_sha256(&self) -> &str {
         &self.cookie_sha256
+    }
+    pub(crate) fn packet_rejection(&self) -> Option<&str> {
+        self.packet_configuration
+            .rejection
+            .as_deref()
+            .or(self.unsupported_reason.as_deref())
     }
 }
 

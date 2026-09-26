@@ -86,10 +86,12 @@ def exact(actual,expected):
         require(actual[key]==expected[key],'BWE2 fingerprint mismatch: '+key)
 
 
-def validate_reference(reference,report):
+def validate_reference(reference,report,regression=False):
     require(reference.get('passed') is True and reference.get('mode')=='independent_math','requires successful BWE2 mathematics')
     require(reference.get('counts')==COUNTS and reference.get('errors')==[],'incomplete BWE2 reference')
-    for key in ('schema_version','code_commit','source_sha256','numeric_profile','tables_sha256','format_sha256','vector_manifest_sha256','upstream_constants','atol','rtol'):
+    keys=('schema_version','numeric_profile','tables_sha256','format_sha256','vector_manifest_sha256','upstream_constants','atol','rtol')
+    if not regression:keys+=('code_commit','source_sha256')
+    for key in keys:
         require(reference[key]==report[key],'BWE2 reference identity differs: '+key)
     for stage,count in COUNTS.items():
         require(len(reference[stage])==count and all(r['passed'] for r in reference[stage]),'missing/failed BWE2 cases')
@@ -293,13 +295,16 @@ def native_artificial(binary,report):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
-    parser.add_argument('--reference-report',type=Path)
+    references=parser.add_mutually_exclusive_group()
+    references.add_argument('--reference-report',type=Path)
+    references.add_argument('--regression-report',type=Path,help='explicit unchanged-output comparison across code commits; numerical/input profiles must match')
     parser.add_argument('--native',action='store_true');parser.add_argument('--native-only',action='store_true')
     parser.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))
     args=parser.parse_args()
     if args.output.exists():parser.error('refusing to overwrite report')
     if (args.native or args.native_only) and sys.platform!='darwin':parser.error('native BWE2 snapshots require macOS')
     binary=args.binary.resolve(strict=True)
+    reference_path=args.reference_report or args.regression_report
     report=dict(schema_version=1,numeric_profile=PROFILE,code_commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True,encoding='utf-8').strip(),
                 tested_worktree_dirty=bool(subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain'],text=True,encoding='utf-8').strip()),
                 source_sha256=source_digest(),tables_sha256=sha256_file(DESTINATION),format_sha256=sha256_file(ROOT/'data/bwe2-format-v1.json'),
@@ -307,23 +312,23 @@ def main():
                 vector_manifest_sha256=sha256_file(ROOT/'data/bwe2-vectors-v2.json'),
                 upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v1.json','cac-math-v1.json','tns-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
                 tool_sha256=sha256_file(binary),platform=platform.platform(),architecture=platform.machine(),python=sys.version,
-                mode='native_diagnostic' if args.native_only else 'bit_exact_replay' if args.reference_report else 'independent_math',
+                mode='native_diagnostic' if args.native_only else 'bit_exact_regression' if args.regression_report else 'bit_exact_replay' if args.reference_report else 'independent_math',
                 implementation=None,atol=1e-6,rtol=1e-5,spectra=[],pcm=[],errors=[],native_artificial=[],real=[],started_utc=datetime.now(timezone.utc).isoformat())
     reference=None
     try:
         require(MANIFEST['counts']==COUNTS,'BWE2 frozen counts differ')
         require(json.loads(DESTINATION.read_text())==document(),'BWE2 constants do not match high-precision generation')
-        if args.reference_report:
-            require(args.reference_report.stat().st_size<=LIMIT,'reference exceeds output budget')
-            report['reference_report_sha256']=sha256_file(args.reference_report)
-            reference=json.loads(args.reference_report.read_text(encoding='utf-8'));validate_reference(reference,report)
+        if reference_path:
+            require(reference_path.stat().st_size<=LIMIT,'reference exceeds output budget')
+            report['reference_report_sha256']=sha256_file(reference_path)
+            reference=json.loads(reference_path.read_text(encoding='utf-8'));validate_reference(reference,report,bool(args.regression_report))
         if not args.native_only:portable(binary,report,reference)
         if args.native or args.native_only:
             report['component_sha256']=COMPONENT_SHA256;native_artificial(binary,report)
             native_real(binary,args.replay_baseline,report,inspect_fn=inspect,check_fn=check_native,tns=True,bwe2=True)
             require(len(report['native_artificial'])==COUNTS['spectra'] and len(report['real'])==30,'incomplete native BWE2 matrix')
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
-        if args.reference_report:require(sha256_file(args.reference_report)==report['reference_report_sha256'],'reference report changed')
+        if reference_path:require(sha256_file(reference_path)==report['reference_report_sha256'],'reference report changed')
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))
     report['counts']={stage:len(report[stage]) for stage in COUNTS}
     report['passed']=not report['errors'] and (args.native_only or report['counts']==COUNTS) and all(r['passed'] for stage in COUNTS for r in report[stage]) and all(r['passed'] for r in report['real'])

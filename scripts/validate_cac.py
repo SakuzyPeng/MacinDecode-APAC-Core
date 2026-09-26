@@ -212,6 +212,22 @@ def pcm_stop(result):
         'unparsed trailing bytes':'unknown_tail',
     }
     if message in exact_messages:return exact_messages[message]
+    packet_stops={
+        'nonzero ancillary trimming is unsupported':'ancillary trimming',
+        'nonzero core alignment is unsupported':'core alignment',
+        'nonzero packet alignment is unsupported':'ancillary alignment',
+        'unparsed trailing bytes':'unknown_tail',
+        'embedded_preroll_incomplete':'embedded_preroll',
+        'ASP reconfiguration is unsupported':'asp_reconfiguration',
+        'unverified ASP frame type 3':'asp_type',
+        'lrvq_prefix_deferred':'lrvq',
+    }
+    if message.startswith('unsupported frame: '):
+        reason=message.removeprefix('unsupported frame: ')
+        if reason.startswith('non-neutral audio scene update: '):return 'non_neutral_scene'
+        if reason in packet_stops:
+            require(isinstance(error.get('bit_offset'),int) and isinstance(error.get('packet_index'),int),'packet stop lacks packet/bit position')
+            return packet_stops[reason]
     for tool in ('left TNS','right TNS','left BWE2','right BWE2','core alignment','ancillary trimming','ancillary alignment'):
         if message=='unsupported nonzero '+tool:
             require(isinstance(error.get('bit_offset'),int) and isinstance(error.get('packet_index'),int), 'tool stop lacks packet/bit position')

@@ -326,7 +326,7 @@ fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
         .enumerate()
         .map(|(k, z)| {
             let (mut p, mut q) = (1., 1.);
-            for pair in cosines.chunks_exact(2) {
+            for pair in cosines.as_chunks::<2>().0 {
                 p *= 2. * (z.re - pair[0]);
                 q *= 2. * (z.re - pair[1]);
             }

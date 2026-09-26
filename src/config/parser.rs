@@ -53,6 +53,35 @@ pub(super) fn parse(data: &[u8]) -> Result<CookieReport, ParseError> {
     Ok(p.report)
 }
 
+/// Reuse the same bounded scene grammar for an explicitly present frame update.
+/// Field coordinates remain relative to the supplied packet, not a fake cookie.
+pub(crate) fn parse_scene_at(
+    data: &[u8],
+    offset: usize,
+) -> Result<(CookieReport, usize), ParseError> {
+    let mut p = Parser {
+        data,
+        bits: BitReader::new(data),
+        report: CookieReport::new(data),
+    };
+    p.bits.skip(offset)?;
+    match p.audio_scenes() {
+        Ok(()) => {}
+        Err(Stop::Invalid(error)) => return Err(error),
+        Err(Stop::Unsupported {
+            position, reason, ..
+        }) => {
+            p.report.status = ParseStatus::Partial;
+            p.report.diagnostics.push(Diagnostic {
+                bit_offset: position,
+                message: reason,
+            });
+        }
+    }
+    let end = p.pos();
+    Ok((p.report, end))
+}
+
 impl Parser<'_> {
     pub fn pos(&self) -> usize {
         self.bits.position()

@@ -1,8 +1,9 @@
 //! Synthetic syntax only: no real media cookie or packet is embedded here.
 use macindecode_apac_tools::{
     config::{ParseStatus, parse_cookie},
-    frame::{FrameContext, FrameReport, parse_frame},
+    frame::{FrameContext, FrameReport, parse_frame, parse_packet},
     packets::MAX_PACKET_BUFFER,
+    synthesis::SqDecoder,
 };
 use serde_json::json;
 
@@ -723,7 +724,12 @@ mod synthesis_tests {
         let zero = packet(0, false);
         let original = a.decode_frame(&active).unwrap();
         b.decode_frame(&active).unwrap();
-        assert!(a.decode_frame(&packet(2, true)).is_err());
+        // APAC permits this transition; the following malformed payload must
+        // still leave the now-short-window overlap unchanged.
+        assert_eq!(
+            a.decode_frame(&packet(2, true)).unwrap(),
+            b.decode_frame(&packet(2, true)).unwrap()
+        );
         let mut bad = active.clone();
         let bit = parse_spectrum(&context(), &bad)
             .unwrap()
@@ -936,7 +942,10 @@ mod cac_tests {
             actual.decode_frame(&bad).unwrap_err().bit_offset,
             Some(expected_bit)
         );
-        assert!(actual.decode_frame(&packet(2, 26)).is_err());
+        assert_eq!(
+            actual.decode_frame(&packet(2, 26)).unwrap(),
+            reference.decode_frame(&packet(2, 26)).unwrap()
+        );
         assert!(actual.decode_frame(&bad[..bad.len() / 2]).is_err());
         assert_eq!(
             actual.decode_frame(&packet(0, 26)).unwrap(),
@@ -1094,7 +1103,7 @@ mod bwe2_tests {
             .collect()
     }
     #[test]
-    fn bwe2_tail_errors_and_window_errors_roll_back_and_reset_exactly() {
+    fn bwe2_tail_errors_roll_back_and_all_window_types_reset_exactly() {
         // Reproducible fixtures: bwe2_vectors.packet(source_case()), then
         // independent right parameters [1,2], and source_case(2,0x55).
         let active = bytes("614640988442c814808000080000");
@@ -1113,7 +1122,10 @@ mod bwe2_tests {
         *tail.last_mut().unwrap() = 0x80;
         assert!(actual.decode_frame(&tail).is_err());
         assert!(actual.decode_frame(&active[..active.len() - 2]).is_err());
-        assert!(actual.decode_frame(&short).is_err());
+        assert_eq!(
+            actual.decode_frame(&short).unwrap(),
+            expected.decode_frame(&short).unwrap()
+        );
         assert_eq!(
             actual.decode_frame(&independent).unwrap(),
             expected.decode_frame(&independent).unwrap()
@@ -1125,4 +1137,139 @@ mod bwe2_tests {
         actual.reset();
         assert_eq!(actual.decode_frame(&active).unwrap(), first);
     }
+}
+
+// Deliberately independent wire construction for the stateful library contract.
+fn packet_test_core(bits: &mut Bits, present: bool) {
+    bits.put(u64::from(present), 1);
+    if !present {
+        return;
+    }
+    bits.fields(&[(0, 1), (0, 2), (1, 6), (160, 8), (1, 4), (1, 5)]);
+    let tables: serde_json::Value =
+        serde_json::from_str(include_str!("../data/sq-codebooks.json")).unwrap();
+    let sf = &tables["scalefactor"];
+    bits.put(
+        sf["codes"][60].as_u64().unwrap(),
+        sf["bits"][60].as_u64().unwrap() as usize,
+    );
+    let book = &tables["spectral"][0];
+    let index = 2 * 27 + 9 + 3 + 1; // Codebook 1 tuple [1, 0, 0, 0].
+    bits.put(
+        book["codes"][index].as_u64().unwrap(),
+        book["bits"][index].as_u64().unwrap() as usize,
+    );
+    bits.fields(&[(0, 1), (0, 2), (0, 6), (160, 8), (0, 4)]); // Independent right, no bands, TNS/BWE2 off.
+}
+fn packet_test_frame(present: bool, internal: Option<&[u8]>) -> Vec<u8> {
+    let mut bits = Bits::default();
+    if let Some(frame) = internal {
+        bits.fields(&[(2, 2), (0, 1), (1, 2), (frame.len() as u64, 16)]);
+        while bits.1 % 8 != 0 {
+            bits.put(0, 1);
+        }
+        for &byte in frame {
+            bits.put(u64::from(byte), 8);
+        }
+    } else {
+        bits.put(1, 2);
+    }
+    packet_test_core(&mut bits, present);
+    while bits.1 % 8 != 0 {
+        bits.put(0, 1);
+    }
+    bits.put(0, 8); // No scene configuration: trimming flag and final padding.
+    bits.0
+}
+
+#[test]
+fn complete_packet_absence_preserves_empty_spectral_reports() {
+    let bytes = packet_test_frame(false, None);
+    let old = parse_frame(&context(), &bytes).unwrap();
+    assert_eq!(old.stop_reason, "cpe_absent");
+    assert_eq!(old.status, ParseStatus::Partial);
+    let packet = parse_packet(&context(), &bytes).unwrap();
+    assert!(packet.packet_complete && packet.cpe_absent());
+    assert_eq!(packet.frame().status, ParseStatus::Complete);
+    assert_eq!(packet.frame().component_end_bit_offset, Some(8));
+    assert!(packet.bwe2.tns.cac.spectrum.channels.is_empty());
+    assert!(!packet.bwe2.bwe2_complete);
+    assert!(packet.frame().unknown_ranges.is_empty());
+}
+
+#[test]
+fn missing_element_outputs_the_tail_once_and_reset_clears_it() {
+    let config = cookie(3, 2, false);
+    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+    let active = packet_test_frame(true, None);
+    let absent = packet_test_frame(false, None);
+    decoder.decode_frame(&active).unwrap();
+    let tail = decoder.decode_frame(&absent).unwrap();
+    assert!(tail.iter().any(|v| *v != 0.));
+    assert!(tail.iter().skip(1).step_by(2).all(|v| v.to_bits() == 0));
+    assert!(
+        decoder
+            .decode_frame(&absent)
+            .unwrap()
+            .iter()
+            .all(|v| v.to_bits() == 0)
+    );
+    decoder.decode_frame(&active).unwrap();
+    decoder.reset();
+    assert!(
+        decoder
+            .decode_frame(&absent)
+            .unwrap()
+            .iter()
+            .all(|v| v.to_bits() == 0)
+    );
+}
+
+#[test]
+fn invalid_outer_tail_and_invalid_internal_frame_do_not_commit_state() {
+    let config = cookie(3, 2, false);
+    let active = packet_test_frame(true, None);
+    let absent = packet_test_frame(false, None);
+    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+    let mut control = SqDecoder::from_cookie(&config).unwrap();
+    decoder.decode_frame(&active).unwrap();
+    control.decode_frame(&active).unwrap();
+    let mut bad = packet_test_frame(true, Some(&active));
+    *bad.last_mut().unwrap() = 0x80;
+    assert!(decoder.decode_frame(&bad).is_err());
+    let bad_inner = packet_test_frame(true, Some(&[0x60]));
+    let error = decoder.decode_frame(&bad_inner).unwrap_err();
+    assert!(error.message.contains("embedded preroll"));
+    assert_eq!(error.bit_offset, Some(30));
+    let after = decoder.decode_frame(&absent).unwrap();
+    let expected = control.decode_frame(&absent).unwrap();
+    assert_eq!(
+        after.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+        expected.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn internal_preroll_emits_only_current_pcm_and_has_bounded_coordinates() {
+    let config = cookie(3, 2, false);
+    let active = packet_test_frame(true, None);
+    let absent = packet_test_frame(false, None);
+    let outer = packet_test_frame(false, Some(&active));
+    let report = parse_packet(&context(), &outer).unwrap();
+    assert!(report.packet_complete);
+    let internal = report.embedded_preroll.as_ref().unwrap();
+    assert_eq!(internal.start_bit_offset, 24);
+    assert_eq!(internal.end_bit_offset, 24 + active.len() * 8);
+    assert!(internal.report.packet_complete);
+    assert_eq!(internal.report.frame().packet_bytes, active.len());
+    let mut expected = SqDecoder::from_cookie(&config).unwrap();
+    expected.decode_frame(&active).unwrap();
+    let expected = expected.decode_frame(&absent).unwrap();
+    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+    let output = decoder.decode_frame(&outer).unwrap();
+    assert_eq!(output.len(), 2048);
+    assert_eq!(
+        output.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
+        expected.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
+    );
 }

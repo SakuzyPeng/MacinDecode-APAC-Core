@@ -2,13 +2,12 @@
 //! Ordinary products and sums round separately; only final PCM is cast to Float32.
 mod bundle;
 use crate::{
-    config::{self, bits::BitReader},
     error::{Error, Result},
-    frame::{FrameContext, parse_bwe2},
+    frame::{FrameContext, PacketReport, parse_packet},
 };
-pub use bundle::decode_sq;
+pub use bundle::{SqDecodeOptions, decode_sq, decode_sq_with_options};
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v7";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v8";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
@@ -95,13 +94,11 @@ fn window(n: usize) -> &'static [f64] {
 #[derive(Clone)]
 struct ChannelState {
     overlap: Vec<f64>,
-    previous: u8,
 }
 impl ChannelState {
     fn new() -> Self {
         Self {
             overlap: vec![0.; 1024],
-            previous: 0,
         }
     }
     fn render(&mut self, spectrum: &[f32], block: u8) -> Result<Vec<f32>> {
@@ -111,11 +108,8 @@ impl ChannelState {
                 "requires 1024 finite coefficients",
             ));
         }
-        if !matches!((self.previous, block), (0 | 3, 0 | 1) | (1 | 2, 2 | 3)) {
-            return Err(Error::new(
-                "SQ synthesis",
-                "unsupported window transition; start with a long frame",
-            ));
+        if block > 3 {
+            return Err(Error::new("SQ synthesis", "unsupported window type"));
         }
         let mut time = vec![0.; 2048];
         if block == 2 {
@@ -164,12 +158,11 @@ impl ChannelState {
             return Err(Error::new("SQ synthesis", "nonfinite PCM"));
         }
         self.overlap.copy_from_slice(&time[1024..]);
-        self.previous = block;
         Ok(output)
     }
 }
 
-/// Strict subset: independent/shared SQ streams with CAC/TNS/BWE2, no later tools or ancillary data.
+/// Qualified no-DRC stereo SQ packets, neutral scene metadata and bounded ASP preroll.
 /// One packet produces exactly 1024 interleaved stereo frames. Errors do not advance state.
 pub struct SqDecoder {
     context: FrameContext,
@@ -177,92 +170,11 @@ pub struct SqDecoder {
 }
 impl SqDecoder {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self> {
-        let parsed = config::parse_cookie(cookie)?;
         let context = FrameContext::from_cookie(cookie)?;
-        // Preserve the restricted configuration while making every rejected wire
-        // field reviewable. Missing fields have no invented cookie coordinate.
-        let mut rejected = Vec::new();
-        let mut check = |name: &str, expected: serde_json::Value| match parsed
-            .fields
-            .iter()
-            .find(|f| f.name == name)
-        {
-            Some(field) if field.value == expected => {}
-            Some(field) => rejected.push(format!(
-                "{name}={} at cookie bit {} (expected {expected})",
-                field.value, field.bit_offset
-            )),
-            None => rejected.push(format!(
-                "{name}=missing at cookie bit unknown (expected {expected})"
-            )),
-        };
-        for (name, value) in [
-            ("global.profile_id", 31),
-            ("global.level_id", 0),
-            ("global.parameter_b", 2),
-            ("box.version_flags", 0),
-            ("bitstream_version", 0x0800),
-            ("global.frame_size_index", 0),
-            ("global.channel_count", 2),
-            ("global.component_count", 1),
-            ("components[0].type", 0),
-            ("components[0].lowest_channel_index", 0),
-            ("components[0].tce_count", 1),
-            ("components[0].tce[0].type", 1),
-            ("components[0].parameter_0", 0),
-            ("components[0].parameter_1", 0),
-            ("components[0].layout_family", 101),
-        ] {
-            check(name, serde_json::json!(value));
-        }
-        for name in [
-            "global.flag_a",
-            "global.flag_c",
-            "global.additional_asc_present",
-            "components[0].lbr_flag",
-            "ancillary.scene_graph_present",
-            "ancillary.audio_scenes_present",
-            "ancillary.loudness_drc_present",
-            "ancillary.metadata_present",
-            "ancillary.custom_data_present",
-            "extensions[0].present",
-            "components[0].remapping_present",
-        ] {
-            check(name, serde_json::json!(false));
-        }
-        if !matches!(
-            parsed
-                .derived
-                .get("sample_rate_hz")
-                .and_then(|v| v.as_u64()),
-            Some(44100 | 48000)
-        ) && let Some(field) = parsed
-            .fields
-            .iter()
-            .find(|f| f.name == "global.sample_rate_index")
-        {
-            rejected.push(format!(
-                "{}={} at cookie bit {} (expected 44.1/48 kHz)",
-                field.name, field.value, field.bit_offset
-            ));
-        }
-        if !parsed.is_complete() {
-            rejected.push(format!(
-                "cookie status={:?} at cookie bit {} (expected complete)",
-                parsed.status,
-                parsed
-                    .unknown_ranges
-                    .first()
-                    .map_or(cookie.len() * 8, |r| r.bit_offset)
-            ));
-        }
-        if !context.is_supported() && rejected.is_empty() {
-            rejected.push("frame context unsupported; cookie fields do not establish the restricted SQ syntax".into());
-        }
-        if !rejected.is_empty() {
+        if let Some(reason) = context.packet_rejection() {
             return Err(Error::new(
                 "SQ decoder",
-                format!("unsupported configuration: {}", rejected.join("; ")),
+                format!("unsupported configuration: {reason}"),
             ));
         }
         Ok(Self {
@@ -274,63 +186,89 @@ impl SqDecoder {
         self.channels = [ChannelState::new(), ChannelState::new()];
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
-        let decoded = parse_bwe2(&self.context, packet).map_err(|e| {
+        self.decode_frame_report(packet).map(|(samples, _)| samples)
+    }
+    pub(crate) fn decode_frame_report(
+        &mut self,
+        packet: &[u8],
+    ) -> Result<(Vec<f32>, FrameStateCounts)> {
+        let decoded = parse_packet(&self.context, packet).map_err(|e| {
             let mut error = Error::new("SQ spectrum", e.to_string());
             error.bit_offset = Some(e.bit_offset);
             error
         })?;
-        let report = &decoded.tns.cac.spectrum;
-        if !decoded.bwe2_complete {
-            return Err(Error::new(
+        if !decoded.packet_complete {
+            let frame = decoded.frame();
+            let mut error = Error::new(
                 "SQ decoder",
-                format!("unsupported frame: {}", report.frame.stop_reason),
-            ));
-        }
-        if packet[0] >> 6 > 1 {
-            return Err(Error::new(
-                "SQ decoder",
-                "ASP refresh/preroll is not implemented",
-            ));
-        }
-        let mut bits = BitReader::new(packet);
-        bits.skip(report.frame.stop_bit_offset)?;
-        let mut zero = |width: usize, name: &str| -> Result<()> {
-            let offset = bits.position();
-            let value = bits.read(width).map_err(|e| {
-                let mut error = Error::new("SQ tail", e.to_string());
-                error.bit_offset = Some(e.bit_offset);
-                error
-            })?;
-            if value != 0 {
-                let mut error = Error::new("SQ decoder", format!("unsupported nonzero {name}"));
-                error.bit_offset = Some(offset);
-                return Err(error);
-            }
-            Ok(())
-        };
-        let position = report.frame.stop_bit_offset;
-        zero((8 - position % 8) % 8, "core alignment")?;
-        zero(1, "ancillary trimming")?;
-        zero(7, "ancillary alignment")?;
-        if bits.remaining() != 0 {
-            return Err(Error::new("SQ decoder", "unparsed trailing bytes"));
+                format!("unsupported frame: {}", frame.stop_reason),
+            );
+            error.bit_offset = Some(
+                frame
+                    .diagnostics
+                    .first()
+                    .map_or(frame.stop_bit_offset, |d| d.bit_offset),
+            );
+            return Err(error);
         }
         let mut next = self.channels.clone();
-        let left = next[0].render(
-            &decoded.channels_after_bwe2[0].scaled,
-            report.channels[0].ics.block_type,
-        )?;
-        let right = next[1].render(
-            &decoded.channels_after_bwe2[1].scaled,
-            report.channels[1].ics.block_type,
-        )?;
-        let mut output = Vec::with_capacity(2048);
-        for (l, r) in left.into_iter().zip(right) {
-            output.extend([l, r]);
-        }
+        let output = render_packet(&mut next, &decoded)?;
         self.channels = next;
         Ok(output)
     }
+}
+
+#[derive(Default)]
+pub(crate) struct FrameStateCounts {
+    pub cpe_absent: bool,
+    pub embedded_preroll_frames: u64,
+    pub embedded_cpe_absent: u64,
+}
+
+fn render_packet(
+    channels: &mut [ChannelState; 2],
+    decoded: &PacketReport,
+) -> Result<(Vec<f32>, FrameStateCounts)> {
+    let mut counts = FrameStateCounts::default();
+    if let Some(preroll) = &decoded.embedded_preroll {
+        // The internal frame replaces the overlap used by the current frame.
+        // Its PCM is discarded; the entire outer packet commits atomically.
+        let (_, inner) = render_packet(channels, &preroll.report)?;
+        counts.embedded_preroll_frames = 1 + inner.embedded_preroll_frames;
+        counts.embedded_cpe_absent = u64::from(inner.cpe_absent) + inner.embedded_cpe_absent;
+    }
+    counts.cpe_absent = decoded.cpe_absent();
+    let mut sides = Vec::with_capacity(2);
+    for (index, state) in channels.iter_mut().enumerate() {
+        let samples = if counts.cpe_absent {
+            // Exact zero current spectrum: retain the previous tail for this
+            // output interval, then clear it. No fabricated encoded channels.
+            let samples: Vec<f32> = state
+                .overlap
+                .iter()
+                .map(|&v| {
+                    let value = v as f32;
+                    if value == 0. { 0. } else { value }
+                })
+                .collect();
+            if samples.iter().any(|v| !v.is_finite()) {
+                return Err(Error::new("SQ synthesis", "nonfinite PCM"));
+            }
+            state.overlap.fill(0.);
+            samples
+        } else {
+            state.render(
+                &decoded.bwe2.channels_after_bwe2[index].scaled,
+                decoded.bwe2.tns.cac.spectrum.channels[index].ics.block_type,
+            )?
+        };
+        sides.push(samples);
+    }
+    let mut output = Vec::with_capacity(2048);
+    for (&left, &right) in sides[0].iter().zip(&sides[1]) {
+        output.extend([left, right]);
+    }
+    Ok((output, counts))
 }
 
 #[cfg(test)]
@@ -401,7 +339,13 @@ mod tests {
                     .all(|v| v.to_bits() == 0)
             );
         }
-        assert!(state.render(&zero, 2).is_err());
+        for first in 0..4 {
+            for second in 0..4 {
+                state.render(&zero, first).unwrap();
+                state.render(&zero, second).unwrap();
+            }
+        }
+        assert!(state.render(&zero, 4).is_err());
         assert!(state.render(&[f32::NAN; 1024], 0).is_err());
     }
 }

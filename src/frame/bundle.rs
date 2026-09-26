@@ -1,4 +1,6 @@
-use super::{FrameContext, parse_bwe2, parse_cac, parse_frame, parse_spectrum, parse_tns};
+use super::{
+    FrameContext, parse_bwe2, parse_cac, parse_frame, parse_packet, parse_spectrum, parse_tns,
+};
 use serde::Serialize;
 
 use crate::{
@@ -19,6 +21,7 @@ pub enum ParseDepth {
     Cac,
     Tns,
     Bwe2,
+    Packet,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -51,6 +54,7 @@ pub fn parse_packets_with_depth(
     let (mut cac_complete, mut shared_ics) = (0u64, 0u64);
     let mut tns_complete = 0u64;
     let mut bwe2_complete = 0u64;
+    let (mut embedded_preroll, mut embedded_complete) = (0u64, 0u64);
     if requested == 0 {
         return Err(Error::new("parse-packets", "packet count must be positive"));
     }
@@ -166,6 +170,30 @@ pub fn parse_packets_with_depth(
                     Some(serde_json::to_value(bwe2).expect("finite BWE2 report")),
                 )
             }),
+            ParseDepth::Packet => parse_packet(&context, &bytes).map(|packet| {
+                let bwe2 = &packet.bwe2;
+                let tns = &bwe2.tns;
+                let cac = &tns.cac;
+                spectra += u64::from(cac.spectrum.spectrum_complete);
+                left += u64::from(!cac.spectrum.channels.is_empty());
+                right += u64::from(cac.spectrum.channels.len() == 2);
+                absent += u64::from(packet.cpe_absent());
+                cac_complete += u64::from(cac.cac_complete);
+                shared_ics += u64::from(cac.shared_ics);
+                tns_complete += u64::from(tns.tns_complete);
+                bwe2_complete += u64::from(bwe2.bwe2_complete);
+                embedded_preroll += u64::from(packet.embedded_preroll.is_some());
+                embedded_complete += u64::from(
+                    packet
+                        .embedded_preroll
+                        .as_ref()
+                        .is_some_and(|p| p.report.packet_complete),
+                );
+                (
+                    packet.frame().clone(),
+                    Some(serde_json::to_value(packet).expect("finite packet report")),
+                )
+            }),
         };
         let row = match result {
             Ok((report, spectrum)) => {
@@ -225,15 +253,26 @@ pub fn parse_packets_with_depth(
         summary["right_spectrum_packets"] = json!(right);
         summary["cpe_absent_packets"] = json!(absent);
     }
-    if matches!(depth, ParseDepth::Cac | ParseDepth::Tns | ParseDepth::Bwe2) {
+    if matches!(
+        depth,
+        ParseDepth::Cac | ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Packet
+    ) {
         summary["cac_complete_packets"] = json!(cac_complete);
         summary["shared_ics_packets"] = json!(shared_ics);
     }
-    if matches!(depth, ParseDepth::Tns | ParseDepth::Bwe2) {
+    if matches!(
+        depth,
+        ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Packet
+    ) {
         summary["tns_complete_packets"] = json!(tns_complete);
     }
-    if depth == ParseDepth::Bwe2 {
+    if matches!(depth, ParseDepth::Bwe2 | ParseDepth::Packet) {
         summary["bwe2_complete_packets"] = json!(bwe2_complete);
+    }
+    if depth == ParseDepth::Packet {
+        summary["packet_complete_packets"] = json!(whole);
+        summary["embedded_preroll_packets"] = json!(embedded_preroll);
+        summary["embedded_preroll_complete_frames"] = json!(embedded_complete);
     }
     Ok((summary, exit_code))
 }

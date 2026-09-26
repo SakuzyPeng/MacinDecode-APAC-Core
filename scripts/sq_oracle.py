@@ -75,12 +75,13 @@ def direct_imdct(n, nonzero):
 
 
 class Channel:
-    def __init__(self):
+    def __init__(self, strict_transitions=True):
         self.overlap = [D(0)] * 1024
         self.previous = 0
+        self.strict_transitions = strict_transitions
 
     def render(self, spectrum, block):
-        if (self.previous in (0, 3) and block not in (0, 1)
+        if self.strict_transitions and (self.previous in (0, 3) and block not in (0, 1)
                 or self.previous in (1, 2) and block not in (2, 3)):
             raise ValueError('invalid oracle window transition')
         with localcontext() as ctx:

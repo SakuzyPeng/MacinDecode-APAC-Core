@@ -30,6 +30,12 @@ enum Command {
         directory: PathBuf,
         #[arg(long)]
         out: PathBuf,
+        /// Absolute valid-audio frame; omitted starts at the exported target window.
+        #[arg(long)]
+        start_frame: Option<u64>,
+        /// Omitted exports the whole remaining target window.
+        #[arg(long)]
+        frames: Option<u64>,
     },
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
@@ -168,9 +174,23 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
             *depth,
         );
     }
-    if let Command::DecodeSq { directory, out } = &cli.command {
+    if let Command::DecodeSq {
+        directory,
+        out,
+        start_frame,
+        frames,
+    } = &cli.command
+    {
         return Ok((
-            macindecode_apac_tools::synthesis::decode_sq(directory, out, limit)?,
+            macindecode_apac_tools::synthesis::decode_sq_with_options(
+                directory,
+                out,
+                macindecode_apac_tools::synthesis::SqDecodeOptions {
+                    start_frame: *start_frame,
+                    frames: *frames,
+                },
+                limit,
+            )?,
             0,
         ));
     }

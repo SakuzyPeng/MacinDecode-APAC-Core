@@ -9,7 +9,7 @@ use crate::{
 };
 pub use bundle::{SqDecodeOptions, decode_sq, decode_sq_with_options};
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v9";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
@@ -216,23 +216,6 @@ impl SqDecoder {
                     .first()
                     .map_or(frame.stop_bit_offset, |d| d.bit_offset),
             );
-            return Err(error);
-        }
-        fn unqualified(report: &PacketReport) -> Option<(usize, String)> {
-            if let Some(inner) = &report.embedded_preroll
-                && let Some((bit, message)) = unqualified(&inner.report)
-            {
-                return Some((inner.start_bit_offset + bit, message));
-            }
-            report
-                .drc
-                .as_ref()
-                .and_then(|d| d.off_identity_rejection.as_ref())
-                .map(|d| (d.bit_offset, d.message.clone()))
-        }
-        if let Some((bit, message)) = unqualified(&decoded) {
-            let mut error = Error::new("SQ decoder", format!("unsupported frame: {message}"));
-            error.bit_offset = Some(bit);
             return Err(error);
         }
         let mut next = self.channels.clone();

@@ -1,4 +1,4 @@
-"""The native off proof must fail on one ULP, missing traces or concealment."""
+"""DRC kernels/timing must pass; Apple outer-rounding remains diagnostic."""
 import copy
 import hashlib
 import struct
@@ -33,13 +33,26 @@ class OffGateTests(unittest.TestCase):
         data=self.fixture();self.assertTrue(self.inspect(*data)['passed'])
         data[2]['decoder_settings']['processing_policy']['value']['initial']['requests'].pop()
         with self.assertRaisesRegex(AssertionError,'explicitly set'):self.inspect(*data)
-    def test_one_ulp_crossfade_is_failure_even_when_kernel_passes(self):
+    def test_outer_rounding_is_recorded_without_defining_portable_correctness(self):
         data=self.fixture();e=data[0]['events'][0]
         e['after'][0][37]=struct.unpack('<f',struct.pack('<I',0x3f800001))[0]
         e['after_sha256']=[hashlib.sha256(v).hexdigest() for v in gate.pcm_bytes(e['after'])];e['identity']=False
-        r=self.inspect(*data);self.assertFalse(r['passed']);self.assertTrue(r['kernel_identity'])
+        r=self.inspect(*data);self.assertTrue(r['passed']);self.assertTrue(r['kernel_identity'])
+        self.assertFalse(r['whole_path_identity']);self.assertEqual(r['gate_profile'],gate.GATE_PROFILE)
         self.assertEqual(r['changed_samples'],1);self.assertEqual(r['max_ulp'],1)
         self.assertEqual(r['frames'][0]['first_failure']['frame'],37)
+    def test_nonidentity_kernel_cannot_be_hidden_by_an_exact_wrapper(self):
+        data=self.fixture();e=data[0]['events'][1]
+        e['after'][1][13]=0.25
+        e['after_sha256']=[hashlib.sha256(v).hexdigest() for v in gate.pcm_bytes(e['after'])];e['identity']=False
+        result=self.inspect(*data)
+        self.assertFalse(result['passed']);self.assertFalse(result['kernel_identity'])
+        self.assertTrue(result['whole_path_identity'])
+    def test_wrong_kernel_input_is_rejected_even_if_it_copies_that_input(self):
+        data=self.fixture();e=data[0]['events'][1]
+        e['before'][0][0]=2.;e['after'][0][0]=2.
+        for part in ('before','after'):e[part+'_sha256']=[hashlib.sha256(v).hexdigest() for v in gate.pcm_bytes(e[part])]
+        with self.assertRaisesRegex(AssertionError,'kernel input differs'):self.inspect(*data)
     def test_gain_concealment_and_nonzero_delay_cannot_pass(self):
         data=self.fixture();data[0]['events'][2]['status']=0xffffffff
         data[0]['events'].append(dict(kind='gain_reset'))

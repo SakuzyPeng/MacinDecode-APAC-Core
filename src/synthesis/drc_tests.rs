@@ -199,16 +199,27 @@ fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
         actual.decode_frame(&absent).unwrap(),
         control.decode_frame(&absent).unwrap()
     );
-    let rejected_inner = packet(false, Some((55, false, 0)), None, false);
-    let rejected = packet(false, None, Some(&rejected_inner), false);
+    let invalid_inner = packet(false, Some((55, true, 1)), None, false);
+    let rejected = packet(false, None, Some(&invalid_inner), false);
     let error = actual.decode_frame(&rejected).unwrap_err();
-    assert_eq!(error.bit_offset, Some(80));
+    assert_eq!(error.bit_offset, Some(32));
     assert_eq!(value(&actual), before);
-    let child = packet(true, Some((10, false, 0)), None, false);
-    let good = packet(true, Some((10, false, 0)), Some(&child), false);
-    actual.decode_frame(&good).unwrap();
-    assert_eq!(loudness(&actual), 10);
+    let good = packet(true, Some((55, false, 0)), Some(&child), false);
+    let plain = packet(true, None, Some(&active), false);
+    // Declarative updates, including the frames after they end, cannot alter
+    // PCM under the independent off model. No native crossfade is reproduced.
+    assert_eq!(
+        actual.decode_frame(&good).unwrap(),
+        control.decode_frame(&plain).unwrap()
+    );
+    assert_eq!(loudness(&actual), 55);
     assert_eq!(actual.drc.previous_nodes[0].gain_eighth_db, 12);
+    for _ in 0..2 {
+        assert_eq!(
+            actual.decode_frame(&absent).unwrap(),
+            control.decode_frame(&absent).unwrap()
+        );
+    }
     actual.reset();
     assert_eq!(loudness(&actual), 10);
     assert!(actual.drc.previous_nodes.is_empty());
@@ -237,9 +248,9 @@ fn incompatible_header_and_missing_gain_do_not_commit_metadata() {
     assert_eq!(loudness(&decoder), 77);
     assert_eq!(decoder.drc.configuration.as_ref().unwrap().source, "cookie");
     decoder
-        .decode_frame(&packet(false, Some((77, true, 0)), None, false))
+        .decode_frame(&packet(false, Some((99, true, 0)), None, false))
         .unwrap();
-    assert_eq!(loudness(&decoder), 77);
+    assert_eq!(loudness(&decoder), 99);
     assert_eq!(decoder.drc.configuration.as_ref().unwrap().source, "packet");
 }
 #[test]

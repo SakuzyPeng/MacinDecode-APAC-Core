@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Read-only proof of explicit native DRC-off identity, boundaries and latency.
+"""Native DRC-off kernel, selection and timing proof; outer floats are diagnostic.
 
-A zero property readback alone never passes this gate. Startup crossfade errors
-remain failures of whole-path identity, even when both inner processors pass.
+A zero property readback alone never passes. Independent mathematical PCM and
+cross-platform exactness are validated separately. Apple's switching arithmetic
+is measured without making its rounding part of the portable decoder model.
 """
 import argparse
 from datetime import datetime,timezone
@@ -18,6 +19,8 @@ from validate import require,write_json
 from validate_portable import source_digest
 from validate_replay import sha256_file,check_accounting
 from validate_spectra import ulp
+
+GATE_PROFILE = "apac-drc-off-native-v2"
 
 
 def pcm_bytes(channels):
@@ -76,6 +79,8 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     require({key(e) for e in gains}=={key(e) for e in kernels}=={key(e) for e in wrappers},'unassociated native processing evidence')
     nonzero=any(v!=0 for e in wrappers for c in e['before'] for v in c)
     if require_nonzero:require(nonzero,'off proof requires nonzero PCM excitation')
+    inputs={key(e):e['before_sha256'] for e in wrappers}
+    require(all(e['before_sha256']==inputs[key(e)] for e in kernels),'DRC kernel input differs from wrapper input')
     failed_gain=[e for e in gains if e['status']!=0]
     metrics=[identity(e) for e in wrappers];kernel_metrics=[identity(e) for e in kernels]
     no_delay=all(e['state_before']['delay_samples']==e['state_after']['delay_samples']==0 for e in wrappers) and all(e['delay_samples']==0 for e in kernels)
@@ -84,7 +89,7 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     expected=struct.pack('<'+str(count)+'f',*values[first:first+count])
     require(expected==raw,'DRC wrapper output does not match returned PCM at the reported timeline')
     require(sha256_file(Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))==COMPONENT_SHA256,'component changed during proof')
-    return dict(policy=policy,nonzero_input_observed=nonzero,passed=empty and no_delay and not failed_gain and not resets and all(m['identity'] for m in metrics),
+    return dict(policy=policy,gate_profile=GATE_PROFILE,outer_float_role='diagnostic_only',nonzero_input_observed=nonzero,passed=empty and no_delay and not failed_gain and not resets and all(m['identity'] for m in kernel_metrics),
                 empty_selected_sets=empty,zero_added_delay=no_delay,returned_pcm_matches_timeline=True,
                 frame_count=len(wrappers),gain_payloads=len(gains),gain_parser_failures=len(failed_gain),gain_resets=len(resets),
                 whole_path_identity=all(m['identity'] for m in metrics),kernel_identity=all(m['identity'] for m in kernel_metrics),
@@ -105,7 +110,7 @@ def main():
     original=sha256_file(args.binary)
     report=dict(schema_version=1,created_at=datetime.now(timezone.utc).isoformat(),passed=False,
                 source_sha256=source_digest(),binary_sha256=original,component_sha256=COMPONENT_SHA256,
-                gate='whole_native_path_bit_identity_and_zero_delay',cases=[],errors=[])
+                gate=GATE_PROFILE,cases=[],errors=[])
     import subprocess
     report['code_commit']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
     report['toolchain']=subprocess.check_output(['rustc','+1.98.0','--version'],text=True).strip()

@@ -145,7 +145,7 @@ python3 scripts/validate_drc_off.py --binary target/debug/apac-tool \
   --artifacts artifacts/drc-off-proof
 ```
 
-该验收同时检查实际选中集合、DRC 前后 PCM、内部处理器、错误恢复、帧数与延迟；任何全路径逐位差异均返回失败，即使仍在普通 PCM 容差以内。隐式默认路径另行记录。
+该验收同时检查实际选中集合、DRC 前后 PCM、内部处理器、错误恢复、帧数与延迟；DRC 内核不恒等、参数或时序不符、解析恢复都会导致失败。外层切换的逐位差异与隐式默认路径单独记录，不能代替独立数学与跨平台验收。
 
 **SQ 频谱深度**：`parse-packets --depth spectrum` 沿相同配置范围继续解析 section、缩放因子、codebook 0–11、符号和逃逸。先完成左声道；独立右声道头分支完成右声道；共享头分支在标志之后以 `shared_ics_cac_deferred` 停止，保留左声道结果。两路完成后以 `sq_spectra_before_tools` 停止，尚未读取 TNS、ancillary 或组件尾部。ASP 内嵌 preroll 仍只按长度跳过，不输出其频谱。
 
@@ -234,9 +234,9 @@ BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式�
 
 报告保留 BWE2 及之前的结果，新增精确的 1/8 dB 整数增益、采样时间、码字范围、配置／元数据来源及哈希。`drc_complete` 只表示到达 trimming 入口；`drc_history_sufficient` 表示已解析的前一帧提供了当前帧起点之前的增益节点，不代表已实现插值或播放处理。`drc_processing_applied=false`；缺席 CPE 仍读取 DRC。截断、计数或时间越界、节点不推进直接报错，不复制原生的零增益恢复。
 
-**固定关闭策略的 DRC PCM**：受支持的 DRC 配置会完整读取增益载荷，并固定采用 `drc_processing=off`、`loudness_normalization=off`。不应用播放增益、曲线或 shape filter，也没有尚未实现的开启选项。`decode-sq` 元数据记录载荷解析完成状态、规则版本、码表摘要及后端版本；历史增益节点不足会单独计数，不伪造历史状态。关闭策略无需以这些节点插值音频。流开始后改变声明或响度数值的更新，目前会在 PCM 入口明确停止；原生外层切换仍有 1 ULP 反例，尚未获得全路径恒等资格。对应载荷仍可通过 `parse_drc`／`parse_packet` 检查，并在 `off_identity_rejection` 中记录原因。
+**固定关闭策略的 DRC PCM**：受支持的 DRC 配置会完整读取增益载荷，并固定采用 `drc_processing=off`、`loudness_normalization=off`。不应用播放增益、曲线或 shape filter，也没有尚未实现的开启选项。`decode-sq` 元数据记录载荷解析完成状态、规则版本、码表摘要及后端版本；历史增益节点不足会单独计数，不伪造历史状态。关闭策略无需以这些节点插值音频。保持编码结构不变的声明与响度元数据更新会正常推进，并与左右 overlap 一起按外层包原子提交。它们不会改变关闭策略下的 PCM，后续帧也不模拟苹果的交叉淡化舍入。
 
-原生参考必须在属性和 cookie 设置后、输入前 reset。省略这一步的历史启动交叉淡化反例仍作为失败记录保留。初始化 reset 能消除启动反例，但不能消除运行中元数据变化后的切换反例；不会用普通 PCM 容差替代关闭路径的逐位恒等与零延迟门槛。本阶段尚未通过全部完成条件，包含这些更新的冻结 PCM 矩阵和原生验收应继续报失败。
+原生参考必须在属性和 cookie 设置后、输入前 reset。省略这一步的历史启动交叉淡化反例仍作为失败记录保留。初始化 reset 能消除启动反例，运行中元数据变化后的外层切换差异仍单列保留。原生验收 `apac-drc-off-native-v2` 要求实际选中集合为空、DRC 内核对相同输入逐位恒等、零新增延迟、整数参数与边界正确；苹果外层 Float32 舍入只作诊断。Rust 的正确性由独立数学参考及三平台 debug／release 逐位一致验证，不以复制苹果舍入为目标。完整编码控制 PCM 比较仍使用原容差并在超差时报失败。
 
 ```sh
 python3 scripts/generate_drc_manifest.py --check

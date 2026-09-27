@@ -6,7 +6,7 @@ import hashlib,json,struct,subprocess,sys
 from pathlib import Path
 from native_drc_trace import trace_bundle
 from native_frame_trace import COMPONENT_SHA256
-from validate_drc_off import inspect as off_proof
+from validate_drc_off import inspect as off_proof, GATE_PROFILE
 from validate_drc import workspace
 from validate_portable import ROOT,LIMIT,source_digest,compare_pcm
 from validate_replay import command,sha256_file
@@ -53,7 +53,7 @@ def inspect_bundle(binary,directory,root,frames,record=None,require_nonzero=True
     trace=trace_bundle(binary,directory,root/'native',frames=frames)
     native=root/'native/native-pcm';replay=json.loads((native/'replay.json').read_text(encoding='utf-8'));pcm=json.loads((native/'pcm.json').read_text(encoding='utf-8'))
     proof=off_proof(trace,replay,pcm,(native/'pcm.f32le').read_bytes(),'drc-off',require_nonzero=require_nonzero)
-    require(proof['passed'],'explicit off processing is not whole-path bit identity with zero added delay')
+    require(proof['passed'],'explicit off kernel, selection or timing proof failed')
     require(all(e['before']==e['after'] for e in trace['packet_events'] if e['kind']=='scene'),'qualified scene changed PCM')
     record.update(off_proof=proof,native_parameters=native_parameters(rows,trace))
     decoded=command(binary,'decode-sq',directory,'--out',root/'rust-pcm','--frames',frames)
@@ -165,7 +165,7 @@ def main():
     args=p.parse_args();require(sys.platform=='darwin' and args.binary.is_file() and not args.report.exists(),'requires macOS binary and fresh report')
     report=dict(schema_version=1,passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
                 source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),component_sha256=COMPONENT_SHA256,
-                native_bridge_sha256=sha256_file(ROOT/'native/audio_toolbox.c'),rules_version='apac-native-drc-off-v1',
+                native_bridge_sha256=sha256_file(ROOT/'native/audio_toolbox.c'),rules_version='apac-native-drc-off-v1',gate_profile=GATE_PROFILE,
                 started_at=datetime.now(timezone.utc).isoformat(),controls=[],representatives=[],errors=[],
                 failure_directory=str(args.report.with_suffix('.failures')))
     try:

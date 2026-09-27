@@ -221,9 +221,6 @@ pub struct DrcPayload {
     pub header_present: bool,
     pub config_present: bool,
     pub configuration: DrcConfiguration,
-    /// Syntax can be complete even when a metadata transition has no qualified
-    /// whole-path native off proof. This never changes or conceals gain nodes.
-    pub off_identity_rejection: Option<crate::config::Diagnostic>,
     pub coding_mode: u8,
     pub frame_end: bool,
     /// Temporal codewords precede the gain codewords. Frame-end can be implicit.
@@ -301,8 +298,6 @@ pub(super) fn read_payload(
     rate: u64,
 ) -> Result<DrcPayload, ParseError> {
     let start = parser.bits.position();
-    let previous_configuration = state.configuration.clone();
-    let initial_frame = state.previous_nodes.is_empty();
     let (header, header_end) = config::parse_drc_header_at(parser.bits.data(), start, rate, 2)?;
     parser.bits.skip(header_end - start)?;
     parser.report.fields.extend(header.fields.iter().cloned());
@@ -355,40 +350,6 @@ pub(super) fn read_payload(
             "gain payload has no verified configuration",
         )
     })?;
-    let off_identity_rejection = previous_configuration.as_ref().and_then(|previous| {
-        let before: Vec<_> = previous
-            .fields
-            .iter()
-            .chain(&previous.loudness_metadata)
-            .map(|f| (&f.name, &f.value))
-            .collect();
-        let after: Vec<_> = configuration
-            .fields
-            .iter()
-            .chain(&configuration.loudness_metadata)
-            .map(|f| (&f.name, &f.value))
-            .collect();
-        if initial_frame || before == after {
-            return None;
-        }
-        let field = configuration
-            .fields
-            .iter()
-            .chain(&configuration.loudness_metadata)
-            .find(|f| !before.contains(&(&f.name, &f.value)));
-        Some(crate::config::Diagnostic {
-            bit_offset: field.map_or(start, |f| f.bit_offset),
-            message: field.map_or_else(
-                || "changed DRC declarations have no whole-path off identity proof".into(),
-                |f| {
-                    format!(
-                        "changed {}={} has no whole-path off identity proof",
-                        f.name, f.value
-                    )
-                },
-            ),
-        })
-    });
     let mode = parser.take(&format!("{ROOT}.coding_mode"), 1)? as u8;
     let (mut count, mut frame_end) = (1usize, true);
     let mut deltas = Vec::new();
@@ -495,7 +456,6 @@ pub(super) fn read_payload(
         header_present,
         config_present,
         configuration,
-        off_identity_rejection,
         coding_mode: mode,
         frame_end,
         time_deltas: deltas,

@@ -48,6 +48,17 @@ pub fn decode_sq_with_options(
             "input channel count disagrees with decoder",
         ));
     }
+    if let Some(layout) = &info.layout.value
+        && !layout.equivalent(decoder.channel_layout())
+    {
+        return Err(Error::new(
+            "SQ decoder",
+            format!(
+                "input channel layout disagrees with decoder: expected cookie layout tag {:#010x}, zero bitmap and no descriptions",
+                decoder.channel_layout().tag
+            ),
+        ));
+    }
     let mut absent_elements = 0u64;
     let mut embedded_absent_elements = 0u64;
     let out = OutputDir::create(destination, Budget::new(limit))?;

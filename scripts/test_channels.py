@@ -27,6 +27,37 @@ class ChannelTests(unittest.TestCase):
                 self.assertTrue(any(selected[ch::n]))
                 for other in range(n):
                     if other!=ch:self.assertTrue(all(v==0 for v in selected[other::n]))
+    def test_bundle_layout_must_match_cookie_before_creating_output(self):
+        for n in LAYOUTS:
+            path,_=self.prepare(str(n),n,[excitation(n,n-1)])
+            manifest_path=path/'manifest.json';m=json.loads(manifest_path.read_text())
+            original=copy.deepcopy(m['file']['layout']['value'])
+            variants=[('bitmap',dict(bitmap=1)),('descriptions',dict(descriptions=[dict(label=1,flags=0,coordinates=[0.,0.,0.])]))]
+            if n in (6,8):
+                # MPEG_5_1_B and MPEG_7_1_A have the right channel count but
+                # different mappings from the supported MPEG_5_1_A / MPEG_7_1_C.
+                variants.append(('tag',dict(tag=({6:122,8:126}[n]<<16)|n)))
+            for name,changes in variants:
+                with self.subTest(channels=n,layout=name):
+                    m['file']['layout']['value']=dict(original,**changes)
+                    manifest_path.write_text(json.dumps(m))
+                    destination=path/name
+                    result=self.run_tool('decode-sq',path,'--out',destination)
+                    self.assertEqual(result.returncode,1,result.stderr)
+                    self.assertIn('input channel layout disagrees with decoder',result.stderr)
+                    self.assertFalse(destination.exists())
+    def test_bundle_layout_display_name_does_not_change_pcm(self):
+        for n in LAYOUTS:
+            path,_=self.prepare(str(n),n,[excitation(n,n-1)])
+            result=self.run_tool('decode-sq',path,'--out',path/'original')
+            self.assertEqual(result.returncode,0,result.stderr)
+            manifest_path=path/'manifest.json';m=json.loads(manifest_path.read_text())
+            m['file']['layout']['value']['name']='Display name only'
+            manifest_path.write_text(json.dumps(m))
+            result=self.run_tool('decode-sq',path,'--out',path/'renamed')
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(json.loads(result.stdout)['pcm']['layout'],m['file']['layout'])
+            self.assertEqual((path/'original/pcm.f32le').read_bytes(),(path/'renamed/pcm.f32le').read_bytes())
     def test_sce_zero_bands_still_consume_lsf_words(self):
         for block,mask in ((0,0),(1,0),(2,0),(2,0x55),(2,0x7f),(3,0)):
             path,generated=self.prepare(f'{block}-{mask}',1,[dict(elements=[dict(block=block,grouping=mask,bwe2=dict(lsf=[511,511],gains=[]))])])

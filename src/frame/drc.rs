@@ -87,7 +87,7 @@ fn value<'a>(fields: &'a [ConfigField], name: &str) -> Option<&'a Value> {
     fields.iter().find(|f| f.name == name).map(|f| &f.value)
 }
 impl DrcConfiguration {
-    fn from_report(report: &CookieReport, source: &str) -> Result<Self, String> {
+    fn from_report(report: &CookieReport, source: &str, channels: u64) -> Result<Self, String> {
         let mut rejected = Vec::new();
         let mut expect = |name: String, expected: Value| {
             packet_config::check(&report.fields, &name, expected, source, &mut rejected);
@@ -96,7 +96,7 @@ impl DrcConfiguration {
             ("header_present", json!(true)),
             ("config_present", json!(true)),
             ("coefficient_count", json!(1)),
-            ("base_channel_count", json!(2)),
+            ("base_channel_count", json!(channels)),
         ] {
             expect(format!("{ROOT}.{suffix}"), expected);
         }
@@ -180,9 +180,12 @@ impl DrcConfiguration {
 }
 impl DrcContext {
     pub fn from_cookie(report: &CookieReport) -> Self {
+        Self::for_channels(report, 2)
+    }
+    pub(super) fn for_channels(report: &CookieReport, channels: u64) -> Self {
         let present = value(&report.fields, "ancillary.loudness_drc_present") == Some(&json!(true));
         let configuration = if present {
-            DrcConfiguration::from_report(report, "cookie").map(Some)
+            DrcConfiguration::from_report(report, "cookie", channels).map(Some)
         } else {
             Ok(None)
         };
@@ -247,12 +250,14 @@ pub struct DrcReport {
 }
 #[derive(Debug, Clone)]
 pub(crate) struct DrcState {
+    pub channels: u64,
     pub configuration: Option<DrcConfiguration>,
     pub previous_nodes: Vec<DrcNode>,
 }
 impl DrcState {
     pub fn new(context: &FrameContext) -> Self {
         Self {
+            channels: 2,
             configuration: context.drc.configuration.clone(),
             previous_nodes: Vec::new(),
         }
@@ -298,7 +303,8 @@ pub(super) fn read_payload(
     rate: u64,
 ) -> Result<DrcPayload, ParseError> {
     let start = parser.bits.position();
-    let (header, header_end) = config::parse_drc_header_at(parser.bits.data(), start, rate, 2)?;
+    let (header, header_end) =
+        config::parse_drc_header_at(parser.bits.data(), start, rate, state.channels)?;
     parser.bits.skip(header_end - start)?;
     parser.report.fields.extend(header.fields.iter().cloned());
     if !header.is_complete() {
@@ -316,7 +322,7 @@ pub(super) fn read_payload(
     let config_present =
         value(&header.fields, &format!("{ROOT}.config_present")) == Some(&json!(true));
     if config_present {
-        let next = DrcConfiguration::from_report(&header, "packet")
+        let next = DrcConfiguration::from_report(&header, "packet", state.channels)
             .map_err(|message| ParseError::new(start, "drc-configuration", message))?;
         if state
             .configuration
@@ -609,6 +615,7 @@ mod tests {
     }
     fn state() -> DrcState {
         DrcState {
+            channels: 2,
             configuration: Some(DrcConfiguration {
                 parameters: DrcParameters {
                     coefficient_location: 1,

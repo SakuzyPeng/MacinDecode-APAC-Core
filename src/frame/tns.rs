@@ -92,7 +92,7 @@ fn signed(bits: &mut BitReader<'_>, width: usize) -> Result<i8, ParseError> {
     })
 }
 
-fn read_channel(
+pub(super) fn read_channel(
     bits: &mut BitReader<'_>,
     ics: &IcsInfo,
     rate: u64,
@@ -195,7 +195,7 @@ fn read_channel(
     })
 }
 
-fn apply(input: &[f32], channel: &TnsChannel) -> Result<Vec<f32>, ParseError> {
+pub(super) fn apply(input: &[f32], channel: &TnsChannel) -> Result<Vec<f32>, ParseError> {
     let mut output = input.to_vec();
     for window in &channel.windows {
         for filter in &window.filters {

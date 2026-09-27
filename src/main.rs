@@ -25,7 +25,7 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Experimental portable PCM from a packet directory or restricted stereo APAC CAF.
+    /// Experimental portable PCM from a packet directory or restricted Mono/Stereo/5.1/7.1 APAC CAF.
     DecodeSq {
         /// Complete packet directory or CAF v1 file (recognized by content).
         input: PathBuf,

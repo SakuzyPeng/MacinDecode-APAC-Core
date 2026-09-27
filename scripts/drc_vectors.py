@@ -19,16 +19,16 @@ GAIN_CODES=[('11',-1),('10',1),('001',-2),('010',0),('0000',-16),
  ('00011100010',-14),('00011100011',-13)]
 
 
-def loudness(value=None):
+def loudness(value=None,channels=2):
     if value is None:return bits(0,20)
     # An observed explicit stereo source map, one encoded loudness value.
-    return '10'+bits(0,16)+'10'+bits(1,8)+bits(0,8)+bits(2,8)+'01'+bits(value,8)+'00'
+    return '10'+bits(0,16)+'10'+bits(1,8)+bits(0,8)+bits(channels,8)+'01'+bits(value,8)+'00'
 
 
-def header(rate,metadata_only=False,rich=False,loudness_value=None,effect=2):
-    metadata=loudness(loudness_value if loudness_value is not None else 165 if rich else None)
+def header(rate,metadata_only=False,rich=False,loudness_value=None,effect=2,channels=2):
+    metadata=loudness(loudness_value if loudness_value is not None else 165 if rich else None,channels)
     if metadata_only:return '10'+metadata
-    config='1'+bits(rate-1000,18)+'0'+bits(2,10)+'0'+bits(1,3)
+    config='1'+bits(rate-1000,18)+'0'+bits(channels,10)+'0'+bits(1,3)
     config+=bits(1,4)+'0'
     if rich:
         characteristic='1'+bits(1,4)+'0'+bits(18,6)+bits(3,4)+bits(2,4)+'0'
@@ -40,7 +40,7 @@ def header(rate,metadata_only=False,rich=False,loudness_value=None,effect=2):
     config+=bits(int(rich),8)
     if rich:
         config+='0'+bits(0,4)+bits(1,6)+bits(0,4)+bits(1,4)+'0'+bits(effect,16)+'00000'
-        config+=bits(1,6)+'1'+bits(0,5)
+        config+=bits(1,6)+('1'+bits(channels-2,5) if channels>1 else '0')
         config+='0'+'1'+bits(1,4)+'1'+bits(1,4)+'00'+'1'+bits(1,4)
     return '11'+config+'000'+metadata
 
@@ -59,9 +59,9 @@ def delta_time(value,ratio=16):
     return '11'+bits(value-14,(2*ratio-1).bit_length())
 
 
-def payload(case,rate=48000,start=0):
+def payload(case,rate=48000,start=0,channels=2):
     mode=case.get('mode',0);gains=case.get('gains',[0]);terminal=case.get('frame_end',True)
-    h=header(rate,case.get('metadata_only',False),case.get('rich',False),case.get('loudness_value'),case.get('effect',2)) if case.get('header') else '0'
+    h=header(rate,case.get('metadata_only',False),case.get('rich',False),case.get('loudness_value'),case.get('effect',2),channels) if case.get('header') else '0'
     wire=h+bits(mode,1);header_end=start+len(h)
     times=[];deltas=[]
     if mode:

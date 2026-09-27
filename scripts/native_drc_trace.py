@@ -10,7 +10,10 @@ from pathlib import Path
 import struct
 
 import native_frame_trace as base
-import native_packet_trace as packet
+if os.environ.get('APAC_DRC_CHANNELS')=='1':
+    import native_channels_trace as packet
+else:
+    import native_packet_trace as packet
 
 KINDS = {}
 RETURNS = {}
@@ -103,7 +106,7 @@ def hit(frame, location, _dict):
                 channels=base.reg(frame,channel_reg);output=base.reg(frame,output_reg);source=base.reg(frame,'x1')
                 e['state_before']=dict(delay_samples=u32(frame,processor+0x990),transition=u32(frame,processor+0x994),active=u32(frame,processor+0x998),previous=u32(frame,processor+0x99c),crossfade=base.memory(frame,processor+0x9a0,1)[0])
                 extra=dict(processor=processor)
-            if count!=2 or frames!=1024:raise RuntimeError(f'requires stereo 1024 DRC probe: {kind} frames={frames}, count={count}')
+            if count!=getattr(packet,'CHANNELS',2) or frames!=1024:raise RuntimeError(f'wrong declared channels/1024 DRC probe: {kind} frames={frames}, count={count}')
             inputs=[packet.ptr(frame,source+i*8) for i in range(count)]
             outputs=[packet.ptr(frame,output+i*8) for i in range(count)]
             e.update(frames=frames,input_channels=count,channels_before=u32(frame,channels),before=[packet.floats(frame,p,frames) for p in inputs],
@@ -151,7 +154,7 @@ def finish(debugger):
     with Path(os.environ['APAC_DRC_TRACE_OUTPUT']).open('xb') as out:out.write(raw)
 
 
-def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_failure=False):
+def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_failure=False,channel_mode=False):
     import shlex
     import subprocess
     if any(os.environ.get(k) for k in ('DYLD_INSERT_LIBRARIES','DYLD_FORCE_FLAT_NAMESPACE')):
@@ -160,6 +163,10 @@ def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_fa
     output=root/'native-drc.json'
     if output.exists():raise RuntimeError('refusing to overwrite DRC trace')
     env=dict(os.environ,APAC_DRC_TRACE_OUTPUT=str(output.resolve()))
+    env.pop('APAC_DRC_CHANNELS',None)
+    if channel_mode:
+        manifest=json.loads((bundle/'manifest.json').read_text(encoding='utf-8'))
+        env.update(APAC_DRC_CHANNELS='1',APAC_CHANNEL_COUNT=str(manifest['file']['format']['channels']))
     command=['replay',str(bundle.resolve()),'--out',str((root/'native-pcm').resolve()),
              '--frames',str(frames),'--processing-policy',policy]
     args=['xcrun','lldb','--batch','-o','command script import '+shlex.quote(str(Path(__file__).resolve())),

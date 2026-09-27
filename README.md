@@ -261,7 +261,36 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 配置兼容仅新增默认中性单场景、单 source 0、单分组／预设路由和已解析的 ContentOrigin 类型 3；逐项检查控制字段，支持同一中性场景的帧内重述。DRC 关闭策略额外接受已验证的场景头 `flags[0]` 声明变体，其他控制仍逐项限定。其他场景控制、remapping、scene graph、metadata／custom data 载荷、未知扩展及非零帧内 trimming 继续明确停止。资格检查不按 cookie 长度或哈希放行，拒绝消息列出字段、实际值和位位置。
 
-**实验性 `decode-sq INPUT`**：从自包含包目录或受支持的 CAF 原文件输出独立 PCM：
+**受限离散声道深度 `channels`**：`parse-packets --depth channels` 新增单 channel ASC 的 Mono、Stereo、5.1、7.1 整包报告。旧 `prefix` 至 `packet` 深度继续使用原双声道入口和报告。
+
+| 布局 | 声道数 | family / level | 元素及输出顺序 |
+|---|---:|---|---|
+| Mono | 1 | 100 / 0 | SCE：Mono |
+| Stereo | 2 | 101 / 0 | CPE：L R |
+| 5.1 | 6 | 121 / 1 | CPE、SCE、LFE、CPE：L R C LFE Ls Rs |
+| 7.1 | 8 | 128 / 2 | CPE、SCE、LFE、CPE、CPE：L R C LFE Ls Rs Rls Rrs |
+
+配置保持 profile 31、44.1/48 kHz、1024 帧、单 ASC、无重映射及既有中性场景规则。只读取 SQ；LRVQ、LRVQ-LFE、其他元素组合和布局、多个 ASC、HOA、空间渲染、非零 trimming 与结构重配置明确停止。DRC 可缺席，或使用已验证的单序列／单频带／profile 0 关闭策略；基准声道数必须与 cookie 声明一致，不应用曲线、shape filter、响度处理或额外 LFE 增益。
+
+channel ASC 的实际读取顺序是**每个元素后立即读取该元素的 BWE2**，然后才进入下一元素；全部元素完成后作核心对齐和 ancillary。SCE 有一份 ICS／SQ／TNS，CPE 复用既有左右流、CAC、TNS，LFE 的 SQ 后没有 TNS 或 BWE2 位。SCE 的 BWE2 启用位为真时总会读取两个 LSF 索引；零 `max_sfb` 不读取组增益，也不恢复零输入的频谱。CPE 保持原先的频带门控和局部参数复用规则，参数不跨元素继承。
+
+库入口为 `ChannelFrameContext::from_cookie` 和 `frame::parse_channel_packet(&ChannelFrameContext, &[u8])`。上下文提供声道数、布局、标签、元素配置和资格查询；`ChannelPacketReport` 逐元素保存存在状态、编码方式、量化频谱、CAC／TNS／BWE2 数据及各阶段频谱。元素内 `channel_index` 是局部编号，`configuration.output_channels` 显式映射到输出声道。`end_bit_offset` 是元素本体终点，紧随的 BWE2 范围单独记录；只有全部元素和尾部完成才设置 `packet_complete=true`。语法错误附带元素索引和可确定的位位置。
+
+缺席元素的编码声道数组为空，合成仅输出该元素已有 overlap 尾部并清零，不影响其他声道。内嵌帧先推进全部声道和 DRC；Mono／Stereo／5.1／7.1 已核实的 preroll 容量分别是 2048／4096／12288／16384 字节。最后一个元素、DRC、尾部或合成失败都会回滚整个外层包。`channels` 深度选择后面的包时，会先读取目录中已有的前置包以建立声明和增益节点状态。
+
+```sh
+# macOS 原生编码控制新增 5.1 预设
+apac-tool fixture --layout surround51 --signals noise --out artifacts/demo/51-fixture
+# 新深度仍读取包目录
+apac-tool parse-packets artifacts/demo/51-packets --depth channels --output reports/51-channels.jsonl
+# 2,742 个独立人工序列；便携验收不依赖苹果文件或研究目录
+python3 -B scripts/generate_channel_manifest.py --check
+python3 -B scripts/validate_channels.py --binary target/debug/apac-tool --report reports/channels-math.json
+python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
+  --reference-report reports/channels-math.json --report reports/channels-release.json
+```
+
+**实验性 `decode-sq INPUT`**：从自包含包目录或上述布局的 CAF 原文件输出独立 PCM：
 
 ```sh
 target/debug/apac-tool decode-sq /path/to/input.caf --out artifacts/demo/caf-pcm
@@ -287,15 +316,15 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前覆盖受限人工序列、无 DRC 的双声道媒体，以及上述默认 DRC 载荷在固定关闭播放处理策略下的包目录及 CAF。配置须完整、44.1／48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，符合上述配置资格。支持 SQ、独立或共享声道头及已验证 CAC／TNS／BWE2；DRC 配置必须满足上述单序列／单频带／profile 0 范围，原有数学配置和无 DRC 输出保持不变。
+当前 `decode-sq` 覆盖上述 Mono／Stereo／5.1／7.1 SQ 配置的包目录与 CAF，公共 parameter_b=2，其余资格检查保持明确。双声道旧路径保留原输出；新增声道路径使用相同数学内核和固定 DRC 关闭策略。7.1 的 M4A 仍须先通过原生 `dump` 导出包目录，未增加 MP4 原文件读取。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。省略范围参数时输出包目录目标窗口或 CAF 的全部有效音频；`--start-frame` 使用绝对有效音频坐标，`--frames` 指定正的请求长度。包目录的非零导出起点必须有 `replay_window`，并满足独立起点、roll 和 preroll 约束；前置包只建立状态。packet table 的 priming／remainder 只裁剪一次，内嵌帧不增加源时间线，不追加隐含尾帧。短请求结束后仍校验目录未解码部分的完整性，不访问原始音频。
 
-CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、双声道、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的明确 Stereo 布局取值；存在时仅接受标准 Stereo 标签、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
+CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、1／2／6／8 声道、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的已支持布局取值；存在时仅接受与 cookie 一致的上述标准标签、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
 
 CAF 范围读取始终从第 0 包解码，前置 PCM 被丢弃，以建立 overlap、DRC 与内嵌帧状态；不生成未经验证的随机访问依赖信息，也不套用包目录的 4096 包依赖搜索限额。短范围结束后仍读取剩余包作结构与摘要核验，不宣称其 APAC 语法已完成。`pakt` 决定有效帧及 priming／remainder，包长总和须精确覆盖音频数据，空有效区间不增加隐含帧。
 
-`decode-sq.json` 新增 `input`，记录输入类型；CAF 另记录 `apac-caf-input-v1`、容器参数、块范围、布局来源、edit count、cookie／音频／包边界摘要和核验状态。音频摘要是顺序拼接的包字节 SHA-256；包边界摘要依次包含每包的索引、数据内偏移、长度、1024 帧数（四个小端 u64）及该包 SHA-256 原始字节。元数据摘要覆盖文件头、所有块头及已使用的块载荷（data 仅 edit count），未知块的载荷不计入。读取前后检查这些摘要、文件长度与修改时间；这是读取一致性检查，不是 CAF 自带校验和或文件真实性证明。容器错误附带 `chunk_type` 与文件 `byte_offset`。历史报告没有 `input` 仍可读取。
+`decode-sq.json` 新增 `input`，记录输入类型；CAF 另记录输入规则版本（双声道 `apac-caf-input-v1`，新增布局 `apac-caf-input-v2`）、容器参数、块范围、布局来源、edit count、cookie／音频／包边界摘要和核验状态。音频摘要是顺序拼接的包字节 SHA-256；包边界摘要依次包含每包的索引、数据内偏移、长度、1024 帧数（四个小端 u64）及该包 SHA-256 原始字节。元数据摘要覆盖文件头、所有块头及已使用的块载荷（data 仅 edit count），未知块的载荷不计入。读取前后检查这些摘要、文件长度与修改时间；这是读取一致性检查，不是 CAF 自带校验和或文件真实性证明。容器错误附带 `chunk_type` 与文件 `byte_offset`。历史报告没有 `input` 仍可读取。
 
 CAF 读取器不缓存完整包表或整文件，cookie 上限 8 MiB、单包上限 16 MiB，输出沿用 128 MiB 累计限额。`parse-packets` 继续接受包目录；现有 `inspect`／`dump` 仍为 macOS 原生工具。
 
@@ -312,9 +341,9 @@ python3 -B scripts/validate_caf_native.py --binary target/debug/apac-tool \
 
 内嵌 preroll 先建立当前帧所需的叠加状态，其 PCM 被丢弃。缺席 CPE 输出已有叠加尾部，然后清空尾部；不能直接将整包当作静音。四种窗口由当前编码类型选择，支持全部相邻组合，不施加未由 APAC 语法要求的 AAC 窗口过渡限制。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
-库入口保留 `synthesis::SqDecoder::from_cookie`、`decode_frame`、`reset` 及 `synthesis::decode_sq`；支持 `decode_sq_with_options(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录或 CAF 文件。每个外层包产生 1024 个交错双声道 Float32 帧；内嵌帧、当前帧、尾部和两路合成全部成功后才提交状态，失败及重置不会留下半个包的状态。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
+库入口保留 `synthesis::SqDecoder::from_cookie`、`decode_frame`、`reset` 及 `synthesis::decode_sq`；支持 `decode_sq_with_options(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录或 CAF 文件。`SqDecoder::channel_count()` 和 `channel_layout()` 提供输出描述。每个外层包返回 `1024 × channel_count()` 个交错 Float32 样本；内嵌帧、当前帧、尾部和两路合成全部成功后才提交状态，失败及重置不会留下半个包的状态。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
-默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，新增 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
+新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
 
 ```sh
 # 冻结的 2,268 个状态序列；正式测试不依赖研究目录或苹果文件
@@ -501,7 +530,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型配有完整人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多声道、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型配有完整人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、7.1.4／22.2／HOA、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

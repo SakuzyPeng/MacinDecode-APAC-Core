@@ -143,6 +143,13 @@ fn decode_runs(
 }
 
 fn read_data(parser: &mut Parser<'_>, ics: &IcsInfo) -> Result<CacData, ParseError> {
+    read_data_at(parser, ics, "components[0].tce[0].cac")
+}
+pub(super) fn read_data_at(
+    parser: &mut Parser<'_>,
+    ics: &IcsInfo,
+    prefix: &str,
+) -> Result<CacData, ParseError> {
     let start = parser.bits.position();
     let (runs, indices) = decode_runs(&mut parser.bits, ics.max_sfb * ics.window_groups.len())?;
     for (i, run) in runs.iter().enumerate() {
@@ -157,7 +164,7 @@ fn read_data(parser: &mut Parser<'_>, ics: &IcsInfo) -> Result<CacData, ParseErr
             ),
         ] {
             parser.report.fields.push(ConfigField {
-                name: format!("components[0].tce[0].cac.runs[{i}].{name}"),
+                name: format!("{prefix}.runs[{i}].{name}"),
                 bit_offset: offset,
                 bit_length: length,
                 value: json!(value),
@@ -194,9 +201,15 @@ fn rotate(x: f32, y: f32, gain: u8) -> (f32, f32) {
 }
 
 fn apply(spectrum: &SpectrumReport, data: &CacData) -> Result<Vec<CacChannelSpectrum>, ParseError> {
-    let mut left = spectrum.channels[0].scaled.clone();
-    let mut right = spectrum.channels[1].scaled.clone();
-    let ics = &spectrum.channels[0].ics;
+    apply_channels(&spectrum.channels, data)
+}
+pub(super) fn apply_channels(
+    channels: &[super::ChannelSpectrum],
+    data: &CacData,
+) -> Result<Vec<CacChannelSpectrum>, ParseError> {
+    let mut left = channels[0].scaled.clone();
+    let mut right = channels[1].scaled.clone();
+    let ics = &channels[0].ics;
     let short = ics.block_type == 2;
     let (size, offsets) = if short {
         (128, &spectral_tables().short_offsets)

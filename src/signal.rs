@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub enum LayoutPreset {
     Mono,
     Stereo,
+    Surround51,
     Surround71,
     Surround714,
     Hoa1,
@@ -19,6 +20,7 @@ impl LayoutPreset {
         match self {
             Self::Mono => 1,
             Self::Stereo => 2,
+            Self::Surround51 => 6,
             Self::Surround71 => 8,
             Self::Surround714 => 12,
             Self::Hoa1 => 4,
@@ -31,6 +33,7 @@ impl LayoutPreset {
         let family = match self {
             Self::Mono => 100,
             Self::Stereo => 101,
+            Self::Surround51 => 121,
             Self::Surround71 => 128,
             Self::Surround714 => 192,
             Self::Hoa1 | Self::Hoa2 | Self::Hoa3 => 190,

@@ -59,21 +59,50 @@ pub struct Bwe2Report {
     pub bwe2: Option<Bwe2Data>,
     pub channels_after_bwe2: Vec<Bwe2ChannelSpectrum>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ElementBwe2Data {
+    pub start_bit_offset: usize,
+    pub end_bit_offset: usize,
+    pub control_bits: Vec<bool>,
+    pub channels: Vec<Bwe2ChannelData>,
+}
 fn read_data(bits: &mut BitReader<'_>, ics: &[IcsInfo]) -> Result<Bwe2Data, ParseError> {
+    let data = read_element_data(bits, ics)?;
+    Ok(Bwe2Data {
+        start_bit_offset: data.start_bit_offset,
+        end_bit_offset: data.end_bit_offset,
+        control_bits: [data.control_bits[0], data.control_bits[1]],
+        channels: data.channels,
+    })
+}
+pub(super) fn read_element_data(
+    bits: &mut BitReader<'_>,
+    ics: &[IcsInfo],
+) -> Result<ElementBwe2Data, ParseError> {
     let start = bits.position();
     // Both CPE controls precede every parameter record. 10 reuses left data;
     // 01 carries right only; 11 carries independent data, in channel order.
-    let flags = [bits.read(1)? != 0, bits.read(1)? != 0];
+    let flags = (0..ics.len())
+        .map(|_| bits.read(1).map(|v| v != 0))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut channels: Vec<Bwe2ChannelData> = Vec::new();
-    for ch in 0..2 {
-        let active = ics[ch].max_sfb > 0 && (flags[ch] || (ch == 1 && channels[0].active));
+    for ch in 0..ics.len() {
+        let active = if ics.len() == 1 {
+            flags[ch]
+        } else {
+            ics[ch].max_sfb > 0 && (flags[ch] || (ch == 1 && channels[0].active))
+        };
         let (source, parameters) = if !active {
             (None, None)
         } else if flags[ch] {
             let at = bits.position();
             let lsf_indices = [bits.read(9)? as u16, bits.read(9)? as u16];
             let mut gains = Vec::new();
-            for _ in &ics[ch].window_groups {
+            for _ in 0..if ics[ch].max_sfb == 0 {
+                0
+            } else {
+                ics[ch].window_groups.len()
+            } {
                 gains.push(bits.read(6)? as u8);
             }
             (
@@ -106,14 +135,14 @@ fn read_data(bits: &mut BitReader<'_>, ics: &[IcsInfo]) -> Result<Bwe2Data, Pars
             parameters,
         });
     }
-    Ok(Bwe2Data {
+    Ok(ElementBwe2Data {
         start_bit_offset: start,
         end_bit_offset: bits.position(),
         control_bits: flags,
         channels,
     })
 }
-fn regions(ics: &IcsInfo) -> (usize, Vec<Bwe2Region>) {
+pub(super) fn regions(ics: &IcsInfo) -> (usize, Vec<Bwe2Region>) {
     let short = ics.block_type == 2;
     let (size, offsets, scale) = if short {
         (128, &tables().short_offsets, 8)

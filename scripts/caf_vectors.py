@@ -22,10 +22,10 @@ VARIANTS=[dict(order=order,chan=True,terminal=False) for order in itertools.perm
 VARIANTS += [dict(order=order,chan=False,terminal=False) for order in itertools.permutations(('kuki','pakt','data'))]
 VARIANTS += [dict(order=order+('data',),chan=True,terminal=True) for order in itertools.permutations(('kuki','pakt','chan'))]
 
-def encode(config,packets,rate=48000,priming=0,remainder=0,variant=0,edit=0):
+def encode(config,packets,rate=48000,priming=0,remainder=0,variant=0,edit=0,channels=2):
     v=VARIANTS[variant%len(VARIANTS)];audio=b''.join(packets);frames=len(packets)*1024
-    payloads=dict(desc=struct.pack('>d4sIIIII',rate,b'apac',0,0,1024,2,0),kuki=config,
-                  chan=struct.pack('>III',(101<<16)|2,0,0),
+    payloads=dict(desc=struct.pack('>d4sIIIII',rate,b'apac',0,0,1024,channels,0),kuki=config,
+                  chan=struct.pack('>III',({1:100,2:101,6:121,8:128}[channels]<<16)|channels,0,0),
                   pakt=struct.pack('>qqii',len(packets),frames-priming-remainder,priming,remainder)+b''.join(varint(len(p)) for p in packets),
                   data=struct.pack('>I',edit)+audio)
     header=b'caff\0\x01\0\0';out=bytearray(header);metadata=hashlib.sha256(header);chunks={}
@@ -41,7 +41,7 @@ def encode(config,packets,rate=48000,priming=0,remainder=0,variant=0,edit=0):
     packet_hash=hashlib.sha256();offset=0
     for i,p in enumerate(packets):
         packet_hash.update(struct.pack('<QQQQ',i,offset,len(p),1024));packet_hash.update(hashlib.sha256(p).digest());offset+=len(p)
-    truth=dict(kind='caf',profile=PROFILE,packet_count=len(packets),file_bytes=len(out),layout_source='chan' if v['chan'] else 'cookie',edit_count=edit,
+    truth=dict(kind='caf',profile=PROFILE if channels==2 else 'apac-caf-input-v2',packet_count=len(packets),file_bytes=len(out),layout_source='chan' if v['chan'] else 'cookie',edit_count=edit,
                packet_table=dict(valid_frames=frames-priming-remainder,priming_frames=priming,remainder_frames=remainder),chunks=chunks,skipped_chunks=1,
                metadata_sha256=metadata.hexdigest(),cookie_sha256=sha(config),audio_sha256=sha(audio),packets_sha256=packet_hash.hexdigest(),
                access='sequential_from_packet_zero',verification='two_pass_read_consistency_no_stored_checksums',consistency_verified=True)

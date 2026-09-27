@@ -1,5 +1,12 @@
 //! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC, TNS and BWE2 before core alignment.
 mod bundle;
+mod channels;
+pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
+pub(crate) use channels::parse_channel_packet_with_state;
+pub use channels::{
+    ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
+    parse_channel_packet,
+};
 mod bwe2;
 mod cac;
 mod drc;
@@ -12,6 +19,7 @@ mod spectrum;
 mod tns;
 pub use crate::bwe2_math::Analysis as Bwe2Analysis;
 pub use bundle::{ParseDepth, parse_packets, parse_packets_with_depth};
+pub use bwe2::ElementBwe2Data;
 pub use bwe2::NUMERIC_PROFILE as BWE2_NUMERIC_PROFILE;
 pub use bwe2::{
     Bwe2ChannelData, Bwe2ChannelSpectrum, Bwe2Data, Bwe2Parameters, Bwe2Region, Bwe2Report,
@@ -205,6 +213,13 @@ impl Parser<'_> {
     /// Public APAC packets use ASP framing, not APACDecoder's internal one-bit
     /// framing. Only explicit byte lengths permit skipping embedded preroll.
     fn asp(&mut self, frame_type: u64) -> Result<Option<&'static str>, ParseError> {
+        self.asp_bounded(frame_type, 4096)
+    }
+    fn asp_bounded(
+        &mut self,
+        frame_type: u64,
+        maximum: u64,
+    ) -> Result<Option<&'static str>, ParseError> {
         if frame_type == 3 {
             return Ok(Some("unverified ASP frame type 3"));
         }
@@ -228,11 +243,15 @@ impl Parser<'_> {
                     bytes += self.take("asp.preroll.extra_bytes", 16)?;
                 }
                 // The verified stereo ASP decoder initializes 2 * 2048 bytes.
-                if bytes == 0 || bytes > 4096 {
+                if bytes == 0 || bytes > maximum {
                     return Err(ParseError::new(
                         size_offset,
                         "preroll-size",
-                        "embedded preroll exceeds the verified stereo bound or is empty",
+                        if maximum == 4096 {
+                            "embedded preroll exceeds the verified stereo bound or is empty"
+                        } else {
+                            "embedded preroll exceeds the verified layout bound or is empty"
+                        },
                     ));
                 }
                 let padding = (8 - self.bits.position() % 8) % 8;

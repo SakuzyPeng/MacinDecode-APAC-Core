@@ -20,6 +20,7 @@ use std::{
 };
 
 pub(crate) const PROFILE: &str = "apac-caf-input-v1";
+#[cfg(test)]
 const STEREO: u32 = (101 << 16) | 2;
 
 fn invalid(tag: &[u8; 4], offset: u64, message: impl Into<String>) -> Error {
@@ -202,7 +203,22 @@ impl CafReader {
             .iter()
             .map(|b| u32::from_be_bytes(*b))
             .collect();
-        let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, 2, 0];
+        let channels = ints[4];
+        let (family, name) = match channels {
+            1 => (100, "Mono"),
+            2 => (101, "Stereo"),
+            6 => (121, "Surround51"),
+            8 => (128, "Surround71"),
+            _ => {
+                return Err(invalid(
+                    b"desc",
+                    desc.offset + 24,
+                    "supported channel counts are 1, 2, 6, 8",
+                ));
+            }
+        };
+        let layout_tag = (family << 16) | channels;
+        let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
         if !matches!(rate, 44100.0 | 48000.0) {
             return Err(invalid(
                 b"desc",
@@ -232,9 +248,9 @@ impl CafReader {
         })?;
         for (key, want) in [
             ("sample_rate_hz", rate as u64),
-            ("channels", 2),
+            ("channels", u64::from(channels)),
             ("frame_samples", 1024),
-            ("components[0].layout_tag", u64::from(STEREO)),
+            ("components[0].layout_tag", u64::from(layout_tag)),
         ] {
             if parsed.derived.get(key).and_then(Value::as_u64) != Some(want) {
                 return Err(invalid(
@@ -247,11 +263,11 @@ impl CafReader {
         let layout_source = if let Some(chan) = chunks.get(b"chan") {
             let mut raw = [0; 12];
             read(&mut file, b"chan", chan.offset, &mut raw)?;
-            if raw[..4] != STEREO.to_be_bytes() || raw[4..] != [0; 8] {
+            if raw[..4] != layout_tag.to_be_bytes() || raw[4..] != [0; 8] {
                 return Err(invalid(
                     b"chan",
                     chan.offset,
-                    "requires standard Stereo tag, zero bitmap and no descriptions",
+                    "requires matching supported layout tag, zero bitmap and no descriptions",
                 ));
             }
             "chan"
@@ -313,10 +329,14 @@ impl CafReader {
                 bytes_per_packet: 0,
                 frames_per_packet: 1024,
                 bytes_per_frame: 0,
-                channels: 2,
+                channels,
                 bits_per_channel: 0,
             },
-            layout: Property::known(ChannelLayout::tagged(STEREO, 2, Some("Stereo".into()))),
+            layout: Property::known(ChannelLayout::tagged(
+                layout_tag,
+                channels,
+                Some(name.into()),
+            )),
             packet_count: Property::known(count),
             packet_table: Property::known(table),
             max_packet_bytes: Property::known(0),
@@ -371,7 +391,7 @@ impl CafReader {
     }
     pub(crate) fn report(&self) -> Value {
         let hashes = self.hashes();
-        json!({"kind":"caf","profile":PROFILE,"format":self.info.format,"packet_table":self.info.packet_table.value,"packet_count":self.info.packet_count.value,
+        json!({"kind":"caf","profile":if self.info.format.channels == 2 {PROFILE} else {"apac-caf-input-v2"},"format":self.info.format,"packet_table":self.info.packet_table.value,"packet_count":self.info.packet_count.value,
             "file_bytes":self.structure.bytes,"layout_source":self.layout_source,"layout":self.info.layout.value,
             "edit_count":self.edit_count,"chunks":self.structure.chunks.iter().map(|(k,v)|(String::from_utf8_lossy(k).into_owned(),v)).collect::<BTreeMap<_,_>>(),
             "skipped_chunks":self.structure.skipped,"metadata_sha256":self.structure.hash,"cookie_sha256":sha256(&self.cookie),"audio_sha256":hashes.0,"packets_sha256":hashes.1,

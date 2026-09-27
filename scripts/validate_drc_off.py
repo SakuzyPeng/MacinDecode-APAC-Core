@@ -27,9 +27,9 @@ def pcm_bytes(channels):
     return [struct.pack('<'+str(len(c))+'f',*c) for c in channels]
 
 
-def identity(event):
+def identity(event,channels=2):
     before,after=event['before'],event['after']
-    require(len(before)==len(after)==2,'wrong DRC channel count')
+    require(len(before)==len(after)==channels,'wrong DRC channel count')
     require(all(len(c)==event['frames']==1024 for c in before+after),'wrong DRC frame length')
     require(all(math.isfinite(x) for c in before+after for x in c),'nonfinite DRC snapshot')
     a,b=pcm_bytes(before),pcm_bytes(after)
@@ -52,6 +52,8 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and
             not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete qualified native trace')
     check_accounting(replay,pcm)
+    channels=pcm.get('channels',2)
+    require(channels in (1,2,6,8),'unsupported DRC proof layout')
     settings=pcm['decoder_settings'];audit=settings.get('processing_policy',{}).get('value')
     if policy=='drc-off':
         require(audit is not None and audit['initial']['verified'],'explicit off request not verified')
@@ -82,10 +84,10 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     inputs={key(e):e['before_sha256'] for e in wrappers}
     require(all(e['before_sha256']==inputs[key(e)] for e in kernels),'DRC kernel input differs from wrapper input')
     failed_gain=[e for e in gains if e['status']!=0]
-    metrics=[identity(e) for e in wrappers];kernel_metrics=[identity(e) for e in kernels]
+    metrics=[identity(e,channels) for e in wrappers];kernel_metrics=[identity(e,channels) for e in kernels]
     no_delay=all(e['state_before']['delay_samples']==e['state_after']['delay_samples']==0 for e in wrappers) and all(e['delay_samples']==0 for e in kernels)
     values=[x/32768 for e in ordinary for pair in zip(*e['after']) for x in pair]
-    first=replay['discarded_before_frames']*2;count=pcm['frames']*2
+    first=replay['discarded_before_frames']*channels;count=pcm['frames']*channels
     expected=struct.pack('<'+str(count)+'f',*values[first:first+count])
     require(expected==raw,'DRC wrapper output does not match returned PCM at the reported timeline')
     require(sha256_file(Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))==COMPONENT_SHA256,'component changed during proof')

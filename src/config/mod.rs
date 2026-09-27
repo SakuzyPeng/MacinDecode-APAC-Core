@@ -78,6 +78,8 @@ impl CookieReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseError {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub element_index: Option<u8>,
     pub bit_offset: usize,
     pub kind: String,
     pub message: String,
@@ -85,6 +87,7 @@ pub struct ParseError {
 impl ParseError {
     pub fn new(bit_offset: usize, kind: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
+            element_index: None,
             bit_offset,
             kind: kind.into(),
             message: message.into(),

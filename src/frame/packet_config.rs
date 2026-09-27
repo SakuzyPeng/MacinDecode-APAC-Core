@@ -131,26 +131,47 @@ pub(super) fn neutral_scene(fields: &[ConfigField], origin: &str, drc_off: bool)
 
 impl PacketConfiguration {
     pub fn from_cookie(parsed: &CookieReport) -> Self {
+        Self::for_layout(parsed, 2, 101, 0, &[1])
+    }
+    pub(super) fn for_layout(
+        parsed: &CookieReport,
+        channels: u64,
+        family: u64,
+        level: u64,
+        types: &[u8],
+    ) -> Self {
         let fields = &parsed.fields;
         let mut rejected = Vec::new();
         for (name, value) in [
             ("global.profile_id", 31),
-            ("global.level_id", 0),
+            ("global.level_id", level),
             ("global.parameter_b", 2),
             ("box.version_flags", 0),
             ("bitstream_version", 0x0800),
             ("global.frame_size_index", 0),
-            ("global.channel_count", 2),
+            ("global.channel_count", channels),
             ("global.component_count", 1),
             ("components[0].type", 0),
             ("components[0].lowest_channel_index", 0),
-            ("components[0].tce_count", 1),
-            ("components[0].tce[0].type", 1),
+            ("components[0].tce_count", types.len() as u64),
+            (
+                "components[0].tce[0].type",
+                u64::from(types.first().copied().unwrap_or(0)),
+            ),
             ("components[0].parameter_0", 0),
             ("components[0].parameter_1", 0),
-            ("components[0].layout_family", 101),
+            ("components[0].layout_family", family),
         ] {
             check(fields, name, json!(value), "cookie", &mut rejected);
+        }
+        for (i, kind) in types.iter().enumerate().skip(1) {
+            check(
+                fields,
+                &format!("components[0].tce[{i}].type"),
+                json!(kind),
+                "cookie",
+                &mut rejected,
+            );
         }
         for name in [
             "global.flag_a",

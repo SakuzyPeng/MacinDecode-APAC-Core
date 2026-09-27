@@ -183,7 +183,18 @@ impl Parser<'_> {
         ics: IcsInfo,
         channel_index: u8,
     ) -> Result<ChannelSpectrum, ParseError> {
-        let prefix = format!("components[0].tce[0].channels[{channel_index}]");
+        self.stream_at(
+            &format!("components[0].tce[0].channels[{channel_index}]"),
+            ics,
+            channel_index,
+        )
+    }
+    pub(super) fn stream_at(
+        &mut self,
+        prefix: &str,
+        ics: IcsInfo,
+        channel_index: u8,
+    ) -> Result<ChannelSpectrum, ParseError> {
         let stream_bit_offset = self.bits.position();
         let global_gain = self.take(&format!("{prefix}.global_gain"), 8)? as u8;
         let mut sf = i16::from(global_gain);

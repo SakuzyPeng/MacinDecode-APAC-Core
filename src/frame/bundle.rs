@@ -24,6 +24,7 @@ pub enum ParseDepth {
     Bwe2,
     Drc,
     Packet,
+    Channels,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -67,7 +68,16 @@ pub fn parse_packets_with_depth(
         error.bit_offset = Some(e.bit_offset);
         error
     })?;
-    let mut drc_state = super::drc::DrcState::new(&context);
+    let channel_context = if depth == ParseDepth::Channels {
+        Some(super::ChannelFrameContext::from_cookie(bundle.cookie())?)
+    } else {
+        None
+    };
+    let mut drc_state = channel_context.as_ref().map_or_else(
+        || super::drc::DrcState::new(&context),
+        |c| c.initial_state(),
+    );
+    let (mut present_elements, mut absent_elements, mut spectrum_channels) = (0u64, 0u64, 0u64);
     let first = bundle.manifest().start_packet;
     let bundle_end = add(first, bundle.manifest().actual_packets)?;
     let start = start.unwrap_or(first);
@@ -117,10 +127,45 @@ pub fn parse_packets_with_depth(
             .next_packet()?
             .ok_or_else(|| Error::new("parse-packets", "unexpected packet EOF"))?;
         if packet.packet_index < start {
+            if let Some(context) = &channel_context {
+                let result =
+                    super::parse_channel_packet_with_state(context, &bytes, &mut drc_state)
+                        .map_err(|e| {
+                            let mut e: Error = e.into();
+                            e.packet_index = Some(packet.packet_index);
+                            e
+                        })?;
+                if !result.packet_complete {
+                    let mut e = Error::new(
+                        "parse-packets",
+                        format!("incomplete channel history: {}", result.frame.stop_reason),
+                    );
+                    e.packet_index = Some(packet.packet_index);
+                    return Err(e);
+                }
+            }
             continue;
         }
         eprintln!("parse packet {}", packet.packet_index);
         let result = match depth {
+            ParseDepth::Channels => super::parse_channel_packet_with_state(
+                channel_context.as_ref().expect("channel context"),
+                &bytes,
+                &mut drc_state,
+            )
+            .map(|packet| {
+                present_elements += packet.elements.iter().filter(|e| e.present).count() as u64;
+                absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
+                spectrum_channels += packet
+                    .elements
+                    .iter()
+                    .map(|e| e.channels.len() as u64)
+                    .sum::<u64>();
+                (
+                    packet.frame.clone(),
+                    Some(serde_json::to_value(packet).expect("finite channel packet")),
+                )
+            }),
             ParseDepth::Prefix => parse_frame(&context, &bytes).map(|frame| (frame, None)),
             ParseDepth::Spectrum => parse_spectrum(&context, &bytes).map(|spectrum| {
                 spectra += u64::from(spectrum.spectrum_complete);
@@ -273,7 +318,15 @@ pub fn parse_packets_with_depth(
         "prefix_complete_packets":prefixes, "all_prefixes_complete":prefixes == parsed,
         "whole_frame_complete_packets":whole, "errors":errors, "stops":stops,
         "exit_code":exit_code});
-    if depth != ParseDepth::Prefix {
+    if depth == ParseDepth::Channels {
+        summary["depth"] = json!(depth);
+        summary["context"] = serde_json::to_value(channel_context.as_ref().unwrap())?;
+        summary["channel_packets_complete"] = json!(whole);
+        summary["present_elements"] = json!(present_elements);
+        summary["absent_elements"] = json!(absent_elements);
+        summary["spectrum_channels"] = json!(spectrum_channels);
+    }
+    if !matches!(depth, ParseDepth::Prefix | ParseDepth::Channels) {
         summary["depth"] = json!(depth);
         summary["spectrum_complete_packets"] = json!(spectra);
         summary["left_spectrum_packets"] = json!(left);

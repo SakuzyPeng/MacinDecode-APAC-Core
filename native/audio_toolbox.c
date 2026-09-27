@@ -313,6 +313,12 @@ int32_t apac_replay_property(ApacReplay *h, uint32_t property, uint32_t *words, 
     return s ? s : (size == count * sizeof(uint32_t) ? 0 : kAudioConverterErr_BadPropertySizeError);
 }
 
+int32_t apac_replay_reset(ApacReplay *h) {
+    if (!h || !h->converter) return kAudio_ParamError;
+    last_operation = "AudioConverterReset(replay processing policy initialization)";
+    return AudioConverterReset(h->converter);
+}
+
 int32_t apac_replay_set_cookie(ApacReplay *h, const uint8_t *cookie, uint32_t bytes) {
     last_operation = "AudioConverterSetProperty(DecompressionMagicCookie/replay)";
     return AudioConverterSetProperty(h->converter, kAudioConverterDecompressionMagicCookie, bytes, cookie);

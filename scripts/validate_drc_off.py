@@ -45,13 +45,14 @@ def identity(event):
                 max_ulp=distance,first_failure=changed[0] if changed else None)
 
 
-def inspect(trace,replay,pcm,raw,policy):
+def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and
             not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete qualified native trace')
     check_accounting(replay,pcm)
     settings=pcm['decoder_settings'];audit=settings.get('processing_policy',{}).get('value')
     if policy=='drc-off':
         require(audit is not None and audit['initial']['verified'],'explicit off request not verified')
+        require(audit['initial'].get('initial_reset')==dict(operation='AudioConverterReset',os_status=0,before_input=True),'initial public reset not verified')
         requests=audit['initial']['requests']
         require([r['property'] for r in requests]==['mdrc','^pro','^tlc'] and
                 all(r['requested']==r['os_status']==0 for r in requests),'off properties not explicitly set')
@@ -73,7 +74,8 @@ def inspect(trace,replay,pcm,raw,policy):
     key=lambda e:(e['sequence'],e['role'])
     require(len({key(e) for e in wrappers})==len(wrappers),'duplicate wrapper snapshot')
     require({key(e) for e in gains}=={key(e) for e in kernels}=={key(e) for e in wrappers},'unassociated native processing evidence')
-    require(any(v!=0 for e in wrappers for c in e['before'] for v in c),'off proof requires nonzero PCM excitation')
+    nonzero=any(v!=0 for e in wrappers for c in e['before'] for v in c)
+    if require_nonzero:require(nonzero,'off proof requires nonzero PCM excitation')
     failed_gain=[e for e in gains if e['status']!=0]
     metrics=[identity(e) for e in wrappers];kernel_metrics=[identity(e) for e in kernels]
     no_delay=all(e['state_before']['delay_samples']==e['state_after']['delay_samples']==0 for e in wrappers) and all(e['delay_samples']==0 for e in kernels)
@@ -82,7 +84,7 @@ def inspect(trace,replay,pcm,raw,policy):
     expected=struct.pack('<'+str(count)+'f',*values[first:first+count])
     require(expected==raw,'DRC wrapper output does not match returned PCM at the reported timeline')
     require(sha256_file(Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))==COMPONENT_SHA256,'component changed during proof')
-    return dict(policy=policy,passed=empty and no_delay and not failed_gain and not resets and all(m['identity'] for m in metrics),
+    return dict(policy=policy,nonzero_input_observed=nonzero,passed=empty and no_delay and not failed_gain and not resets and all(m['identity'] for m in metrics),
                 empty_selected_sets=empty,zero_added_delay=no_delay,returned_pcm_matches_timeline=True,
                 frame_count=len(wrappers),gain_payloads=len(gains),gain_parser_failures=len(failed_gain),gain_resets=len(resets),
                 whole_path_identity=all(m['identity'] for m in metrics),kernel_identity=all(m['identity'] for m in kernel_metrics),

@@ -53,6 +53,7 @@ unsafe extern "C" {
         context: *mut c_void,
         out: *mut *mut c_void,
     ) -> i32;
+    fn apac_replay_reset(handle: *mut c_void) -> i32;
     fn apac_replay_set_cookie(handle: *mut c_void, cookie: *const u8, bytes: u32) -> i32;
     fn apac_replay_close(handle: *mut c_void) -> i32;
     fn apac_replay_read(handle: *mut c_void, samples: *mut f32, frames: *mut u32) -> i32;
@@ -285,12 +286,24 @@ impl Converter {
             )
             .err();
         }
+        let initial_reset = if failure.is_none() {
+            let status = unsafe { apac_replay_reset(self.raw()) };
+            if status != 0 {
+                failure = Some(Error::native(
+                    "AudioConverterReset(replay processing policy initialization)",
+                    status,
+                ));
+            }
+            Some(json!({"operation":"AudioConverterReset","os_status":status,"before_input":true}))
+        } else {
+            None
+        };
         let readback = self.settings();
         if failure.is_none() {
             failure = require_processing_off(&readback).err();
         }
         (
-            json!({"policy":"drc-off","verification_scope":"public_property_requests_and_readback_only","request_order":"before_magic_cookie","requests":requests,"readback":readback,"verified":failure.is_none()}),
+            json!({"policy":"drc-off","rules_version":"apac-native-drc-off-v1","verification_scope":"public_property_and_initial_reset_status_only","request_order":"properties_then_magic_cookie_then_initial_reset","initial_reset":initial_reset,"requests":requests,"readback":readback,"verified":failure.is_none()}),
             failure,
         )
     }

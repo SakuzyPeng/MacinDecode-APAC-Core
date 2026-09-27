@@ -53,11 +53,12 @@ class DrcTests(unittest.TestCase):
             self.assertTrue(all(r['report']['drc_history_sufficient'] for r in rows[1:]))
     def test_malformed_times_and_unsupported_header_fail_without_history_commit(self):
         cases=[dict(absent=True,drc=dict(mode=1,frame_end=False,gains=[0],times=[33])),
-               dict(absent=True,drc=dict(mode=1,gains=[0,0],times=[16])),dict(absent=True)]
+               dict(absent=True,drc=dict(mode=1,gains=[0,0],times=[16])),
+               dict(absent=True,drc=dict(mode=1,gains=[0,0,0],times=[17,2])),dict(absent=True)]
         result,rows,_,_=self.inspect(cases)
         self.assertEqual(result.returncode,1,result.stderr)
-        for r in rows[:2]:self.assertEqual(r['error']['kind'],'drc-node-time')
-        self.assertFalse(rows[2]['report']['drc_history_sufficient'])
+        for r in rows[:3]:self.assertEqual(r['error']['kind'],'drc-node-time')
+        self.assertFalse(rows[3]['report']['drc_history_sufficient'])
     def test_byte_truncation_output_protection_and_limit(self):
         raw,truth=packet(dict(absent=True,drc=dict(header=True,mode=1,gains=[0,-14],times=[3])))
         values=[raw[:i] for i in range(1,len(raw)-1)]
@@ -74,10 +75,28 @@ class DrcTests(unittest.TestCase):
         result=self.run_tool('parse-packets',limited,'--depth','drc','--packets',512,'--output',self.root/'limited.jsonl','--max-output-mib',1)
         self.assertEqual(result.returncode,1)
         self.assertTrue((self.root/'limited.jsonl.incomplete').exists())
-    def test_drc_declarations_do_not_unlock_pcm(self):
+    def test_drc_off_pcm_metadata_and_payload_failures(self):
         _,_,_,root=self.inspect([dict(absent=True)])
         result=self.run_tool('decode-sq',root,'--out',root/'pcm')
+        self.assertEqual(result.returncode,0,result.stderr)
+        r=json.loads(result.stdout)
+        self.assertEqual(r['drc_processing'],'off');self.assertEqual(r['loudness_normalization'],'off')
+        self.assertEqual(r['drc_payload_frames'],1);self.assertTrue(r['drc_payloads_complete'])
+        self.assertEqual((root/'pcm/pcm.f32le').read_bytes(),bytes(8192))
+        raw=pack('01000000'+'0'+'1'+'0'*256+'1'+'0'*16)
+        bad=self.root/'bad';bundle(bad,[raw])
+        result=self.run_tool('decode-sq',bad,'--out',bad/'pcm')
         self.assertEqual(result.returncode,1)
-        self.assertIn('ancillary.loudness_drc_present',result.stderr)
+        self.assertTrue((bad/'pcm/.incomplete.json').exists())
+        self.assertFalse((bad/'pcm/pcm.json').exists())
+    def test_unqualified_instruction_effect_is_rejected_with_cookie_position(self):
+        raw,_=packet(dict(absent=True));root=self.root/'effect'
+        bundle(root,[raw],rich=True,effect=0)
+        result=self.run_tool('decode-sq',root,'--out',root/'pcm')
+        self.assertEqual(result.returncode,1)
+        error=json.loads(result.stderr)['error']
+        self.assertEqual(error['operation'],'SQ decoder')
+        self.assertRegex(error['message'],r'instructions\[0\].effect=0 at cookie bit [0-9]+')
+
 
 if __name__=='__main__':unittest.main()

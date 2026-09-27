@@ -154,6 +154,8 @@ def finish(debugger):
 def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_failure=False):
     import shlex
     import subprocess
+    if any(os.environ.get(k) for k in ('DYLD_INSERT_LIBRARIES','DYLD_FORCE_FLAT_NAMESPACE')):
+        raise RuntimeError('native DRC acceptance requires unmodified framework loading')
     root.mkdir(parents=True,exist_ok=True)
     output=root/'native-drc.json'
     if output.exists():raise RuntimeError('refusing to overwrite DRC trace')

@@ -3,6 +3,9 @@ mod bundle;
 mod bwe2;
 mod cac;
 mod drc;
+pub use drc::RULES_VERSION as DRC_RULES_VERSION;
+pub(crate) use drc::{DrcState, codebook_sha256 as drc_codebook_sha256};
+pub(crate) use packet::parse_packet_with_state;
 mod packet;
 mod packet_config;
 mod spectrum;
@@ -143,6 +146,7 @@ impl FrameContext {
         self.packet_configuration
             .rejection
             .as_deref()
+            .or(self.drc.rejection.as_deref())
             .or(self.unsupported_reason.as_deref())
     }
 }

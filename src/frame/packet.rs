@@ -1,4 +1,4 @@
-//! Complete, bounded ASP packets for the qualified no-DRC stereo route.
+//! Complete, bounded ASP packets for the qualified stereo DRC-off route.
 use super::{
     Bwe2Report, FrameContext, FrameReport, Parser, UnparsedRange, packet_config, parse_bwe2,
 };
@@ -34,6 +34,14 @@ pub struct PacketReport {
     pub packet_state_profile: String,
     pub packet_tail: Option<PacketTail>,
     pub embedded_preroll: Option<EmbeddedPreroll>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drc: Option<super::drc::DrcPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drc_complete: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drc_history_sufficient: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drc_processing_applied: Option<bool>,
 }
 impl PacketReport {
     pub fn frame(&self) -> &FrameReport {
@@ -68,12 +76,25 @@ fn partial(
 /// other configurations or arbitrary stateful media tools. Older depths retain
 /// their original boundaries, status and CPE-absence behavior.
 pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketReport, ParseError> {
+    parse_packet_with_state(context, packet, &mut super::DrcState::new(context))
+}
+
+pub(crate) fn parse_packet_with_state(
+    context: &FrameContext,
+    packet: &[u8],
+    state: &mut super::DrcState,
+) -> Result<PacketReport, ParseError> {
+    let mut next_state = state.clone();
     let mut result = PacketReport {
         bwe2: parse_bwe2(context, packet)?,
         packet_complete: false,
         packet_state_profile: STATE_PROFILE.into(),
         packet_tail: None,
         embedded_preroll: None,
+        drc: None,
+        drc_complete: context.drc.present.then_some(false),
+        drc_history_sufficient: None,
+        drc_processing_applied: context.drc.present.then_some(false),
     };
     if let Some(reason) = context.packet_rejection() {
         let frame = result.frame_mut();
@@ -110,14 +131,15 @@ pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketRepor
         );
     if let Some((start, end)) = embedded_range {
         let (start, end) = (start as usize, end as usize);
-        let nested = parse_packet(context, &packet[start / 8..end / 8]).map_err(|mut error| {
-            error.message = format!(
-                "embedded preroll at relative bit {}: {}",
-                error.bit_offset, error.message
-            );
-            error.bit_offset += start;
-            error
-        })?;
+        let nested = parse_packet_with_state(context, &packet[start / 8..end / 8], &mut next_state)
+            .map_err(|mut error| {
+                error.message = format!(
+                    "embedded preroll at relative bit {}: {}",
+                    error.bit_offset, error.message
+                );
+                error.bit_offset += start;
+                error
+            })?;
         let frame = result.frame_mut();
         frame
             .unknown_ranges
@@ -178,7 +200,8 @@ pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketRepor
                     .map_or("unsupported audio scene update", |d| d.message.as_str());
                 return partial(result, parser, reason);
             }
-            let rejected = packet_config::neutral_scene(&scene.fields, "packet");
+            let rejected =
+                packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
             if !rejected.is_empty() {
                 return partial(
                     result,
@@ -188,11 +211,38 @@ pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketRepor
             }
         }
     }
+    if context.drc.present {
+        result.drc_history_sufficient =
+            Some(next_state.previous_nodes.iter().any(|n| n.time < 1024));
+        let payload = super::drc::read_payload(
+            &mut parser,
+            &mut next_state,
+            context.sample_rate_hz.unwrap_or(0),
+        )?;
+        next_state.previous_nodes = payload.nodes.clone();
+        result.drc = Some(payload);
+        result.drc_complete = Some(true);
+    }
     if parser.flag("ancillary.trimming_present")? {
         return partial(result, parser, "nonzero ancillary trimming is unsupported");
     }
     let ancillary_end = parser.bits.position();
-    let padding = (8 - ancillary_end % 8) % 8;
+    // The APAC ancillary writer emits a zero custom-data presence flag even
+    // when that tool is disabled in the cookie; the decoder then returns before
+    // reading it. Usually it fits in byte padding. DRC can leave trimming exactly
+    // byte-aligned, exposing this flag in one additional padded byte. Accept
+    // only that verified zero form, keeping the native ancillary endpoint.
+    if context.drc.present
+        && parser.bits.remaining() != 0
+        && parser.flag("packet.disabled_custom_data_flag")?
+    {
+        return partial(
+            result,
+            parser,
+            "nonzero disabled custom-data flag is unsupported",
+        );
+    }
+    let padding = (8 - parser.bits.position() % 8) % 8;
     if padding != 0 && parser.take("packet.alignment_padding", padding)? != 0 {
         return partial(result, parser, "nonzero packet alignment is unsupported");
     }
@@ -227,5 +277,8 @@ pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketRepor
     parser.report.fields.sort_by_key(|f| f.bit_offset);
     parser.report.unknown_ranges.sort_by_key(|r| r.bit_offset);
     *result.frame_mut() = parser.report;
+    if result.packet_complete {
+        *state = next_state;
+    }
     Ok(result)
 }

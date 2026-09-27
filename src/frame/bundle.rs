@@ -1,5 +1,6 @@
 use super::{
-    FrameContext, parse_bwe2, parse_cac, parse_frame, parse_packet, parse_spectrum, parse_tns,
+    FrameContext, parse_bwe2, parse_cac, parse_frame, parse_packet_with_state, parse_spectrum,
+    parse_tns,
 };
 use serde::Serialize;
 
@@ -194,30 +195,32 @@ pub fn parse_packets_with_depth(
                         Some(serde_json::to_value(drc).expect("DRC integer report")),
                     )
                 }),
-            ParseDepth::Packet => parse_packet(&context, &bytes).map(|packet| {
-                let bwe2 = &packet.bwe2;
-                let tns = &bwe2.tns;
-                let cac = &tns.cac;
-                spectra += u64::from(cac.spectrum.spectrum_complete);
-                left += u64::from(!cac.spectrum.channels.is_empty());
-                right += u64::from(cac.spectrum.channels.len() == 2);
-                absent += u64::from(packet.cpe_absent());
-                cac_complete += u64::from(cac.cac_complete);
-                shared_ics += u64::from(cac.shared_ics);
-                tns_complete += u64::from(tns.tns_complete);
-                bwe2_complete += u64::from(bwe2.bwe2_complete);
-                embedded_preroll += u64::from(packet.embedded_preroll.is_some());
-                embedded_complete += u64::from(
-                    packet
-                        .embedded_preroll
-                        .as_ref()
-                        .is_some_and(|p| p.report.packet_complete),
-                );
-                (
-                    packet.frame().clone(),
-                    Some(serde_json::to_value(packet).expect("finite packet report")),
-                )
-            }),
+            ParseDepth::Packet => {
+                parse_packet_with_state(&context, &bytes, &mut drc_state).map(|packet| {
+                    let bwe2 = &packet.bwe2;
+                    let tns = &bwe2.tns;
+                    let cac = &tns.cac;
+                    spectra += u64::from(cac.spectrum.spectrum_complete);
+                    left += u64::from(!cac.spectrum.channels.is_empty());
+                    right += u64::from(cac.spectrum.channels.len() == 2);
+                    absent += u64::from(packet.cpe_absent());
+                    cac_complete += u64::from(cac.cac_complete);
+                    shared_ics += u64::from(cac.shared_ics);
+                    tns_complete += u64::from(tns.tns_complete);
+                    bwe2_complete += u64::from(bwe2.bwe2_complete);
+                    embedded_preroll += u64::from(packet.embedded_preroll.is_some());
+                    embedded_complete += u64::from(
+                        packet
+                            .embedded_preroll
+                            .as_ref()
+                            .is_some_and(|p| p.report.packet_complete),
+                    );
+                    (
+                        packet.frame().clone(),
+                        Some(serde_json::to_value(packet).expect("finite packet report")),
+                    )
+                })
+            }
         };
         let row = match result {
             Ok((report, spectrum)) => {

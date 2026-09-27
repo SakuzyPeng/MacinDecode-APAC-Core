@@ -48,6 +48,7 @@ pub fn decode_sq_with_options(
     let mut writer = out.writer("pcm.f32le")?;
     let mut hash = Sha256::new();
     let mut saved = 0;
+    let (mut drc_frames, mut drc_missing_history) = (0u64, 0u64);
     let (
         mut decoded_packets,
         mut warmup_packets,
@@ -64,6 +65,8 @@ pub fn decode_sq_with_options(
             e.packet_index = Some(packet.packet_index);
             e
         })?;
+        drc_frames += counts.drc_payload_frames;
+        drc_missing_history += counts.drc_missing_history_frames;
         decoded_packets += 1;
         warmup_packets += u64::from(raw + 1024 <= range.raw_start);
         absent_packets += u64::from(counts.cpe_absent);
@@ -107,7 +110,11 @@ pub fn decode_sq_with_options(
             Property::known(json!({
                 "backend":super::BACKEND, "experimental":true,
                 "packet_state_profile":crate::frame::STATE_PROFILE,
-                "support_scope":"stereo_sq_no_drc_neutral_scene_asp",
+                "support_scope":"stereo_sq_drc_off_neutral_scene_asp",
+                "drc_processing":"off", "loudness_normalization":"off",
+                "drc_rules_version":crate::frame::DRC_RULES_VERSION,
+                "drc_codebook_sha256":crate::frame::drc_codebook_sha256(),
+                "drc_payloads_complete":true,
                 "numeric_profile":super::NUMERIC_PROFILE,
                 "cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,
                 "cac_tables_sha256":crate::frame::cac_math_sha256(),
@@ -127,6 +134,10 @@ pub fn decode_sq_with_options(
     out.json("pcm.json", &pcm)?;
     let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":super::BACKEND,"native_apis_used":false,
         "packet_state_profile":crate::frame::STATE_PROFILE,
+        "drc_processing":"off","loudness_normalization":"off",
+        "drc_rules_version":crate::frame::DRC_RULES_VERSION,
+        "drc_payloads_complete":true,"drc_payload_frames":drc_frames,
+        "drc_frames_without_prior_gain_node":drc_missing_history,
         "packets":decoded_packets,"integrity_checked_packets":bundle.consumed_packets(),
         "warmup_packets":warmup_packets,"cpe_absent_packets":absent_packets,
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,

@@ -137,7 +137,7 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 单包语法错误记录包序号和包内位位置，继续保留其他包的结果，退出 `1` 并留下 `<REPORT.jsonl>.incomplete`。I/O 或目录完整性失败立即停止并保留已有的不完整输出；正常的 partial/unsupported 结果不会留下失败标记。报告结束前还会校验未选中的包。沿用 128 MiB 输出限额及拒绝覆盖机制；已验证的双声道 ASP 内嵌 preroll 上限为 4096 字节。
 
-原生参考 `replay --processing-policy drc-off` 在载入 cookie 之前显式请求压缩配置 None、DRC mode None 和目标响度 None，并保存 `processing-policy.json` 的设置状态与前后回读。默认 `--processing-policy default` 保持既有原生行为。属性审计中的 `verified` 仅验证公开属性，不能证明 PCM 恒等。完整只读证明可使用：
+原生参考 `replay --processing-policy drc-off` 在载入 cookie 之前显式请求压缩配置 None、DRC mode None 和目标响度 None，随后载入 cookie 并在任何输入之前调用一次公开的 `AudioConverterReset`，保存 `processing-policy.json` 的设置、reset 状态与前后回读。默认 `--processing-policy default` 保持既有原生行为。属性审计中的 `verified` 仅验证公开属性与初始化调用，音频恒等由独立的前后快照验收。完整只读证明可使用：
 
 ```sh
 python3 scripts/validate_drc_off.py --binary target/debug/apac-tool \
@@ -228,28 +228,38 @@ cargo test --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_
 
 BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式求值，不复用生产 FFT、Levinson、LSF 因子求值或三角近似。数学容差仍为 `atol=1e-6, rtol=1e-5`；跨构建另要求所有阶段摘要逐位相同。`data/bwe2-vectors-v2.json` 在原矩阵之外加入 96 个频谱用例和 96 个 PCM 序列，覆盖易发生相消的内部 LSF 索引组合、长短窗、两档复制范围、左右声道和分数步长增益。原生采用明确的分层验收：参数／边界精确，使用相同原生 LPC 输入后的变换、复制和增益控制通过原容差；完整原生路径与输入隔离路径的浮点差异均另行保留，不把苹果 Float32/FMA 的 LPC 舍入接入默认模型。
 
-所有验收入口显式接收二进制和报告路径，拒绝覆盖、缺失用例、指纹变化和执行中源码／二进制变化；便携测试不依赖 docs/local。旧 TNS／BWE2 矩阵也可显式使用 `--regression-report reports/previous-math.json` 重新执行并对照原摘要，语义与 SQ／CAC 一致；数值配置、常量和向量身份必须相同。BWE2 元数据另记录 `bwe2_numeric_profile`、格式字典与数学常量摘要。本深度仍只报告当前核心帧；完整包及内嵌帧的处理见下文 `packet` 深度。DRC、重配置、LRVQ 和多声道限制继续保留。
+所有验收入口显式接收二进制和报告路径，拒绝覆盖、缺失用例、指纹变化和执行中源码／二进制变化；便携测试不依赖 docs/local。旧 TNS／BWE2 矩阵也可显式使用 `--regression-report reports/previous-math.json` 重新执行并对照原摘要，语义与 SQ／CAC 一致；数值配置、常量和向量身份必须相同。BWE2 元数据另记录 `bwe2_numeric_profile`、格式字典与数学常量摘要。本深度仍只报告当前核心帧；完整包及内嵌帧的处理见下文 `packet` 深度。BWE2 深度不读取 DRC；后续载荷和关闭策略支持见下文。重配置、LRVQ 和多声道限制继续保留。
 
-**DRC 载荷深度（解析器阶段）**：`parse-packets --depth drc` 和 `frame::parse_drc(&FrameContext, &[u8]) -> Result<DrcReport, config::ParseError>` 在受限配置下读取场景更新后的 DRC，停在 trimming 入口。支持一个 location 1 系数集合、一个增益序列、单频带、coding profile 0、线性插值、1024 帧及显式 64 采样的最小时间间隔。配置重述须保持相同编码结构；已知响度元数据可更新。非终止增益扩展明确停止。
+**DRC 载荷深度**：`parse-packets --depth drc` 和 `frame::parse_drc(&FrameContext, &[u8]) -> Result<DrcReport, config::ParseError>` 在受限配置下读取场景更新后的 DRC，停在 trimming 入口。支持一个 location 1 系数集合、一个增益序列、单频带、coding profile 0、线性插值、1024 帧及显式 64 采样的最小时间间隔。指令效果限定为已验证的 2／5／32（或无指令）。配置重述须保持相同编码结构；响度元数据更新会完整解析，曲线与 shape filter 只保留声明。非终止增益扩展明确停止。
 
 报告保留 BWE2 及之前的结果，新增精确的 1/8 dB 整数增益、采样时间、码字范围、配置／元数据来源及哈希。`drc_complete` 只表示到达 trimming 入口；`drc_history_sufficient` 表示已解析的前一帧提供了当前帧起点之前的增益节点，不代表已实现插值或播放处理。`drc_processing_applied=false`；缺席 CPE 仍读取 DRC。截断、计数或时间越界、节点不推进直接报错，不复制原生的零增益恢复。
 
-**DRC 媒体 PCM 尚未放行。** 原生显式 None 路径的两个内部处理器逐位恒等且延迟为零，但外层启动交叉淡化存在 1 ULP 反例，未满足本阶段要求的全路径恒等门槛。因此 `parse_packet`／`decode-sq` 仍限定无 DRC 配置，后端支持范围保持原样。下列解析器验收不会被标记为完整的第九阶段 E PCM 验收：
+**固定关闭策略的 DRC PCM**：受支持的 DRC 配置会完整读取增益载荷，并固定采用 `drc_processing=off`、`loudness_normalization=off`。不应用播放增益、曲线或 shape filter，也没有尚未实现的开启选项。`decode-sq` 元数据记录载荷解析完成状态、规则版本、码表摘要及后端版本；历史增益节点不足会单独计数，不伪造历史状态。关闭策略无需以这些节点插值音频。流开始后改变声明或响度数值的更新，目前会在 PCM 入口明确停止；原生外层切换仍有 1 ULP 反例，尚未获得全路径恒等资格。对应载荷仍可通过 `parse_drc`／`parse_packet` 检查，并在 `off_identity_rejection` 中记录原因。
+
+原生参考必须在属性和 cookie 设置后、输入前 reset。省略这一步的历史启动交叉淡化反例仍作为失败记录保留。初始化 reset 能消除启动反例，但不能消除运行中元数据变化后的切换反例；不会用普通 PCM 容差替代关闭路径的逐位恒等与零延迟门槛。本阶段尚未通过全部完成条件，包含这些更新的冻结 PCM 矩阵和原生验收应继续报失败。
 
 ```sh
 python3 scripts/generate_drc_manifest.py --check
+python3 scripts/generate_drc_pcm_manifest.py --check
 python3 scripts/validate_drc.py --binary target/debug/apac-tool --report reports/drc-parser.json
-# macOS 可选的只读原生参数／边界核对；要求固定组件哈希
-python3 scripts/validate_drc.py --binary target/debug/apac-tool --native --report reports/drc-native.json
+python3 scripts/validate_drc_pcm.py --binary target/debug/apac-tool --report reports/drc-pcm-math.json
+# 其他平台／release 用同一提交的完整数学报告逐位核对
+python3 scripts/validate_drc_pcm.py --binary target/release/apac-tool \
+  --reference-report reports/drc-pcm-math.json --report reports/drc-pcm-release.json
+# macOS：原生整数与边界；以及完整编码媒体、关闭处理、恢复路径与随机窗口
+python3 scripts/validate_drc.py --binary target/debug/apac-tool --native --report reports/drc-native-parameters.json
+python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report reports/drc-native-media.json
 ```
 
-**完整包深度**：`parse-packets --depth packet` 和 `frame::parse_packet(&FrameContext, &[u8]) -> Result<PacketReport, config::ParseError>` 在限定的无 DRC 配置下继续解析核心对齐、场景更新、关闭的 trimming 与末字节零填充。接受 ASP 类型 0／1，以及无重配置、含零或一个内嵌 preroll 的类型 2；内嵌帧长度限于 1–4096 字节，拒绝嵌套、类型 3、未知载荷、非零填充和额外尾部。旧深度、默认值和停止位置保持不变。
+人工清单分别冻结 2,516 个解析用例和 2,640 个 PCM 序列，正式构建和便携验收均不依赖研究目录、网络或苹果文件。完整编码器控制的 PCM 超差会使验收失败，且保留失败指标与输入。
+
+**完整包深度**：`parse-packets --depth packet` 和 `frame::parse_packet(&FrameContext, &[u8]) -> Result<PacketReport, config::ParseError>` 在限定配置下继续解析核心对齐、场景更新、DRC、关闭的 trimming 与末字节零填充。DRC 使 trimming 恰好按字节结束时，还验证编码器写出的零 custom-data 标志及其填充，不接受任意额外尾部。接受 ASP 类型 0／1，以及无重配置、含零或一个内嵌 preroll 的类型 2；内嵌帧长度限于 1–4096 字节，拒绝嵌套、类型 3、未知载荷、非零填充和额外尾部。旧深度、默认值和停止位置保持不变。
 
 `PacketReport.bwe2` 保留前阶段结果，JSON 继续平铺；新增 `packet_complete`、`packet_state_profile=apac-asp-state-v1`、`packet_tail` 和可选 `embedded_preroll`。核心终点来自实际核心语法及对齐，随后才是 ancillary；频谱终点不充当组件终点。只有整个外层包及内嵌帧均覆盖后，整包 `status` 才为 `complete`。这仍是语法状态，不表示支持任意配置或无需解码状态。CPE 缺席时原始声道数组保持空，频谱阶段完成标志保持 false，完整包仍可完成。
 
 根报告 `fields` 统一使用外层包坐标，内嵌字段增加 `asp.preroll.` 前缀；`embedded_preroll.report` 内的坐标则从该内嵌帧 bit 0 开始，由外层 `start_bit_offset`／`end_bit_offset` 定位。内嵌错误报告外层包坐标，并在消息中保留内嵌位置。汇总增加完整包、内嵌帧及其完成数量。
 
-配置兼容仅新增默认中性单场景、单 source 0、单分组／预设路由和已解析的 ContentOrigin 类型 3；逐项检查控制字段，支持同一中性场景的帧内重述。其他场景控制、DRC、remapping、scene graph、metadata／custom data、未知扩展及非零帧内 trimming 继续明确停止。资格检查不按 cookie 长度或哈希放行，拒绝消息列出字段、实际值和位位置。
+配置兼容仅新增默认中性单场景、单 source 0、单分组／预设路由和已解析的 ContentOrigin 类型 3；逐项检查控制字段，支持同一中性场景的帧内重述。DRC 关闭策略额外接受已验证的场景头 `flags[0]` 声明变体，其他控制仍逐项限定。其他场景控制、remapping、scene graph、metadata／custom data 载荷、未知扩展及非零帧内 trimming 继续明确停止。资格检查不按 cookie 长度或哈希放行，拒绝消息列出字段、实际值和位位置。
 
 **实验性 `decode-sq`**：从自包含包目录输出独立 PCM：
 
@@ -274,7 +284,7 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前覆盖受限人工序列及明确关闭 DRC 的双声道编码媒体包目录。配置须完整、44.1／48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，符合上述配置资格。支持 SQ、独立或共享声道头及已验证 CAC／TNS／BWE2；默认带 DRC 的媒体尚不属于 PCM 支持范围。
+当前覆盖受限人工序列、无 DRC 的双声道媒体，以及上述默认 DRC 载荷在固定关闭播放处理策略下的包目录。配置须完整、44.1／48 kHz、1024 帧、单 ASC／CPE、双声道，且 profile=31、level=0、公共 parameter_b=2、立体声布局 family=101，符合上述配置资格。支持 SQ、独立或共享声道头及已验证 CAC／TNS／BWE2；DRC 配置必须满足上述单序列／单频带／profile 0 范围，原有数学配置和无 DRC 输出保持不变。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。省略范围参数时输出导出目标窗口；`--start-frame` 使用绝对有效音频坐标，`--frames` 指定正的请求长度。非零起点必须有 `replay_window`，并满足独立起点、roll 和 preroll 约束；前置包只建立状态。packet table 的 priming／remainder 只裁剪一次，内嵌帧不增加源时间线，不追加隐含尾帧。短请求结束后仍校验目录未解码部分的完整性，不访问原始音频。
 
@@ -294,7 +304,7 @@ python3 -B scripts/validate_packets.py --binary target/release/apac-tool \
 python3 -B scripts/validate_packet_native.py --binary target/debug/apac-tool --output reports/packet-native.json
 ```
 
-状态参考由人工生成器声明的窗口、频谱与内嵌事件驱动，用 Decimal 直接 IMDCT 求和计算 PCM。验收保留 `atol=1e-6, rtol=1e-5`，跨构建另对所有阶段及 PCM 的小端字节摘要逐位比较。原生诊断区分输入频谱差异、状态／边界证据及完整 PCM 差异；既有 TNS／BWE2 原生压力差异不会被当作新的状态真值。无 DRC 编码控制样本的完整 PCM 必须通过上述容差检查，否则验收失败，并保留差异指标与失败样本。
+状态参考由人工生成器声明的窗口、频谱与内嵌事件驱动，用 Decimal 直接 IMDCT 求和计算 PCM。验收保留 `atol=1e-6, rtol=1e-5`，跨构建另对所有阶段及 PCM 的小端字节摘要逐位比较。原生诊断区分输入频谱差异、状态／边界证据及完整 PCM 差异；既有 TNS／BWE2 原生压力差异不会被当作新的状态真值。无 DRC 及固定关闭策略的 DRC 编码控制样本的完整 PCM 必须通过上述容差检查，否则验收失败，并保留差异指标与失败样本。
 
 `data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
 
@@ -469,7 +479,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型配有完整人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态和无 DRC 包目录 PCM 已提供实验入口；DRC 增益、重配置、非零帧内 trimming、LRVQ、多声道、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型配有完整人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多声道、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

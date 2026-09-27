@@ -42,7 +42,7 @@ const GAIN_CODES: [(u16, usize); 25] = [
     (0x00e, 5),
 ];
 
-fn codebook_sha256() -> String {
+pub(crate) fn codebook_sha256() -> String {
     let mut bytes = Vec::with_capacity(100);
     for (index, &(code, width)) in GAIN_CODES.iter().enumerate() {
         bytes.extend(code.to_le_bytes());
@@ -122,6 +122,23 @@ impl DrcConfiguration {
             ("time_delta_min_minus_one", json!(63)),
         ] {
             expect(format!("{SET}.{suffix}"), expected);
+        }
+        // None excludes the observed compression/leveling instruction effects.
+        // An effect-free or other unqualified mandatory set can be selected by
+        // the native None policy; do not silently reinterpret it as bypass.
+        for field in report.fields.iter().filter(|f| {
+            f.name.starts_with(&format!("{ROOT}.instructions[")) && f.name.ends_with(".effect")
+        }) {
+            if !field
+                .value
+                .as_u64()
+                .is_some_and(|v| [2, 5, 32].contains(&v))
+            {
+                rejected.push(format!(
+                    "{}={} at {source} bit {} (expected qualified off-policy effects 2/5/32)",
+                    field.name, field.value, field.bit_offset
+                ));
+            }
         }
         if !rejected.is_empty() {
             return Err(rejected.join("; "));
@@ -204,6 +221,9 @@ pub struct DrcPayload {
     pub header_present: bool,
     pub config_present: bool,
     pub configuration: DrcConfiguration,
+    /// Syntax can be complete even when a metadata transition has no qualified
+    /// whole-path native off proof. This never changes or conceals gain nodes.
+    pub off_identity_rejection: Option<crate::config::Diagnostic>,
     pub coding_mode: u8,
     pub frame_end: bool,
     /// Temporal codewords precede the gain codewords. Frame-end can be implicit.
@@ -229,7 +249,7 @@ pub struct DrcReport {
     pub drc_preroll: Option<Box<DrcReport>>,
 }
 #[derive(Debug, Clone)]
-pub(super) struct DrcState {
+pub(crate) struct DrcState {
     pub configuration: Option<DrcConfiguration>,
     pub previous_nodes: Vec<DrcNode>,
 }
@@ -275,12 +295,14 @@ fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: Value) {
         value,
     });
 }
-fn read_payload(
+pub(super) fn read_payload(
     parser: &mut Parser<'_>,
     state: &mut DrcState,
     rate: u64,
 ) -> Result<DrcPayload, ParseError> {
     let start = parser.bits.position();
+    let previous_configuration = state.configuration.clone();
+    let initial_frame = state.previous_nodes.is_empty();
     let (header, header_end) = config::parse_drc_header_at(parser.bits.data(), start, rate, 2)?;
     parser.bits.skip(header_end - start)?;
     parser.report.fields.extend(header.fields.iter().cloned());
@@ -333,6 +355,40 @@ fn read_payload(
             "gain payload has no verified configuration",
         )
     })?;
+    let off_identity_rejection = previous_configuration.as_ref().and_then(|previous| {
+        let before: Vec<_> = previous
+            .fields
+            .iter()
+            .chain(&previous.loudness_metadata)
+            .map(|f| (&f.name, &f.value))
+            .collect();
+        let after: Vec<_> = configuration
+            .fields
+            .iter()
+            .chain(&configuration.loudness_metadata)
+            .map(|f| (&f.name, &f.value))
+            .collect();
+        if initial_frame || before == after {
+            return None;
+        }
+        let field = configuration
+            .fields
+            .iter()
+            .chain(&configuration.loudness_metadata)
+            .find(|f| !before.contains(&(&f.name, &f.value)));
+        Some(crate::config::Diagnostic {
+            bit_offset: field.map_or(start, |f| f.bit_offset),
+            message: field.map_or_else(
+                || "changed DRC declarations have no whole-path off identity proof".into(),
+                |f| {
+                    format!(
+                        "changed {}={} has no whole-path off identity proof",
+                        f.name, f.value
+                    )
+                },
+            ),
+        })
+    });
     let mode = parser.take(&format!("{ROOT}.coding_mode"), 1)? as u8;
     let (mut count, mut frame_end) = (1usize, true);
     let mut deltas = Vec::new();
@@ -439,6 +495,7 @@ fn read_payload(
         header_present,
         config_present,
         configuration,
+        off_identity_rejection,
         coding_mode: mode,
         frame_end,
         time_deltas: deltas,
@@ -534,7 +591,7 @@ pub(super) fn parse_drc_with_state(
         let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
         parser.bits.skip(end - parser.bits.position())?;
         parser.report.fields.extend(scene.fields.iter().cloned());
-        let rejected = packet_config::neutral_scene(&scene.fields, "packet");
+        let rejected = packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
         if !scene.is_complete() || !rejected.is_empty() {
             return Err(ParseError::new(
                 end,

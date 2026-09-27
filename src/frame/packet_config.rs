@@ -29,7 +29,7 @@ pub(super) fn check(
     }
 }
 
-pub(super) fn neutral_scene(fields: &[ConfigField], origin: &str) -> Vec<String> {
+pub(super) fn neutral_scene(fields: &[ConfigField], origin: &str, drc_off: bool) -> Vec<String> {
     let mut rejected = Vec::new();
     let root = "ancillary.audio_scenes";
     let mut expect = |suffix: &str, value| {
@@ -41,14 +41,14 @@ pub(super) fn neutral_scene(fields: &[ConfigField], origin: &str) -> Vec<String>
             &mut rejected,
         );
     };
-    for suffix in [
-        "flags[0]",
-        "flags[1]",
-        "flags[2]",
-        "tag_present",
-        "extension_present",
-    ] {
+    for suffix in ["flags[1]", "flags[2]", "tag_present", "extension_present"] {
         expect(suffix, json!(false));
+    }
+    // The observed DRC declaration variant has flag 0 set. The remaining
+    // one-source scene controls are identical and their audio route is identity
+    // under the qualified off policy. Preserve the old no-DRC whitelist.
+    if !drc_off {
+        expect("flags[0]", json!(false));
     }
     expect("parameter", json!(0));
     expect("composition_count", json!(1));
@@ -169,7 +169,13 @@ impl PacketConfiguration {
             .find(|f| f.name == "ancillary.audio_scenes_present");
         let scene_present = scene.is_some_and(|f| f.value == json!(true));
         if scene_present {
-            rejected.extend(neutral_scene(fields, "cookie"));
+            rejected.extend(neutral_scene(
+                fields,
+                "cookie",
+                fields
+                    .iter()
+                    .any(|f| f.name == "ancillary.loudness_drc_present" && f.value == json!(true)),
+            ));
         } else {
             check(
                 fields,
@@ -213,13 +219,6 @@ impl PacketConfiguration {
             ));
         }
         let syntax_rejection = (!rejected.is_empty()).then(|| rejected.join("; "));
-        check(
-            fields,
-            "ancillary.loudness_drc_present",
-            json!(false),
-            "cookie",
-            &mut rejected,
-        );
         Self {
             syntax_rejection,
             scene_present,

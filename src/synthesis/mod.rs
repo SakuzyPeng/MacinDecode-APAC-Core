@@ -1,13 +1,15 @@
 //! Independent SQ mathematics: fixed IEEE constants, Float64 synthesis and overlap.
 //! Ordinary products and sums round separately; only final PCM is cast to Float32.
 mod bundle;
+#[cfg(test)]
+mod drc_tests;
 use crate::{
     error::{Error, Result},
-    frame::{FrameContext, PacketReport, parse_packet},
+    frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},
 };
 pub use bundle::{SqDecodeOptions, decode_sq, decode_sq_with_options};
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
-pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_f64_fft_v8";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v9";
 pub const QUALIFICATION: &str = "independent_math_reference";
 
 #[derive(Clone, Copy, Default)]
@@ -165,6 +167,7 @@ impl ChannelState {
 /// Qualified no-DRC stereo SQ packets, neutral scene metadata and bounded ASP preroll.
 /// One packet produces exactly 1024 interleaved stereo frames. Errors do not advance state.
 pub struct SqDecoder {
+    drc: DrcState,
     context: FrameContext,
     channels: [ChannelState; 2],
 }
@@ -178,11 +181,13 @@ impl SqDecoder {
             ));
         }
         Ok(Self {
+            drc: DrcState::new(&context),
             context,
             channels: [ChannelState::new(), ChannelState::new()],
         })
     }
     pub fn reset(&mut self) {
+        self.drc = DrcState::new(&self.context);
         self.channels = [ChannelState::new(), ChannelState::new()];
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
@@ -192,11 +197,13 @@ impl SqDecoder {
         &mut self,
         packet: &[u8],
     ) -> Result<(Vec<f32>, FrameStateCounts)> {
-        let decoded = parse_packet(&self.context, packet).map_err(|e| {
-            let mut error = Error::new("SQ spectrum", e.to_string());
-            error.bit_offset = Some(e.bit_offset);
-            error
-        })?;
+        let mut next_drc = self.drc.clone();
+        let decoded =
+            parse_packet_with_state(&self.context, packet, &mut next_drc).map_err(|e| {
+                let mut error = Error::new("SQ spectrum", e.to_string());
+                error.bit_offset = Some(e.bit_offset);
+                error
+            })?;
         if !decoded.packet_complete {
             let frame = decoded.frame();
             let mut error = Error::new(
@@ -211,9 +218,27 @@ impl SqDecoder {
             );
             return Err(error);
         }
+        fn unqualified(report: &PacketReport) -> Option<(usize, String)> {
+            if let Some(inner) = &report.embedded_preroll
+                && let Some((bit, message)) = unqualified(&inner.report)
+            {
+                return Some((inner.start_bit_offset + bit, message));
+            }
+            report
+                .drc
+                .as_ref()
+                .and_then(|d| d.off_identity_rejection.as_ref())
+                .map(|d| (d.bit_offset, d.message.clone()))
+        }
+        if let Some((bit, message)) = unqualified(&decoded) {
+            let mut error = Error::new("SQ decoder", format!("unsupported frame: {message}"));
+            error.bit_offset = Some(bit);
+            return Err(error);
+        }
         let mut next = self.channels.clone();
         let output = render_packet(&mut next, &decoded)?;
         self.channels = next;
+        self.drc = next_drc;
         Ok(output)
     }
 }
@@ -223,6 +248,8 @@ pub(crate) struct FrameStateCounts {
     pub cpe_absent: bool,
     pub embedded_preroll_frames: u64,
     pub embedded_cpe_absent: u64,
+    pub drc_payload_frames: u64,
+    pub drc_missing_history_frames: u64,
 }
 
 fn render_packet(
@@ -234,9 +261,13 @@ fn render_packet(
         // The internal frame replaces the overlap used by the current frame.
         // Its PCM is discarded; the entire outer packet commits atomically.
         let (_, inner) = render_packet(channels, &preroll.report)?;
+        counts.drc_payload_frames = inner.drc_payload_frames;
+        counts.drc_missing_history_frames = inner.drc_missing_history_frames;
         counts.embedded_preroll_frames = 1 + inner.embedded_preroll_frames;
         counts.embedded_cpe_absent = u64::from(inner.cpe_absent) + inner.embedded_cpe_absent;
     }
+    counts.drc_payload_frames += u64::from(decoded.drc_complete == Some(true));
+    counts.drc_missing_history_frames += u64::from(decoded.drc_history_sufficient == Some(false));
     counts.cpe_absent = decoded.cpe_absent();
     let mut sides = Vec::with_capacity(2);
     for (index, state) in channels.iter_mut().enumerate() {

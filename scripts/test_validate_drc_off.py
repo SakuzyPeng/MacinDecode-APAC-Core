@@ -20,7 +20,7 @@ class OffGateTests(unittest.TestCase):
             packets=[{}],events=[event('wrapper_process'),event('processor_process'),dict(kind='gain_read',status=0,sequence=0,role='current'),
                 dict(kind='selection',status=0,selected=dict(count=0,set_ids=[],loudness_normalization_gain_db=0.0))])
         settings={k:dict(value=0,error=None) for k in ('mdrc','^pro','ptlc')}
-        audit=dict(initial=dict(verified=True,requests=[dict(property=k,requested=0,os_status=0) for k in ('mdrc','^pro','^tlc')],readback=settings),final_readback=settings)
+        audit=dict(initial=dict(initial_reset=dict(operation='AudioConverterReset',os_status=0,before_input=True),verified=True,requests=[dict(property=k,requested=0,os_status=0) for k in ('mdrc','^pro','^tlc')],readback=settings),final_readback=settings)
         pcm=dict(complete=True,all_finite=True,frames=1024,start_frame=0,sha256='test',decoder_settings=dict(processing_policy=dict(value=audit)))
         replay=dict(complete=True,original_source_accessed=False,saved_frames=1024,range=dict(frames=1024,start_frame=0,drain_to_eof=False),
             produced_raw_frames=1024,discarded_before_frames=0,discarded_after_frames=0,consumed_packet_frames=1024,consumed_packets=1)

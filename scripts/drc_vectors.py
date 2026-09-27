@@ -19,21 +19,36 @@ GAIN_CODES=[('11',-1),('10',1),('001',-2),('010',0),('0000',-16),
  ('00011100010',-14),('00011100011',-13)]
 
 
-def header(rate,metadata_only=False):
-    # Version-8 APAC header, one linear profile-0 sequence, one band, no selected
-    # instructions. Full encoder declarations are separate native controls.
-    loudness=bits(0,20)  # two flags, two 8-bit counts, sources and extension flags
-    if metadata_only:return '10'+loudness
+def loudness(value=None):
+    if value is None:return bits(0,20)
+    # An observed explicit stereo source map, one encoded loudness value.
+    return '10'+bits(0,16)+'10'+bits(1,8)+bits(0,8)+bits(2,8)+'01'+bits(value,8)+'00'
+
+
+def header(rate,metadata_only=False,rich=False,loudness_value=None,effect=2):
+    metadata=loudness(loudness_value if loudness_value is not None else 165 if rich else None)
+    if metadata_only:return '10'+metadata
     config='1'+bits(rate-1000,18)+'0'+bits(2,10)+'0'+bits(1,3)
-    config+=bits(1,4)+'0'+'000'+bits(1,6)+bits(1,6)
-    config+='00'+'100'+'1'+bits(63,11)+bits(1,4)+'00'
-    config+=bits(0,8)+'000'
-    return '11'+config+loudness
+    config+=bits(1,4)+'0'
+    if rich:
+        characteristic='1'+bits(1,4)+'0'+bits(18,6)+bits(3,4)+bits(2,4)+'0'
+        config+=characteristic*2
+        config+='1'+bits(1,4)+'1'+bits(3,3)+bits(1,2)+'000'
+    else:config+='000'
+    config+=bits(1,6)+bits(1,6)+'00'+'100'+'1'+bits(63,11)+bits(1,4)+'0'
+    config+=('11'+bits(68,7)) if rich else '0'
+    config+=bits(int(rich),8)
+    if rich:
+        config+='0'+bits(0,4)+bits(1,6)+bits(0,4)+bits(1,4)+'0'+bits(effect,16)+'00000'
+        config+=bits(1,6)+'1'+bits(0,5)
+        config+='0'+'1'+bits(1,4)+'1'+bits(1,4)+'00'+'1'+bits(1,4)
+    return '11'+config+'000'+metadata
 
 
-def cookie(rate,scene=False):
+def cookie(rate,scene=False,scene_drc_flag=False,rich=False,effect=2):
     prefix=''.join(bits(v,8) for v in core_cookie(rate))[:198]
-    raw=pack(prefix+'0'+bits(int(scene),1)+(neutral_scene() if scene else '')+'1'+header(rate)+'000')
+    section=(bits(int(scene_drc_flag),1)+neutral_scene()[1:]) if scene else ''
+    raw=pack(prefix+'0'+bits(int(scene),1)+section+'1'+header(rate,rich=rich,effect=effect)+'000')
     return len(raw).to_bytes(4,'big')+raw[4:]
 
 
@@ -46,7 +61,7 @@ def delta_time(value,ratio=16):
 
 def payload(case,rate=48000,start=0):
     mode=case.get('mode',0);gains=case.get('gains',[0]);terminal=case.get('frame_end',True)
-    h=header(rate,case.get('metadata_only',False)) if case.get('header') else '0'
+    h=header(rate,case.get('metadata_only',False),case.get('rich',False),case.get('loudness_value'),case.get('effect',2)) if case.get('header') else '0'
     wire=h+bits(mode,1);header_end=start+len(h)
     times=[];deltas=[]
     if mode:
@@ -91,13 +106,13 @@ def packet(case,rate=48000,scene=False):
     wire+='0'*(-len(wire)%8);core_end=len(wire)
     if scene:wire+=('1'+neutral_scene() if case.get('scene_update') else '0')
     drc,truth=payload(case.get('drc',{}),rate,len(wire));wire+=drc
-    result=pack(wire+'0')
+    result=pack(wire+('00' if case.get('encoder_tail') else '0'))
     return result,dict(drc=truth,spectra=spectra,inner=inner,core_end_bit_offset=core_end,frame_type=frame_type)
 
 
-def bundle(root,packets,rate=48000,scene=False):
+def bundle(root,packets,rate=48000,scene=False,scene_drc_flag=False,rich=False,effect=2):
     core_bundle(root,packets,rate)
-    config=cookie(rate,scene);(root/'cookie.bin').write_bytes(config)
+    config=cookie(rate,scene,scene_drc_flag,rich,effect);(root/'cookie.bin').write_bytes(config)
     path=root/'manifest.json';m=json.loads(path.read_text(encoding='utf-8'))
     m['file']['cookie']['value']=dict(bytes=len(config),sha256=hashlib.sha256(config).hexdigest())
     path.write_text(json.dumps(m),encoding='utf-8')

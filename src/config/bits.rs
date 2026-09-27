@@ -14,6 +14,9 @@ impl<'a> BitReader<'a> {
             end: data.len().saturating_mul(8),
         }
     }
+    pub(crate) fn data(&self) -> &'a [u8] {
+        self.data
+    }
     pub fn position(&self) -> usize {
         self.position
     }

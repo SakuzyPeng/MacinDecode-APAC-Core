@@ -41,6 +41,7 @@ typedef struct {
     const ApacLayoutDescription *descriptions;
     const uint8_t *cookie;
     uint32_t cookie_bytes;
+    uint32_t defer_cookie;
 } ApacReplayConfig;
 typedef int32_t (*ApacInputProc)(void *, uint32_t, const uint8_t **, uint32_t *, const ApacInputPacket **, uint32_t *);
 typedef struct {
@@ -252,9 +253,11 @@ int32_t apac_replay_create(const ApacReplayConfig *config, ApacInputProc input_p
     last_operation = "AudioConverterNew(APAC replay)";
     OSStatus s = AudioConverterNew(&h->input, &h->output, &h->converter);
     if (s) goto fail;
-    last_operation = "AudioConverterSetProperty(DecompressionMagicCookie)";
-    s = AudioConverterSetProperty(h->converter, kAudioConverterDecompressionMagicCookie, config->cookie_bytes, config->cookie);
-    if (s) goto fail;
+    if (!config->defer_cookie) {
+        last_operation = "AudioConverterSetProperty(DecompressionMagicCookie)";
+        s = AudioConverterSetProperty(h->converter, kAudioConverterDecompressionMagicCookie, config->cookie_bytes, config->cookie);
+        if (s) goto fail;
+    }
     if (config->has_layout) {
         UInt32 size = offsetof(AudioChannelLayout, mChannelDescriptions) + config->description_count * sizeof(AudioChannelDescription);
         h->layout = calloc(1, size);
@@ -308,6 +311,25 @@ int32_t apac_replay_property(ApacReplay *h, uint32_t property, uint32_t *words, 
     last_operation = "AudioConverterGetProperty(replay)";
     OSStatus s = AudioConverterGetProperty(h->converter, property, &size, words);
     return s ? s : (size == count * sizeof(uint32_t) ? 0 : kAudioConverterErr_BadPropertySizeError);
+}
+
+int32_t apac_replay_set_cookie(ApacReplay *h, const uint8_t *cookie, uint32_t bytes) {
+    last_operation = "AudioConverterSetProperty(DecompressionMagicCookie/replay)";
+    return AudioConverterSetProperty(h->converter, kAudioConverterDecompressionMagicCookie, bytes, cookie);
+}
+
+int32_t apac_replay_set_off_property(ApacReplay *h, uint32_t property) {
+    if (!h || !h->converter) return kAudio_ParamError;
+    switch (property) {
+        case kAudioCodecPropertyDynamicRangeControlMode:
+        case kAudioCodecPropertyAdjustCompressionProfile:
+        case kAudioCodecPropertyAdjustTargetLevelConstant:
+            break;
+        default: return kAudio_ParamError;
+    }
+    UInt32 value = 0;
+    last_operation = "AudioConverterSetProperty(replay processing off)";
+    return AudioConverterSetProperty(h->converter, property, sizeof(value), &value);
 }
 
 int32_t apac_prepare_decode(ApacFile *h, int64_t start, int64_t *length) {

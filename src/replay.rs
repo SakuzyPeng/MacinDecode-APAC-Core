@@ -36,6 +36,7 @@ struct ReplayConfig {
     descriptions: *const LayoutDescription,
     cookie: *const u8,
     cookie_bytes: u32,
+    defer_cookie: u32,
 }
 type InputProc = unsafe extern "C" fn(
     *mut c_void,
@@ -52,10 +53,12 @@ unsafe extern "C" {
         context: *mut c_void,
         out: *mut *mut c_void,
     ) -> i32;
+    fn apac_replay_set_cookie(handle: *mut c_void, cookie: *const u8, bytes: u32) -> i32;
     fn apac_replay_close(handle: *mut c_void) -> i32;
     fn apac_replay_read(handle: *mut c_void, samples: *mut f32, frames: *mut u32) -> i32;
     fn apac_replay_property(handle: *mut c_void, property: u32, words: *mut u32, count: u32)
     -> i32;
+    fn apac_replay_set_off_property(handle: *mut c_void, property: u32) -> i32;
 }
 
 struct Feed {
@@ -130,7 +133,7 @@ impl Drop for Converter {
     }
 }
 impl Converter {
-    fn new(bundle: PacketBundle, batch_size: u32) -> Result<Self> {
+    fn new(bundle: PacketBundle, batch_size: u32, policy: NativeProcessingPolicy) -> Result<Self> {
         if !(1..=64).contains(&batch_size) {
             return Err(Error::new(
                 "replay",
@@ -181,6 +184,7 @@ impl Converter {
             descriptions: descriptions.as_ptr(),
             cookie: feed.bundle.cookie().as_ptr(),
             cookie_bytes: feed.bundle.cookie().len() as u32,
+            defer_cookie: u32::from(policy == NativeProcessingPolicy::DrcOff),
         };
         let channels = f.channels;
         let mut raw = ptr::null_mut();
@@ -257,6 +261,39 @@ impl Converter {
             })
             .collect()
     }
+    fn request_processing_off(&self) -> (Value, Option<Error>) {
+        let mut requests = Vec::new();
+        let mut failure = None;
+        for property in [b"mdrc", b"^pro", b"^tlc"] {
+            let name = String::from_utf8_lossy(property);
+            let status =
+                unsafe { apac_replay_set_off_property(self.raw(), u32::from_be_bytes(*property)) };
+            requests.push(json!({"property":name,"requested":0,"os_status":status}));
+            if status != 0 {
+                failure = Some(Error::native(
+                    format!("AudioConverterSetProperty({name}/replay processing off)"),
+                    status,
+                ));
+                break;
+            }
+        }
+        if failure.is_none() {
+            let cookie = self.feed.bundle.cookie();
+            failure = checked(
+                unsafe { apac_replay_set_cookie(self.raw(), cookie.as_ptr(), cookie.len() as u32) },
+                "set cookie after processing policy",
+            )
+            .err();
+        }
+        let readback = self.settings();
+        if failure.is_none() {
+            failure = require_processing_off(&readback).err();
+        }
+        (
+            json!({"policy":"drc-off","verification_scope":"public_property_requests_and_readback_only","request_order":"before_magic_cookie","requests":requests,"readback":readback,"verified":failure.is_none()}),
+            failure,
+        )
+    }
     fn finish(mut self) -> Result<()> {
         let handle = self.handle.take().expect("open converter");
         let status = unsafe { apac_replay_close(handle.as_ptr()) };
@@ -267,6 +304,22 @@ impl Converter {
     }
 }
 
+fn require_processing_off(settings: &BTreeMap<String, Property<Value>>) -> Result<()> {
+    for name in ["mdrc", "^pro", "ptlc"] {
+        let property = settings.get(name).expect("queried decoder property");
+        if property.error.is_some() || property.value != Some(json!(0)) {
+            return Err(Error::new(
+                "replay processing policy",
+                format!(
+                    "{name} did not confirm None: {}",
+                    serde_json::to_string(property)?
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub fn replay(
     directory: &Path,
     destination: &Path,
@@ -274,6 +327,26 @@ pub fn replay(
     frames: u64,
     batch: u32,
     limit: u64,
+) -> Result<Value> {
+    replay_with_policy(
+        directory,
+        destination,
+        start,
+        frames,
+        batch,
+        limit,
+        NativeProcessingPolicy::Default,
+    )
+}
+
+pub fn replay_with_policy(
+    directory: &Path,
+    destination: &Path,
+    start: Option<u64>,
+    frames: u64,
+    batch: u32,
+    limit: u64,
+    policy: NativeProcessingPolicy,
 ) -> Result<Value> {
     if !(1..=64).contains(&batch) {
         return Err(Error::new(
@@ -293,8 +366,18 @@ pub fn replay(
     let out = OutputDir::create(destination, Budget::new(limit))?;
     let output_bytes = pcm_bytes(range.frames, info.format.channels)?;
     out.budget.ensure(packets::add(output_bytes, 65536)?)?;
-    let mut decoder = Converter::new(bundle, batch)?;
-    let settings = decoder.settings();
+    let mut decoder = Converter::new(bundle, batch, policy)?;
+    let audit = if policy == NativeProcessingPolicy::DrcOff {
+        let (audit, failure) = decoder.request_processing_off();
+        out.json("processing-policy.json", &audit)?;
+        if let Some(error) = failure {
+            return Err(error);
+        }
+        Some(audit)
+    } else {
+        None
+    };
+    let mut settings = decoder.settings();
     let prime_info = Property::from_result(
         decoder
             .property(b"prim", 2)
@@ -380,6 +463,16 @@ pub fn replay(
     let callback_calls = decoder.feed.callback_calls;
     let eof_sent = decoder.feed.eof_sent;
     decoder.feed.bundle.verify_remaining()?;
+    if policy == NativeProcessingPolicy::DrcOff {
+        let final_settings = decoder.settings();
+        require_processing_off(&final_settings)?;
+        settings.insert(
+            "processing_policy".into(),
+            Property::known(
+                json!({"initial":audit,"final_readback":final_settings,"verified":true}),
+            ),
+        );
+    }
     decoder.finish()?;
     let environment = Environment::current();
     let pcm = PcmInfo {
@@ -404,7 +497,7 @@ pub fn replay(
         all_finite: true,
     };
     let report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"backend":"AudioConverterFillComplexBuffer",
-        "bundle":directory,"environment":environment,"original_source_accessed":false,"input_batch_packets":batch,
+        "bundle":directory,"environment":environment,"original_source_accessed":false,"input_batch_packets":batch,"processing_policy":policy,
         "stored_start_packet":stored_start,"stored_packets":stored_count,"consumed_packets":consumed_packets,
         "consumed_packet_frames":consumed_frames,"produced_raw_frames":produced,"stored_raw_start":raw_start,"stored_raw_end":raw_end,
         "discarded_before_frames":discarded_before,"discarded_after_frames":discarded_after,"saved_frames":saved,

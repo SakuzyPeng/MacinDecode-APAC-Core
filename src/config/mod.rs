@@ -12,7 +12,7 @@ use std::{collections::BTreeMap, fmt, fs::File, io::Read, path::Path};
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 
-pub(crate) use parser::parse_scene_at;
+pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

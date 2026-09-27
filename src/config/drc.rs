@@ -29,12 +29,19 @@ impl Parser<'_> {
     }
 
     pub(super) fn loudness_drc(&mut self, channels: u64) -> PResult<()> {
+        self.drc_header(channels, false)
+    }
+
+    pub(super) fn drc_header(&mut self, channels: u64, allow_reuse: bool) -> PResult<()> {
         // SetClientInfo selects internal version 8 for APAC's feature profile.
         // This is contextual syntax, not an additional version field in the cookie.
         if !self.flag(&format!("{ROOT}.header_present"))? {
             return Ok(());
         }
         if !self.flag(&format!("{ROOT}.config_present"))? {
+            if allow_reuse {
+                return self.drc_loudness();
+            }
             return self.stop("DRC header without a fresh configuration is not implemented");
         }
         if self.flag(&format!("{ROOT}.sample_rate_present"))? {

@@ -91,6 +91,9 @@ enum Command {
         frames: u64,
         #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u32).range(1..=64))]
         input_batch_packets: u32,
+        /// Explicit native reference policy; default preserves host behavior.
+        #[arg(long, value_enum, default_value_t = macindecode_apac_tools::model::NativeProcessingPolicy::Default)]
+        processing_policy: macindecode_apac_tools::model::NativeProcessingPolicy,
     },
     /// Decode a short valid-frame range to interleaved Float32 + JSON.
     Decode {
@@ -234,13 +237,15 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
                 start_frame,
                 frames,
                 input_batch_packets,
-            } => macindecode_apac_tools::replay::replay(
+                processing_policy,
+            } => macindecode_apac_tools::replay::replay_with_policy(
                 &directory,
                 &out,
                 start_frame,
                 frames,
                 input_batch_packets,
                 limit,
+                processing_policy,
             )?,
             Command::Decode {
                 file,

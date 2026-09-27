@@ -2,6 +2,7 @@
 mod bundle;
 mod bwe2;
 mod cac;
+mod drc;
 mod packet;
 mod packet_config;
 mod spectrum;
@@ -16,6 +17,9 @@ pub use bwe2::{
 pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
 pub(crate) use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
+pub use drc::{
+    DrcConfiguration, DrcNode, DrcParameters, DrcPayload, DrcReport, DrcTimeDelta, parse_drc,
+};
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
@@ -35,6 +39,8 @@ use std::collections::BTreeMap;
 /// reporting the ASP frame type when its enclosing configuration is verified.
 #[derive(Debug, Clone, Serialize)]
 pub struct FrameContext {
+    #[serde(skip)]
+    drc: drc::DrcContext,
     cookie_sha256: String,
     sample_rate_hz: Option<u64>,
     channels: Option<u64>,
@@ -117,6 +123,7 @@ impl FrameContext {
             .find(|(ok, _)| !ok)
             .map(|(_, reason)| reason.into());
         Ok(Self {
+            drc: drc::DrcContext::from_cookie(&parsed),
             packet_configuration: packet_config::PacketConfiguration::from_cookie(&parsed),
             cookie_sha256: parsed.cookie_sha256,
             sample_rate_hz,

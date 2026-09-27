@@ -14,6 +14,16 @@ pub enum DrcConfiguration {
     Movie,
     Capture,
 }
+
+/// Explicit policy for the optional native reference replay. The portable
+/// decoder's supported policy is independent of a host's implicit defaults.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+pub enum NativeProcessingPolicy {
+    #[default]
+    Default,
+    DrcOff,
+}
 impl DrcConfiguration {
     /// Bridge selector, translated to SDK constants by the C bridge.
     pub fn selector(self) -> u32 {

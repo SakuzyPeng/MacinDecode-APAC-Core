@@ -21,6 +21,7 @@ pub enum ParseDepth {
     Cac,
     Tns,
     Bwe2,
+    Drc,
     Packet,
 }
 
@@ -54,6 +55,7 @@ pub fn parse_packets_with_depth(
     let (mut cac_complete, mut shared_ics) = (0u64, 0u64);
     let mut tns_complete = 0u64;
     let mut bwe2_complete = 0u64;
+    let mut drc_complete = 0u64;
     let (mut embedded_preroll, mut embedded_complete) = (0u64, 0u64);
     if requested == 0 {
         return Err(Error::new("parse-packets", "packet count must be positive"));
@@ -64,6 +66,7 @@ pub fn parse_packets_with_depth(
         error.bit_offset = Some(e.bit_offset);
         error
     })?;
+    let mut drc_state = super::drc::DrcState::new(&context);
     let first = bundle.manifest().start_packet;
     let bundle_end = add(first, bundle.manifest().actual_packets)?;
     let start = start.unwrap_or(first);
@@ -170,6 +173,27 @@ pub fn parse_packets_with_depth(
                     Some(serde_json::to_value(bwe2).expect("finite BWE2 report")),
                 )
             }),
+            ParseDepth::Drc => super::drc::parse_drc_with_state(&context, &bytes, &mut drc_state)
+                .map(|drc| {
+                    let bwe2 = &drc.bwe2;
+                    let tns = &bwe2.tns;
+                    let cac = &tns.cac;
+                    spectra += u64::from(cac.spectrum.spectrum_complete);
+                    left += u64::from(!cac.spectrum.channels.is_empty());
+                    right += u64::from(cac.spectrum.channels.len() == 2);
+                    absent += u64::from(cac.spectrum.frame.fields.iter().any(|f| {
+                        f.name == "components[0].tce[0].present" && f.value == json!(false)
+                    }));
+                    cac_complete += u64::from(cac.cac_complete);
+                    shared_ics += u64::from(cac.shared_ics);
+                    tns_complete += u64::from(tns.tns_complete);
+                    bwe2_complete += u64::from(bwe2.bwe2_complete);
+                    drc_complete += u64::from(drc.drc_complete);
+                    (
+                        cac.spectrum.frame.clone(),
+                        Some(serde_json::to_value(drc).expect("DRC integer report")),
+                    )
+                }),
             ParseDepth::Packet => parse_packet(&context, &bytes).map(|packet| {
                 let bwe2 = &packet.bwe2;
                 let tns = &bwe2.tns;
@@ -255,19 +279,25 @@ pub fn parse_packets_with_depth(
     }
     if matches!(
         depth,
-        ParseDepth::Cac | ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Packet
+        ParseDepth::Cac | ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Drc | ParseDepth::Packet
     ) {
         summary["cac_complete_packets"] = json!(cac_complete);
         summary["shared_ics_packets"] = json!(shared_ics);
     }
     if matches!(
         depth,
-        ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Packet
+        ParseDepth::Tns | ParseDepth::Bwe2 | ParseDepth::Drc | ParseDepth::Packet
     ) {
         summary["tns_complete_packets"] = json!(tns_complete);
     }
-    if matches!(depth, ParseDepth::Bwe2 | ParseDepth::Packet) {
+    if matches!(
+        depth,
+        ParseDepth::Bwe2 | ParseDepth::Drc | ParseDepth::Packet
+    ) {
         summary["bwe2_complete_packets"] = json!(bwe2_complete);
+    }
+    if depth == ParseDepth::Drc {
+        summary["drc_complete_packets"] = json!(drc_complete);
     }
     if depth == ParseDepth::Packet {
         summary["packet_complete_packets"] = json!(whole);

@@ -82,6 +82,40 @@ pub(crate) fn parse_scene_at(
     Ok((p.report, end))
 }
 
+/// Header payload type 0 uses the same version-8 header as the cookie, but a
+/// missing configuration can reuse an explicitly supplied previous context.
+pub(crate) fn parse_drc_header_at(
+    data: &[u8],
+    offset: usize,
+    rate: u64,
+    channels: u64,
+) -> Result<(CookieReport, usize), ParseError> {
+    let mut p = Parser {
+        data,
+        bits: BitReader::new(data),
+        report: CookieReport::new(data),
+    };
+    p.bits.skip(offset)?;
+    p.report
+        .derived
+        .insert("sample_rate_hz".into(), json!(rate));
+    match p.drc_header(channels, true) {
+        Ok(()) => {}
+        Err(Stop::Invalid(error)) => return Err(error),
+        Err(Stop::Unsupported {
+            position, reason, ..
+        }) => {
+            p.report.status = ParseStatus::Partial;
+            p.report.diagnostics.push(Diagnostic {
+                bit_offset: position,
+                message: reason,
+            });
+        }
+    }
+    let end = p.pos();
+    Ok((p.report, end))
+}
+
 impl Parser<'_> {
     pub fn pos(&self) -> usize {
         self.bits.position()

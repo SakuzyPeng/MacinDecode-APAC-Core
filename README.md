@@ -137,6 +137,16 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 
 单包语法错误记录包序号和包内位位置，继续保留其他包的结果，退出 `1` 并留下 `<REPORT.jsonl>.incomplete`。I/O 或目录完整性失败立即停止并保留已有的不完整输出；正常的 partial/unsupported 结果不会留下失败标记。报告结束前还会校验未选中的包。沿用 128 MiB 输出限额及拒绝覆盖机制；已验证的双声道 ASP 内嵌 preroll 上限为 4096 字节。
 
+原生参考 `replay --processing-policy drc-off` 在载入 cookie 之前显式请求压缩配置 None、DRC mode None 和目标响度 None，并保存 `processing-policy.json` 的设置状态与前后回读。默认 `--processing-policy default` 保持既有原生行为。属性审计中的 `verified` 仅验证公开属性，不能证明 PCM 恒等。完整只读证明可使用：
+
+```sh
+python3 scripts/validate_drc_off.py --binary target/debug/apac-tool \
+  --bundle artifacts/demo/replay-packets --report reports/drc-off-proof.json \
+  --artifacts artifacts/drc-off-proof
+```
+
+该验收同时检查实际选中集合、DRC 前后 PCM、内部处理器、错误恢复、帧数与延迟；任何全路径逐位差异均返回失败，即使仍在普通 PCM 容差以内。隐式默认路径另行记录。
+
 **SQ 频谱深度**：`parse-packets --depth spectrum` 沿相同配置范围继续解析 section、缩放因子、codebook 0–11、符号和逃逸。先完成左声道；独立右声道头分支完成右声道；共享头分支在标志之后以 `shared_ics_cac_deferred` 停止，保留左声道结果。两路完成后以 `sq_spectra_before_tools` 停止，尚未读取 TNS、ancillary 或组件尾部。ASP 内嵌 preroll 仍只按长度跳过，不输出其频谱。
 
 `report` 保留原有字段并增加 `spectrum_complete`、`spectral_stage=scaled_before_cac_tns` 和 `channels`。每声道记录 ICS、global gain、section、按组／频带排列的 `scale_factors`（零码本为 null）、1024 个 `quantized` 整数和 1024 个 `scaled` Float32 值，以及声道流起点、频谱码字起点和终点。短窗数组依次为八个 128 点窗口；长窗为一个 1024 点窗口。频带外的零值由语法确定，截断输入不会补零。
@@ -219,6 +229,19 @@ cargo test --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_
 BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式求值，不复用生产 FFT、Levinson、LSF 因子求值或三角近似。数学容差仍为 `atol=1e-6, rtol=1e-5`；跨构建另要求所有阶段摘要逐位相同。`data/bwe2-vectors-v2.json` 在原矩阵之外加入 96 个频谱用例和 96 个 PCM 序列，覆盖易发生相消的内部 LSF 索引组合、长短窗、两档复制范围、左右声道和分数步长增益。原生采用明确的分层验收：参数／边界精确，使用相同原生 LPC 输入后的变换、复制和增益控制通过原容差；完整原生路径与输入隔离路径的浮点差异均另行保留，不把苹果 Float32/FMA 的 LPC 舍入接入默认模型。
 
 所有验收入口显式接收二进制和报告路径，拒绝覆盖、缺失用例、指纹变化和执行中源码／二进制变化；便携测试不依赖 docs/local。旧 TNS／BWE2 矩阵也可显式使用 `--regression-report reports/previous-math.json` 重新执行并对照原摘要，语义与 SQ／CAC 一致；数值配置、常量和向量身份必须相同。BWE2 元数据另记录 `bwe2_numeric_profile`、格式字典与数学常量摘要。本深度仍只报告当前核心帧；完整包及内嵌帧的处理见下文 `packet` 深度。DRC、重配置、LRVQ 和多声道限制继续保留。
+
+**DRC 载荷深度（解析器阶段）**：`parse-packets --depth drc` 和 `frame::parse_drc(&FrameContext, &[u8]) -> Result<DrcReport, config::ParseError>` 在受限配置下读取场景更新后的 DRC，停在 trimming 入口。支持一个 location 1 系数集合、一个增益序列、单频带、coding profile 0、线性插值、1024 帧及显式 64 采样的最小时间间隔。配置重述须保持相同编码结构；已知响度元数据可更新。非终止增益扩展明确停止。
+
+报告保留 BWE2 及之前的结果，新增精确的 1/8 dB 整数增益、采样时间、码字范围、配置／元数据来源及哈希。`drc_complete` 只表示到达 trimming 入口；`drc_history_sufficient` 表示已解析的前一帧提供了当前帧起点之前的增益节点，不代表已实现插值或播放处理。`drc_processing_applied=false`；缺席 CPE 仍读取 DRC。截断、计数或时间越界、节点不推进直接报错，不复制原生的零增益恢复。
+
+**DRC 媒体 PCM 尚未放行。** 原生显式 None 路径的两个内部处理器逐位恒等且延迟为零，但外层启动交叉淡化存在 1 ULP 反例，未满足本阶段要求的全路径恒等门槛。因此 `parse_packet`／`decode-sq` 仍限定无 DRC 配置，后端支持范围保持原样。下列解析器验收不会被标记为完整的第九阶段 E PCM 验收：
+
+```sh
+python3 scripts/generate_drc_manifest.py --check
+python3 scripts/validate_drc.py --binary target/debug/apac-tool --report reports/drc-parser.json
+# macOS 可选的只读原生参数／边界核对；要求固定组件哈希
+python3 scripts/validate_drc.py --binary target/debug/apac-tool --native --report reports/drc-native.json
+```
 
 **完整包深度**：`parse-packets --depth packet` 和 `frame::parse_packet(&FrameContext, &[u8]) -> Result<PacketReport, config::ParseError>` 在限定的无 DRC 配置下继续解析核心对齐、场景更新、关闭的 trimming 与末字节零填充。接受 ASP 类型 0／1，以及无重配置、含零或一个内嵌 preroll 的类型 2；内嵌帧长度限于 1–4096 字节，拒绝嵌套、类型 3、未知载荷、非零填充和额外尾部。旧深度、默认值和停止位置保持不变。
 

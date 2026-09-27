@@ -7,9 +7,10 @@ use serde_json::{Value, json};
 pub(super) struct PacketConfiguration {
     pub scene_present: bool,
     pub rejection: Option<String>,
+    pub syntax_rejection: Option<String>,
 }
 
-fn check(
+pub(super) fn check(
     fields: &[ConfigField],
     name: &str,
     expected: Value,
@@ -157,7 +158,6 @@ impl PacketConfiguration {
             "global.additional_asc_present",
             "components[0].lbr_flag",
             "ancillary.scene_graph_present",
-            "ancillary.loudness_drc_present",
             "ancillary.metadata_present",
             "ancillary.custom_data_present",
             "components[0].remapping_present",
@@ -212,7 +212,16 @@ impl PacketConfiguration {
                     .map_or(parsed.cookie_bytes * 8, |r| r.bit_offset)
             ));
         }
+        let syntax_rejection = (!rejected.is_empty()).then(|| rejected.join("; "));
+        check(
+            fields,
+            "ancillary.loudness_drc_present",
+            json!(false),
+            "cookie",
+            &mut rejected,
+        );
         Self {
+            syntax_rejection,
             scene_present,
             rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
         }

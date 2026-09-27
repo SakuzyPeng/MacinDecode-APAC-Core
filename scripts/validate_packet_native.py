@@ -179,6 +179,8 @@ def controls(binary,report):
             require(len(full)==len(raw),'native/Rust valid-frame duration differs')
             item['native_float_metrics']=compare_pcm(struct.unpack('<'+str(len(raw)//4)+'f',raw),struct.unpack('<'+str(len(full)//4)+'f',full))
             item['pcm_sha256']=hashlib.sha256(full).hexdigest();item['pcm']=decoded
+            require(item['native_float_metrics']['passed'],
+                    'native encoder control exceeds original tolerance: '+json.dumps(item['native_float_metrics']))
             refresh=next((i for i,r in enumerate(rows) if r['embedded_preroll'] is not None),None)
             targets=[('start',0),('refresh',refresh if refresh is not None else len(rows)//2),('tail',max(0,len(rows)-4))]
             index=[json.loads(line) for line in (root/'packets/packets.jsonl').read_text().splitlines()]

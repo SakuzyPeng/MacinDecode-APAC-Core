@@ -1,9 +1,8 @@
-use super::SqDecoder;
+use super::{SqDecoder, input::Input};
 use crate::{
     error::{Error, Result},
     model::*,
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
-    packets::PacketBundle,
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -11,24 +10,24 @@ use std::{collections::BTreeMap, io::Write, path::Path};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SqDecodeOptions {
-    /// Absolute valid-audio coordinate; omitted starts at the exported target window.
+    /// Absolute valid-audio coordinate; omitted starts at the input target window.
     pub start_frame: Option<u64>,
-    /// Omitted exports the remaining target window. Zero is rejected.
+    /// Omitted exports the remaining target window (whole valid audio for CAF). Zero is rejected.
     pub frames: Option<u64>,
 }
 
-pub fn decode_sq(directory: &Path, destination: &Path, limit: u64) -> Result<Value> {
-    decode_sq_with_options(directory, destination, SqDecodeOptions::default(), limit)
+pub fn decode_sq(input: &Path, destination: &Path, limit: u64) -> Result<Value> {
+    decode_sq_with_options(input, destination, SqDecodeOptions::default(), limit)
 }
 
 pub fn decode_sq_with_options(
-    directory: &Path,
+    input: &Path,
     destination: &Path,
     options: SqDecodeOptions,
     limit: u64,
 ) -> Result<Value> {
-    let mut bundle = PacketBundle::open(directory)?;
-    let info = bundle.manifest().file.clone();
+    let mut bundle = Input::open(input)?;
+    let info = bundle.info().clone();
     let table = info
         .packet_table
         .value
@@ -56,13 +55,12 @@ pub fn decode_sq_with_options(
         mut embedded_frames,
         mut embedded_absent,
     ) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    while let Some((packet, bytes)) = bundle.next_packet()? {
-        let raw = packet.raw_frame()?;
+    while let Some((packet_index, raw, bytes)) = bundle.next_packet()? {
         if !range.drain_to_eof && raw >= range.raw_end {
             break;
         }
         let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|mut e| {
-            e.packet_index = Some(packet.packet_index);
+            e.packet_index = Some(packet_index);
             e
         })?;
         drc_frames += counts.drc_payload_frames;
@@ -142,7 +140,7 @@ pub fn decode_sq_with_options(
         "warmup_packets":warmup_packets,"cpe_absent_packets":absent_packets,
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
         "raw_frames_decoded":decoded_packets*1024,
-        "range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
+        "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
     out.json("decode-sq.json", &report)?;
     out.complete()?;
     Ok(report)

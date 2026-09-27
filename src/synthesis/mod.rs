@@ -3,6 +3,7 @@
 mod bundle;
 #[cfg(test)]
 mod drc_tests;
+mod input;
 use crate::{
     error::{Error, Result},
     frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},

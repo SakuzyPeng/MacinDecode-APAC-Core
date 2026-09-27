@@ -25,15 +25,16 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Experimental portable PCM for the restricted SQ/CAC/TNS/BWE2 subset.
+    /// Experimental portable PCM from a packet directory or restricted stereo APAC CAF.
     DecodeSq {
-        directory: PathBuf,
+        /// Complete packet directory or CAF v1 file (recognized by content).
+        input: PathBuf,
         #[arg(long)]
         out: PathBuf,
-        /// Absolute valid-audio frame; omitted starts at the exported target window.
+        /// Absolute valid-audio frame; CAF warms up sequentially from packet zero.
         #[arg(long)]
         start_frame: Option<u64>,
-        /// Omitted exports the whole remaining target window.
+        /// Omitted exports the remaining target window, or all valid audio for CAF.
         #[arg(long)]
         frames: Option<u64>,
     },
@@ -178,7 +179,7 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
         );
     }
     if let Command::DecodeSq {
-        directory,
+        input,
         out,
         start_frame,
         frames,
@@ -186,7 +187,7 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
     {
         return Ok((
             macindecode_apac_tools::synthesis::decode_sq_with_options(
-                directory,
+                input,
                 out,
                 macindecode_apac_tools::synthesis::SqDecodeOptions {
                     start_frame: *start_frame,

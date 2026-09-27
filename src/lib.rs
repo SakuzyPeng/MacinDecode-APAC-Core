@@ -1,4 +1,5 @@
 mod bwe2_math;
+mod caf;
 #[cfg(target_os = "macos")]
 pub mod collect;
 pub mod compare;

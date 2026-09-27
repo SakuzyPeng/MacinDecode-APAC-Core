@@ -492,33 +492,10 @@ impl PacketBundle {
     }
 
     pub fn range(&self, start: Option<u64>, requested: u64) -> Result<ReplayRange> {
-        if requested == 0 {
-            return Err(invalid("frame count must be positive"));
-        }
-        let start = start.unwrap_or(self.window_start);
-        if start < self.window_start || start > self.window_end {
-            return Err(invalid("frame start is outside the target window"));
-        }
-        let requested_end = add(start, requested)?;
-        let end = requested_end.min(self.window_end);
         let table = required(&self.manifest.file.packet_table, "packet table")?;
-        let prime = table.priming_frames as u64;
-        Ok(ReplayRange {
-            window_start_frame: self.window_start,
-            window_end_frame: self.window_end,
-            start_frame: start,
-            requested_frames: requested,
-            frames: end - start,
-            raw_start: add(prime, start)?,
-            raw_end: add(prime, end)?,
-            drain_to_eof: end == self.window_end,
-            clipped_by: (end < requested_end).then_some(if end == table.valid_frames as u64 {
-                "source_eof"
-            } else {
-                "window_end"
-            }),
-        })
+        frame_range(self.window_start, self.window_end, table, start, requested)
     }
+
     fn rewind(&mut self) -> Result<()> {
         self.data.seek(SeekFrom::Start(0))?;
         self.index.seek(SeekFrom::Start(0))?;
@@ -670,4 +647,39 @@ impl PacketBundle {
         }
         Ok(batch)
     }
+}
+
+/// Common valid-audio cropping; input access/dependency policy belongs to the reader.
+pub(crate) fn frame_range(
+    window_start: u64,
+    window_end: u64,
+    table: &PacketTable,
+    start: Option<u64>,
+    requested: u64,
+) -> Result<ReplayRange> {
+    if requested == 0 {
+        return Err(invalid("frame count must be positive"));
+    }
+    let start = start.unwrap_or(window_start);
+    if start < window_start || start > window_end {
+        return Err(invalid("frame start is outside the target window"));
+    }
+    let requested_end = add(start, requested)?;
+    let end = requested_end.min(window_end);
+    let prime = table.priming_frames as u64;
+    Ok(ReplayRange {
+        window_start_frame: window_start,
+        window_end_frame: window_end,
+        start_frame: start,
+        requested_frames: requested,
+        frames: end - start,
+        raw_start: add(prime, start)?,
+        raw_end: add(prime, end)?,
+        drain_to_eof: end == window_end,
+        clipped_by: (end < requested_end).then_some(if end == table.valid_frames as u64 {
+            "source_eof"
+        } else {
+            "window_end"
+        }),
+    })
 }

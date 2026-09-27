@@ -13,6 +13,14 @@ pub struct Error {
     pub bit_offset: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub packet_index: Option<u64>,
+    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+    pub file_position: Option<Box<FilePosition>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FilePosition {
+    pub byte_offset: u64,
+    pub chunk_type: String,
 }
 
 impl Error {
@@ -24,6 +32,7 @@ impl Error {
             os_status_fourcc: None,
             bit_offset: None,
             packet_index: None,
+            file_position: None,
         }
     }
     pub fn native(operation: impl Into<String>, status: i32) -> Self {
@@ -39,6 +48,7 @@ impl Error {
             os_status_fourcc: fourcc,
             bit_offset: None,
             packet_index: None,
+            file_position: None,
         }
     }
     pub fn io(operation: impl Into<String>, error: impl fmt::Display) -> Self {
@@ -59,5 +69,26 @@ impl From<std::io::Error> for Error {
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
         Self::io("JSON", e)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn old_errors_and_optional_container_coordinates_round_trip() {
+        let legacy = serde_json::json!({"operation":"test","message":"bad","os_status":null,"os_status_fourcc":null});
+        let mut error: Error = serde_json::from_value(legacy.clone()).unwrap();
+        assert!(error.file_position.is_none());
+        assert_eq!(serde_json::to_value(&error).unwrap(), legacy);
+        error.file_position = Some(Box::new(FilePosition {
+            byte_offset: 123,
+            chunk_type: "pakt".into(),
+        }));
+        let value = serde_json::to_value(&error).unwrap();
+        assert_eq!(value["byte_offset"], 123);
+        assert_eq!(value["chunk_type"], "pakt");
+        let roundtrip: Error = serde_json::from_value(value).unwrap();
+        assert_eq!(roundtrip.file_position.unwrap().byte_offset, 123);
     }
 }

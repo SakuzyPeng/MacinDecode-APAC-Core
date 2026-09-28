@@ -152,23 +152,25 @@ pub(super) fn read_data_at(
 ) -> Result<CacData, ParseError> {
     let start = parser.bits.position();
     let (runs, indices) = decode_runs(&mut parser.bits, ics.max_sfb * ics.window_groups.len())?;
-    for (i, run) in runs.iter().enumerate() {
-        let gain_bits = books().gain.bits[usize::from(run.gain_index)];
-        for (name, value, offset, length) in [
-            ("gain_index", run.gain_index, run.bit_offset, gain_bits),
-            (
-                "repeat_code",
-                run.repeat_code,
-                run.bit_offset + gain_bits,
-                run.bit_length - gain_bits,
-            ),
-        ] {
-            parser.report.fields.push(ConfigField {
-                name: format!("{prefix}.runs[{i}].{name}"),
-                bit_offset: offset,
-                bit_length: length,
-                value: json!(value),
-            });
+    if parser.capture {
+        for (i, run) in runs.iter().enumerate() {
+            let gain_bits = books().gain.bits[usize::from(run.gain_index)];
+            for (name, value, offset, length) in [
+                ("gain_index", run.gain_index, run.bit_offset, gain_bits),
+                (
+                    "repeat_code",
+                    run.repeat_code,
+                    run.bit_offset + gain_bits,
+                    run.bit_length - gain_bits,
+                ),
+            ] {
+                parser.report.fields.push(ConfigField {
+                    name: format!("{prefix}.runs[{i}].{name}"),
+                    bit_offset: offset,
+                    bit_length: length,
+                    value: json!(value),
+                });
+            }
         }
     }
     let gain_indices = (0..ics.window_groups.len())
@@ -264,7 +266,11 @@ pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, Par
         report.diagnostics.pop();
         let mut bits = BitReader::new(packet);
         bits.skip(position)?;
-        let mut parser = Parser { bits, report };
+        let mut parser = Parser {
+            bits,
+            report,
+            capture: true,
+        };
         let ics = spectrum.channels[0].ics.clone();
         let right = parser.stream(ics.clone(), 1)?;
         spectrum.channels.push(right);
@@ -302,6 +308,18 @@ pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, Par
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rotations_fit_the_skipped_prefix_finite_value_bound() {
+        for rotation in &super::math().rotations {
+            let a = f64::from_bits(rotation.a_f64);
+            let b = f64::from_bits(rotation.b_f64);
+            assert!(a.is_finite() && b.is_finite() && a.abs() <= 1. && b.abs() <= 1.);
+            // SQ < 2^58, each sum uses two bounded products, with ample
+            // separate-rounding headroom inside the conservative 2^60 bound.
+            assert!((a.abs() + b.abs()) * 2f64.powi(58) * 1.0001 < 2f64.powi(60));
+        }
+    }
+
     use super::*;
     fn word(out: &mut Vec<bool>, code: u32, bits: usize) {
         out.extend((0..bits).rev().map(|bit| code & (1 << bit) != 0));

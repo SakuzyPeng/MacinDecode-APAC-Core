@@ -6,7 +6,25 @@ use crate::{
 };
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, io::Write, path::Path};
+use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    Default,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    clap::ValueEnum,
+)]
+#[serde(rename_all = "lowercase")]
+pub enum SqAccessMode {
+    #[default]
+    Sequential,
+    Fast,
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct SqDecodeOptions {
@@ -26,7 +44,43 @@ pub fn decode_sq_with_options(
     options: SqDecodeOptions,
     limit: u64,
 ) -> Result<Value> {
+    decode_with_access(input, destination, options, None, limit)
+}
+
+/// Explicit container access policy. Existing entry points retain sequential access.
+pub fn decode_sq_with_access(
+    input: &Path,
+    destination: &Path,
+    options: SqDecodeOptions,
+    access: SqAccessMode,
+    limit: u64,
+) -> Result<Value> {
+    decode_with_access(input, destination, options, Some(access), limit)
+}
+
+fn decode_with_access(
+    input: &Path,
+    destination: &Path,
+    options: SqDecodeOptions,
+    access: Option<SqAccessMode>,
+    limit: u64,
+) -> Result<Value> {
+    let total_timer = Instant::now();
+    let fast = access == Some(SqAccessMode::Fast);
+    if fast && input.is_dir() {
+        return Err(Error::new(
+            "SQ access",
+            "fast access requires a CAF/MP4 file",
+        ));
+    }
     let mut bundle = Input::open(input)?;
+    let preparation_seconds = total_timer.elapsed().as_secs_f64();
+    if fast && !bundle.is_container() {
+        return Err(Error::new(
+            "SQ access",
+            "fast access requires a CAF/MP4 file",
+        ));
+    }
     let info = bundle.info().clone();
     let table = info
         .packet_table
@@ -69,6 +123,16 @@ pub fn decode_sq_with_options(
     )?;
     let mut writer = out.writer("pcm.f32le")?;
     let mut hash = Sha256::new();
+    let synthesis_start = (range.frames != 0).then(|| (range.raw_start / 1024).saturating_sub(1));
+    let mut prefix_packets = 0u64;
+    let mut prefix_frames = 0u64;
+    let mut numeric_prefix_packets = 0u64;
+    let mut numeric_prefix_elements = 0u64;
+    let mut bounded_prefix_elements = 0u64;
+    let mut first_synthesis_packet = None;
+    let mut state_before_output = None;
+    let (mut read_seconds, mut scan_seconds, mut synthesis_seconds) = (0., 0., 0.);
+    let (mut full_parse_seconds, mut render_seconds) = (0., 0.);
     let mut saved = 0;
     let (mut drc_frames, mut drc_missing_history) = (0u64, 0u64);
     let (
@@ -78,14 +142,44 @@ pub fn decode_sq_with_options(
         mut embedded_frames,
         mut embedded_absent,
     ) = (0u64, 0u64, 0u64, 0u64, 0u64);
-    while let Some((packet_index, raw, bytes)) = bundle.next_packet()? {
+    loop {
+        let timer = Instant::now();
+        let next = bundle.next_packet()?;
+        read_seconds += timer.elapsed().as_secs_f64();
+        let Some((packet_index, raw, bytes)) = next else {
+            break;
+        };
         if !range.drain_to_eof && raw >= range.raw_end {
             break;
         }
+        if access.is_some() && range.frames != 0 && raw / 1024 == range.raw_start / 1024 {
+            state_before_output = Some(decoder.metadata_sha256());
+        }
+        if fast && synthesis_start.is_none_or(|start| packet_index < start) {
+            let timer = Instant::now();
+            let counts = decoder.scan_frame(&bytes).map_err(|mut e| {
+                e.packet_index = Some(packet_index);
+                e
+            })?;
+            scan_seconds += timer.elapsed().as_secs_f64();
+            prefix_packets += 1;
+            prefix_frames += counts.frames;
+            numeric_prefix_packets += u64::from(counts.numeric_elements != 0);
+            numeric_prefix_elements += counts.numeric_elements;
+            bounded_prefix_elements += counts.present_elements - counts.numeric_elements;
+            drc_frames += counts.drc_payload_frames;
+            drc_missing_history += counts.drc_missing_history_frames;
+            continue;
+        }
+        first_synthesis_packet.get_or_insert(packet_index);
+        let timer = Instant::now();
         let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|mut e| {
             e.packet_index = Some(packet_index);
             e
         })?;
+        synthesis_seconds += timer.elapsed().as_secs_f64();
+        full_parse_seconds += counts.parse_seconds;
+        render_seconds += counts.synthesis_seconds;
         drc_frames += counts.drc_payload_frames;
         drc_missing_history += counts.drc_missing_history_frames;
         decoded_packets += 1;
@@ -107,7 +201,9 @@ pub fn decode_sq_with_options(
             saved += last - first;
         }
     }
+    let timer = Instant::now();
     bundle.verify_remaining()?;
+    read_seconds += timer.elapsed().as_secs_f64();
     writer.finish()?;
     if saved != range.frames {
         return Err(Error::new("SQ decoder", "incomplete PCM frame range"));
@@ -173,6 +269,18 @@ pub fn decode_sq_with_options(
         report["channel_layout"] = json!(decoder.channel_layout());
         report["absent_elements"] = json!(absent_elements);
         report["embedded_absent_elements"] = json!(embedded_absent_elements);
+    }
+    if let Some(mode) = access {
+        report["access"] = json!({"profile":super::ACCESS_PROFILE,"mode":mode,
+            "verification_scope":"full_input","prefix_scanned_packets":prefix_packets,
+            "prefix_scanned_frames":prefix_frames,"prefix_numeric_packets":numeric_prefix_packets,
+            "prefix_numeric_elements":numeric_prefix_elements,"prefix_bounded_elements":bounded_prefix_elements,
+            "synthesized_packets":decoded_packets,"synthesis_start_packet":first_synthesis_packet,
+            "external_warmup_packets":warmup_packets,"metadata_before_output_sha256":state_before_output,
+            "metadata_after_processing_sha256":decoder.metadata_sha256(),
+            "timings_seconds":{"initial_verification":preparation_seconds,"read_and_final_verification":read_seconds,
+                "prefix_scan":scan_seconds,"full_decode_parse":full_parse_seconds,"synthesis":render_seconds,
+                "packet_decode_and_synthesis":synthesis_seconds,"total":total_timer.elapsed().as_secs_f64()}});
     }
     out.json("decode-sq.json", &report)?;
     out.complete()?;

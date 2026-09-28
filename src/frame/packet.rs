@@ -173,6 +173,7 @@ pub(crate) fn parse_packet_with_state(
         });
     }
     let mut parser = Parser {
+        capture: true,
         bits: BitReader::new(packet),
         report: result.frame().clone(),
     };

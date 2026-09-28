@@ -12,6 +12,7 @@ pub(super) fn decode(
     channels: &mut Vec<ChannelState>,
     packet: &[u8],
 ) -> Result<(Vec<f32>, FrameStateCounts)> {
+    let parse_timer = std::time::Instant::now();
     let mut next_state = state.clone();
     let decoded =
         parse_channel_packet_with_state(context, packet, &mut next_state).map_err(|e| {
@@ -27,8 +28,12 @@ pub(super) fn decode(
         e.bit_offset = Some(decoded.frame.stop_bit_offset);
         return Err(e);
     }
+    let parse_seconds = parse_timer.elapsed().as_secs_f64();
+    let synthesis_timer = std::time::Instant::now();
     let mut next = channels.clone();
-    let result = render(&mut next, &decoded)?;
+    let mut result = render(&mut next, &decoded)?;
+    result.1.parse_seconds = parse_seconds;
+    result.1.synthesis_seconds = synthesis_timer.elapsed().as_secs_f64();
     *channels = next;
     *state = next_state;
     Ok(result)

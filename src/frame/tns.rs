@@ -195,6 +195,14 @@ pub(super) fn read_channel(
     })
 }
 
+pub(super) fn effective(channel: &TnsChannel) -> bool {
+    channel.windows.iter().any(|w| {
+        w.filters
+            .iter()
+            .any(|f| f.order > 0 && f.start_line < f.end_line)
+    })
+}
+
 pub(super) fn apply(input: &[f32], channel: &TnsChannel) -> Result<Vec<f32>, ParseError> {
     let mut output = input.to_vec();
     for window in &channel.windows {
@@ -283,8 +291,12 @@ pub fn parse_tns(context: &FrameContext, packet: &[u8]) -> Result<TnsReport, Par
             });
             tns.push(parameters);
         }
-        cac.spectrum.frame =
-            Parser { bits, report }.finish("sq_after_tns_before_bwe2", true, false)?;
+        cac.spectrum.frame = Parser {
+            bits,
+            report,
+            capture: true,
+        }
+        .finish("sq_after_tns_before_bwe2", true, false)?;
         cac.spectrum.frame.payload_bit_offset = payload;
     }
     Ok(TnsReport {

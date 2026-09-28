@@ -37,6 +37,9 @@ enum Command {
         /// Omitted exports the remaining target window, or all valid container audio.
         #[arg(long)]
         frames: Option<u64>,
+        /// Container access: sequential (default), or fast prefix scanning with full input verification.
+        #[arg(long, value_enum)]
+        access: Option<macindecode_apac_tools::synthesis::SqAccessMode>,
     },
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
@@ -183,18 +186,25 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
         out,
         start_frame,
         frames,
+        access,
     } = &cli.command
     {
         return Ok((
-            macindecode_apac_tools::synthesis::decode_sq_with_options(
-                input,
-                out,
-                macindecode_apac_tools::synthesis::SqDecodeOptions {
+            {
+                let options = macindecode_apac_tools::synthesis::SqDecodeOptions {
                     start_frame: *start_frame,
                     frames: *frames,
-                },
-                limit,
-            )?,
+                };
+                if let Some(mode) = access {
+                    macindecode_apac_tools::synthesis::decode_sq_with_access(
+                        input, out, options, *mode, limit,
+                    )?
+                } else {
+                    macindecode_apac_tools::synthesis::decode_sq_with_options(
+                        input, out, options, limit,
+                    )?
+                }
+            },
             0,
         ));
     }

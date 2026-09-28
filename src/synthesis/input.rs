@@ -34,6 +34,9 @@ impl Input {
             }
         }
     }
+    pub(super) fn is_container(&self) -> bool {
+        !matches!(self, Self::Bundle(_))
+    }
     pub(super) fn info(&self) -> &FileInfo {
         match self {
             Self::Bundle(v) => &v.manifest().file,

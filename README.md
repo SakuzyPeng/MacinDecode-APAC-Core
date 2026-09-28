@@ -367,6 +367,31 @@ MP4 范围读取也从第 0 包顺序预热，不设 4096 包依赖搜索上限�
 
 `decode-sq.json.input` 为 `kind=mp4`、`profile=apac-mp4-input-v1`，包含品牌、轨道、原始样本条目字段、cookie 布局来源、时间线换算、box 范围和一致性状态。音频摘要按样本顺序拼接包字节；包边界摘要依次使用包序号、**文件绝对偏移**、包长、1024 帧数四个小端 u64，后接包 SHA-256 原始字节。元数据摘要按遍历顺序覆盖已读取 box 头及使用的元数据载荷；未知非解码载荷和未引用 `mdat` 填充不计入。开始和结束核对内容摘要、文件长度与修改时间；这是读取一致性检查，并非预存校验和或真实性证明。容器错误使用 `chunk_type` 表示 box 类型，附带文件 `byte_offset`。旧 CAF／包目录报告、数值配置与 PCM 保持兼容。
 
+**快速范围解码**：CAF／MP4 文件可显式选择 `--access fast`，默认及原库入口仍使用顺序模式：
+
+```sh
+apac-tool decode-sq input.m4a --out artifacts/fast-window \
+  --start-frame 480000 --frames 8192 --access fast
+# 显式顺序模式同时输出访问计数和计时，方便同输入对照
+apac-tool decode-sq input.caf --out artifacts/sequential-window \
+  --start-frame 480000 --frames 8192 --access sequential
+python3 -B scripts/generate_access_manifest.py --check
+python3 -B scripts/validate_access.py --binary target/debug/apac-tool --report reports/access-math.json
+python3 -B scripts/validate_access.py --binary target/release/apac-tool \
+  --reference-report reports/access-math.json --report reports/access-release.json
+python3 -B scripts/benchmark_access.py --binary target/release/apac-tool --report reports/access-performance.json
+```
+
+快速模式仍完整读取、核验文件，前缀也按顺序检查语法并推进内嵌帧及 DRC 元数据。没有有效 TNS／BWE2 运算的元素使用已证明的有限值界，省去前缀反量化、CAC 数值运算和合成；需要 TNS／BWE2 数值检查时，按原顺序调用相同内核，但不生成完整字段报告或各阶段诊断副本。该模式不引入持久索引，不解释 MP4 分组来绕过历史校验，读取成本仍随文件大小增长。
+
+对非空范围，目标首包之前最多完整合成一个外层包来恢复所有声道的 overlap，其 PCM 被丢弃；之后正常解码。缺席元素、内嵌 preroll、DRC 重述／更新及错误回滚保持原规则。空输出请求仍检查语法、元数据和输入完整性，合成数为零。损坏前缀或数值错误不能被扫描模式跳过；包目录的现有依赖规则不变，`--access fast` 对目录返回错误。
+
+显式访问模式在 `decode-sq.json` 增加 `access`，规则为 `apac-sq-access-v1`，区分前缀外层包／内嵌帧、执行数值内核的元素、用有限值界检查的元素、合成起点和外部预热包。`packets`／`raw_frames_decoded` 始终只计实际完整音频解码量；DRC 载荷计数包括已扫描的历史，缺席元素和内嵌音频解码计数仅描述实际合成部分。`metadata_before_output_sha256` 和 `metadata_after_processing_sha256` 可核对状态历史与声明来源；没有输出时前者为 null。扫描不会对外生成虚构频谱。
+
+访问计时分别记录初始化核验（含配置准备）、第二遍读取／收尾核验、前缀扫描、完整包解析与合成、独立合成耗时及总耗时；跨平台摘要排除计时。总计时截至最终解码报告写入之前，性能脚本另测包括进程启动在内的端到端时间，交替模式、丢弃首次热身并比较重复测量中位数。实际收益取决于工具启用情况、目标位置和 I/O。
+
+新库入口为 `decode_sq_with_access(input, destination, SqDecodeOptions { start_frame, frames }, SqAccessMode::Fast, limit)`，也可使用 `SqAccessMode::Sequential`。`SqDecodeOptions` 结构及原 `decode_sq`／`decode_sq_with_options`／`SqDecoder` 调用方式保持不变；省略 CLI 访问选项时，旧报告形状和默认行为不变。数值模型、后端及容器规则标识保持原样，DRC／响度处理关闭、experimental=true 和默认 128 MiB 限额仍适用。
+
 库入口保留 `synthesis::SqDecoder::from_cookie`、`decode_frame`、`reset` 及 `synthesis::decode_sq`；支持 `decode_sq_with_options(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。`SqDecoder::channel_count()` 和 `channel_layout()` 提供输出描述。每个外层包返回 `1024 × channel_count()` 个交错 Float32 样本；内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。

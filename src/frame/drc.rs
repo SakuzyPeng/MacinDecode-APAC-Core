@@ -290,6 +290,9 @@ fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, ParseError> {
     })
 }
 fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: Value) {
+    if !parser.capture {
+        return;
+    }
     parser.report.fields.push(ConfigField {
         name: format!("{ROOT}.{name}"),
         bit_offset: start,
@@ -306,7 +309,9 @@ pub(super) fn read_payload(
     let (header, header_end) =
         config::parse_drc_header_at(parser.bits.data(), start, rate, state.channels)?;
     parser.bits.skip(header_end - start)?;
-    parser.report.fields.extend(header.fields.iter().cloned());
+    if parser.capture {
+        parser.report.fields.extend(header.fields.iter().cloned());
+    }
     if !header.is_complete() {
         return Err(ParseError::new(
             header_end,
@@ -538,6 +543,7 @@ pub(super) fn parse_drc_with_state(
         out.drc_preroll = Some(Box::new(inner));
     }
     let mut parser = Parser {
+        capture: true,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
@@ -651,6 +657,7 @@ mod tests {
         // No header, constant gain, negative magnitude 255, no extension.
         let data = raw("00111111111010100101");
         let mut p = Parser {
+            capture: true,
             bits: BitReader::new(&data),
             report: report(),
         };
@@ -661,6 +668,7 @@ mod tests {
         assert_eq!(p.bits.read(8).unwrap(), 0xa5);
         for end in 0..12 {
             let mut p = Parser {
+                capture: true,
                 bits: BitReader::new(&data),
                 report: report(),
             };
@@ -675,6 +683,7 @@ mod tests {
     fn oversized_node_count_and_nonterminating_extension_are_errors() {
         let count = raw(&format!("01{}1", "0".repeat(256)));
         let mut p = Parser {
+            capture: true,
             bits: BitReader::new(&count),
             report: report(),
         };
@@ -684,6 +693,7 @@ mod tests {
         );
         let extension = raw("0000000000010001");
         let mut p = Parser {
+            capture: true,
             bits: BitReader::new(&extension),
             report: report(),
         };

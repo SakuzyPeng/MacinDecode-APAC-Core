@@ -116,7 +116,7 @@ fn tries() -> &'static Vec<Trie> {
             .collect()
     })
 }
-fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<Vec<i32>, ParseError> {
+fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<([i32; 4], usize), ParseError> {
     let mut index = tries()[cb as usize].read(bits)?;
     let (size, base, bias) = match cb {
         1 | 2 => (4, 3, -1),
@@ -127,21 +127,21 @@ fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<Vec<i32>, ParseError> {
         11 => (2, 17, 0),
         _ => unreachable!("validated codebook"),
     };
-    let mut values = vec![0; size];
-    for v in values.iter_mut().rev() {
+    let mut values = [0; 4];
+    for v in values[..size].iter_mut().rev() {
         *v = (index % base) as i32 + bias;
         index /= base;
     }
-    let mut negative = vec![false; size];
+    let mut negative = [false; 4];
     if matches!(cb, 3 | 4 | 7..=11) {
-        for (v, sign) in values.iter().zip(&mut negative) {
+        for (v, sign) in values[..size].iter().zip(&mut negative) {
             if *v != 0 {
                 *sign = bits.read(1)? != 0;
             }
         }
     }
     if cb == 11 {
-        for v in &mut values {
+        for v in &mut values[..size] {
             if *v == 16 {
                 let start = bits.position();
                 let mut width = 4;
@@ -164,7 +164,7 @@ fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<Vec<i32>, ParseError> {
             *v = -*v;
         }
     }
-    Ok(values)
+    Ok((values, size))
 }
 /// Formula-generated, separately rounded inverse quantizer and gain, followed
 /// by one f32 product. Every entry is a fixed IEEE value, independent of libm.
@@ -195,8 +195,17 @@ impl Parser<'_> {
         ics: IcsInfo,
         channel_index: u8,
     ) -> Result<ChannelSpectrum, ParseError> {
+        self.stream_buffer(prefix, ics, channel_index, Vec::new())
+    }
+    pub(super) fn stream_buffer(
+        &mut self,
+        prefix: &str,
+        ics: IcsInfo,
+        channel_index: u8,
+        mut quantized: Vec<i32>,
+    ) -> Result<ChannelSpectrum, ParseError> {
         let stream_bit_offset = self.bits.position();
-        let global_gain = self.take(&format!("{prefix}.global_gain"), 8)? as u8;
+        let global_gain = self.member(prefix, "global_gain", 8)? as u8;
         let mut sf = i16::from(global_gain);
         let mut sections = Vec::new();
         let mut factors = vec![vec![None; ics.max_sfb]; ics.window_groups.len()];
@@ -204,9 +213,13 @@ impl Parser<'_> {
         for (group, scales) in factors.iter_mut().enumerate() {
             let mut band = 0;
             while band < ics.max_sfb {
-                let name = format!("{prefix}.sections[{}]", sections.len());
+                let name = if self.capture {
+                    format!("{prefix}.sections[{}]", sections.len())
+                } else {
+                    String::new()
+                };
                 let start = self.bits.position();
-                let cb = self.take(&format!("{name}.codebook"), 4)? as u8;
+                let cb = self.member(&name, "codebook", 4)? as u8;
                 if cb > 11 {
                     return Err(ParseError::new(
                         start,
@@ -217,7 +230,7 @@ impl Parser<'_> {
                 let length_start = self.bits.position();
                 let mut end = band;
                 loop {
-                    let part = self.take(&format!("{name}.length_part"), width)? as usize;
+                    let part = self.member(&name, "length_part", width)? as usize;
                     end += part;
                     if end > ics.max_sfb {
                         return Err(ParseError::new(
@@ -251,14 +264,16 @@ impl Parser<'_> {
                                 "scale factor outside -256..255",
                             ));
                         }
-                        self.report.fields.push(ConfigField {
-                            name: format!(
-                                "{prefix}.groups[{group}].bands[{sfb}].scale_factor_delta"
-                            ),
-                            bit_offset: start,
-                            bit_length: self.bits.position() - start,
-                            value: json!(delta),
-                        });
+                        if self.capture {
+                            self.report.fields.push(ConfigField {
+                                name: format!(
+                                    "{prefix}.groups[{group}].bands[{sfb}].scale_factor_delta"
+                                ),
+                                bit_offset: start,
+                                bit_length: self.bits.position() - start,
+                                value: json!(delta),
+                            });
+                        }
                         *slot = Some(sf);
                     }
                 }
@@ -272,8 +287,13 @@ impl Parser<'_> {
             }
         }
         let spectral_bit_offset = self.bits.position();
-        let mut quantized = vec![0; 1024];
-        let mut scaled = vec![0.; 1024];
+        quantized.resize(1024, 0);
+        quantized.fill(0);
+        let mut scaled = if self.capture {
+            vec![0.; 1024]
+        } else {
+            Vec::new()
+        };
         let offsets = if ics.block_type == 2 {
             &tables().short_offsets
         } else {
@@ -293,12 +313,14 @@ impl Parser<'_> {
                 {
                     let mut line = offsets[band];
                     while line < offsets[band + 1] {
-                        let values = tuple(&mut self.bits, section.codebook)?;
-                        for q in values {
+                        let (values, length) = tuple(&mut self.bits, section.codebook)?;
+                        for &q in &values[..length] {
                             let index = window * window_size + line;
                             quantized[index] = q;
-                            scaled[index] =
-                                inverse(q, factors[section.group][band].expect("nonzero band"));
+                            if self.capture {
+                                scaled[index] =
+                                    inverse(q, factors[section.group][band].expect("nonzero band"));
+                            }
                             line += 1;
                         }
                     }
@@ -306,7 +328,7 @@ impl Parser<'_> {
             }
         }
         let end_bit_offset = self.bits.position();
-        if end_bit_offset > spectral_bit_offset {
+        if self.capture && end_bit_offset > spectral_bit_offset {
             self.report.fields.push(ConfigField {
                 name: format!("{prefix}.spectral_codewords"),
                 bit_offset: spectral_bit_offset,
@@ -326,6 +348,34 @@ impl Parser<'_> {
             spectral_bit_offset,
             end_bit_offset,
         })
+    }
+}
+
+/// Materialize the exact same separately rounded values only when a tool needs
+/// them. Untouched zero-codebook/out-of-band lines remain defined positive zero.
+pub(super) fn materialize(channel: &mut ChannelSpectrum) {
+    if !channel.scaled.is_empty() {
+        return;
+    }
+    channel.scaled.resize(1024, 0.);
+    let (size, offsets) = if channel.ics.block_type == 2 {
+        (128, &tables().short_offsets)
+    } else {
+        (1024, &tables().long_offsets)
+    };
+    let mut first = 0;
+    for (group, factors) in channel.scale_factors.iter().enumerate() {
+        for (band, sf) in factors.iter().enumerate() {
+            if let Some(sf) = sf {
+                for window in first..first + channel.ics.window_groups[group] as usize {
+                    for line in offsets[band]..offsets[band + 1] {
+                        let index = window * size + line;
+                        channel.scaled[index] = inverse(channel.quantized[index], *sf);
+                    }
+                }
+            }
+        }
+        first += channel.ics.window_groups[group] as usize;
     }
 }
 
@@ -353,7 +403,11 @@ pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumR
     report.diagnostics.pop();
     let mut bits = BitReader::new(packet);
     bits.skip(left_start)?;
-    let mut parser = Parser { bits, report };
+    let mut parser = Parser {
+        bits,
+        report,
+        capture: true,
+    };
     let left = parser.ics("components[0].tce[0].left_ics")?;
     let mut channels = vec![parser.stream(left, 0)?];
     let shared = parser.flag("components[0].tce[0].shared_ics")?;
@@ -432,7 +486,8 @@ mod tests {
             put(&mut bits, suffix, 6);
             let bytes = packed(&bits);
             let mut r = BitReader::new(&bytes);
-            assert_eq!(tuple(&mut r, cb).unwrap(), values);
+            let (actual, count) = tuple(&mut r, cb).unwrap();
+            assert_eq!(&actual[..count], values);
             assert_eq!(r.position(), data.len());
             assert_eq!(r.read(6).unwrap(), u64::from(suffix));
         }

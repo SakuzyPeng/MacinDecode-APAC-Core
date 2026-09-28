@@ -1,5 +1,7 @@
 //! Independent SQ mathematics: fixed IEEE constants, Float64 synthesis and overlap.
 //! Ordinary products and sums round separately; only final PCM is cast to Float32.
+#[cfg(test)]
+mod access_tests;
 mod bundle;
 #[cfg(test)]
 mod channel_tests;
@@ -11,7 +13,10 @@ use crate::{
     error::{Error, Result},
     frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},
 };
-pub use bundle::{SqDecodeOptions, decode_sq, decode_sq_with_options};
+pub use bundle::{
+    SqAccessMode, SqDecodeOptions, decode_sq, decode_sq_with_access, decode_sq_with_options,
+};
+pub const ACCESS_PROFILE: &str = "apac-sq-access-v1";
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
 pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10";
 pub const QUALIFICATION: &str = "independent_math_reference";
@@ -172,6 +177,8 @@ impl ChannelState {
 /// Each packet produces 1024 * channel_count() interleaved samples. Errors do not advance state.
 pub struct SqDecoder {
     drc: DrcState,
+    access_context: crate::frame::ChannelFrameContext,
+    scan_workspace: crate::frame::ScanWorkspace,
     context: FrameContext,
     channels: Vec<ChannelState>,
     channel_context: Option<crate::frame::ChannelFrameContext>,
@@ -193,6 +200,8 @@ impl SqDecoder {
             ));
         }
         Ok(Self {
+            access_context: channel_context.clone(),
+            scan_workspace: crate::frame::ScanWorkspace::default(),
             drc: if multichannel {
                 channel_context.initial_state()
             } else {
@@ -210,6 +219,56 @@ impl SqDecoder {
             .as_ref()
             .map_or_else(|| DrcState::new(&self.context), |c| c.initial_state());
         self.channels.fill(ChannelState::new());
+        self.scan_workspace.numeric_elements = 0;
+    }
+    fn metadata_sha256(&self) -> String {
+        crate::model::sha256(
+            &serde_json::to_vec(&serde_json::json!({
+                "channels":self.drc.channels,"configuration":self.drc.configuration,
+                "previous_nodes":self.drc.previous_nodes,
+            }))
+            .expect("finite metadata"),
+        )
+    }
+    /// Private state-only advancement; callers must synthesize the predecessor
+    /// before exporting PCM. No public decoder method exposes stale overlap.
+    fn scan_frame(&mut self, packet: &[u8]) -> Result<PrefixCounts> {
+        let mut next = self.drc.clone();
+        let scanned = crate::frame::scan_channel_packet(
+            &self.access_context,
+            packet,
+            &mut next,
+            &mut self.scan_workspace,
+        );
+        match scanned {
+            Ok(report) if report.packet_complete => {
+                let mut counts = PrefixCounts::from_report(&report);
+                counts.numeric_elements = self.scan_workspace.numeric_elements;
+                self.drc = next;
+                Ok(counts)
+            }
+            _ => {
+                // The legacy stereo wrapper validates current spectra before
+                // embedded spectra. Re-run only failed scans through that exact
+                // path to preserve its first-error ordering and public errors.
+                let mut validation = Self {
+                    context: self.context.clone(),
+                    drc: self.drc.clone(),
+                    channels: self.channels.clone(),
+                    layout: self.layout.clone(),
+                    channel_context: self.channel_context.clone(),
+                    access_context: self.access_context.clone(),
+                    scan_workspace: crate::frame::ScanWorkspace::default(),
+                };
+                match validation.decode_frame_report(packet) {
+                    Err(error) => Err(error),
+                    Ok(_) => Err(Error::new(
+                        "SQ access",
+                        "state scan disagreed with the complete decoder",
+                    )),
+                }
+            }
+        }
     }
     pub fn channel_count(&self) -> u32 {
         self.channels.len() as u32
@@ -248,6 +307,7 @@ impl SqDecoder {
         if let Some(context) = &self.channel_context {
             return channels::decode(context, &mut self.drc, &mut self.channels, packet);
         }
+        let parse_timer = std::time::Instant::now();
         let mut next_drc = self.drc.clone();
         let decoded =
             parse_packet_with_state(&self.context, packet, &mut next_drc).map_err(|e| {
@@ -269,8 +329,12 @@ impl SqDecoder {
             );
             return Err(error);
         }
+        let parse_seconds = parse_timer.elapsed().as_secs_f64();
+        let synthesis_timer = std::time::Instant::now();
         let mut next = self.channels.clone();
-        let output = render_packet(&mut next, &decoded)?;
+        let mut output = render_packet(&mut next, &decoded)?;
+        output.1.parse_seconds = parse_seconds;
+        output.1.synthesis_seconds = synthesis_timer.elapsed().as_secs_f64();
         self.channels = next;
         self.drc = next_drc;
         Ok(output)
@@ -286,6 +350,30 @@ pub(crate) struct FrameStateCounts {
     pub embedded_cpe_absent: u64,
     pub drc_payload_frames: u64,
     pub drc_missing_history_frames: u64,
+    pub parse_seconds: f64,
+    pub synthesis_seconds: f64,
+}
+
+#[derive(Default)]
+struct PrefixCounts {
+    frames: u64,
+    present_elements: u64,
+    numeric_elements: u64,
+    drc_payload_frames: u64,
+    drc_missing_history_frames: u64,
+}
+impl PrefixCounts {
+    fn from_report(report: &crate::frame::ChannelPacketReport) -> Self {
+        let mut out = report
+            .embedded_preroll
+            .as_ref()
+            .map_or_else(Self::default, |p| Self::from_report(&p.report));
+        out.frames += 1;
+        out.present_elements += report.elements.iter().filter(|e| e.present).count() as u64;
+        out.drc_payload_frames += u64::from(report.drc_complete == Some(true));
+        out.drc_missing_history_frames += u64::from(report.drc_history_sufficient == Some(false));
+        out
+    }
 }
 
 fn render_packet(

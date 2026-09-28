@@ -2,11 +2,11 @@
 mod bundle;
 mod channels;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
-pub(crate) use channels::parse_channel_packet_with_state;
 pub use channels::{
     ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
     parse_channel_packet,
 };
+pub(crate) use channels::{ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet};
 mod bwe2;
 mod cac;
 mod drc;
@@ -187,6 +187,7 @@ pub struct FrameReport {
 }
 
 struct Parser<'a> {
+    capture: bool,
     bits: BitReader<'a>,
     report: FrameReport,
 }
@@ -194,21 +195,35 @@ impl Parser<'_> {
     fn take(&mut self, name: &str, width: usize) -> Result<u64, ParseError> {
         let start = self.bits.position();
         let value = self.bits.read(width)?;
-        self.report.fields.push(ConfigField {
-            name: name.into(),
-            bit_offset: start,
-            bit_length: width,
-            value: json!(value),
-        });
+        if self.capture {
+            self.report.fields.push(ConfigField {
+                name: name.into(),
+                bit_offset: start,
+                bit_length: width,
+                value: json!(value),
+            });
+        }
         Ok(value)
     }
     fn flag(&mut self, name: &str) -> Result<bool, ParseError> {
         let value = self.take(name, 1)? != 0;
-        self.report.fields.last_mut().expect("recorded field").value = json!(value);
+        if self.capture {
+            self.report.fields.last_mut().expect("recorded field").value = json!(value);
+        }
         Ok(value)
     }
     fn derived(&mut self, name: impl Into<String>, value: Value) {
-        self.report.derived.insert(name.into(), value);
+        let name = name.into();
+        if self.capture || name.starts_with("asp.") {
+            self.report.derived.insert(name, value);
+        }
+    }
+    fn member(&mut self, prefix: &str, suffix: &str, width: usize) -> Result<u64, ParseError> {
+        if self.capture {
+            self.take(&format!("{prefix}.{suffix}"), width)
+        } else {
+            self.bits.read(width)
+        }
     }
     /// Public APAC packets use ASP framing, not APACDecoder's internal one-bit
     /// framing. Only explicit byte lengths permit skipping embedded preroll.
@@ -378,6 +393,7 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
         return Err(ParseError::new(0, "truncated", "empty packet"));
     }
     let mut parser = Parser {
+        capture: true,
         bits: BitReader::new(packet),
         report: FrameReport {
             schema_version: SCHEMA_VERSION,

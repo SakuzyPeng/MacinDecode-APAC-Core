@@ -142,6 +142,18 @@ pub(super) fn read_element_data(
         channels,
     })
 }
+pub(super) fn cutoff(ics: &IcsInfo) -> usize {
+    let (offsets, scale) = if ics.block_type == 2 {
+        (&tables().short_offsets, 8)
+    } else {
+        (&tables().long_offsets, 1)
+    };
+    if offsets[ics.max_sfb] * scale < 384 {
+        256 / scale
+    } else {
+        384 / scale
+    }
+}
 pub(super) fn regions(ics: &IcsInfo) -> (usize, Vec<Bwe2Region>) {
     let short = ics.block_type == 2;
     let (size, offsets, scale) = if short {
@@ -228,8 +240,12 @@ pub fn parse_bwe2(context: &FrameContext, packet: &[u8]) -> Result<Bwe2Report, P
             bit_length: parsed.end_bit_offset - parsed.start_bit_offset,
             value: serde_json::to_value(&parsed).expect("BWE2 parameters"),
         });
-        tns.cac.spectrum.frame =
-            Parser { bits, report }.finish("sq_after_bwe2_before_core_alignment", true, false)?;
+        tns.cac.spectrum.frame = Parser {
+            bits,
+            report,
+            capture: true,
+        }
+        .finish("sq_after_bwe2_before_core_alignment", true, false)?;
         tns.cac.spectrum.frame.payload_bit_offset = payload;
         data = Some(parsed);
     }

@@ -356,6 +356,17 @@ pub(crate) fn restore(
     indices: [u16; 2],
     gains: &[u8],
 ) -> Result<(Vec<f32>, Option<Analysis>), String> {
+    restore_captured(input, short, cutoff, groups, indices, gains, true)
+}
+pub(crate) fn restore_captured(
+    input: &[f32],
+    short: bool,
+    cutoff: usize,
+    groups: &[u32],
+    indices: [u16; 2],
+    gains: &[u8],
+    capture: bool,
+) -> Result<(Vec<f32>, Option<Analysis>), String> {
     let (size, windows, source_start, high_bins) = if short {
         (128, 8, 16, 64)
     } else {
@@ -366,7 +377,7 @@ pub(crate) fn restore(
     }
     let source_lpc = levinson(&autocorrelation(input, windows, size, cutoff))?;
     let conditioned_lsf = conditioned_lsf(indices);
-    let target_lpc = lsf_lpc(&conditioned_lsf);
+    let target_lpc = capture.then(|| lsf_lpc(&conditioned_lsf));
     let source_envelope = envelope(&source_lpc, cutoff);
     let target_envelope = lsf_envelope(&conditioned_lsf, high_bins);
     let mut ratios = Vec::with_capacity(high_bins);
@@ -404,7 +415,7 @@ pub(crate) fn restore(
     }
     Ok((
         output,
-        Some(Analysis {
+        target_lpc.map(|target_lpc| Analysis {
             conditioned_lsf,
             source_lpc,
             target_lpc,

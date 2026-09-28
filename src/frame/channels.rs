@@ -242,6 +242,7 @@ fn read_element(
     parser: &mut Parser<'_>,
     context: &ChannelFrameContext,
     element: &mut ElementReport,
+    scratch: &mut ScanWorkspace,
 ) -> Result<bool, ParseError> {
     let index = element.configuration.element_index;
     let prefix = format!("components[0].tce[{index}]");
@@ -261,9 +262,17 @@ fn read_element(
         "{prefix}.{}",
         if cpe { "left_ics" } else { "ics" }
     ))?;
-    element
-        .channels
-        .push(parser.stream_at(&format!("{prefix}.channels[0]"), left.clone(), 0)?);
+    let buffer = if parser.capture {
+        Vec::new()
+    } else {
+        scratch.quantized.pop().unwrap_or_default()
+    };
+    element.channels.push(parser.stream_buffer(
+        &format!("{prefix}.channels[0]"),
+        left.clone(),
+        0,
+        buffer,
+    )?);
     if cpe {
         let shared = parser.flag(&format!("{prefix}.shared_ics"))?;
         element.shared_ics = Some(shared);
@@ -272,16 +281,26 @@ fn read_element(
         } else {
             parser.ics(&format!("{prefix}.right_ics"))?
         };
-        element
-            .channels
-            .push(parser.stream_at(&format!("{prefix}.channels[1]"), right, 1)?);
+        let buffer = if parser.capture {
+            Vec::new()
+        } else {
+            scratch.quantized.pop().unwrap_or_default()
+        };
+        element.channels.push(parser.stream_buffer(
+            &format!("{prefix}.channels[1]"),
+            right,
+            1,
+            buffer,
+        )?);
         if shared {
             let data = cac::read_data_at(parser, &left, &format!("{prefix}.cac"))?;
-            element.channels_after_cac = cac::apply_channels(&element.channels, &data)?;
+            if parser.capture {
+                element.channels_after_cac = cac::apply_channels(&element.channels, &data)?;
+            }
             element.cac = Some(data);
         }
     }
-    if element.channels_after_cac.is_empty() {
+    if parser.capture && element.channels_after_cac.is_empty() {
         element.channels_after_cac = element
             .channels
             .iter()
@@ -293,28 +312,38 @@ fn read_element(
     }
     element.spectrum_complete = true;
     element.tns_applicable = element.configuration.kind != ElementKind::Lfe;
-    for (c, after) in element.channels.iter().zip(&element.channels_after_cac) {
+    for index in 0..element.channels.len() {
+        let channel_index = element.channels[index].channel_index;
         let scaled = if element.tns_applicable {
             let data = tns::read_channel(
                 &mut parser.bits,
-                &c.ics,
+                &element.channels[index].ics,
                 context.sample_rate_hz,
-                c.channel_index,
+                channel_index,
             )?;
-            parser.report.fields.push(config::ConfigField {
-                name: format!("{prefix}.tns[{}]", c.channel_index),
-                bit_offset: data.start_bit_offset,
-                bit_length: data.end_bit_offset - data.start_bit_offset,
-                value: serde_json::to_value(&data).expect("finite TNS"),
-            });
-            let scaled = tns::apply(&after.scaled, &data)?;
+            if parser.capture {
+                parser.report.fields.push(config::ConfigField {
+                    name: format!("{prefix}.tns[{channel_index}]"),
+                    bit_offset: data.start_bit_offset,
+                    bit_length: data.end_bit_offset - data.start_bit_offset,
+                    value: serde_json::to_value(&data).expect("finite TNS"),
+                });
+            }
+            let scaled = if parser.capture || tns::effective(&data) {
+                ensure_numeric(element, scratch)?;
+                tns::apply(&element.channels_after_cac[index].scaled, &data)?
+            } else {
+                Vec::new()
+            };
             element.tns.push(data);
             scaled
+        } else if parser.capture {
+            element.channels_after_cac[index].scaled.clone()
         } else {
-            after.scaled.clone()
+            Vec::new()
         };
         element.channels_after_tns.push(TnsChannelSpectrum {
-            channel_index: c.channel_index,
+            channel_index,
             scaled,
         });
     }
@@ -322,7 +351,37 @@ fn read_element(
     element.element_complete = true;
     Ok(true)
 }
-fn extensions(parser: &mut Parser<'_>, element: &mut ElementReport) -> Result<(), ParseError> {
+fn ensure_numeric(
+    element: &mut ElementReport,
+    scratch: &mut ScanWorkspace,
+) -> Result<(), ParseError> {
+    if !element.channels_after_cac.is_empty() {
+        return Ok(());
+    }
+    scratch.numeric_elements += 1;
+    for channel in &mut element.channels {
+        super::spectrum::materialize(channel);
+    }
+    element.channels_after_cac = if let Some(data) = &element.cac {
+        cac::apply_channels(&element.channels, data)?
+    } else {
+        element
+            .channels
+            .iter()
+            .map(|c| CacChannelSpectrum {
+                channel_index: c.channel_index,
+                scaled: c.scaled.clone(),
+            })
+            .collect()
+    };
+    Ok(())
+}
+
+fn extensions(
+    parser: &mut Parser<'_>,
+    element: &mut ElementReport,
+    scratch: &mut ScanWorkspace,
+) -> Result<(), ParseError> {
     if !element.present {
         return Ok(());
     }
@@ -330,46 +389,71 @@ fn extensions(parser: &mut Parser<'_>, element: &mut ElementReport) -> Result<()
     if element.bwe2_applicable {
         let ics: Vec<_> = element.channels.iter().map(|c| c.ics.clone()).collect();
         let data = bwe2::read_element_data(&mut parser.bits, &ics)?;
-        parser.report.fields.push(config::ConfigField {
-            name: format!(
-                "components[0].bwe2[{}]",
-                element.configuration.element_index
-            ),
-            bit_offset: data.start_bit_offset,
-            bit_length: data.end_bit_offset - data.start_bit_offset,
-            value: serde_json::to_value(&data).expect("finite BWE2 data"),
-        });
+        if parser.capture {
+            parser.report.fields.push(config::ConfigField {
+                name: format!(
+                    "components[0].bwe2[{}]",
+                    element.configuration.element_index
+                ),
+                bit_offset: data.start_bit_offset,
+                bit_length: data.end_bit_offset - data.start_bit_offset,
+                value: serde_json::to_value(&data).expect("finite BWE2 data"),
+            });
+        }
         element.bwe2 = Some(data);
         element.bwe2_complete = true;
     }
-    for (c, input) in element.channels.iter().zip(&element.channels_after_tns) {
+    for index in 0..element.channels.len() {
+        let channel_index = element.channels[index].channel_index;
         let parameters = element
             .bwe2
             .as_ref()
-            .and_then(|d| d.channels[c.channel_index as usize].parameters.as_ref());
-        let (scaled, analysis, regions) = if let Some(p) = parameters.filter(|_| c.ics.max_sfb > 0)
-        {
-            let (cutoff, regions) = bwe2::regions(&c.ics);
-            let (scaled, analysis) = crate::bwe2_math::restore(
-                &input.scaled,
-                c.ics.block_type == 2,
+            .and_then(|d| d.channels[index].parameters.as_ref())
+            .filter(|_| element.channels[index].ics.max_sfb > 0)
+            .cloned();
+        let (scaled, analysis, regions) = if let Some(p) = parameters {
+            ensure_numeric(element, scratch)?;
+            if element.channels_after_tns[index].scaled.is_empty() {
+                // This channel had no effective TNS. Other channels may already
+                // have undergone their checks, in the original error order.
+                element.channels_after_tns[index].scaled =
+                    element.channels_after_cac[index].scaled.clone();
+            }
+            let ics = &element.channels[index].ics;
+            let (cutoff, regions) = if parser.capture {
+                bwe2::regions(ics)
+            } else {
+                (bwe2::cutoff(ics), Vec::new())
+            };
+            let (scaled, analysis) = crate::bwe2_math::restore_captured(
+                &element.channels_after_tns[index].scaled,
+                ics.block_type == 2,
                 cutoff,
-                &c.ics.window_groups,
+                &ics.window_groups,
                 p.lsf_indices,
                 &p.gain_indices,
+                parser.capture,
             )
             .map_err(|s| ParseError::new(parser.bits.position(), "bwe2-numeric", s))?;
             (scaled, analysis, regions)
+        } else if parser.capture {
+            (
+                element.channels_after_tns[index].scaled.clone(),
+                None,
+                vec![],
+            )
         } else {
-            (input.scaled.clone(), None, vec![])
+            (Vec::new(), None, Vec::new())
         };
-        element.channels_after_bwe2.push(Bwe2ChannelSpectrum {
-            channel_index: c.channel_index,
-            processing_applied: analysis.is_some(),
-            regions,
-            analysis,
-            scaled,
-        });
+        if parser.capture {
+            element.channels_after_bwe2.push(Bwe2ChannelSpectrum {
+                channel_index,
+                processing_applied: analysis.is_some(),
+                regions,
+                analysis,
+                scaled,
+            });
+        }
     }
     Ok(())
 }
@@ -385,6 +469,32 @@ pub(crate) fn parse_channel_packet_with_state(
     packet: &[u8],
     state: &mut DrcState,
 ) -> Result<ChannelPacketReport, ParseError> {
+    parse_impl(context, packet, state, true, &mut ScanWorkspace::default())
+}
+
+#[derive(Default)]
+pub(crate) struct ScanWorkspace {
+    quantized: Vec<Vec<i32>>,
+    pub numeric_elements: u64,
+}
+
+pub(crate) fn scan_channel_packet(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    state: &mut DrcState,
+    scratch: &mut ScanWorkspace,
+) -> Result<ChannelPacketReport, ParseError> {
+    scratch.numeric_elements = 0;
+    parse_impl(context, packet, state, false, scratch)
+}
+
+fn parse_impl(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    state: &mut DrcState,
+    capture: bool,
+    scratch: &mut ScanWorkspace,
+) -> Result<ChannelPacketReport, ParseError> {
     if packet.is_empty() || packet.len() > MAX_PACKET_BUFFER {
         return Err(ParseError::new(
             0,
@@ -394,8 +504,16 @@ pub(crate) fn parse_channel_packet_with_state(
     }
     let frame = FrameReport {
         schema_version: SCHEMA_VERSION,
-        cookie_sha256: context.cookie_sha256.clone(),
-        packet_sha256: sha256(packet),
+        cookie_sha256: if capture {
+            context.cookie_sha256.clone()
+        } else {
+            String::new()
+        },
+        packet_sha256: if capture || context.drc.present {
+            sha256(packet)
+        } else {
+            String::new()
+        },
         packet_bytes: packet.len(),
         status: ParseStatus::Partial,
         prefix_complete: false,
@@ -409,6 +527,7 @@ pub(crate) fn parse_channel_packet_with_state(
         diagnostics: vec![],
     };
     let mut parser = Parser {
+        capture,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
@@ -454,14 +573,19 @@ pub(crate) fn parse_channel_packet_with_state(
         let end = parser.report.derived["asp.preroll.end_bit"]
             .as_u64()
             .unwrap() as usize;
-        let nested =
-            parse_channel_packet_with_state(context, &packet[start / 8..end / 8], &mut next)
-                .map_err(|mut e| {
-                    let local = e.bit_offset;
-                    e.bit_offset += start;
-                    e.message = format!("embedded preroll at local bit {local}: {}", e.message);
-                    e
-                })?;
+        let nested = parse_impl(
+            context,
+            &packet[start / 8..end / 8],
+            &mut next,
+            capture,
+            scratch,
+        )
+        .map_err(|mut e| {
+            let local = e.bit_offset;
+            e.bit_offset += start;
+            e.message = format!("embedded preroll at local bit {local}: {}", e.message);
+            e
+        })?;
         parser
             .report
             .unknown_ranges
@@ -519,7 +643,7 @@ pub(crate) fn parse_channel_packet_with_state(
             bwe2: None,
             channels_after_bwe2: vec![],
         };
-        let supported = read_element(&mut parser, context, &mut element)
+        let supported = read_element(&mut parser, context, &mut element, scratch)
             .map_err(|e| element_error(e, configuration.element_index))?;
         result.elements.push(element);
         if !supported {
@@ -530,8 +654,18 @@ pub(crate) fn parse_channel_packet_with_state(
             );
         }
         let element = result.elements.last_mut().expect("recorded element");
-        extensions(&mut parser, element)
+        extensions(&mut parser, element, scratch)
             .map_err(|e| element_error(e, element.configuration.element_index))?;
+        if !capture {
+            for channel in element.channels.drain(..) {
+                scratch.quantized.push(channel.quantized);
+            }
+            element.cac = None;
+            element.tns.clear();
+            element.bwe2 = None;
+            element.channels_after_cac.clear();
+            element.channels_after_tns.clear();
+        }
     }
     let padding = (8 - parser.bits.position() % 8) % 8;
     if padding != 0 && parser.take("core.alignment_padding", padding)? != 0 {
@@ -546,7 +680,9 @@ pub(crate) fn parse_channel_packet_with_state(
         if present {
             let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
             parser.bits.skip(end - parser.bits.position())?;
-            parser.report.fields.extend(scene.fields.iter().cloned());
+            if capture {
+                parser.report.fields.extend(scene.fields.iter().cloned());
+            }
             if !scene.is_complete() {
                 return finish(result, parser, "unsupported audio scene update");
             }
@@ -564,8 +700,12 @@ pub(crate) fn parse_channel_packet_with_state(
     if context.drc.present {
         result.drc_history_sufficient = Some(next.previous_nodes.iter().any(|n| n.time < 1024));
         let payload = drc::read_payload(&mut parser, &mut next, context.sample_rate_hz)?;
-        next.previous_nodes = payload.nodes.clone();
-        result.drc = Some(payload);
+        if capture {
+            next.previous_nodes = payload.nodes.clone();
+            result.drc = Some(payload);
+        } else {
+            next.previous_nodes = payload.nodes;
+        }
         result.drc_complete = Some(true);
     }
     if parser.flag("ancillary.trimming_present")? {

@@ -366,6 +366,7 @@ impl Mp4Reader {
             "packet_count":self.info.packet_count.value,"packet_table":self.info.packet_table.value,
             "timeline":{"source":"single_elst","movie_timescale":self.movie_timescale,"media_timescale":self.info.format.sample_rate as u32,"edit_duration":self.edit_duration,"rounding":"exact_integral_frames"},
             "file_bytes":self.structure.bytes,"boxes":ranges,"mdat_count":self.structure.mdat_count,"skipped_boxes":self.structure.skipped,
+            "sample_group_box_counts":{"sgpd":self.structure.sgpd_count,"sbgp":self.structure.sbgp_count},
             "metadata_sha256":self.structure.hash,"cookie_sha256":sha256(&self.cookie),"audio_sha256":audio,"packets_sha256":packets,
             "access":"sequential_from_packet_zero","consistency_verified":self.verified,"verification":"two_pass_read_consistency_no_stored_checksums"})
     }

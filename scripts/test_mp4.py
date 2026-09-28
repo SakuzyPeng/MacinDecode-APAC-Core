@@ -2,7 +2,7 @@
 import json,os,struct,subprocess,tempfile,unittest
 from pathlib import Path
 from portable_tools import required_binary
-from mp4_vectors import encode,cookie,packet,emit,box,manifest
+from mp4_vectors import encode,cookie,packet,emit,box,full,manifest,excitation
 
 class Mp4Tests(unittest.TestCase):
     def setUp(self):
@@ -28,6 +28,26 @@ class Mp4Tests(unittest.TestCase):
         raw,_,_=self.raw()
         for end in range(len(raw)):
             error,_=self.rejected(raw[:end]);self.assertIn('byte_offset',error,str(end));self.assertIn('chunk_type',error)
+    def test_distinct_sample_groups_preserve_packets_pcm_and_first_ranges(self):
+        raw,truth,_=encode(cookie(2),[packet(excitation(2,0),2)[0]]*5,moov_last=True)
+        baseline,out,_=self.run_mp4(raw);self.assertEqual(baseline.returncode,0,baseline.stderr)
+        expected_pcm=(out/'pcm.f32le').read_bytes()
+        groups=[emit(box(b'sgpd',full(1)+b'roll'+struct.pack('>IIh',2,1,-1))),
+                emit(box(b'sbgp',full()+b'roll'+struct.pack('>III',1,5,1)))]
+        stbl=truth['boxes']['stbl'];pos=stbl['offset']+stbl['bytes']
+        for order in (groups,groups[::-1]):
+            extra=b''.join(order);changed=bytearray(raw[:pos]+extra+raw[pos:])
+            for parent in truth['boxes'].values():
+                if parent['offset']<=stbl['offset'] and parent['offset']+parent['bytes']>=pos:
+                    struct.pack_into('>I',changed,parent['offset'],parent['bytes']+len(extra))
+            result,out,_=self.run_mp4(changed);self.assertEqual(result.returncode,0,result.stderr)
+            report=json.loads(result.stdout)['input']
+            self.assertEqual((out/'pcm.f32le').read_bytes(),expected_pcm)
+            self.assertEqual(report['sample_group_box_counts'],dict(sgpd=2,sbgp=2))
+            self.assertTrue(report['consistency_verified'])
+            for tag in ('sgpd','sbgp'):self.assertEqual(report['boxes'][tag],truth['boxes'][tag])
+            for key in ('packet_count','packet_table','audio_sha256','packets_sha256'):
+                self.assertEqual(report[key],truth[key])
     def test_missing_duplicate_and_unsupported_boxes(self):
         raw,truth,_=self.raw();boxes=truth['boxes']
         for name in ('ftyp','mvhd','tkhd','elst','mdhd','hdlr','smhd','dref','stsd','stsz','stsc','stco','stts'):

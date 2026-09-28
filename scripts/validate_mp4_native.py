@@ -11,6 +11,16 @@ from validate_portable import source_digest
 from validate_replay import command,sha256_file
 from native_frame_trace import COMPONENT_SHA256
 
+MEDIA_WINDOW_KINDS = frozenset(('head', 'middle', 'refresh', 'tail'))
+
+def check_media_windows(windows):
+    require(isinstance(windows, list) and len(windows) == len(MEDIA_WINDOW_KINDS),
+            'requires exactly four qualified media windows')
+    require({window.get('kind') for window in windows} == MEDIA_WINDOW_KINDS,
+            'missing, duplicate or unknown media window kind')
+    require(all(window.get('passed') is True for window in windows),
+            'missing or failed media window qualification')
+
 def check_input(report,evidence):
     r=report['input'];require(r['kind']=='mp4' and r['profile']==PROFILE and r['consistency_verified'],'unverified MP4 input')
     for key in ('audio_sha256','packets_sha256','cookie_sha256'):require(r[key]==evidence[key],'native/Rust container identity differs: '+key)
@@ -65,6 +75,10 @@ def media(binary,report,collection,prior):
     require(len(sources)==13,'expected 13 frozen 7.1 sources');baseline=json.loads(prior.read_text(encoding='utf-8'))
     require(baseline['passed'] and len(baseline['media'])==13,'missing prior qualified native media')
     old={r['source_sha256']:r for r in baseline['media']};report['media']=[]
+    require(len(old)==13,'duplicate prior native media source')
+    for record in old.values():
+        require(record.get('passed') is True,'unqualified prior native media source')
+        check_media_windows(record.get('windows'))
     for path,info in sorted(sources.items()):
         source=Path(path);identity=sha256_file(source);require(identity in old and old[identity]['passed'],'original source no longer matches prior qualification')
         evidence=verify(source);evidence.update(source_sha256=identity,windows=[])
@@ -82,6 +96,7 @@ def media(binary,report,collection,prior):
                 if name=='tail':require(decoded['packets']==evidence['packets'],'tail did not decode complete source history')
                 evidence['windows'].append(dict(kind=name,start=offset,frames=frames,pcm_sha256=sha(actual),warmup_packets=decoded['warmup_packets'],decoded_packets=decoded['packets'],passed=True))
             print('M4A',len(report['media']),name,flush=True)
+        check_media_windows(evidence['windows'])
         require(sha256_file(source)==identity,'source changed during native validation');report['media'].append(evidence)
     require(len(report['media'])==13 and sum(r['packets'] for r in report['media'])==207879,'original packet corpus incomplete')
 

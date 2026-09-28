@@ -141,6 +141,8 @@ pub(super) struct Structure {
     pub modified: Option<SystemTime>,
     pub hash: String,
     pub mdat_count: u64,
+    pub sgpd_count: u64,
+    pub sbgp_count: u64,
     pub skipped: u64,
 }
 impl Structure {
@@ -191,16 +193,7 @@ fn children(
                 | (b"dinf", b"dref")
                 | (
                     b"stbl",
-                    b"stsd"
-                        | b"stsz"
-                        | b"stsc"
-                        | b"stco"
-                        | b"co64"
-                        | b"stts"
-                        | b"ctts"
-                        | b"stss"
-                        | b"sgpd"
-                        | b"sbgp"
+                    b"stsd" | b"stsz" | b"stsc" | b"stco" | b"co64" | b"stts" | b"ctts" | b"stss"
                 )
         );
         if container || leaf {
@@ -212,6 +205,17 @@ fn children(
             } else {
                 hash_range(file, a, a.data, a.end, hash)?;
             }
+        } else if parent == b"stbl" && matches!(&a.tag, b"sgpd" | b"sbgp") {
+            // Sample groups may repeat (e.g. roll and prol). Sequential decoding
+            // does not interpret them. Keep the first range for report compatibility
+            // and hash every occurrence without allocating per-group state.
+            state.boxes.entry(a.tag).or_insert(a);
+            if a.tag == *b"sgpd" {
+                state.sgpd_count += 1;
+            } else {
+                state.sbgp_count += 1;
+            }
+            hash_range(file, a, a.data, a.end, hash)?;
         } else if parent == b"root" && a.tag == *b"mdat" {
             state.mdat_count += 1;
         } else {
@@ -229,6 +233,8 @@ pub(super) fn scan(file: &mut File) -> Result<Structure> {
         modified: meta.modified().ok(),
         hash: String::new(),
         mdat_count: 0,
+        sgpd_count: 0,
+        sbgp_count: 0,
         skipped: 0,
     };
     let mut hash = Sha256::new();

@@ -1,6 +1,6 @@
 use super::*;
 use std::{
-    fs::{self, OpenOptions},
+    fs::{self, FileTimes, OpenOptions},
     io::{Seek, SeekFrom, Write},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -24,6 +24,31 @@ impl Temp {
             .collect();
         fs::write(&p, raw).unwrap();
         Self(p)
+    }
+
+    fn append_sample_group(&self, tag: &[u8; 4]) -> u64 {
+        let structure = scan(&mut File::open(&self.0).unwrap()).unwrap();
+        let original = structure.get(tag).unwrap();
+        let stbl = structure.get(b"stbl").unwrap();
+        let mut raw = fs::read(&self.0).unwrap();
+        let mut extra = raw[original.offset as usize..original.end as usize].to_vec();
+        let grouping_type = (original.data - original.offset + 4) as usize;
+        extra[grouping_type..grouping_type + 4].copy_from_slice(b"roll");
+        if tag == b"sgpd" {
+            let end = extra.len();
+            extra[end - 2..].copy_from_slice(&(-1i16).to_be_bytes());
+        }
+        // This fixture has moov after mdat, so appending metadata does not move audio.
+        for a in structure.boxes.values() {
+            if a.offset <= stbl.offset && a.end >= stbl.end {
+                assert_eq!(a.data - a.offset, 8);
+                let size = u32::try_from(a.end - a.offset + extra.len() as u64).unwrap();
+                raw[a.offset as usize..a.offset as usize + 4].copy_from_slice(&size.to_be_bytes());
+            }
+        }
+        raw.splice(stbl.end as usize..stbl.end as usize, extra);
+        fs::write(&self.0, raw).unwrap();
+        stbl.end + grouping_type as u64
     }
 }
 impl Drop for Temp {
@@ -73,6 +98,28 @@ fn metadata_mutation_after_audio_read_is_rejected() {
     file.seek(SeekFrom::Start(offset)).unwrap();
     file.write_all(&[1]).unwrap();
     assert!(reader.next_packet().is_err());
+}
+
+#[test]
+fn repeated_sample_group_payloads_are_checked_even_with_unchanged_mtime() {
+    for tag in [b"sgpd", b"sbgp"] {
+        let temp = Temp::new();
+        let offset = temp.append_sample_group(tag);
+        let mut reader = Mp4Reader::open(&temp.0).unwrap();
+        let name = std::str::from_utf8(tag).unwrap();
+        assert_eq!(reader.report()["sample_group_box_counts"][name], 2);
+        let mut file = OpenOptions::new().write(true).open(&temp.0).unwrap();
+        file.seek(SeekFrom::Start(offset)).unwrap();
+        file.write_all(b"x").unwrap();
+        file.set_times(FileTimes::new().set_modified(reader.structure.modified.unwrap()))
+            .unwrap();
+        assert_eq!(
+            file.metadata().unwrap().modified().unwrap(),
+            reader.structure.modified.unwrap()
+        );
+        assert!(reader.verify_remaining().is_err());
+        assert_eq!(reader.report()["consistency_verified"], false);
+    }
 }
 #[test]
 fn append_and_truncate_are_rejected_after_initial_scan() {

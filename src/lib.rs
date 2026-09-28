@@ -7,6 +7,7 @@ pub mod config;
 pub mod error;
 pub mod frame;
 pub mod model;
+mod mp4;
 #[cfg(target_os = "macos")]
 pub mod native;
 mod numeric;

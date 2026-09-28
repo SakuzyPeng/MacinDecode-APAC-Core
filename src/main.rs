@@ -25,16 +25,16 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Experimental portable PCM from a packet directory or restricted Mono/Stereo/5.1/7.1 APAC CAF.
+    /// Experimental portable PCM from a packet directory or restricted APAC CAF/MP4.
     DecodeSq {
-        /// Complete packet directory or CAF v1 file (recognized by content).
+        /// Complete packet directory, CAF v1 or single-audio-track MP4/M4A (recognized by content).
         input: PathBuf,
         #[arg(long)]
         out: PathBuf,
-        /// Absolute valid-audio frame; CAF warms up sequentially from packet zero.
+        /// Absolute valid-audio frame; container inputs warm up sequentially from packet zero.
         #[arg(long)]
         start_frame: Option<u64>,
-        /// Omitted exports the remaining target window, or all valid audio for CAF.
+        /// Omitted exports the remaining target window, or all valid container audio.
         #[arg(long)]
         frames: Option<u64>,
     },

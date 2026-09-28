@@ -68,7 +68,7 @@ target/debug/apac-tool fixture --out artifacts/demo/drc-none --signals sine --du
 target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/start/pcm.json
 ```
 
-`fixture` 的布局选项为 `mono`、`stereo`、`surround71`、`surround714`、`hoa1`、`hoa2`、`hoa3`、`surround222`。三个 HOA 预设分别是 4、9、16 声道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
+`fixture` 的布局选项为 `mono`、`stereo`、`surround51`、`surround71`、`surround714`、`hoa1`、`hoa2`、`hoa3`、`surround222`。三个 HOA 预设分别是 4、9、16 声道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
 
 所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 
@@ -290,7 +290,7 @@ python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
   --reference-report reports/channels-math.json --report reports/channels-release.json
 ```
 
-**实验性 `decode-sq INPUT`**：从自包含包目录或上述布局的 CAF 原文件输出独立 PCM：
+**实验性 `decode-sq INPUT`**：从自包含包目录或上述布局的 CAF／MP4／M4A 原文件输出独立 PCM：
 
 ```sh
 target/debug/apac-tool decode-sq /path/to/input.caf --out artifacts/demo/caf-pcm
@@ -316,9 +316,9 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前 `decode-sq` 覆盖上述 Mono／Stereo／5.1／7.1 SQ 配置的包目录与 CAF，公共 parameter_b=2，其余资格检查保持明确。双声道旧路径保留原输出；新增声道路径使用相同数学内核和固定 DRC 关闭策略。7.1 的 M4A 仍须先通过原生 `dump` 导出包目录，未增加 MP4 原文件读取。
+当前 `decode-sq` 覆盖上述 Mono／Stereo／5.1／7.1 SQ 配置的包目录、CAF 与受限 MP4／M4A，公共 parameter_b=2，其余资格检查保持明确。双声道旧路径保留原输出；新增声道路径使用相同数学内核和固定 DRC 关闭策略。MP4／M4A 可直接读取下述单音轨封装，不需要预先导出包目录。
 
-输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。省略范围参数时输出包目录目标窗口或 CAF 的全部有效音频；`--start-frame` 使用绝对有效音频坐标，`--frames` 指定正的请求长度。包目录的非零导出起点必须有 `replay_window`，并满足独立起点、roll 和 preroll 约束；前置包只建立状态。packet table 的 priming／remainder 只裁剪一次，内嵌帧不增加源时间线，不追加隐含尾帧。短请求结束后仍校验目录未解码部分的完整性，不访问原始音频。
+输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。省略范围参数时输出包目录目标窗口或 CAF／MP4 的全部有效音频；`--start-frame` 使用绝对有效音频坐标，`--frames` 指定正的请求长度。包目录的非零导出起点必须有 `replay_window`，并满足独立起点、roll 和 preroll 约束；前置包只建立状态。packet table 的 priming／remainder 只裁剪一次，内嵌帧不增加源时间线，不追加隐含尾帧。短请求结束后仍校验目录未解码部分的完整性，不访问原始音频。
 
 包目录声明了布局时，布局标签须与 cookie 确定的解码布局一致，bitmap 必须为零且不能带声道描述；显示名称不参与比较。布局不匹配会在创建输出目录前报错，避免声道数相同但顺序不同的布局被误标到 PCM。
 
@@ -343,7 +343,29 @@ python3 -B scripts/validate_caf_native.py --binary target/debug/apac-tool \
 
 内嵌 preroll 先建立当前帧所需的叠加状态，其 PCM 被丢弃。缺席 CPE 输出已有叠加尾部，然后清空尾部；不能直接将整包当作静音。四种窗口由当前编码类型选择，支持全部相邻组合，不施加未由 APAC 语法要求的 AAC 窗口过渡限制。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
-库入口保留 `synthesis::SqDecoder::from_cookie`、`decode_frame`、`reset` 及 `synthesis::decode_sq`；支持 `decode_sq_with_options(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录或 CAF 文件。`SqDecoder::channel_count()` 和 `channel_layout()` 提供输出描述。每个外层包返回 `1024 × channel_count()` 个交错 Float32 样本；内嵌帧、当前帧、尾部和两路合成全部成功后才提交状态，失败及重置不会留下半个包的状态。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
+**MP4／M4A 直接输入**：支持非分片、自包含、唯一音轨且唯一 `apac` 样本描述的 ISO BMFF 文件。按内容识别，扩展名不参与判断；保持上述四种布局、采样率和 SQ 配置限制。
+
+```sh
+apac-tool decode-sq input.m4a --out artifacts/mp4-pcm --start-frame 48000 --frames 8192
+python3 -B scripts/generate_mp4_manifest.py --check
+python3 -B scripts/validate_mp4.py --binary target/debug/apac-tool --report reports/mp4-math.json
+python3 -B scripts/validate_mp4.py --binary target/release/apac-tool \
+  --reference-report reports/mp4-math.json --report reports/mp4-release.json
+# macOS：显式提供既有配置集合和第十阶段 B 的合格真实窗口报告
+python3 -B scripts/validate_mp4_native.py --binary target/release/apac-tool \
+  --collection artifacts/config-collection/index.json \
+  --channel-reference reports/channels-native-qualified.json --report reports/mp4-native.json
+```
+
+首版接受 `mp41`／`mp42`／`isom`／`M4A ` 主品牌或兼容品牌，最多 64 个兼容品牌；QuickTime 主品牌暂不支持。`apac` 必须为 version 0、data-reference 1、channelcount=2、samplesize=16 的已核实封装形式，并含唯一完整 `dapa`。这里的 2／16 是容器字段，实际输出声道与布局由 cookie 决定，采样率仍严格核对。其他样本条目版本、`chan`／`wave` 扩展、多描述、外部数据引用、加密、多轨与分片文件明确拒绝。
+
+`stsz` 支持固定／逐包长度；`stsc`、`stco`／`co64`、`stts` 联合确定包位置，chunk 须按样本顺序递增且不重叠，每包 1024 帧。支持 32／64 位 box 长度、前置／后置 `moov`、多个 `mdat`、未引用填充，以及末尾零长度 `mdat`。支持相关时间头及 `elst` v0／v1；媒体 timescale 等于采样率，必须有一条非负媒体起点、速率 1 的编辑列表。编辑时长从电影 timescale 转换到音频帧时必须整除，再推导 priming／有效帧／remainder，且与轨道、电影和包表时长一致。缺失／多段／空编辑、变速、非整帧换算、`stz2` 和非零 composition offset 不支持，不从标签猜测裁剪。
+
+MP4 范围读取也从第 0 包顺序预热，不设 4096 包依赖搜索上限，暂不使用访问依赖表快速定位。短请求仍核验全部输入；完整尾部请求会解码全部外层包。读取器使用有界 box／表游标，不缓存完整 `moov`、包表或文件；沿用 cookie 8 MiB、单包 16 MiB 和累计输出 128 MiB 上限。
+
+`decode-sq.json.input` 为 `kind=mp4`、`profile=apac-mp4-input-v1`，包含品牌、轨道、原始样本条目字段、cookie 布局来源、时间线换算、box 范围和一致性状态。音频摘要按样本顺序拼接包字节；包边界摘要依次使用包序号、**文件绝对偏移**、包长、1024 帧数四个小端 u64，后接包 SHA-256 原始字节。元数据摘要按遍历顺序覆盖已读取 box 头及使用的元数据载荷；未知非解码载荷和未引用 `mdat` 填充不计入。开始和结束核对内容摘要、文件长度与修改时间；这是读取一致性检查，并非预存校验和或真实性证明。容器错误使用 `chunk_type` 表示 box 类型，附带文件 `byte_offset`。旧 CAF／包目录报告、数值配置与 PCM 保持兼容。
+
+库入口保留 `synthesis::SqDecoder::from_cookie`、`decode_frame`、`reset` 及 `synthesis::decode_sq`；支持 `decode_sq_with_options(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。`SqDecoder::channel_count()` 和 `channel_layout()` 提供输出描述。每个外层包返回 `1024 × channel_count()` 个交错 Float32 样本；内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
 

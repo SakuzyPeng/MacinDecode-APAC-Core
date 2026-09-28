@@ -12,7 +12,7 @@ use std::{collections::BTreeMap, io::Write, path::Path};
 pub struct SqDecodeOptions {
     /// Absolute valid-audio coordinate; omitted starts at the input target window.
     pub start_frame: Option<u64>,
-    /// Omitted exports the remaining target window (whole valid audio for CAF). Zero is rejected.
+    /// Omitted exports the remaining target window (whole valid audio for CAF/MP4). Zero is rejected.
     pub frames: Option<u64>,
 }
 

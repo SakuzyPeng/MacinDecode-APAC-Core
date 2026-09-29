@@ -32,6 +32,9 @@ pub struct ElementConfiguration {
     pub tce_type: u8,
     /// Absolute output channel indices in the declared tagged layout.
     pub output_channels: Vec<u8>,
+    /// HOA salient carriers have no direct output-channel mapping.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_channels: Option<Vec<u8>>,
 }
 #[derive(Debug, Clone, Serialize)]
 pub struct ChannelFrameContext {
@@ -46,7 +49,9 @@ pub struct ChannelFrameContext {
     #[serde(skip)]
     asp_header: bool,
     #[serde(skip)]
-    hoa_ambient: bool,
+    hoa: bool,
+    #[serde(skip)]
+    hoa_salient: bool,
     #[serde(skip)]
     configuration: PacketConfiguration,
     #[serde(skip)]
@@ -102,6 +107,7 @@ impl ChannelFrameContext {
                     },
                     tce_type: typ,
                     output_channels,
+                    transport_channels: None,
                 }
             })
             .collect();
@@ -121,7 +127,8 @@ impl ChannelFrameContext {
             maximum_preroll_bytes: capacity,
             rejection,
             asp_header,
-            hoa_ambient: false,
+            hoa: false,
+            hoa_salient: false,
             configuration,
             drc,
         })
@@ -130,6 +137,7 @@ impl ChannelFrameContext {
         cookie_sha256: String,
         configuration: PacketConfiguration,
         drc: DrcContext,
+        salient: bool,
     ) -> Self {
         let rejection = configuration.rejection.clone().or(drc.rejection.clone());
         Self {
@@ -147,13 +155,15 @@ impl ChannelFrameContext {
                     element_index: i,
                     kind: ElementKind::Sce,
                     tce_type: 0,
-                    output_channels: vec![i],
+                    output_channels: if salient { vec![] } else { vec![i] },
+                    transport_channels: salient.then(|| vec![i]),
                 })
                 .collect(),
             maximum_preroll_bytes: 32768,
             rejection,
             asp_header: true,
-            hoa_ambient: true,
+            hoa: true,
+            hoa_salient: salient,
             configuration,
             drc,
         }
@@ -590,13 +600,15 @@ fn parse_impl(
     let mut result = ChannelPacketReport {
         frame,
         packet_complete: false,
-        packet_state_profile: if context.hoa_ambient {
+        packet_state_profile: if context.hoa_salient {
+            super::hoa_salient::STATE_PROFILE
+        } else if context.hoa {
             super::hoa::STATE_PROFILE
         } else {
             STATE_PROFILE
         }
         .into(),
-        hoa: context.hoa_ambient.then(super::hoa::HoaFrameInfo::default),
+        hoa: context.hoa.then(super::hoa::HoaFrameInfo::default),
         channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
             .map(str::to_owned),
         channel_count: context.channel_count,
@@ -613,6 +625,11 @@ fn parse_impl(
         drc_history_sufficient: None,
         drc_processing_applied: false,
     };
+    if context.hoa_salient {
+        let hoa = result.hoa.as_mut().expect("HOA context");
+        hoa.numeric_profile = super::hoa_salient::NUMERIC_PROFILE.into();
+        hoa.core_channels = 5;
+    }
     let code = if context.asp_header {
         parser.take("frame.type_code", 2)?
     } else {
@@ -688,7 +705,7 @@ fn parse_impl(
             return finish(result, parser, "embedded_preroll_incomplete");
         }
     }
-    let common_window = if context.hoa_ambient {
+    let common_window = if context.hoa {
         let block = parser.take("hoa.common_window", 2)? as u8;
         result.hoa.as_mut().expect("HOA context").common_window = Some(block);
         Some(block)
@@ -740,9 +757,25 @@ fn parse_impl(
             element.channels_after_tns.clear();
         }
     }
-    if context.hoa_ambient {
-        let spatial = super::hoa::spatial(&mut parser, next_hoa.as_mut().expect("HOA state"))?;
-        let restored = super::hoa::restore(&result)?;
+    if context.hoa {
+        let state = next_hoa.as_mut().expect("HOA state");
+        let mut spatial = super::hoa::spatial(
+            &mut parser,
+            state,
+            context.hoa_salient,
+            common_window.expect("HOA window"),
+        )?;
+        let restored = if let Some(data) = &mut spatial.salient {
+            // Set the current packet identity before recording the history source.
+            result.frame.packet_sha256 = parser.report.packet_sha256.clone();
+            super::hoa_salient::restore(
+                &result,
+                data,
+                state.salient.as_mut().expect("salient state"),
+            )?
+        } else {
+            super::hoa::restore(&result)?
+        };
         let hoa = result.hoa.as_mut().expect("HOA context");
         hoa.spatial = Some(spatial);
         hoa.channels_after_hoa = restored;

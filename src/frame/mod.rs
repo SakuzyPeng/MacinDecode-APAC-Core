@@ -2,12 +2,17 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_salient;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
     ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
     parse_channel_packet,
 };
 pub(crate) use channels::{ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet};
+pub use hoa_salient::{SalientDescriptor, SalientSpatialData};
+pub(crate) use hoa_salient::{
+    format_sha256 as hoa_salient_format_sha256, math_sha256 as hoa_salient_math_sha256,
+};
 mod bwe2;
 mod cac;
 mod drc;

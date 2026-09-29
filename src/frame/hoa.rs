@@ -1,4 +1,4 @@
-//! Restricted third-order ACN/SN3D: fixed ambient mapping and SQ transport.
+//! Restricted third-order ACN/SN3D: fixed ambient or salient SQ transport.
 use super::{
     ChannelFrameContext, ChannelPacketReport, Parser,
     drc::{DrcContext, DrcState},
@@ -18,10 +18,16 @@ pub const CHANNELS: usize = 16;
 #[derive(Debug, Clone, Serialize)]
 pub struct HoaFrameContext {
     pub(crate) transport: ChannelFrameContext,
+    #[serde(skip)]
+    pub(crate) salient: bool,
 }
 impl HoaFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         let parsed = config::parse_cookie(cookie)?;
+        let salient = parsed
+            .fields
+            .iter()
+            .any(|f| f.name == "components[0].hoa.max_salient_components" && f.value == json!(5));
         let mut rejected = Vec::new();
         for (name, value) in [
             ("box.version_flags", 0),
@@ -41,8 +47,14 @@ impl HoaFrameContext {
             ("components[0].hoa.parameter_1", 0),
             ("components[0].hoa.parameter_2_minus_six", 0),
             ("components[0].hoa.order", 3),
-            ("components[0].hoa.max_salient_components", 0),
-            ("components[0].hoa.ambient_components_encoded", 15),
+            (
+                "components[0].hoa.max_salient_components",
+                if salient { 5 } else { 0 },
+            ),
+            (
+                "components[0].hoa.ambient_components_encoded",
+                if salient { 0 } else { 15 },
+            ),
             ("components[0].hoa.tce_count", 16),
             ("components[0].hoa.layout_family", 190),
             ("components[0].hoa.layout_channels", 16),
@@ -60,11 +72,31 @@ impl HoaFrameContext {
             "components[0].hoa.flag_d",
             "components[0].hoa.dynamic_selection_config_present",
             "components[0].hoa.ambient_selection_present",
-            "components[0].hoa.parameter_3_present",
             "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
+        }
+        if salient {
+            for i in 0..5 {
+                for (field, value) in [("subbands_minus_one", 3), ("order", 3)] {
+                    packet_config::check(
+                        &parsed.fields,
+                        &format!("components[0].hoa.salient[{i}].{field}"),
+                        json!(value),
+                        "cookie",
+                        &mut rejected,
+                    );
+                }
+            }
+        } else {
+            packet_config::check(
+                &parsed.fields,
+                "components[0].hoa.parameter_3_present",
+                json!(false),
+                "cookie",
+                &mut rejected,
+            );
         }
         for name in ["full_order", "flag_a", "flag_e", "flag_f"] {
             packet_config::check(
@@ -131,8 +163,8 @@ impl HoaFrameContext {
             syntax_rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
         };
         let transport =
-            ChannelFrameContext::hoa_transport(parsed.cookie_sha256, configuration, drc);
-        Ok(Self { transport })
+            ChannelFrameContext::hoa_transport(parsed.cookie_sha256, configuration, drc, salient);
+        Ok(Self { transport, salient })
     }
     pub fn is_supported(&self) -> bool {
         self.transport.is_supported()
@@ -155,16 +187,34 @@ impl HoaFrameContext {
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.transport.maximum_preroll_bytes()
     }
+    pub fn salient_components(&self) -> usize {
+        if self.salient { 5 } else { 0 }
+    }
+    pub fn numeric_profile(&self) -> &'static str {
+        if self.salient {
+            super::hoa_salient::NUMERIC_PROFILE
+        } else {
+            NUMERIC_PROFILE
+        }
+    }
+    pub fn state_profile(&self) -> &'static str {
+        if self.salient {
+            super::hoa_salient::STATE_PROFILE
+        } else {
+            STATE_PROFILE
+        }
+    }
     pub(crate) fn initial_drc_state(&self) -> DrcState {
         self.transport.initial_state()
     }
 }
 
-/// The qualified HOA configuration has no adaptive spatial predictor. Only
-/// the signalled, currently inaudible global SD mode persists between frames.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+/// Ambient keeps its global SD mode; salient also retains descriptor history.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub(crate) struct HoaState {
     pub last_global_coding_mode: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub salient: Option<Box<super::hoa_salient::SalientState>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -175,6 +225,8 @@ pub struct HoaSpatialData {
     pub coding_mode: Option<u8>,
     pub effective_global_coding_mode: u8,
     pub ambient_indices: Vec<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub salient: Option<super::hoa_salient::SalientSpatialData>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaCoefficientSpectrum {
@@ -226,9 +278,9 @@ impl HoaPacketReport {
 }
 
 /// Parse one outer packet, including embedded preroll, from initial HOA/DRC
-/// state. Use `parse-packets --depth hoa` for stateful report sequences and
-/// `SqDecoder` for sequential PCM. The retained global mode does not alter
-/// ambient spectra in this restricted configuration.
+/// state. This is an initial-packet entry point, not random access to differential
+/// salient frames. Use `parse-packets --depth hoa` for stateful report sequences
+/// and `SqDecoder` for sequential PCM.
 pub fn parse_hoa_packet(
     context: &HoaFrameContext,
     packet: &[u8],
@@ -253,11 +305,13 @@ pub(crate) fn parse_hoa_packet_with_state(
 pub(super) fn spatial(
     parser: &mut Parser<'_>,
     state: &mut HoaState,
+    salient: bool,
+    block: u8,
 ) -> Result<HoaSpatialData, ParseError> {
     let start = parser.bits.position();
     // flag_b=false fixes the configuration from the cookie. parameter_3 is
-    // absent (no ambient transform), dynamic selection is off, and salient=0.
-    // No configuration-presence, matrix-index, or spatial-vector bits occur.
+    // absent (no ambient transform), and dynamic selection is off. The salient
+    // branch adds its descriptors after the common global-mode header.
     let single = parser.flag("hoa.spatial.single_coding_mode")?;
     let mode = if single {
         let position = parser.bits.position();
@@ -274,13 +328,24 @@ pub(super) fn spatial(
     } else {
         None
     };
+    let descriptors = if salient {
+        Some(super::hoa_salient::read(
+            parser,
+            mode,
+            block,
+            state.salient.get_or_insert_default(),
+        )?)
+    } else {
+        None
+    };
     Ok(HoaSpatialData {
         start_bit_offset: start,
         end_bit_offset: parser.bits.position(),
         single_coding_mode: single,
         coding_mode: mode,
         effective_global_coding_mode: state.last_global_coding_mode,
-        ambient_indices: (0..16).collect(),
+        ambient_indices: if salient { vec![] } else { (0..16).collect() },
+        salient: descriptors,
     })
 }
 

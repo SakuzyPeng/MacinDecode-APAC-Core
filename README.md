@@ -309,13 +309,13 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**受限纯 ambient HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、48 kHz、1024 帧、三阶 ACN/SN3D、零 salient、16 ambient、16 个 SCE、恒等 ambient selection、无动态选择或重映射。解码按 ASC 类型分派，其他 16 声道配置不会自动放行。输出为交错的 **ACN0 至 ACN15 系数 PCM**，不是扬声器信号；不进行空间渲染或归一化转换。其他阶数、N3D、salient 恢复、LRVQ 和结构更新仍不支持。
+**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、48 kHz、1024 帧、三阶 ACN/SN3D、16 个 SCE、无动态选择或重映射。配置限定为零 salient／16 ambient 的恒等选择，或下述默认 salient 路径。解码按 ASC 类型分派，其他 16 声道配置不会自动放行。输出为交错的 **ACN0 至 ACN15 系数 PCM**，不是扬声器信号；不进行空间渲染或归一化转换。其他阶数、N3D、混合 salient／ambient、LRVQ 和结构更新仍不支持。
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
 这个限定配置的 ambient 恢复是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、三阶、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
 
-HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。实测内嵌 preroll 容量为 32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式、16 路 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空。
+HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。两种配置分别实测的内嵌 preroll 容量均为 32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、16 路 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。ambient 的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空。
 
 ```sh
 apac-tool parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
@@ -328,6 +328,30 @@ python3 -B scripts/validate_hoa.py --binary target/release/apac-tool \
 ```
 
 HOA 验证只运行新增用例和受影响接口的精简回归，不要求重跑旧完整矩阵。真实媒体在开发和发布时都只取有 DRC、无 DRC各一份代表。先用 `cargo +1.98.0 test --offline --release --lib --no-run --message-format=json` 构建，再将输出中的库测试 `executable` 路径传给 `scripts/validate_hoa_media.py --test-binary PATH --with-drc INPUT --without-drc INPUT --report REPORT`。该工具逐包完整解码、核验输入并仅保留 PCM 摘要，不落盘整曲 PCM；报告绑定代码、源码、测试二进制、工具链和输入摘要。`scripts/validate_hoa_native.py` 可复核已有的哈希约束只读 HOA 跟踪，无需重复跟踪已确认的 SQ 工具。
+
+**默认 salient HOA**：额外接受 5 个声明 salient 槽位、零 ambient，每个分量固定 4 个空间子带、三阶 16 系数、6 位描述量化的配置。完整读取 16 个传输 SCE；空间恢复只使用前 5 个核心分量，输出仍为 16 个 ACN 系数。`elements[].configuration.transport_channels` 记录载波槽位，`output_channels` 为空，避免误认为传输槽位与输出系数一一对应。未使用的传输槽位也必须通过语法与数值检查。
+
+`hoa.spatial.salient` 包含 20 份分量／子带描述：模式 0–5、量化值、符号、方向或变换索引、位范围及恢复后的 Float64 向量；`history_frame_sha256` 指向上一个已处理核心帧（可为内嵌帧），初始为 null。`subband_ends` 为频率优先布局中的终点 `[32,80,216,1024]`，`lines_per_window` 为每窗终点，短窗是 `[4,10,27,128]`。`HoaFrameContext::salient_components()`、`numeric_profile()` 和 `state_profile()` 可查询分支。单包解析从初始状态开始，不能用来随机恢复中间的差分帧。
+
+新规则为 `apac-hoa-salient-math-v1`：固定 Float64 描述反量化、历史差分、方向恢复、矩阵变换与五分量求和，最后每条系数谱线一次舍入为 Float32。方向索引按度编码，方位角采用顺时针约定；方向描述内部使用单位 N3D 球谐向量并由独立编码值覆盖前四项，这不改变最终 ACN/SN3D 输出标签。原生的百万分之一取整不进入独立公式模型。格式矩阵／码字与 Decimal 100／200 位生成的数学常量分开管理。
+
+合成始终作用于恢复后的 16 个系数；单个传输 SCE 缺席不能清除同编号的系数 overlap。新后端为 `rust_hoa_salient_sq_drc_off_f64_fft_v1`，状态为 `apac-hoa-salient-state-v1`，PCM 实现元数据另含 `hoa_format_sha256`、`hoa_tables_sha256`。原 ambient 及离散声道的报告、标识与数值保持兼容。
+
+```sh
+python3 -B scripts/generate_hoa_salient_math.py --check
+python3 -B scripts/generate_hoa_salient_manifest.py --check
+# 36 个按必要分支选取的序列，包含三个输入入口及状态验证
+python3 -B scripts/validate_hoa_salient.py --binary target/debug/apac-tool --report reports/salient-math.json
+python3 -B scripts/validate_hoa_salient.py --binary target/release/apac-tool \
+  --reference-report reports/salient-math.json --report reports/salient-release.json
+# 两份短控制；默认 DRC 的回读保留原值，不把它解释成关闭处理
+apac-tool fixture --layout hoa3 --signals channel-solo --duration 2 --out artifacts/salient-default
+apac-tool fixture --layout hoa3 --signals channel-solo --duration 2 --drc-configuration none --out artifacts/salient-none
+python3 -B scripts/validate_hoa_salient_media.py --binary target/release/apac-tool \
+  --default-control artifacts/salient-default --none-control artifacts/salient-none --report reports/salient-controls.json
+```
+
+`validate_hoa_salient_native.py` 只复核新增空间参数、边界、状态和系数映射；完整原生浮点差异单列为诊断，不替代独立数学验收。日常与发布均按代表类别取样，不重跑旧全量矩阵。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
@@ -620,7 +644,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2、受限纯 ambient HOA 和逐包苹果参考回放基准。独立公式数值模型配有人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录和容器 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、通用 HOA、其他离散声道布局、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2、受限 ambient／salient HOA 和逐包苹果参考回放基准。独立公式数值模型配有人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录和容器 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、通用 HOA、其他离散声道布局、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

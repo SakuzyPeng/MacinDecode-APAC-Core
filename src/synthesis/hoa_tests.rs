@@ -76,6 +76,48 @@ fn hoa_report_marks_identity_without_inventing_absent_integer_streams() {
     assert!(legacy.hoa.is_none());
 }
 
+#[test]
+fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
+    let f: Value =
+        serde_json::from_str(include_str!("../../data/hoa-salient-state-v1.json")).unwrap();
+    let cookie = bytes(&f["cookie"]);
+    let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+    assert_eq!(
+        decoder.hoa_numeric_profile(),
+        Some("apac-hoa-salient-math-v1")
+    );
+    let first = bytes(&f["first"]);
+    decoder.decode_frame(&first).unwrap();
+    let before = snapshot(&decoder);
+    for key in [
+        "last_element_error",
+        "late_spatial_error",
+        "late_tail_error",
+        "embedded_error",
+        "outer_after_embedded_error",
+    ] {
+        assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+        assert_eq!(before, snapshot(&decoder));
+    }
+    for end in 0..first.len() {
+        assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+        assert_eq!(before, snapshot(&decoder));
+    }
+    let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
+    clean.decode_frame(&first).unwrap();
+    assert_eq!(
+        decoder.decode_frame(&bytes(&f["next"])).unwrap(),
+        clean.decode_frame(&bytes(&f["next"])).unwrap()
+    );
+    assert_eq!(snapshot(&decoder), snapshot(&clean));
+    decoder.reset();
+    assert_eq!(
+        snapshot(&decoder),
+        snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+    );
+    assert!(decoder.scan_frame(&first).is_err());
+}
+
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
 #[test]

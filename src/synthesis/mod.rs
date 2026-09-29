@@ -303,8 +303,12 @@ impl SqDecoder {
         &self.layout
     }
     pub fn backend(&self) -> &'static str {
-        if self.hoa_context.is_some() {
-            return hoa::BACKEND;
+        if let Some(context) = &self.hoa_context {
+            return if context.salient {
+                hoa::SALIENT_BACKEND
+            } else {
+                hoa::BACKEND
+            };
         }
         if self.channel_context.is_some() {
             channels::BACKEND
@@ -313,8 +317,8 @@ impl SqDecoder {
         }
     }
     pub fn state_profile(&self) -> &'static str {
-        if self.hoa_context.is_some() {
-            return crate::frame::HOA_STATE_PROFILE;
+        if let Some(context) = &self.hoa_context {
+            return context.state_profile();
         }
         if self.channel_context.is_some() {
             crate::frame::CHANNEL_STATE_PROFILE
@@ -323,8 +327,12 @@ impl SqDecoder {
         }
     }
     pub fn support_scope(&self) -> &'static str {
-        if self.hoa_context.is_some() {
-            return "hoa3_ambient16_sq_drc_off";
+        if let Some(context) = &self.hoa_context {
+            return if context.salient {
+                "hoa3_salient5_sq_drc_off"
+            } else {
+                "hoa3_ambient16_sq_drc_off"
+            };
         }
         if matches!(self.channel_count(), 12 | 24) {
             "single_asc_714_222_sq_drc_off"
@@ -335,9 +343,7 @@ impl SqDecoder {
         }
     }
     pub fn hoa_numeric_profile(&self) -> Option<&'static str> {
-        self.hoa_context
-            .as_ref()
-            .map(|_| crate::frame::HOA_NUMERIC_PROFILE)
+        self.hoa_context.as_ref().map(|c| c.numeric_profile())
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
         self.decode_frame_report(packet).map(|(samples, _)| samples)

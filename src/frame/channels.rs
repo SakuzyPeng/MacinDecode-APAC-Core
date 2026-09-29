@@ -46,6 +46,8 @@ pub struct ChannelFrameContext {
     #[serde(skip)]
     asp_header: bool,
     #[serde(skip)]
+    hoa_ambient: bool,
+    #[serde(skip)]
     configuration: PacketConfiguration,
     #[serde(skip)]
     drc: DrcContext,
@@ -119,9 +121,42 @@ impl ChannelFrameContext {
             maximum_preroll_bytes: capacity,
             rejection,
             asp_header,
+            hoa_ambient: false,
             configuration,
             drc,
         })
+    }
+    pub(super) fn hoa_transport(
+        cookie_sha256: String,
+        configuration: PacketConfiguration,
+        drc: DrcContext,
+    ) -> Self {
+        let rejection = configuration.rejection.clone().or(drc.rejection.clone());
+        Self {
+            cookie_sha256,
+            sample_rate_hz: 48000,
+            channel_count: 16,
+            layout: Some(ChannelLayout::tagged(
+                (190 << 16) | 16,
+                16,
+                Some("HOA ACN/SN3D".into()),
+            )),
+            channel_labels: (0..16).map(|i| format!("ACN{i}")).collect(),
+            elements: (0..16)
+                .map(|i| ElementConfiguration {
+                    element_index: i,
+                    kind: ElementKind::Sce,
+                    tce_type: 0,
+                    output_channels: vec![i],
+                })
+                .collect(),
+            maximum_preroll_bytes: 32768,
+            rejection,
+            asp_header: true,
+            hoa_ambient: true,
+            configuration,
+            drc,
+        }
     }
     pub fn channel_count(&self) -> u32 {
         u32::from(self.channel_count)
@@ -195,6 +230,8 @@ pub struct ChannelPacketReport {
     pub packet_state_profile: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub channel_layout_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hoa: Option<super::hoa::HoaFrameInfo>,
     pub channel_count: u8,
     pub channel_labels: Vec<String>,
     pub elements: Vec<ElementReport>,
@@ -230,6 +267,7 @@ fn read_element(
     context: &ChannelFrameContext,
     element: &mut ElementReport,
     scratch: &mut ScanWorkspace,
+    common_window: Option<u8>,
 ) -> Result<bool, ParseError> {
     let index = element.configuration.element_index;
     let prefix = format!("components[0].tce[{index}]");
@@ -245,10 +283,12 @@ fn read_element(
         return Ok(false);
     }
     let cpe = element.configuration.kind == ElementKind::Cpe;
-    let left = parser.ics(&format!(
-        "{prefix}.{}",
-        if cpe { "left_ics" } else { "ics" }
-    ))?;
+    let ics_name = format!("{prefix}.{}", if cpe { "left_ics" } else { "ics" });
+    let left = if let Some(block) = common_window {
+        parser.ics_with_block(&ics_name, block)?
+    } else {
+        parser.ics(&ics_name)?
+    };
     let buffer = if parser.capture {
         Vec::new()
     } else {
@@ -456,7 +496,35 @@ pub(crate) fn parse_channel_packet_with_state(
     packet: &[u8],
     state: &mut DrcState,
 ) -> Result<ChannelPacketReport, ParseError> {
-    parse_impl(context, packet, state, true, &mut ScanWorkspace::default())
+    parse_impl(
+        context,
+        packet,
+        state,
+        true,
+        &mut ScanWorkspace::default(),
+        &mut None,
+    )
+}
+
+pub(super) fn parse_hoa_transport(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    drc: &mut DrcState,
+    hoa: &mut super::hoa::HoaState,
+) -> Result<ChannelPacketReport, ParseError> {
+    let mut next = Some(hoa.clone());
+    let report = parse_impl(
+        context,
+        packet,
+        drc,
+        true,
+        &mut ScanWorkspace::default(),
+        &mut next,
+    )?;
+    if report.packet_complete {
+        *hoa = next.expect("HOA state");
+    }
+    Ok(report)
 }
 
 #[derive(Default)]
@@ -472,7 +540,7 @@ pub(crate) fn scan_channel_packet(
     scratch: &mut ScanWorkspace,
 ) -> Result<ChannelPacketReport, ParseError> {
     scratch.numeric_elements = 0;
-    parse_impl(context, packet, state, false, scratch)
+    parse_impl(context, packet, state, false, scratch, &mut None)
 }
 
 fn parse_impl(
@@ -481,6 +549,7 @@ fn parse_impl(
     state: &mut DrcState,
     capture: bool,
     scratch: &mut ScanWorkspace,
+    hoa_state: &mut Option<super::hoa::HoaState>,
 ) -> Result<ChannelPacketReport, ParseError> {
     if packet.is_empty() || packet.len() > MAX_PACKET_BUFFER {
         return Err(ParseError::new(
@@ -521,7 +590,13 @@ fn parse_impl(
     let mut result = ChannelPacketReport {
         frame,
         packet_complete: false,
-        packet_state_profile: STATE_PROFILE.into(),
+        packet_state_profile: if context.hoa_ambient {
+            super::hoa::STATE_PROFILE
+        } else {
+            STATE_PROFILE
+        }
+        .into(),
+        hoa: context.hoa_ambient.then(super::hoa::HoaFrameInfo::default),
         channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
             .map(str::to_owned),
         channel_count: context.channel_count,
@@ -552,6 +627,7 @@ fn parse_impl(
         return finish(result, parser, reason);
     }
     let mut next = state.clone();
+    let mut next_hoa = hoa_state.clone();
     if let Some(start) = parser
         .report
         .derived
@@ -568,6 +644,7 @@ fn parse_impl(
             &mut next,
             capture,
             scratch,
+            &mut next_hoa,
         )
         .map_err(|mut e| {
             let local = e.bit_offset;
@@ -611,6 +688,13 @@ fn parse_impl(
             return finish(result, parser, "embedded_preroll_incomplete");
         }
     }
+    let common_window = if context.hoa_ambient {
+        let block = parser.take("hoa.common_window", 2)? as u8;
+        result.hoa.as_mut().expect("HOA context").common_window = Some(block);
+        Some(block)
+    } else {
+        None
+    };
     for configuration in &context.elements {
         let mut element = ElementReport {
             configuration: configuration.clone(),
@@ -632,7 +716,7 @@ fn parse_impl(
             bwe2: None,
             channels_after_bwe2: vec![],
         };
-        let supported = read_element(&mut parser, context, &mut element, scratch)
+        let supported = read_element(&mut parser, context, &mut element, scratch, common_window)
             .map_err(|e| element_error(e, configuration.element_index))?;
         result.elements.push(element);
         if !supported {
@@ -655,6 +739,14 @@ fn parse_impl(
             element.channels_after_cac.clear();
             element.channels_after_tns.clear();
         }
+    }
+    if context.hoa_ambient {
+        let spatial = super::hoa::spatial(&mut parser, next_hoa.as_mut().expect("HOA state"))?;
+        let restored = super::hoa::restore(&result)?;
+        let hoa = result.hoa.as_mut().expect("HOA context");
+        hoa.spatial = Some(spatial);
+        hoa.channels_after_hoa = restored;
+        hoa.hoa_complete = true;
     }
     let padding = (8 - parser.bits.position() % 8) % 8;
     if padding != 0 && parser.take("core.alignment_padding", padding)? != 0 {
@@ -736,5 +828,6 @@ fn parse_impl(
     parser.report.unknown_ranges.sort_by_key(|r| r.bit_offset);
     result.frame = parser.report;
     *state = next;
+    *hoa_state = next_hoa;
     Ok(result)
 }

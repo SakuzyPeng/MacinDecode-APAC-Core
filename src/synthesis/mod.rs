@@ -8,7 +8,10 @@ mod channel_tests;
 mod channels;
 #[cfg(test)]
 mod drc_tests;
-mod input;
+mod hoa;
+#[cfg(test)]
+mod hoa_tests;
+pub(crate) mod input;
 use crate::{
     error::{Error, Result},
     frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},
@@ -177,6 +180,8 @@ impl ChannelState {
 /// Each packet produces 1024 * channel_count() interleaved samples. Errors do not advance state.
 pub struct SqDecoder {
     drc: DrcState,
+    hoa_context: Option<crate::frame::HoaFrameContext>,
+    hoa_state: crate::frame::HoaState,
     access_context: crate::frame::ChannelFrameContext,
     scan_workspace: crate::frame::ScanWorkspace,
     context: FrameContext,
@@ -187,7 +192,11 @@ pub struct SqDecoder {
 impl SqDecoder {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self> {
         let context = FrameContext::from_cookie(cookie)?;
-        let channel_context = crate::frame::ChannelFrameContext::from_cookie(cookie)?;
+        let (channel_context, hoa_context) =
+            match crate::frame::DecodedFrameContext::from_cookie(cookie)? {
+                crate::frame::DecodedFrameContext::Channels(c) => (c, None),
+                crate::frame::DecodedFrameContext::Hoa(h) => (h.transport.clone(), Some(h)),
+            };
         let multichannel = channel_context.channel_count != 2;
         if let Some(reason) = if multichannel {
             channel_context.rejection.as_deref()
@@ -200,6 +209,7 @@ impl SqDecoder {
             ));
         }
         Ok(Self {
+            hoa_state: crate::frame::HoaState::default(),
             access_context: channel_context.clone(),
             scan_workspace: crate::frame::ScanWorkspace::default(),
             drc: if multichannel {
@@ -210,7 +220,8 @@ impl SqDecoder {
             context,
             channels: vec![ChannelState::new(); usize::from(channel_context.channel_count)],
             layout: channel_context.layout.clone().expect("qualified layout"),
-            channel_context: multichannel.then_some(channel_context),
+            channel_context: (multichannel && hoa_context.is_none()).then_some(channel_context),
+            hoa_context,
         })
     }
     pub fn reset(&mut self) {
@@ -218,10 +229,17 @@ impl SqDecoder {
             .channel_context
             .as_ref()
             .map_or_else(|| DrcState::new(&self.context), |c| c.initial_state());
+        if let Some(context) = &self.hoa_context {
+            self.drc = context.initial_drc_state();
+        }
+        self.hoa_state = crate::frame::HoaState::default();
         self.channels.fill(ChannelState::new());
         self.scan_workspace.numeric_elements = 0;
     }
     fn metadata_sha256(&self) -> String {
+        if self.hoa_context.is_some() {
+            return crate::model::sha256(&serde_json::to_vec(&serde_json::json!({"channels":self.drc.channels,"configuration":self.drc.configuration,"previous_nodes":self.drc.previous_nodes,"hoa":self.hoa_state})).expect("finite HOA state"));
+        }
         crate::model::sha256(
             &serde_json::to_vec(&serde_json::json!({
                 "channels":self.drc.channels,"configuration":self.drc.configuration,
@@ -233,6 +251,12 @@ impl SqDecoder {
     /// Private state-only advancement; callers must synthesize the predecessor
     /// before exporting PCM. No public decoder method exposes stale overlap.
     fn scan_frame(&mut self, packet: &[u8]) -> Result<PrefixCounts> {
+        if self.hoa_context.is_some() {
+            return Err(Error::new(
+                "SQ access",
+                "HOA fast access is not supported; use sequential",
+            ));
+        }
         let mut next = self.drc.clone();
         let scanned = crate::frame::scan_channel_packet(
             &self.access_context,
@@ -252,6 +276,8 @@ impl SqDecoder {
                 // embedded spectra. Re-run only failed scans through that exact
                 // path to preserve its first-error ordering and public errors.
                 let mut validation = Self {
+                    hoa_context: self.hoa_context.clone(),
+                    hoa_state: self.hoa_state.clone(),
                     context: self.context.clone(),
                     drc: self.drc.clone(),
                     channels: self.channels.clone(),
@@ -277,6 +303,9 @@ impl SqDecoder {
         &self.layout
     }
     pub fn backend(&self) -> &'static str {
+        if self.hoa_context.is_some() {
+            return hoa::BACKEND;
+        }
         if self.channel_context.is_some() {
             channels::BACKEND
         } else {
@@ -284,6 +313,9 @@ impl SqDecoder {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.hoa_context.is_some() {
+            return crate::frame::HOA_STATE_PROFILE;
+        }
         if self.channel_context.is_some() {
             crate::frame::CHANNEL_STATE_PROFILE
         } else {
@@ -291,6 +323,9 @@ impl SqDecoder {
         }
     }
     pub fn support_scope(&self) -> &'static str {
+        if self.hoa_context.is_some() {
+            return "hoa3_ambient16_sq_drc_off";
+        }
         if matches!(self.channel_count(), 12 | 24) {
             "single_asc_714_222_sq_drc_off"
         } else if self.channel_context.is_some() {
@@ -299,6 +334,11 @@ impl SqDecoder {
             "stereo_sq_drc_off_neutral_scene_asp"
         }
     }
+    pub fn hoa_numeric_profile(&self) -> Option<&'static str> {
+        self.hoa_context
+            .as_ref()
+            .map(|_| crate::frame::HOA_NUMERIC_PROFILE)
+    }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
         self.decode_frame_report(packet).map(|(samples, _)| samples)
     }
@@ -306,6 +346,15 @@ impl SqDecoder {
         &mut self,
         packet: &[u8],
     ) -> Result<(Vec<f32>, FrameStateCounts)> {
+        if let Some(context) = &self.hoa_context {
+            return hoa::decode(
+                context,
+                &mut self.drc,
+                &mut self.hoa_state,
+                &mut self.channels,
+                packet,
+            );
+        }
         if let Some(context) = &self.channel_context {
             return channels::decode(context, &mut self.drc, &mut self.channels, packet);
         }

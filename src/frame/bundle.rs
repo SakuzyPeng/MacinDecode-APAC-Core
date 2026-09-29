@@ -25,6 +25,7 @@ pub enum ParseDepth {
     Drc,
     Packet,
     Channels,
+    Hoa,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -73,12 +74,28 @@ pub fn parse_packets_with_depth(
     } else {
         None
     };
+    let hoa_context = if depth == ParseDepth::Hoa {
+        Some(super::HoaFrameContext::from_cookie(bundle.cookie())?)
+    } else {
+        None
+    };
+    let mut hoa_state = super::HoaState::default();
+    let mut hoa_complete = 0u64;
     let mut drc_state = channel_context.as_ref().map_or_else(
         || super::drc::DrcState::new(&context),
         |c| c.initial_state(),
     );
+    if let Some(hoa) = &hoa_context {
+        drc_state = hoa.initial_drc_state();
+    }
     let (mut present_elements, mut absent_elements, mut spectrum_channels) = (0u64, 0u64, 0u64);
     let first = bundle.manifest().start_packet;
+    if depth == ParseDepth::Hoa && first != 0 {
+        return Err(Error::new(
+            "parse-packets",
+            "HOA input must include packet zero to establish sequential state",
+        ));
+    }
     let bundle_end = add(first, bundle.manifest().actual_packets)?;
     let start = start.unwrap_or(first);
     if start < first || start >= bundle_end {
@@ -127,6 +144,30 @@ pub fn parse_packets_with_depth(
             .next_packet()?
             .ok_or_else(|| Error::new("parse-packets", "unexpected packet EOF"))?;
         if packet.packet_index < start {
+            if let Some(context) = &hoa_context {
+                let previous = super::parse_hoa_packet_with_state(
+                    context,
+                    &bytes,
+                    &mut drc_state,
+                    &mut hoa_state,
+                )
+                .map_err(|e| {
+                    let mut e: Error = e.into();
+                    e.packet_index = Some(packet.packet_index);
+                    e
+                })?;
+                if !previous.packet.packet_complete {
+                    let mut e = Error::new(
+                        "parse-packets",
+                        format!(
+                            "incomplete HOA history: {}",
+                            previous.packet.frame.stop_reason
+                        ),
+                    );
+                    e.packet_index = Some(packet.packet_index);
+                    return Err(e);
+                }
+            }
             if let Some(context) = &channel_context {
                 let result =
                     super::parse_channel_packet_with_state(context, &bytes, &mut drc_state)
@@ -148,6 +189,27 @@ pub fn parse_packets_with_depth(
         }
         eprintln!("parse packet {}", packet.packet_index);
         let result = match depth {
+            ParseDepth::Hoa => super::parse_hoa_packet_with_state(
+                hoa_context.as_ref().expect("HOA context"),
+                &bytes,
+                &mut drc_state,
+                &mut hoa_state,
+            )
+            .map(|report| {
+                let packet = &report.packet;
+                hoa_complete += u64::from(report.hoa().hoa_complete);
+                present_elements += packet.elements.iter().filter(|e| e.present).count() as u64;
+                absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
+                spectrum_channels += packet
+                    .elements
+                    .iter()
+                    .map(|e| e.channels.len() as u64)
+                    .sum::<u64>();
+                (
+                    packet.frame.clone(),
+                    Some(serde_json::to_value(report).expect("finite HOA packet")),
+                )
+            }),
             ParseDepth::Channels => super::parse_channel_packet_with_state(
                 channel_context.as_ref().expect("channel context"),
                 &bytes,
@@ -326,7 +388,19 @@ pub fn parse_packets_with_depth(
         summary["absent_elements"] = json!(absent_elements);
         summary["spectrum_channels"] = json!(spectrum_channels);
     }
-    if !matches!(depth, ParseDepth::Prefix | ParseDepth::Channels) {
+    if depth == ParseDepth::Hoa {
+        summary["depth"] = json!(depth);
+        summary["context"] = serde_json::to_value(hoa_context.as_ref().unwrap())?;
+        summary["hoa_packets_complete"] = json!(whole);
+        summary["hoa_spectra_complete"] = json!(hoa_complete);
+        summary["present_elements"] = json!(present_elements);
+        summary["absent_elements"] = json!(absent_elements);
+        summary["spectrum_channels"] = json!(spectrum_channels);
+    }
+    if !matches!(
+        depth,
+        ParseDepth::Prefix | ParseDepth::Channels | ParseDepth::Hoa
+    ) {
         summary["depth"] = json!(depth);
         summary["spectrum_complete_packets"] = json!(spectra);
         summary["left_spectrum_packets"] = json!(left);

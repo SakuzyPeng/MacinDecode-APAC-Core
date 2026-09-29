@@ -9,7 +9,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::{fs::File, io::Read, path::Path};
 
-pub(super) enum Input {
+pub(crate) enum Input {
     Bundle(Box<PacketBundle>),
     Caf(Box<CafReader>),
     Mp4(Box<Mp4Reader>),
@@ -36,6 +36,12 @@ impl Input {
     }
     pub(super) fn is_container(&self) -> bool {
         !matches!(self, Self::Bundle(_))
+    }
+    pub(super) fn first_packet_index(&self) -> u64 {
+        match self {
+            Self::Bundle(v) => v.manifest().start_packet,
+            Self::Caf(_) | Self::Mp4(_) => 0,
+        }
     }
     pub(super) fn info(&self) -> &FileInfo {
         match self {

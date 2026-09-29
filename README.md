@@ -276,7 +276,7 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 12／24 声道的 `ChannelPacketReport`、解码报告及 PCM 实现元数据附带可选 `channel_layout_profile=apac-channel-layout-v2`；历史报告缺失该字段仍可读取。旧布局不增加此字段；既有后端、状态、容器、访问及数学配置标识不变。
 
-配置保持 profile 31、44.1/48 kHz、1024 帧、单 ASC、无重映射及既有中性场景规则。只读取 SQ；LRVQ、LRVQ-LFE、其他元素组合和布局、多个 ASC、HOA、空间渲染、非零 trimming 与结构重配置明确停止。DRC 可缺席，或使用已验证的单序列／单频带／profile 0 关闭策略；基准声道数必须与 cookie 声明一致，不应用曲线、shape filter、响度处理或额外 LFE 增益。
+配置保持 profile 31、44.1/48 kHz、1024 帧、单 ASC、无重映射及既有中性场景规则。只读取 SQ；LRVQ、LRVQ-LFE、其他元素组合和布局、多个 ASC、空间渲染、非零 trimming 与结构重配置明确停止。HOA 使用下述单独的配置和解析入口。DRC 可缺席，或使用已验证的单序列／单频带／profile 0 关闭策略；基准声道数必须与 cookie 声明一致，不应用曲线、shape filter、响度处理或额外 LFE 增益。
 
 channel ASC 的实际读取顺序是**每个元素后立即读取该元素的 BWE2**，然后才进入下一元素；全部元素完成后作核心对齐和 ancillary。SCE 有一份 ICS／SQ／TNS，CPE 复用既有左右流、CAC、TNS，LFE 的 SQ 后没有 TNS 或 BWE2 位。SCE 的 BWE2 启用位为真时总会读取两个 LSF 索引；零 `max_sfb` 不读取组增益，也不恢复零输入的频谱。CPE 保持原先的频带门控和局部参数复用规则，参数不跨元素继承。
 
@@ -309,7 +309,27 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**实验性 `decode-sq INPUT`**：从自包含包目录或上述布局的 CAF／MP4／M4A 原文件输出独立 PCM：
+**受限纯 ambient HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、48 kHz、1024 帧、三阶 ACN/SN3D、零 salient、16 ambient、16 个 SCE、恒等 ambient selection、无动态选择或重映射。解码按 ASC 类型分派，其他 16 声道配置不会自动放行。输出为交错的 **ACN0 至 ACN15 系数 PCM**，不是扬声器信号；不进行空间渲染或归一化转换。其他阶数、N3D、salient 恢复、LRVQ 和结构更新仍不支持。
+
+库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
+
+这个限定配置的 ambient 恢复是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、三阶、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
+
+HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。实测内嵌 preroll 容量为 32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式、16 路 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空。
+
+```sh
+apac-tool parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
+apac-tool decode-sq input.m4a --out artifacts/hoa-pcm --frames 8192
+python3 -B scripts/generate_hoa_manifest.py --check
+# 39 个新增语义序列：独立 Decimal 数学参考与三种输入比较
+python3 -B scripts/validate_hoa.py --binary target/debug/apac-tool --report reports/hoa-math.json
+python3 -B scripts/validate_hoa.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-math.json --report reports/hoa-release.json
+```
+
+HOA 验证只运行新增用例和受影响接口的精简回归，不要求重跑旧完整矩阵。真实媒体在开发和发布时都只取有 DRC、无 DRC各一份代表。先用 `cargo +1.98.0 test --offline --release --lib --no-run --message-format=json` 构建，再将输出中的库测试 `executable` 路径传给 `scripts/validate_hoa_media.py --test-binary PATH --with-drc INPUT --without-drc INPUT --report REPORT`。该工具逐包完整解码、核验输入并仅保留 PCM 摘要，不落盘整曲 PCM；报告绑定代码、源码、测试二进制、工具链和输入摘要。`scripts/validate_hoa_native.py` 可复核已有的哈希约束只读 HOA 跟踪，无需重复跟踪已确认的 SQ 工具。
+
+**实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
 ```sh
 target/debug/apac-tool decode-sq /path/to/input.caf --out artifacts/demo/caf-pcm
@@ -335,13 +355,13 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-当前 `decode-sq` 覆盖上述 Mono／Stereo／5.1／7.1／7.1.4／22.2 SQ 配置的包目录、CAF 与受限 MP4／M4A，公共 parameter_b=2，其余资格检查保持明确。双声道旧路径保留原输出；新增声道路径使用相同数学内核和固定 DRC 关闭策略。MP4／M4A 可直接读取下述单音轨封装，不需要预先导出包目录。
+当前 `decode-sq` 覆盖上述 Mono／Stereo／5.1／7.1／7.1.4／22.2 及限定 HOA SQ 配置的包目录、CAF 与受限 MP4／M4A，公共 parameter_b=2，其余资格检查保持明确。双声道旧路径保留原输出；新增声道路径使用相同数学内核和固定 DRC 关闭策略。MP4／M4A 可直接读取下述单音轨封装，不需要预先导出包目录。
 
 输出为比较器可读的 `pcm.f32le`、`pcm.json` 和 `decode-sq.json`。省略范围参数时输出包目录目标窗口或 CAF／MP4 的全部有效音频；`--start-frame` 使用绝对有效音频坐标，`--frames` 指定正的请求长度。包目录的非零导出起点必须有 `replay_window`，并满足独立起点、roll 和 preroll 约束；前置包只建立状态。packet table 的 priming／remainder 只裁剪一次，内嵌帧不增加源时间线，不追加隐含尾帧。短请求结束后仍校验目录未解码部分的完整性，不访问原始音频。
 
 包目录声明了布局时，布局标签须与 cookie 确定的解码布局一致，bitmap 必须为零且不能带声道描述；显示名称不参与比较。布局不匹配会在创建输出目录前报错，避免声道数相同但顺序不同的布局被误标到 PCM。
 
-CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、1／2／6／8／12／24 声道、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的已支持布局取值；存在时仅接受与 cookie 一致的上述标准标签、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
+CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、1／2／6／8／12／24 声道或上述 48 kHz、16 系数 HOA、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的已支持布局取值；存在时仅接受与 cookie 一致的上述标准标签（HOA 为 family 190）、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
 
 CAF 默认顺序模式从第 0 包解码，前置 PCM 被丢弃，以建立 overlap、DRC 与内嵌帧状态；不生成未经验证的随机访问依赖信息，也不套用包目录的 4096 包依赖搜索限额。短范围结束后仍读取剩余包作结构与摘要核验，不宣称其 APAC 语法已完成。`pakt` 决定有效帧及 priming／remainder，包长总和须精确覆盖音频数据，空有效区间不增加隐含帧。
 
@@ -362,7 +382,7 @@ python3 -B scripts/validate_caf_native.py --binary target/debug/apac-tool \
 
 内嵌 preroll 先建立当前帧所需的叠加状态，其 PCM 被丢弃。缺席 CPE 输出已有叠加尾部，然后清空尾部；不能直接将整包当作静音。四种窗口由当前编码类型选择，支持全部相邻组合，不施加未由 APAC 语法要求的 AAC 窗口过渡限制。错误保留输出目录失败标记，拒绝覆盖并沿用累计输出限额。
 
-**MP4／M4A 直接输入**：支持非分片、自包含、唯一音轨且唯一 `apac` 样本描述的 ISO BMFF 文件。按内容识别，扩展名不参与判断；保持上述四种布局、采样率和 SQ 配置限制。
+**MP4／M4A 直接输入**：支持非分片、自包含、唯一音轨且唯一 `apac` 样本描述的 ISO BMFF 文件。按内容识别，扩展名不参与判断；保持上述离散布局、限定 HOA、采样率和 SQ 配置限制。
 
 ```sh
 apac-tool decode-sq input.m4a --out artifacts/mp4-pcm --start-frame 48000 --frames 8192
@@ -386,7 +406,7 @@ MP4 默认顺序模式也从第 0 包预热，不设 4096 包依赖搜索上限�
 
 `decode-sq.json.input` 为 `kind=mp4`、`profile=apac-mp4-input-v1`，包含品牌、轨道、原始样本条目字段、cookie 布局来源、时间线换算、box 范围和一致性状态。音频摘要按样本顺序拼接包字节；包边界摘要依次使用包序号、**文件绝对偏移**、包长、1024 帧数四个小端 u64，后接包 SHA-256 原始字节。元数据摘要按遍历顺序覆盖已读取 box 头及使用的元数据载荷；未知非解码载荷和未引用 `mdat` 填充不计入。开始和结束核对内容摘要、文件长度与修改时间；这是读取一致性检查，并非预存校验和或真实性证明。容器错误使用 `chunk_type` 表示 box 类型，附带文件 `byte_offset`。旧 CAF／包目录报告、数值配置与 PCM 保持兼容。
 
-**快速范围解码**：CAF／MP4 文件可显式选择 `--access fast`，默认及原库入口仍使用顺序模式：
+**快速范围解码**：受支持的离散声道 CAF／MP4 文件可显式选择 `--access fast`，HOA 暂不支持；默认及原库入口仍使用顺序模式：
 
 ```sh
 apac-tool decode-sq input.m4a --out artifacts/fast-window \
@@ -600,7 +620,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2 和逐包苹果参考回放基准。独立公式数值模型配有完整人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、HOA、其他离散声道布局、空间渲染和实时播放属于后续工作。
+当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2、受限纯 ambient HOA 和逐包苹果参考回放基准。独立公式数值模型配有人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录和容器 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、通用 HOA、其他离散声道布局、空间渲染和实时播放属于后续工作。
 
 ## 仓库与数据边界
 

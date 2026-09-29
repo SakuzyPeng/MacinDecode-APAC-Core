@@ -43,7 +43,7 @@ enum Command {
     },
     /// Parse a standalone APAC cookie with the platform-independent Rust parser.
     ParseCookie { file: PathBuf },
-    /// Inspect SQ prefixes, raw spectra, CAC, TNS or BWE2 from a validated packet bundle.
+    /// Inspect SQ stages or complete channel/HOA packets from a validated packet bundle.
     ParsePackets {
         directory: PathBuf,
         #[arg(long, value_enum, default_value_t = macindecode_apac_tools::frame::ParseDepth::Prefix)]

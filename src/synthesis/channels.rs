@@ -38,7 +38,7 @@ pub(super) fn decode(
     *state = next_state;
     Ok(result)
 }
-fn render(
+pub(super) fn render(
     states: &mut [ChannelState],
     packet: &ChannelPacketReport,
 ) -> Result<(Vec<f32>, FrameStateCounts)> {
@@ -66,7 +66,11 @@ fn render(
             }
             let samples = if element.present {
                 states[index].render(
-                    &element.channels_after_bwe2[local].scaled,
+                    if let Some(hoa) = &packet.hoa {
+                        &hoa.channels_after_hoa[index].scaled
+                    } else {
+                        &element.channels_after_bwe2[local].scaled
+                    },
                     element.channels[local].ics.block_type,
                 )?
             } else {

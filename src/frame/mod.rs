@@ -1,6 +1,7 @@
 //! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC, TNS and BWE2 before core alignment.
 mod bundle;
 mod channels;
+mod hoa;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
     ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
@@ -31,6 +32,12 @@ pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
 pub use drc::{
     DrcConfiguration, DrcNode, DrcParameters, DrcPayload, DrcReport, DrcTimeDelta, parse_drc,
 };
+pub(crate) use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
+pub use hoa::{
+    HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaPacketReport, HoaSpatialData,
+    parse_hoa_packet,
+};
+pub use hoa::{NUMERIC_PROFILE as HOA_NUMERIC_PROFILE, STATE_PROFILE as HOA_STATE_PROFILE};
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
@@ -310,6 +317,9 @@ impl Parser<'_> {
     fn ics(&mut self, prefix: &str) -> Result<IcsInfo, ParseError> {
         let block = self.take(&format!("{prefix}.block_type"), 2)?;
         // The two supported rates both initialize long/short limits to 49/14.
+        self.ics_with_block(prefix, block as u8)
+    }
+    fn ics_with_block(&mut self, prefix: &str, block: u8) -> Result<IcsInfo, ParseError> {
         let short = block == 2;
         let start = self.bits.position();
         let max_sfb = self.take(&format!("{prefix}.max_sfb"), if short { 4 } else { 6 })?;
@@ -342,7 +352,7 @@ impl Parser<'_> {
             json!(if max_sfb == 0 { 0 } else { groups.len() }),
         );
         Ok(IcsInfo {
-            block_type: block as u8,
+            block_type: block,
             max_sfb: max_sfb as usize,
             window_groups: groups,
         })

@@ -12,7 +12,7 @@ mod tests;
 use crate::{
     config::{self, MAX_COOKIE_BYTES},
     error::{Error, FilePosition, Result},
-    frame::ChannelFrameContext,
+    frame::DecodedFrameContext,
     model::*,
     packets::ReplayRange,
 };
@@ -212,7 +212,7 @@ impl Mp4Reader {
             return Err(url.error("external or unsupported data reference"));
         }
         let (cookie, rate, cookie_atom) = cookie(&mut file, &structure)?;
-        let context = ChannelFrameContext::from_cookie(&cookie).map_err(|e| {
+        let context = DecodedFrameContext::from_cookie(&cookie).map_err(|e| {
             let mut e: Error = e.into();
             e.file_position = Some(Box::new(FilePosition {
                 byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,

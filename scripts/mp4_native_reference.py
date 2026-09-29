@@ -102,7 +102,7 @@ def verify(path):
         require(count==reference['count'] and config==reference['cookie'],'native cookie/count differs')
         require(fmt.format==fourcc('apac') and fmt.rate==reference['rate'] and fmt.packet_frames==1024,'native format differs')
         require(dict(valid_frames=table.valid,priming_frames=table.priming,remainder_frames=table.remainder)==reference['table'],'native edit/priming/remainder differs')
-        require(fmt.channels in (1,2,6,8) and tag==({1:100,2:101,6:121,8:128}[fmt.channels]<<16)|fmt.channels and bitmap==descriptions==0,'native channel map differs')
+        require(fmt.channels in (1,2,6,8,12,24) and tag==({1:100,2:101,6:121,8:128,12:192,24:204}[fmt.channels]<<16)|fmt.channels and bitmap==descriptions==0,'native channel map differs')
         audio=hashlib.sha256();boundaries=hashlib.sha256();seen=0
         with Path(path).open('rb') as f:
             for i,raw in af.packets(count,af.get('psze',C.c_uint32()).value):

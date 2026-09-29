@@ -1,5 +1,6 @@
 mod bwe2_math;
 mod caf;
+mod channel_layout;
 #[cfg(target_os = "macos")]
 pub mod collect;
 pub mod compare;

@@ -58,26 +58,11 @@ impl ChannelFrameContext {
             .get("channels")
             .and_then(|v| v.as_u64())
             .unwrap_or(0);
-        let (family, level, types, labels, capacity): (u64, u64, &[u8], &[&str], u64) = match count
-        {
-            1 => (100, 0, &[0], &["Mono"], 2048),
-            2 => (101, 0, &[1], &["L", "R"], 4096),
-            6 => (
-                121,
-                1,
-                &[1, 0, 3, 1],
-                &["L", "R", "C", "LFE", "Ls", "Rs"],
-                12288,
-            ),
-            8 => (
-                128,
-                2,
-                &[1, 0, 3, 1, 1],
-                &["L", "R", "C", "LFE", "Ls", "Rs", "Rls", "Rrs"],
-                16384,
-            ),
-            _ => (0, 0, &[], &[], 0),
-        };
+        let layout = crate::channel_layout::layout(count);
+        let (family, level, types, labels, capacity) =
+            layout.as_ref().map_or((0, 0, &[][..], &[][..], 0), |l| {
+                (l.family, l.level, l.types, l.labels, l.preroll_bytes)
+            });
         let configuration = PacketConfiguration::for_layout(&parsed, count, family, level, types);
         let drc = DrcContext::for_channels(&parsed, count);
         let field = |name: &str| {
@@ -93,7 +78,7 @@ impl ChannelFrameContext {
             && field("global.flag_c") == Some(&json!(false));
         let rejection = if types.is_empty() {
             Some(format!(
-                "unsupported declared channel count {count}; expected 1, 2, 6 or 8"
+                "unsupported declared channel count {count}; expected 1, 2, 6, 8, 12 or 24"
             ))
         } else {
             configuration.rejection.clone().or(drc.rejection.clone())
@@ -208,6 +193,8 @@ pub struct ChannelPacketReport {
     pub frame: FrameReport,
     pub packet_complete: bool,
     pub packet_state_profile: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel_layout_profile: Option<String>,
     pub channel_count: u8,
     pub channel_labels: Vec<String>,
     pub elements: Vec<ElementReport>,
@@ -535,6 +522,8 @@ fn parse_impl(
         frame,
         packet_complete: false,
         packet_state_profile: STATE_PROFILE.into(),
+        channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
+            .map(str::to_owned),
         channel_count: context.channel_count,
         channel_labels: context.channel_labels.clone(),
         elements: vec![],

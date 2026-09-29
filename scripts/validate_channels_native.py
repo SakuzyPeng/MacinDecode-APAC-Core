@@ -89,7 +89,7 @@ def native_check(reports,trace):
         ancillary=[e for e in own if e['kind']=='ancillary'];require(len(ancillary)==1 and ancillary[0]['status']==0,'missing ancillary result')
         tail=r['packet_tail'];require(ancillary[0]['start']['relative_bit_offset']==tail['ancillary_start_bit_offset'] and ancillary[0]['end']['relative_bit_offset']==tail['ancillary_end_bit_offset'],'ancillary bit range differs')
         boundaries.append(dict(sequence=sequence,role=role,sha256=r['packet_sha256'],elements=[dict(configuration=e['configuration'],present=e['present'],start=e['start_bit_offset'],end=e['end_bit_offset'],bwe2=e['bwe2']) for e in r['elements']],tail=tail))
-    capacities=[e['preroll_bytes'] for e in events if e['kind']=='capacity'];require(capacities and set(capacities)=={reports[0]['channel_count']*2048},'native preroll capacity differs')
+    capacities=[e['preroll_bytes'] for e in events if e['kind']=='capacity'];require(capacities and set(capacities)=={{1:2048,2:4096,6:12288,8:16384,12:24576,24:49152}[reports[0]['channel_count']]},'native preroll capacity differs')
     return dict(passed=True,frames=len(expected),boundary_sha256=digest(boundaries),capacity_bytes=capacities[0],float_metrics=metrics)
 
 

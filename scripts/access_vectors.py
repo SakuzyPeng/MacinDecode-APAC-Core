@@ -1,6 +1,6 @@
 """Independent fast-range inputs, expected stage selection and byte coordinates."""
 import copy,itertools,json,hashlib
-from channel_vectors import LAYOUTS,WINDOWS,cookie,packet,excitation
+from channel_vectors import LAYOUTS,WINDOWS,cookie,packet,excitation,layout
 from mp4_vectors import cases,encode as mp4_encode
 from caf_vectors import encode as caf_encode,digest,sha
 
@@ -10,7 +10,7 @@ def generated(channels,rate,index,case):
     kind,options,original=case;seq=copy.deepcopy(original)
     seq += [excitation(channels,index%channels,WINDOWS[index%len(WINDOWS)],gain=166),
             excitation(channels,(index+1)%channels,WINDOWS[(index+1)%len(WINDOWS)],gain=160,quantized=-1),
-            dict(elements=[None]*len(LAYOUTS[channels][2]))]
+            dict(elements=[None]*len(layout(channels)[2]))]
     parts=[packet(c,channels,rate,**options) for c in seq];payloads=[p for p,_ in parts]
     config=cookie(channels,rate,**options);prime=(0,1,1024,2048)[index%4];remainder=(0,1,127,1023)[index//4%4]
     kwargs=dict(rate=rate,channels=channels,priming=prime,remainder=remainder,variant=index)

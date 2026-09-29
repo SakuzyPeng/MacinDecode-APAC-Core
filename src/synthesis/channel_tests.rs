@@ -11,11 +11,18 @@ fn bytes(value: &Value) -> Vec<u8> {
         .collect()
 }
 fn fixtures() -> Vec<Value> {
-    serde_json::from_str::<Value>(include_str!("../../data/channel-state-fixtures-v1.json"))
-        .unwrap()["fixtures"]
-        .as_array()
-        .unwrap()
-        .clone()
+    [
+        include_str!("../../data/channel-state-fixtures-v1.json"),
+        include_str!("../../data/layout-state-fixtures-v1.json"),
+    ]
+    .into_iter()
+    .flat_map(|raw| {
+        serde_json::from_str::<Value>(raw).unwrap()["fixtures"]
+            .as_array()
+            .unwrap()
+            .clone()
+    })
+    .collect()
 }
 fn bits(values: Vec<f32>) -> Vec<u32> {
     values.into_iter().map(f32::to_bits).collect()

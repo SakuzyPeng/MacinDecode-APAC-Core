@@ -53,7 +53,7 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
             not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete qualified native trace')
     check_accounting(replay,pcm)
     channels=pcm.get('channels',2)
-    require(channels in (1,2,6,8),'unsupported DRC proof layout')
+    require(channels in (1,2,6,8,12,24),'unsupported DRC proof layout')
     settings=pcm['decoder_settings'];audit=settings.get('processing_policy',{}).get('value')
     if policy=='drc-off':
         require(audit is not None and audit['initial']['verified'],'explicit off request not verified')

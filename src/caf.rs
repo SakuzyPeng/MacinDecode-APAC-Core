@@ -204,20 +204,15 @@ impl CafReader {
             .map(|b| u32::from_be_bytes(*b))
             .collect();
         let channels = ints[4];
-        let (family, name) = match channels {
-            1 => (100, "Mono"),
-            2 => (101, "Stereo"),
-            6 => (121, "Surround51"),
-            8 => (128, "Surround71"),
-            _ => {
-                return Err(invalid(
-                    b"desc",
-                    desc.offset + 24,
-                    "supported channel counts are 1, 2, 6, 8",
-                ));
-            }
-        };
-        let layout_tag = (family << 16) | channels;
+        let layout = crate::channel_layout::layout(u64::from(channels)).ok_or_else(|| {
+            invalid(
+                b"desc",
+                desc.offset + 24,
+                "supported channel counts are 1, 2, 6, 8, 12, 24",
+            )
+        })?;
+        let name = layout.name;
+        let layout_tag = ((layout.family as u32) << 16) | channels;
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
         if !matches!(rate, 44100.0 | 48000.0) {
             return Err(invalid(

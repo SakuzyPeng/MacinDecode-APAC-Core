@@ -208,7 +208,7 @@ fn decode_with_access(
     if saved != range.frames {
         return Err(Error::new("SQ decoder", "incomplete PCM frame range"));
     }
-    let pcm = PcmInfo {
+    let mut pcm = PcmInfo {
         schema_version: SCHEMA_VERSION,
         complete: true,
         pcm_file: "pcm.f32le".into(),
@@ -252,6 +252,14 @@ fn decode_with_access(
         )]),
         all_finite: true,
     };
+    if let Some(profile) = crate::channel_layout::profile(u64::from(channels)) {
+        pcm.decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap()["channel_layout_profile"] = json!(profile);
+    }
     out.json("pcm.json", &pcm)?;
     let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,
@@ -264,6 +272,9 @@ fn decode_with_access(
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
         "raw_frames_decoded":decoded_packets*1024,
         "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
+    if let Some(profile) = crate::channel_layout::profile(u64::from(channels)) {
+        report["channel_layout_profile"] = json!(profile);
+    }
     if channels != 2 {
         report["channel_count"] = json!(channels);
         report["channel_layout"] = json!(decoder.channel_layout());

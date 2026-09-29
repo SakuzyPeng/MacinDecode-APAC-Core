@@ -291,7 +291,9 @@ impl SqDecoder {
         }
     }
     pub fn support_scope(&self) -> &'static str {
-        if self.channel_context.is_some() {
+        if matches!(self.channel_count(), 12 | 24) {
+            "single_asc_714_222_sq_drc_off"
+        } else if self.channel_context.is_some() {
             "single_asc_mono_51_71_sq_drc_off"
         } else {
             "stereo_sq_drc_off_neutral_scene_asp"

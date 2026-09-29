@@ -4,7 +4,7 @@ import argparse,copy,hashlib,json,math,platform,struct,subprocess,sys
 from collections import defaultdict
 from pathlib import Path
 from datetime import datetime,timezone
-from channel_vectors import LAYOUTS,PROFILE,sequences,packet,cookie,bundle,manifest
+from channel_vectors import LAYOUTS,PROFILE,layout,sequences,packet,cookie,bundle,manifest
 from channel_oracle import Decoder,spectra
 from validate import require,write_json
 from validate_portable import ROOT,source_digest
@@ -42,8 +42,9 @@ def same_fields(actual,expected,context):
 
 def check(report,truth,channels):
     require(report['packet_complete'] and report['status']=='complete','incomplete channel packet')
-    require(report['channel_count']==channels and report['channel_labels']==LAYOUTS[channels][3],'channel map differs')
+    require(report['channel_count']==channels and report['channel_labels']==layout(channels)[3],'channel map differs')
     require(report['packet_state_profile']==PROFILE,'wrong channel state profile')
+    require(report.get('channel_layout_profile')==('apac-channel-layout-v2' if channels in (12,24) else None),'wrong layout profile')
     require(report['component_end_bit_offset']==truth['core_end_bit_offset'] and report['stop_bit_offset']==truth['tail']['packet_end_bit_offset'],'core/packet endpoint differs')
     require(not report['unknown_ranges'],'complete report retains unknown bits');coverage(report)
     same_fields(report['packet_tail'],truth['tail'],'tail')
@@ -104,14 +105,14 @@ def batches(values,limit=24):
         batch.append(row);frames+=len(row[3])
     if batch:yield batch
 
-def validate(binary,report,reference):
-    frozen=json.loads(MANIFEST.read_text(encoding='utf-8'));require(frozen==manifest() and len(frozen['sequences'])==COUNT,'frozen channel vectors differ')
+def validate(binary,report,reference,*,layouts=LAYOUTS,manifest_fn=manifest,manifest_path=MANIFEST,count=COUNT,sequences_fn=sequences):
+    frozen=json.loads(manifest_path.read_text(encoding='utf-8'));require(frozen==manifest_fn() and len(frozen['sequences'])==count,'frozen channel vectors differ')
     records={(r['channels'],r['rate'],r['index']):r for r in frozen['sequences']}
     previous={(r['channels'],r['rate'],r['index']):r for r in reference['sequences']} if reference else {}
-    for channels in LAYOUTS:
+    for channels in layouts:
         for rate in (48000,44100):
             buckets=defaultdict(list)
-            for index,(kind,options,seq) in enumerate(sequences(channels)):buckets[json.dumps(options,sort_keys=True)].append((index,kind,options,seq))
+            for index,(kind,options,seq) in enumerate(sequences_fn(channels)):buckets[json.dumps(options,sort_keys=True)].append((index,kind,options,seq))
             for group in buckets.values():
                 for batch in batches(group):
                     options=batch[0][2]
@@ -160,7 +161,7 @@ def validate(binary,report,reference):
                                 merge_metrics(report['metrics']['pcm'],metric)
                                 if not metric['passed']:record['passed']=False;report['sequences'].append(record);raise AssertionError('independent PCM differs')
                             report['sequences'].append(record);cursor+=length
-                    print(f'CHANNELS {channels} {rate}: {len(report["sequences"])}/{COUNT}',flush=True)
+                    print(f'CHANNELS {channels} {rate}: {len(report["sequences"])}/{count}',flush=True)
 
 def merge_metrics(total,item):
     total['max_absolute_error']=max(total['max_absolute_error'],item['max_absolute_error']);total['max_ulp']=max(total['max_ulp'],item['max_ulp']);total['failed_samples']+=item['failed_samples']

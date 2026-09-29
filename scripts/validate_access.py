@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime,timezone
 from access_vectors import PROFILE,LAYOUTS,cases,generated,expected_access,manifest,digest,sha
 from channel_oracle import Decoder
+from channel_vectors import bundle
 from validate import require,write_json
 from validate_drc import workspace
 from validate_portable import ROOT,source_digest,compare_pcm
@@ -24,16 +25,18 @@ def state_identity(report):
     require(valid(before) if report['saved_frames'] else before is None,'missing or fabricated output-boundary state evidence')
     return before,after
 
-def validate(binary,report,reference):
-    frozen=json.loads(MANIFEST.read_text(encoding='utf-8'));require(frozen==manifest() and len(frozen['cases'])==COUNT,'frozen access inputs differ')
+def validate(binary,report,reference,*,layouts=LAYOUTS,manifest_fn=manifest,manifest_path=MANIFEST,count=COUNT,cases_fn=cases,generated_fn=generated,include_bundle=False):
+    frozen=json.loads(manifest_path.read_text(encoding='utf-8'));require(frozen==manifest_fn() and len(frozen['cases'])==count,'frozen access inputs differ')
+    total_cases=count
     previous={(r['channels'],r['rate'],r['index']):r for r in reference['cases']} if reference else {}
-    for n in LAYOUTS:
+    for n in layouts:
         for rate in (48000,44100):
-            for index,case in enumerate(cases(n)):
-                data=generated(n,rate,index,case)
+            for index,case in enumerate(cases_fn(n)):
+                data=generated_fn(n,rate,index,case)
                 with workspace(report,f'{n}-{rate}-{index}') as root:
                     table=data['mp4_truth']['packet_table'];prime=table['priming_frames'];valid=table['valid_frames'];full=None;ranges=[]
                     for label in ('caf','mp4'):(root/label).write_bytes(data[label])
+                    if include_bundle:bundle(root/'bundle',data['payloads'],n,rate,**case[1],priming=prime,remainder=table['remainder_frames'])
                     for name,start,count in data['ranges']:
                         expected=expected_access(data,start,count);outputs=[];access_records=[];frames=min(count,valid-start)
                         for label in ('caf','mp4'):
@@ -53,6 +56,12 @@ def validate(binary,report,reference):
                                 require(report['implementations'][key]==impl,'implementation identity changed')
                                 state_identity(r)
                                 outputs.append(pcm);access_records.append(r['access'])
+                        if include_bundle:
+                            out=root/('bundle-'+name)
+                            r=command(binary,'decode-sq',root/'bundle','--out',out,'--start-frame',start,'--frames',count,'--access','sequential')
+                            require(r['complete'] and r['saved_frames']==frames and r['pcm']['start_frame']==start,'bundle timeline changed')
+                            raw=(out/'pcm.f32le').read_bytes();require(len(raw)==frames*n*4 and sha(raw)==r['pcm']['sha256'],'bundle PCM integrity differs')
+                            state_identity(r);outputs.append(raw);access_records.append(r['access'])
                         require(all(p==outputs[0] for p in outputs),'fast/sequential or container PCM differs')
                         if name=='all':full=outputs[0]
                         require(outputs[0]==full[start*n*4:(start+frames)*n*4],'range differs from continuous slice')
@@ -62,6 +71,7 @@ def validate(binary,report,reference):
                         require(stable=={k:v for k,v in access_records[3].items() if k!='timings_seconds'},'container access differs')
                         ranges.append(dict(name=name,start=start,frames=frames,pcm_sha256=sha(outputs[0]),access=stable,passed=True))
                     record=dict(channels=n,rate=rate,index=index,ranges=ranges,passed=True)
+                    if include_bundle:record['bundle_exact']=True
                     if reference:require(record==previous[n,rate,index],'cross-build access digest differs')
                     else:
                         decoder=Decoder(n);wanted=[v for t in data['truths'] for v in decoder.decode(t)][prime*n:(prime+valid)*n]
@@ -71,7 +81,7 @@ def validate(binary,report,reference):
                         if not metrics['passed']:
                             record.update(passed=False,pcm_metrics=metrics);report['cases'].append(record);raise AssertionError('independent PCM exceeds original tolerance')
                     report['cases'].append(record)
-                if index%10==0:print(f'ACCESS {n}ch {rate}: {len(report["cases"])}/{COUNT}',flush=True)
+                if index%10==0:print(f'ACCESS {n}ch {rate}: {len(report["cases"])}/{total_cases}',flush=True)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--reference-report',type=Path)

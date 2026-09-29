@@ -9,6 +9,7 @@ import native_frame_trace as base
 
 KINDS={};RETURNS={};EVENTS=[];PACKETS=[];ERRORS=[];ELEMENTS={}
 CURRENT=None;RAW=None;SEQUENCE=-1;ROLE=None;CURRENT_ELEMENT=None;CHANNELS=0
+LAYOUT_TYPES={1:[0],2:[1],6:[1,0,3,1],8:[1,0,3,1,1],12:[1,0,3,1,1,1,1],24:[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1]}
 
 def ptr(frame,address):return struct.unpack('<Q',base.memory(frame,address,8))[0]
 def floats(frame,address,count=1024):return list(struct.unpack('<'+str(count)+'f',base.memory(frame,address,count*4)))
@@ -92,11 +93,11 @@ def hit(frame,location,_dict):
         if kind=='core':
             source=base.reg(frame,'x1');info=reader(frame,source);ROLE=info['role'];e=event(kind,start=info)
             instance=base.reg(frame,'x0');begin,end=struct.unpack('<QQ',base.memory(frame,instance+0xb0,16))
-            if not 0<end-begin<=5*16 or (end-begin)%16:raise RuntimeError('unverified core element vector')
+            if end-begin!=len(LAYOUT_TYPES[CHANNELS])*16:raise RuntimeError('unverified core element vector')
             ELEMENTS={};channel=0
             for i,address in enumerate(range(begin,end,16)):
                 pointer=ptr(frame,address+8);typ=struct.unpack('<I',base.memory(frame,pointer+8,4))[0]
-                if typ not in (0,1,3):raise RuntimeError('unverified element type')
+                if typ!=LAYOUT_TYPES[CHANNELS][i]:raise RuntimeError('unverified element type/order')
                 width=2 if typ==1 else 1
                 ELEMENTS[pointer]=dict(pointer=pointer,element_index=i,element_type=typ,channels=list(range(channel,channel+width)));channel+=width
             if channel!=CHANNELS:raise RuntimeError('element channel total differs')
@@ -164,7 +165,7 @@ def hit(frame,location,_dict):
 def __lldb_init_module(debugger,_dict):
     global CHANNELS
     target=debugger.GetSelectedTarget();CHANNELS=int(os.environ['APAC_CHANNEL_COUNT'])
-    if not target.GetTriple().startswith('arm64') or CHANNELS not in (1,2,6,8):raise RuntimeError('unverified target/layout')
+    if not target.GetTriple().startswith('arm64') or CHANNELS not in LAYOUT_TYPES:raise RuntimeError('unverified target/layout')
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
     if hashlib.sha256(component.read_bytes()).hexdigest()!=base.COMPONENT_SHA256:raise RuntimeError('component hash changed')
     points=dict(capacity=r'^APACASPDecoder::Initialize\(',packet=r'^APACASPDecoder::DecodeFrame\(',core=r'^APACCore(LBR)?Decoder::Deserialize\(TBitstreamReader',

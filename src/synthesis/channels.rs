@@ -57,14 +57,15 @@ pub(super) fn render(
         && hoa.spatial.as_ref().is_some_and(|s| s.salient.is_some())
     {
         counts.absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
-        let mut output = vec![0.; 1024 * states.len()];
+        let channels = states.len();
+        let mut output = vec![0.; 1024 * channels];
         for (index, state) in states.iter_mut().enumerate() {
             let samples = state.render(
                 &hoa.channels_after_hoa[index].scaled,
                 hoa.common_window.expect("HOA window"),
             )?;
             for (frame, value) in samples.into_iter().enumerate() {
-                output[frame * 16 + index] = value;
+                output[frame * channels + index] = value;
             }
         }
         return Ok((output, counts));

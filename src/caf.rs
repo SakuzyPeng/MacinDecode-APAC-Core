@@ -205,18 +205,13 @@ impl CafReader {
             .collect();
         let channels = ints[4];
         let layout = crate::channel_layout::layout(u64::from(channels));
-        let (name, layout_tag) = if channels == 16 {
-            ("HOA ACN/SN3D", (190 << 16) | 16)
-        } else {
-            let layout = layout.ok_or_else(|| {
-                invalid(
-                    b"desc",
-                    desc.offset + 24,
-                    "supported channel counts are 1, 2, 6, 8, 12, 16 (HOA), 24",
-                )
-            })?;
-            (layout.name, ((layout.family as u32) << 16) | channels)
-        };
+        if layout.is_none() && !matches!(channels, 4 | 9 | 16) {
+            return Err(invalid(
+                b"desc",
+                desc.offset + 24,
+                "supported counts are 1, 2, 6, 8, 12, 24 or qualified HOA 4, 9, 16",
+            ));
+        }
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
         if !matches!(rate, 44100.0 | 48000.0) {
             return Err(invalid(
@@ -245,6 +240,29 @@ impl CafReader {
             }));
             e
         })?;
+        let (name, layout_tag) = if parsed
+            .fields
+            .iter()
+            .any(|f| f.name == "components[0].type" && f.value == json!(2))
+        {
+            let context = crate::frame::HoaFrameContext::from_cookie(&cookie)?;
+            if let Some(reason) = context.rejection() {
+                return Err(Error::new(
+                    "SQ decoder",
+                    format!("unsupported configuration: {reason}"),
+                ));
+            }
+            ("HOA ACN/SN3D", context.channel_layout().tag)
+        } else {
+            let layout = layout.ok_or_else(|| {
+                invalid(
+                    b"kuki",
+                    kuki.offset,
+                    "this channel count requires a qualified HOA ASC",
+                )
+            })?;
+            (layout.name, ((layout.family as u32) << 16) | channels)
+        };
         for (key, want) in [
             ("sample_rate_hz", rate as u64),
             ("channels", u64::from(channels)),

@@ -5,28 +5,28 @@ trigonometric tables, explicit order-3 polynomials, FFT, or candidate output.
 """
 from decimal import Decimal as D, localcontext
 from functools import lru_cache
-from math import factorial
+from math import factorial,isqrt
 import struct
 from channel_oracle import spectra
 from sq_oracle import Channel
 from sq_math import sin_pi, cos_pi, round_f32
-from hoa_salient_vectors import FORMAT
+from hoa_salient_vectors import format_for
 
 
 @lru_cache(maxsize=128)
-def harmonics(azimuth,elevation):
+def harmonics(azimuth,elevation,order=3):
     with localcontext() as ctx:
         ctx.prec=200
-        z=sin_pi(elevation-90,180);radial=(1-z*z).sqrt();out=[D(0)]*16
-        for m in range(4):
+        z=sin_pi(elevation-90,180);radial=(1-z*z).sqrt();out=[D(0)]*((order+1)**2)
+        for m in range(order+1):
             diagonal=D(1)
             for k in range(1,m+1):diagonal*=D(2*k-1)*radial
             previous=None;current=diagonal
-            for degree in range(m,4):
+            for degree in range(m,order+1):
                 if degree>m:
                     next_value=(D(2*degree-1)*z*current-(D(degree+m-1)*previous if previous is not None else D(0)))/D(degree-m)
                     previous,current=current,next_value
-                scale=(D(2*degree+1)*D(2 if m else 1)*D(factorial(degree-m))/D(factorial(degree+m))).sqrt()/4
+                scale=(D(2*degree+1)*D(2 if m else 1)*D(factorial(degree-m))/D(factorial(degree+m))).sqrt()/(order+1)
                 center=degree*(degree+1)
                 out[center+m]=current*scale*cos_pi(m*azimuth,180)
                 if m:out[center-m]=-current*scale*sin_pi(m*azimuth,180)
@@ -36,20 +36,21 @@ def harmonics(azimuth,elevation):
 def descriptor(spec,previous):
     with localcontext() as ctx:
         ctx.prec=200
-        mode=spec['mode'];out=list(harmonics(spec['azimuth_degrees'],spec['elevation_offset_degrees'])) if mode==5 else [D(0)]*16
+        n=len(previous);order=isqrt(n)-1
+        mode=spec['mode'];out=list(harmonics(spec['azimuth_degrees'],spec['elevation_offset_degrees'],order)) if mode==5 else [D(0)]*n
         for i,q in enumerate(spec['quantized']):
             value=D(q)/32
             out[i]=previous[i]+(value if spec['signs_positive'][i] else -value) if mode==3 else value-1
         if mode==4:
-            matrix=[D.from_float(struct.unpack('<f',struct.pack('<I',word))[0]) for word in FORMAT['modes'][4]['matrices_f32'][spec['cluster']]]
-            out=[sum((out[j]*matrix[16*j+k] for j in range(16)),D(0)) for k in range(16)]
+            matrix=[D.from_float(struct.unpack('<f',struct.pack('<I',word))[0]) for word in format_for(order)['modes'][4]['matrices_f32'][spec['cluster']]]
+            out=[sum((out[j]*matrix[n*j+k] for j in range(n)),D(0)) for k in range(n)]
         return out
 
 
 class Decoder:
-    def __init__(self):
-        self.history=[[[D(0)]*16 for _ in range(4)] for _ in range(5)]
-        self.channels=[Channel(strict_transitions=False) for _ in range(16)]
+    def __init__(self,coefficients=16):
+        self.history=[[[D(0)]*coefficients for _ in range(4)] for _ in range(5)]
+        self.channels=[Channel(strict_transitions=False) for _ in range(coefficients)]
         self.records=[]
 
     def decode(self,truth):
@@ -60,11 +61,11 @@ class Decoder:
             for spec in side['descriptors']:
                 sc,sb=spec['component_index'],spec['subband_index'];v=descriptor(spec,self.history[sc][sb]);self.history[sc][sb]=v;vectors.append(v)
             sources=[spectra(e)['bwe2'][0] if e['present'] else [0.]*1024 for e in truth['elements'][:5]]
-            scaled=[[0.]*1024 for _ in range(16)]
+            scaled=[[0.]*1024 for _ in self.channels]
             for line in range(1024):
                 frequency=line%128 if truth['common_window']==2 else line
                 band=next(i for i,end in enumerate(side['lines_per_window']) if frequency<end)
-                for k in range(16):
+                for k in range(len(self.channels)):
                     value=sum((D.from_float(source[line])*self.history[sc][band][k] for sc,source in enumerate(sources)),D(0))
                     scaled[k][line]=round_f32(value)
             self.records.append(dict(vectors=[[float(v) for v in row] for row in vectors],scaled=scaled))

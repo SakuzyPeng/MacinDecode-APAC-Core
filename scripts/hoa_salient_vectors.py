@@ -10,50 +10,55 @@ from drc_vectors import header as drc_header, payload as drc_payload
 
 PROFILE='apac-hoa-salient-math-v1'
 FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-format-v1.json').read_text())
+ORDER2_FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-order2-format-v1.json').read_text())
 ENDS=[32,80,216,1024]
+def format_for(order):return ORDER2_FORMAT if order==2 else FORMAT
 
 
-def cookie(scene=True,drc=False,rich=False):
-    fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(5,6),(0,4),(0,1),(3,6),(0,6),(16,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
-    wire=''.join(bits(v,w) for v,w in fields)+'1100110'+bits(1,2)+bits(0,2)+bits(0,2)+bits(3,4)+bits(5,4)+bits(0,4)
-    wire+=(bits(3,4)+bits(3,2))*5+'0'+bits(16,5)+'000'*16
-    wire+='0'+bits(190,16)+bits(16,16)+'0'+'0'+bits(0,3)+bits(0,2)
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000):
+    n=(order+1)**2
+    fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(5,6),(0,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
+    wire=''.join(bits(v,w) for v,w in fields)+'1100110'+bits(1,2)+bits(0,2)+bits(0,2)+bits(order,4)+bits(5,4)+bits(0,(n-1).bit_length())
+    wire+=(bits(3,4)+bits(order,order.bit_length()))*5+'0'+bits(n,5)+'000'*n
+    wire+='0'+bits(190,16)+bits(n,16)+'0'+'0'+bits(0,3)+bits(0,2)
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
-    if drc:wire+=drc_header(48000,rich=rich,channels=16)
+    if drc:wire+=drc_header(rate,rich=rich,channels=n)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]
 
 
-def descriptors(mode=0,coefficient=None,component=0,cluster=0,angles=(0,90)):
+def descriptors(mode=0,coefficient=None,component=0,cluster=0,angles=(0,90),*,order=3):
+    n=(order+1)**2
     out=[]
     for sc in range(5):
         row=[]
         for sb in range(4):
-            q=[0 if mode==3 else 32]*16
+            q=[0 if mode==3 else 32]*n
             if coefficient is not None and sc==component:q[coefficient]=16 if mode==3 else 48
-            row.append(dict(mode=mode,quantized=q,signs_positive=[True]*16,cluster=cluster,angles=angles))
+            row.append(dict(mode=mode,quantized=q,signs_positive=[True]*n,cluster=cluster,angles=angles))
         out.append(row)
     return out
 
 
-def spatial(case,origin):
+def spatial(case,origin,*,order=3):
+    n=(order+1)**2;fmt=format_for(order)
     global_mode=case.get('global_mode');wire=bits(int(global_mode is not None),1)
     if global_mode is not None:wire+=bits(global_mode,3)
     result=[]
-    for sc,row in enumerate(case.get('descriptors',descriptors())):
+    for sc,row in enumerate(case.get('descriptors',descriptors(order=order))):
         assert len(row)==4
         for sb,spec in enumerate(row):
             start=origin+len(wire);mode=spec.get('mode',0)
             if global_mode is None:wire+=bits(mode,3)
             else:assert mode==global_mode
-            q=list(spec.get('quantized',[0 if mode==3 else 32]*16));signs=list(spec.get('signs_positive',[True]*16));cluster=None;angles=(None,None)
+            q=list(spec.get('quantized',[0 if mode==3 else 32]*n));signs=list(spec.get('signs_positive',[True]*n));cluster=None;angles=(None,None)
             def huff(book,index):
                 length,code=book[index];return bits(code,length)
             if mode==0:wire+=''.join(bits(v,6) for v in q)
             elif mode==5:
                 angles=spec.get('angles',(0,90));wire+=bits(angles[0],9)+bits(angles[1],8);q=q[:4]
-                wire+=''.join(huff(FORMAT['modes'][1]['codebooks'][0],v) for v in q)
+                wire+=''.join(huff(fmt['modes'][1]['codebooks'][0],v) for v in q)
             else:
-                table=FORMAT['modes'][mode]
+                table=fmt['modes'][mode]
                 if mode==4:cluster=spec.get('cluster',0);wire+=bits(cluster,2)
                 for b,group in enumerate(table['groups']):
                     if cluster is not None and cluster!=b:continue
@@ -67,27 +72,28 @@ def spatial(case,origin):
                      coding_mode=global_mode,ambient_indices=[],salient=dict(subband_ends=ENDS,descriptors=result))
 
 
-def packet(case,scene=True,drc=False,rich=False):
+def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000):
+    n=(order+1)**2
     typ=case.get('frame_type',1);wire=bits(typ,2);inner=None;inner_range=None
     if typ==2:
         wire+='0'+bits(int('preroll' in case),2)
         if 'preroll' in case:
-            raw,inner=packet(case['preroll'],scene,drc,rich);wire+=bits(len(raw),16);wire+='0'*(-len(wire)%8);start=len(wire);wire+=''.join(bits(v,8) for v in raw);inner_range=dict(start_bit_offset=start,end_bit_offset=len(wire))
+            raw,inner=packet(case['preroll'],scene,drc,rich,order=order,rate=rate);wire+=bits(len(raw),16);wire+='0'*(-len(wire)%8);start=len(wire);wire+=''.join(bits(v,8) for v in raw);inner_range=dict(start_bit_offset=start,end_bit_offset=len(wire))
     core_start=len(wire);block=case.get('block',0);wire+=bits(block,2);elements=[]
-    specs=case.get('elements',[None]*16);assert len(specs)==16
+    specs=case.get('elements',[None]*n);assert len(specs)==n
     for i,spec in enumerate(specs):
         start=len(wire)
         if spec is None:
             wire+='0';truth=dict(channels=[],shared_ics=None,cac=None,tns=[],bwe2=None,end_bit_offset=len(wire));present=False
         else:
-            encoded,truth=single(dict(spec,block=block),0,48000,start-2);wire+=encoded[:2]+encoded[4:];truth['end_bit_offset']=truth.pop('tns_end_bit_offset');present=True
+            encoded,truth=single(dict(spec,block=block),0,rate,start-2);wire+=encoded[:2]+encoded[4:];truth['end_bit_offset']=truth.pop('tns_end_bit_offset');present=True
         truth.update(configuration=dict(config(i),output_channels=[],transport_channels=[i]),present=present,start_bit_offset=start);elements.append(truth)
-    encoded,side=spatial(case,len(wire));wire+=encoded;payload_end=len(wire);wire+='0'*(-len(wire)%8);core_end=len(wire)
+    encoded,side=spatial(case,len(wire),order=order);wire+=encoded;payload_end=len(wire);wire+='0'*(-len(wire)%8);core_end=len(wire)
     side['salient']['lines_per_window']=[n//8 if block==2 else n for n in ENDS]
     if scene:wire+=('1'+scene_bits(drc) if case.get('scene_update') else '0')
     drc_truth=None
     if drc:
-        spec=dict(case.get('drc',{}));spec.setdefault('rich',rich);encoded,drc_truth=drc_payload(spec,48000,len(wire),channels=16);wire+=encoded
+        spec=dict(case.get('drc',{}));spec.setdefault('rich',rich);encoded,drc_truth=drc_payload(spec,rate,len(wire),channels=n);wire+=encoded
     wire+='0';end=len(wire)
     if drc:wire+='0'
     raw=pack(wire)
@@ -97,14 +103,14 @@ def packet(case,scene=True,drc=False,rich=False):
                               neutral_scene_restatement=bool(case.get('scene_update')),trimming_present=False,ancillary_end_bit_offset=end,packet_end_bit_offset=len(raw)*8))
 
 
-def bundle(root,payloads,scene=True,drc=False,rich=False,priming=0,remainder=0):
-    ambient_bundle(root,payloads,scene,drc,rich,priming,remainder);cfg=cookie(scene,drc,rich);(root/'cookie.bin').write_bytes(cfg)
+def bundle(root,payloads,scene=True,drc=False,rich=False,priming=0,remainder=0,*,order=3,rate=48000):
+    ambient_bundle(root,payloads,scene,drc,rich,priming,remainder,order=order,rate=rate);cfg=cookie(scene,drc,rich,order=order,rate=rate);(root/'cookie.bin').write_bytes(cfg)
     p=root/'manifest.json';m=json.loads(p.read_text());m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=hashlib.sha256(cfg).hexdigest());p.write_text(json.dumps(m))
 
 
-def basis(coefficient=0,component=0,mode=0,**options):
-    case=excitation(component,options.pop('block',0),options.pop('grouping',0),options.pop('gain',160),options.pop('q',1))
-    case['descriptors']=descriptors(mode,coefficient,component,**options)
+def basis(coefficient=0,component=0,mode=0,*,order=3,**options):
+    case=excitation(component,options.pop('block',0),options.pop('grouping',0),options.pop('gain',160),options.pop('q',1),order=order)
+    case['descriptors']=descriptors(mode,coefficient,component,order=order,**options)
     return case
 
 

@@ -1,0 +1,411 @@
+{
+  "profile": "apac-hoa-orders-validation-v1",
+  "cases": [
+    {
+      "index": 0,
+      "kind": "foa_basis_0",
+      "configuration": {
+        "order": 1,
+        "rate": 48000,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "77c26af07f4201136aca4dd55cc12e985edc461e3352c159bf81ebb8164543d3",
+      "truth_sha256": "dc89a4463748c48c9060ef83963a2c9e9c35a3a58532998521e37d3bdd2953bb"
+    },
+    {
+      "index": 1,
+      "kind": "foa_basis_1",
+      "configuration": {
+        "order": 1,
+        "rate": 44100,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "54327fd0edb88bd3a8243803100ca4e65cd97d30cfa231b6d5f55ca930f9c330",
+      "truth_sha256": "4921b2924463da96450167b82a01f03da1d800dc558b77cad5e6ee71a0139961"
+    },
+    {
+      "index": 2,
+      "kind": "foa_basis_2",
+      "configuration": {
+        "order": 1,
+        "rate": 48000,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "656a1b7b5564bbf9dde12e2a0b1b95318ef9376a0c7cdcdf8e9936bb9b398e1f",
+      "truth_sha256": "37f9f69dd047c39f362acfa793659a59be097f4b61977be37e6aca030a0fa220"
+    },
+    {
+      "index": 3,
+      "kind": "foa_basis_3",
+      "configuration": {
+        "order": 1,
+        "rate": 44100,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "1af7cddd7ba779d060cecba5e6271934e0451fd5d5512608397b168a8b13fe7c",
+      "truth_sha256": "b2f076d8c1861267eb832c65d4ed05465b2cd680c5604922940450a1b9418b9a"
+    },
+    {
+      "index": 4,
+      "kind": "soa_basis_0",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "af565fa7c8306eddd22bb645cb40fb6e1e9c4bdbfd49536cae3e61eb0855591c",
+      "truth_sha256": "fe66913b1e99a0e676bd817440630157da217a23bca80a2927f2dd3863348974"
+    },
+    {
+      "index": 5,
+      "kind": "soa_basis_1",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "758e7cec8db2b964ccc0e792fc1e96d49f1c055ab6f2d26050d0846c441ec4c6",
+      "truth_sha256": "72230184567c6eeef3f29cd7228d6b16c46ef9a6ebf28b4015ef895550f037d8"
+    },
+    {
+      "index": 6,
+      "kind": "soa_basis_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "fcbbe380fb37739af87a67f04181f2bd8a969cecd6e65ae52112cfeeeb27b054",
+      "truth_sha256": "95e7b3b24c9fedce4c8bf1b04cbf62465a283c05ba4dc9584efb56cbd33c12e3"
+    },
+    {
+      "index": 7,
+      "kind": "soa_basis_3",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "29a4f540d1930f600529cb5679a88f1e5eb3f31b69b8960abb2cb7914858eb25",
+      "truth_sha256": "9abdd3c9276cfa45bca008cc2b18f0e3eee3caad50a8890eaed84fb2cc7ab1fa"
+    },
+    {
+      "index": 8,
+      "kind": "soa_basis_4",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "ad0086c2eccdcf30d951a88c89bfd67c97214657f14821bf161a1bc7afa9f45d",
+      "truth_sha256": "aef3ee69feca1a7a99e4d1df841709d558bccde144dad4f187886e9ff90e1fbe"
+    },
+    {
+      "index": 9,
+      "kind": "soa_basis_5",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "987036bdbbb6a582f313771c9fbebd1b6c7fff71c756c21ab980cdfb7121d54d",
+      "truth_sha256": "502abc7e1da431b923f3cba668487899714f8b84fe5ac9f88e7afe6a0c6fe845"
+    },
+    {
+      "index": 10,
+      "kind": "soa_basis_6",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "9a70e3c72b859a7ede09e813634f3cddd319758eb885a2bb32bc8c3011ea6ab6",
+      "truth_sha256": "99ec507dded6c807071c895d54280820fec7ef436d97bc90db1a2f24bde04c43"
+    },
+    {
+      "index": 11,
+      "kind": "soa_basis_7",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "c8b4dacac5beeee4ec0fe47e6595561acea10f5b60dc54b1905ed4d336769ea3",
+      "truth_sha256": "796cdd0e2159ce4f0cac4afc3226a253be0c66271857370574061dfe5eaaaac3"
+    },
+    {
+      "index": 12,
+      "kind": "soa_basis_8",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "111fcf39d5e3d701d09da672d91f84e594119eb732c2ee4a72fb103c1225991c",
+      "truth_sha256": "77d837213ba36a57895a0c6cdaad27cb0a8cb73501967587bdbc3874bcf1275f"
+    },
+    {
+      "index": 13,
+      "kind": "soa_modes",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 8,
+      "input_sha256": "48367f59778465da7fd74b730d3bf91674fd9c0fef0ea69284199eb50a037b31",
+      "truth_sha256": "5ea292b6ef161fa592e9ba576467d31f74a0a1447a7c610ef7a883e41a08a663"
+    },
+    {
+      "index": 14,
+      "kind": "soa_clusters_directions",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 9,
+      "input_sha256": "f64530e43b17824820c112993e222f57b1b8e73cbd35364596ff327ba79bb714",
+      "truth_sha256": "2ac8516ea0cf3afaaada3fb1e5ad152a4a4fdd6ea7573c43a8f747880b31fbbe"
+    },
+    {
+      "index": 15,
+      "kind": "window_transitions_1",
+      "configuration": {
+        "order": 1,
+        "rate": 48000,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 6,
+      "input_sha256": "8044ebd5e6192d466222da04825cedd62a789d8719e20478f195d28db9de1f9f",
+      "truth_sha256": "3658717f0c52222fa03a5e58acf348778246462fd6d68d533979d1b301d0a329"
+    },
+    {
+      "index": 16,
+      "kind": "window_transitions_2",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 6,
+      "input_sha256": "2c599bdb059c5317a7232780d83cf9dbdc0e9597358cd66d05336e1532f78b66",
+      "truth_sha256": "4cbc0fddf42f176447e83323777b1a4091168c470768740df906e24cd548dcb2"
+    },
+    {
+      "index": 17,
+      "kind": "soa_subband_boundaries",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "927e1119e5535f3105b4f5314c920e3faee45ff390f4ddd2506e933f6362ac67",
+      "truth_sha256": "9234c85cbcef5368cb308fd7b2672d7e3dd8789220b0f468a5f31655f0950467"
+    },
+    {
+      "index": 18,
+      "kind": "soa_unused_transport",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "3b9b6fe21cccf4e13902a2b86844fcaee7f50b375c39d30ccb191a99977f54ca",
+      "truth_sha256": "1eee5d341d087688fd3bad03196250544876bafe5b186589a949c98c5b4d8e3b"
+    },
+    {
+      "index": 19,
+      "kind": "drc_embedded_1",
+      "configuration": {
+        "order": 1,
+        "rate": 44100,
+        "salient": false,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "input_sha256": "fc324cabacefb3bc1a8e28a17cfa22dfb603eb559e1df0fe38ba638e8843f0ed",
+      "truth_sha256": "c72ad113d7ef6e0611b37bad082aeb6250ca04a37297885f0109577f00daab40"
+    },
+    {
+      "index": 20,
+      "kind": "drc_embedded_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "input_sha256": "a80df64fd9dd3963cee54e798451751b988b112ec6b7dbe3721d709fd2837baa",
+      "truth_sha256": "8fd3a38b3336cb706c082432522eecccec0f736cbee2f6ec170aff3ed5e0e3fd"
+    },
+    {
+      "index": 21,
+      "kind": "hoa3_44100_False",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "salient": false,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "input_sha256": "82bb6df66458d2caa52156fc2c5a4405b165cdc60a9f13fbbddfd0a6154dc4cb",
+      "truth_sha256": "945a52311707196f39827ea5aa24b66042c8f3cf6ac9d3f43af95ea637121b20"
+    },
+    {
+      "index": 22,
+      "kind": "hoa3_44100_True",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "input_sha256": "3c27ed54e35088ebf831e3e7fed8ddcc6b32a38b2227c25e15ede5f8cbd260ad",
+      "truth_sha256": "fb321e1722373127555dca10defbbde797420dc7068a20f2f332ae0adc896d35"
+    },
+    {
+      "index": 23,
+      "kind": "tns_bwe2_rate_48000",
+      "configuration": {
+        "order": 1,
+        "rate": 48000,
+        "salient": false,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "12a97650abc456991302fcf7b3aa1127f2c15f5df8e8734757077336ec56594d",
+      "truth_sha256": "dc79806448e6f5f9ada8d15afd456f4f7419dcc3c4f7d6e0f994f96593dd1a45"
+    },
+    {
+      "index": 24,
+      "kind": "tns_bwe2_rate_44100",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "f78b0e97e10e3ff3223b62a4a3079c8e8d6eb9026fbfbf20e582c8cb3c2d1606",
+      "truth_sha256": "e9acc1b6a5a2c62815f04788599d65b1a619957756b70a8793bd0490c5e6a5fa"
+    },
+    {
+      "index": 25,
+      "kind": "soa_escape_cancellation",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "9c6eae6ec851c3404bef964dedea317ed97199cc450645f256949ebea38725b8",
+      "truth_sha256": "518f2d59b0fe7091aa7de34a38d7a1cda3f9c9a7618532a01828ca3355c8f888"
+    },
+    {
+      "index": 26,
+      "kind": "soa_zero_sfb_bwe2",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "salient": true,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "82aba293a7790a2cb74b38336672558665aedca0fdebdc9ac2b210e5f1b18bb2",
+      "truth_sha256": "18d91ef362caf9ee22be1f41c317a1becd1414309d1c6e1e36c7d66cbab2e6e7"
+    }
+  ],
+  "sha256": "e17666c4eb3e9a6a5dcbf7f0859a0d1943b0b004ccb9f7d8274c0f907588c390"
+}

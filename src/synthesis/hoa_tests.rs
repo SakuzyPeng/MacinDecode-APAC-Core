@@ -118,6 +118,55 @@ fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
     assert!(decoder.scan_frame(&first).is_err());
 }
 
+#[test]
+fn hoa_order_dimensions_rates_and_transactions_are_qualified() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-orders-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported());
+        let n = f["channels"].as_u64().unwrap() as usize;
+        assert_eq!(context.channel_count() as usize, n);
+        assert_eq!(context.order() as u64, f["order"].as_u64().unwrap());
+        assert_eq!(context.sample_rate_hz(), f["rate"].as_u64().unwrap());
+        assert_eq!(
+            context.maximum_preroll_bytes(),
+            if n == 4 { 8192 } else { 18432 }
+        );
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let first = bytes(&f["first"]);
+        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 1024 * n);
+        let before = snapshot(&decoder);
+        for key in [
+            "last_element_error",
+            "late_spatial_error",
+            "late_tail_error",
+            "embedded_error",
+            "outer_after_embedded_error",
+        ] {
+            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{n} {key}");
+            assert_eq!(before, snapshot(&decoder));
+        }
+        for end in 0..first.len() {
+            assert!(decoder.decode_frame(&first[..end]).is_err(), "{n} {end}");
+            assert_eq!(before, snapshot(&decoder));
+        }
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&first).unwrap();
+        assert_eq!(
+            decoder.decode_frame(&bytes(&f["next"])).unwrap(),
+            fresh.decode_frame(&bytes(&f["next"])).unwrap()
+        );
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        assert!(decoder.scan_frame(&first).is_err());
+    }
+}
+
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
 #[test]

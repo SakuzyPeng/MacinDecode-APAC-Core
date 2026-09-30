@@ -13,16 +13,17 @@ from validate_portable import ROOT,source_digest
 from caf_vectors import encode as caf_encode
 from mp4_vectors import encode as mp4_encode
 
-def check(r,t,last_mode):
+def check(r,t,last_mode,order=3):
+    n=(order+1)**2
     assert r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'];coverage(r)
     h=r['hoa'];assert h['numeric_profile']==PROFILE and h['hoa_complete'] and h['common_window']==t['common_window']
-    assert (h['coefficient_count'],h['core_channels'],h['transport_channels'],h['order'],h['channel_order'],h['normalization'])==(16,16,16,3,'ACN','SN3D')
-    if t['inner'] is not None:last_mode=check(r['embedded_preroll']['report'],t['inner'],last_mode)
+    assert (h['coefficient_count'],h['core_channels'],h['transport_channels'],h['order'],h['channel_order'],h['normalization'])==(n,n,n,order,'ACN','SN3D')
+    if t['inner'] is not None:last_mode=check(r['embedded_preroll']['report'],t['inner'],last_mode,order)
     else:assert r['embedded_preroll'] is None
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
     same_fields(h['spatial'],dict(t['spatial'],effective_global_coding_mode=last_mode),'spatial');same_fields(r['packet_tail'],t['tail'],'tail')
     assert r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset']
-    assert len(r['elements'])==16 and len(h['channels_after_hoa'])==16
+    assert len(r['elements'])==n and len(h['channels_after_hoa'])==n
     for a,b,out in zip(r['elements'],t['elements'],h['channels_after_hoa']):
         for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','tns','bwe2'):same_fields(a[key],b[key],key)
         assert a['element_complete'] and a['spectrum_complete']==b['present'] and a['coding_type']==(0 if b['present'] else None)

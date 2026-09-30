@@ -49,9 +49,7 @@ pub struct ChannelFrameContext {
     #[serde(skip)]
     asp_header: bool,
     #[serde(skip)]
-    hoa: bool,
-    #[serde(skip)]
-    hoa_salient: bool,
+    hoa: Option<super::hoa::HoaConfiguration>,
     #[serde(skip)]
     configuration: PacketConfiguration,
     #[serde(skip)]
@@ -127,8 +125,7 @@ impl ChannelFrameContext {
             maximum_preroll_bytes: capacity,
             rejection,
             asp_header,
-            hoa: false,
-            hoa_salient: false,
+            hoa: None,
             configuration,
             drc,
         })
@@ -137,33 +134,32 @@ impl ChannelFrameContext {
         cookie_sha256: String,
         configuration: PacketConfiguration,
         drc: DrcContext,
-        salient: bool,
+        hoa: super::hoa::HoaConfiguration,
     ) -> Self {
         let rejection = configuration.rejection.clone().or(drc.rejection.clone());
         Self {
             cookie_sha256,
-            sample_rate_hz: 48000,
-            channel_count: 16,
+            sample_rate_hz: hoa.sample_rate_hz,
+            channel_count: hoa.channels,
             layout: Some(ChannelLayout::tagged(
-                (190 << 16) | 16,
-                16,
+                (190 << 16) | u32::from(hoa.channels),
+                u32::from(hoa.channels),
                 Some("HOA ACN/SN3D".into()),
             )),
-            channel_labels: (0..16).map(|i| format!("ACN{i}")).collect(),
-            elements: (0..16)
+            channel_labels: (0..hoa.channels).map(|i| format!("ACN{i}")).collect(),
+            elements: (0..hoa.channels)
                 .map(|i| ElementConfiguration {
                     element_index: i,
                     kind: ElementKind::Sce,
                     tce_type: 0,
-                    output_channels: if salient { vec![] } else { vec![i] },
-                    transport_channels: salient.then(|| vec![i]),
+                    output_channels: if hoa.salient { vec![] } else { vec![i] },
+                    transport_channels: hoa.salient.then(|| vec![i]),
                 })
                 .collect(),
-            maximum_preroll_bytes: 32768,
+            maximum_preroll_bytes: hoa.preroll_bytes,
             rejection,
             asp_header: true,
-            hoa: true,
-            hoa_salient: salient,
+            hoa: Some(hoa),
             configuration,
             drc,
         }
@@ -600,15 +596,11 @@ fn parse_impl(
     let mut result = ChannelPacketReport {
         frame,
         packet_complete: false,
-        packet_state_profile: if context.hoa_salient {
-            super::hoa_salient::STATE_PROFILE
-        } else if context.hoa {
-            super::hoa::STATE_PROFILE
-        } else {
-            STATE_PROFILE
-        }
-        .into(),
-        hoa: context.hoa.then(super::hoa::HoaFrameInfo::default),
+        packet_state_profile: context
+            .hoa
+            .map_or(STATE_PROFILE, |h| h.state_profile())
+            .into(),
+        hoa: context.hoa.map(|_| super::hoa::HoaFrameInfo::default()),
         channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
             .map(str::to_owned),
         channel_count: context.channel_count,
@@ -625,10 +617,17 @@ fn parse_impl(
         drc_history_sufficient: None,
         drc_processing_applied: false,
     };
-    if context.hoa_salient {
+    if let Some(shape) = context.hoa {
         let hoa = result.hoa.as_mut().expect("HOA context");
-        hoa.numeric_profile = super::hoa_salient::NUMERIC_PROFILE.into();
-        hoa.core_channels = 5;
+        hoa.numeric_profile = shape.numeric_profile().into();
+        hoa.order = shape.order;
+        hoa.coefficient_count = usize::from(shape.channels);
+        hoa.transport_channels = usize::from(shape.channels);
+        hoa.core_channels = if shape.salient {
+            5
+        } else {
+            usize::from(shape.channels)
+        };
     }
     let code = if context.asp_header {
         parser.take("frame.type_code", 2)?
@@ -705,7 +704,7 @@ fn parse_impl(
             return finish(result, parser, "embedded_preroll_incomplete");
         }
     }
-    let common_window = if context.hoa {
+    let common_window = if context.hoa.is_some() {
         let block = parser.take("hoa.common_window", 2)? as u8;
         result.hoa.as_mut().expect("HOA context").common_window = Some(block);
         Some(block)
@@ -757,12 +756,12 @@ fn parse_impl(
             element.channels_after_tns.clear();
         }
     }
-    if context.hoa {
+    if let Some(shape) = context.hoa {
         let state = next_hoa.as_mut().expect("HOA state");
         let mut spatial = super::hoa::spatial(
             &mut parser,
             state,
-            context.hoa_salient,
+            shape,
             common_window.expect("HOA window"),
         )?;
         let restored = if let Some(data) = &mut spatial.salient {

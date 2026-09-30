@@ -1,4 +1,4 @@
-//! Restricted order-3, five-component/four-subband spatial descriptors.
+//! Restricted order-2/3, five-component/four-subband spatial descriptors.
 //! Format tables and independent mathematical constants have separate identities.
 use super::{
     ChannelPacketReport, Parser,
@@ -11,13 +11,23 @@ use serde_json::json;
 use std::sync::OnceLock;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
+pub const ORDER2_NUMERIC_PROFILE: &str = "apac-hoa-salient-order2-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-salient-state-v1";
 const ENDS: [usize; 4] = [32, 80, 216, 1024];
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
-    history: [[[f64; 16]; 4]; 5],
+    history: Vec<Vec<Vec<f64>>>,
     previous_frame_sha256: Option<String>,
+}
+impl SalientState {
+    pub(super) fn new(coefficients: usize) -> Self {
+        assert!(matches!(coefficients, 9 | 16));
+        Self {
+            history: vec![vec![vec![0.; coefficients]; 4]; 5],
+            previous_frame_sha256: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -32,7 +42,7 @@ pub struct SalientDescriptor {
     pub cluster: Option<u8>,
     pub azimuth_degrees: Option<u16>,
     pub elevation_offset_degrees: Option<u8>,
-    pub restored: [f64; 16],
+    pub restored: Vec<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -70,30 +80,45 @@ struct Math {
 struct Constants {
     format: Format,
     tries: Vec<Vec<Trie>>,
+}
+struct CommonMath {
     math_sha: String,
     azimuth: Vec<[f64; 2]>,
     elevation: Vec<[f64; 2]>,
     roots: [f64; 7],
 }
-fn constants() -> &'static Constants {
-    static DATA: OnceLock<Constants> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let format: Format =
-            serde_json::from_str(include_str!("../../data/hoa-salient-format-v1.json"))
-                .expect("built-in HOA format tables");
-        let math: Math = serde_json::from_str(include_str!("../../data/hoa-salient-math-v1.json"))
-            .expect("built-in HOA mathematical constants");
-        assert_eq!(format.format_profile, "apac-hoa-salient-format-v1");
-        assert_eq!(math.numeric_profile, NUMERIC_PROFILE);
+fn constants(coefficients: usize) -> &'static Constants {
+    static ORDER2: OnceLock<Constants> = OnceLock::new();
+    static ORDER3: OnceLock<Constants> = OnceLock::new();
+    let (cell, source, profile) = match coefficients {
+        9 => (
+            &ORDER2,
+            include_str!("../../data/hoa-salient-order2-format-v1.json"),
+            "apac-hoa-salient-order2-format-v1",
+        ),
+        16 => (
+            &ORDER3,
+            include_str!("../../data/hoa-salient-format-v1.json"),
+            "apac-hoa-salient-format-v1",
+        ),
+        _ => unreachable!("qualified coefficient count"),
+    };
+    cell.get_or_init(|| {
+        let format: Format = serde_json::from_str(source).expect("built-in HOA format tables");
+        assert_eq!(format.format_profile, profile);
         assert_eq!(format.modes.len(), 6);
-        assert_eq!(math.azimuth_f64.len(), 512);
-        assert_eq!(math.elevation_f64.len(), 256);
         let tries = format
             .modes
             .iter()
             .enumerate()
             .map(|(index, m)| {
                 assert_eq!(m.mode, index);
+                assert!(m.groups.iter().flatten().all(|&i| i < coefficients));
+                assert!(
+                    m.matrices_f32
+                        .iter()
+                        .all(|m| m.len() == coefficients * coefficients)
+                );
                 m.codebooks
                     .iter()
                     .map(|book| {
@@ -106,9 +131,18 @@ fn constants() -> &'static Constants {
                     .collect()
             })
             .collect();
-        Constants {
-            format,
-            tries,
+        Constants { format, tries }
+    })
+}
+fn common_math() -> &'static CommonMath {
+    static DATA: OnceLock<CommonMath> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let math: Math = serde_json::from_str(include_str!("../../data/hoa-salient-math-v1.json"))
+            .expect("shared HOA angle and root constants");
+        assert_eq!(math.numeric_profile, NUMERIC_PROFILE);
+        assert_eq!(math.azimuth_f64.len(), 512);
+        assert_eq!(math.elevation_f64.len(), 256);
+        CommonMath {
             math_sha: math.tables_sha256,
             azimuth: math
                 .azimuth_f64
@@ -124,11 +158,18 @@ fn constants() -> &'static Constants {
         }
     })
 }
-pub(crate) fn format_sha256() -> &'static str {
-    &constants().format.tables_sha256
+pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
+    if coefficients == 9 {
+        ORDER2_NUMERIC_PROFILE
+    } else {
+        NUMERIC_PROFILE
+    }
+}
+pub(crate) fn format_sha256(coefficients: usize) -> &'static str {
+    &constants(coefficients).format.tables_sha256
 }
 pub(crate) fn math_sha256() -> &'static str {
-    &constants().math_sha
+    &common_math().math_sha
 }
 
 fn huffman(
@@ -136,9 +177,10 @@ fn huffman(
     name: &str,
     mode: usize,
     book: usize,
+    coefficients: usize,
 ) -> Result<u8, ParseError> {
     let start = parser.bits.position();
-    let value = constants().tries[mode][book].read(&mut parser.bits)? as u8;
+    let value = constants(coefficients).tries[mode][book].read(&mut parser.bits)? as u8;
     if parser.capture {
         parser.report.fields.push(ConfigField {
             name: name.into(),
@@ -155,6 +197,7 @@ pub(super) fn read(
     global_mode: Option<u8>,
     block: u8,
     state: &SalientState,
+    coefficients: usize,
 ) -> Result<SalientSpatialData, ParseError> {
     let mut descriptors = Vec::with_capacity(20);
     for component in 0..5 {
@@ -178,16 +221,16 @@ pub(super) fn read(
                 mode,
                 start_bit_offset: start,
                 end_bit_offset: start,
-                quantized: vec![0; 16],
+                quantized: vec![0; coefficients],
                 signs_positive: vec![],
                 cluster: None,
                 azimuth_degrees: None,
                 elevation_offset_degrees: None,
-                restored: [0.; 16],
+                restored: vec![0.; coefficients],
             };
             match mode {
                 0 => {
-                    for i in 0..16 {
+                    for i in 0..coefficients {
                         d.quantized[i] = parser.take(&format!("{name}.quantized[{i}]"), 6)? as u8;
                     }
                 }
@@ -199,11 +242,17 @@ pub(super) fn read(
                     // The qualified configuration carries explicit first-order coefficients.
                     d.quantized.truncate(4);
                     for i in 0..4 {
-                        d.quantized[i] = huffman(parser, &format!("{name}.quantized[{i}]"), 1, 0)?;
+                        d.quantized[i] = huffman(
+                            parser,
+                            &format!("{name}.quantized[{i}]"),
+                            1,
+                            0,
+                            coefficients,
+                        )?;
                     }
                 }
                 _ => {
-                    let m = &constants().format.modes[usize::from(mode)];
+                    let m = &constants(coefficients).format.modes[usize::from(mode)];
                     let selected = if mode == 4 {
                         let c = parser.take(&format!("{name}.cluster"), 2)? as u8;
                         d.cluster = Some(c);
@@ -212,7 +261,7 @@ pub(super) fn read(
                         None
                     };
                     if m.signs {
-                        d.signs_positive = vec![false; 16];
+                        d.signs_positive = vec![false; coefficients];
                     }
                     for (book, group) in m.groups.iter().enumerate() {
                         if selected.is_some_and(|c| c != book) {
@@ -224,6 +273,7 @@ pub(super) fn read(
                                 &format!("{name}.quantized[{i}]"),
                                 usize::from(mode),
                                 book,
+                                coefficients,
                             )?;
                             if m.signs {
                                 d.signs_positive[i] =
@@ -245,11 +295,11 @@ pub(super) fn read(
     })
 }
 
-/// Normalized real order-3 spherical harmonics, with no Condon-Shortley sign.
+/// Normalized real order-2/3 spherical harmonics, with no Condon-Shortley sign.
 /// Native direction descriptors use an N3D unit vector (divide by order+1);
 /// the first four entries are then replaced by explicit scalar coefficients.
-fn direction(azimuth: u16, elevation: u8) -> [f64; 16] {
-    let c = constants();
+fn direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
+    let c = common_math();
     let [ca, sa] = c.azimuth[usize::from(azimuth)];
     let [ce, z] = c.elevation[usize::from(elevation)];
     let x = ce * ca;
@@ -259,7 +309,7 @@ fn direction(azimuth: u16, elevation: u8) -> [f64; 16] {
     let yy = y * y;
     let zz = z * z;
     let [r3, r5, r15, r35_8, r105, r21_8, r7] = c.roots;
-    let mut out = [
+    let out = [
         1.,
         r3 * y,
         r3 * z,
@@ -277,10 +327,10 @@ fn direction(azimuth: u16, elevation: u8) -> [f64; 16] {
         (r105 * 0.5) * z * (xx - yy),
         r35_8 * x * (xx - 3. * yy),
     ];
-    for v in &mut out {
-        *v *= 0.25;
-    }
-    out
+    out.into_iter()
+        .take(coefficients)
+        .map(|v| if coefficients == 9 { v / 3. } else { v * 0.25 })
+        .collect()
 }
 
 pub(super) fn restore(
@@ -288,14 +338,16 @@ pub(super) fn restore(
     data: &mut SalientSpatialData,
     state: &mut SalientState,
 ) -> Result<Vec<HoaCoefficientSpectrum>, ParseError> {
+    let coefficients = usize::from(packet.channel_count);
     for d in &mut data.descriptors {
         let mut v = if d.mode == 5 {
             direction(
                 d.azimuth_degrees.expect("direction"),
                 d.elevation_offset_degrees.expect("direction"),
+                coefficients,
             )
         } else {
-            [0.; 16]
+            vec![0.; coefficients]
         };
         for (i, &q) in d.quantized.iter().enumerate() {
             let magnitude = f64::from(q) / 32.;
@@ -311,13 +363,14 @@ pub(super) fn restore(
             };
         }
         if d.mode == 4 {
-            let matrix =
-                &constants().format.modes[4].matrices_f32[usize::from(d.cluster.expect("cluster"))];
-            let input = v;
+            let matrix = &constants(coefficients).format.modes[4].matrices_f32
+                [usize::from(d.cluster.expect("cluster"))];
+            let input = v.clone();
             for (k, result) in v.iter_mut().enumerate() {
                 *result = 0.;
-                for j in 0..16 {
-                    let product = input[j] * f64::from(f32::from_bits(matrix[j * 16 + k]));
+                for j in 0..coefficients {
+                    let product =
+                        input[j] * f64::from(f32::from_bits(matrix[j * coefficients + k]));
                     *result += product;
                 }
             }
@@ -337,10 +390,10 @@ pub(super) fn restore(
                 *x = 0.;
             }
         }
-        d.restored = v;
+        d.restored = v.clone();
         state.history[d.component_index][d.subband_index] = v;
     }
-    let mut output: Vec<_> = (0..16)
+    let mut output: Vec<_> = (0..packet.channel_count)
         .map(|k| HoaCoefficientSpectrum {
             acn_index: k,
             scaled: vec![0.; 1024],
@@ -401,47 +454,59 @@ mod tests {
 
     #[test]
     fn all_spatial_codewords_and_bit_truncations_preserve_the_marker() {
-        let c = constants();
-        let mut checked = 0;
-        for (mode, m) in c.format.modes.iter().enumerate() {
-            for (book, entries) in m.codebooks.iter().enumerate() {
-                for (value, &(length, code)) in entries.iter().enumerate() {
-                    let wire: Vec<_> = (0..length)
-                        .rev()
-                        .map(|s| ((code >> s) & 1) != 0)
-                        .chain([true, false, true, false, true])
-                        .collect();
-                    let bytes = packed(&wire);
-                    let mut reader = BitReader::new(&bytes);
-                    assert_eq!(c.tries[mode][book].read(&mut reader).unwrap(), value);
-                    assert_eq!(reader.position(), length);
-                    assert_eq!(reader.read(5).unwrap(), 0b10101);
-                    for end in 0..length {
+        for coefficients in [9, 16] {
+            let c = constants(coefficients);
+            let mut checked = 0;
+            for (mode, m) in c.format.modes.iter().enumerate() {
+                for (book, entries) in m.codebooks.iter().enumerate() {
+                    for (value, &(length, code)) in entries.iter().enumerate() {
+                        let wire: Vec<_> = (0..length)
+                            .rev()
+                            .map(|s| ((code >> s) & 1) != 0)
+                            .chain([true, false, true, false, true])
+                            .collect();
+                        let bytes = packed(&wire);
                         let mut reader = BitReader::new(&bytes);
-                        reader.set_end(end).unwrap();
-                        let error = c.tries[mode][book].read(&mut reader).unwrap_err();
-                        assert_eq!(error.bit_offset, end);
+                        assert_eq!(c.tries[mode][book].read(&mut reader).unwrap(), value);
+                        assert_eq!(reader.position(), length);
+                        assert_eq!(reader.read(5).unwrap(), 0b10101);
+                        for end in 0..length {
+                            let mut reader = BitReader::new(&bytes);
+                            reader.set_end(end).unwrap();
+                            let error = c.tries[mode][book].read(&mut reader).unwrap_err();
+                            assert_eq!(error.bit_offset, end);
+                        }
+                        checked += 1;
                     }
-                    checked += 1;
                 }
             }
+            assert_eq!(checked, 512);
         }
-        assert_eq!(checked, 512);
     }
 
     #[test]
     fn clockwise_direction_and_format_matrix_dimensions_are_explicit() {
-        let c = constants();
-        assert_eq!(c.format.modes[4].matrices_f32.len(), 4);
-        assert!(
-            c.format.modes[4]
-                .matrices_f32
-                .iter()
-                .all(|m| m.len() == 256)
-        );
-        let v = direction(45, 90);
-        assert!(v[4] < 0. && v[8].abs() < 1e-15);
-        assert_eq!(direction(0, 0)[4], 0.);
-        assert_eq!(direction(0, 90), direction(360, 90));
+        for coefficients in [9, 16] {
+            let c = constants(coefficients);
+            assert_eq!(c.format.modes[4].matrices_f32.len(), 4);
+            assert!(
+                c.format.modes[4]
+                    .matrices_f32
+                    .iter()
+                    .all(|m| m.len() == coefficients * coefficients)
+            );
+            let v = direction(45, 90, coefficients);
+            assert!(v[4] < 0. && v[8].abs() < 1e-15);
+            assert_eq!(direction(0, 0, coefficients)[4], 0.);
+            assert_eq!(
+                direction(0, 90, coefficients),
+                direction(360, 90, coefficients)
+            );
+            assert_eq!(v.len(), coefficients);
+            assert_eq!(
+                direction(0, 90, coefficients)[0],
+                if coefficients == 9 { 1. / 3. } else { 0.25 }
+            );
+        }
     }
 }

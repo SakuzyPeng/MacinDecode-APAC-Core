@@ -280,7 +280,11 @@ fn decode_with_access(
             .as_mut()
             .unwrap()["hoa_numeric_profile"] = json!(profile);
     }
-    if decoder.hoa_context.as_ref().is_some_and(|c| c.salient) {
+    if decoder
+        .hoa_context
+        .as_ref()
+        .is_some_and(|c| c.salient_components() != 0)
+    {
         let value = pcm
             .decoder_settings
             .get_mut("implementation")
@@ -288,7 +292,8 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        value["hoa_format_sha256"] = json!(crate::frame::hoa_salient_format_sha256());
+        value["hoa_format_sha256"] =
+            json!(crate::frame::hoa_salient_format_sha256(channels as usize));
         value["hoa_tables_sha256"] = json!(crate::frame::hoa_salient_math_sha256());
     }
     out.json("pcm.json", &pcm)?;

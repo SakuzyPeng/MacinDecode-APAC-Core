@@ -24,18 +24,19 @@ def compare64(actual,expected,where):
     return result
 
 
-def check(r,t,last_mode,last_sha):
+def check(r,t,last_mode,last_sha,order=3):
+    n=(order+1)**2
     assert r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'];coverage(r)
-    if t['inner'] is not None:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha)
+    if t['inner'] is not None:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,order)
     else:assert r['embedded_preroll'] is None
-    h=r['hoa'];assert h['numeric_profile']==PROFILE and h['hoa_complete'] and h['common_window']==t['common_window']
-    assert (h['coefficient_count'],h['core_channels'],h['transport_channels'],h['order'],h['channel_order'],h['normalization'])==(16,5,16,3,'ACN','SN3D')
+    h=r['hoa'];assert h['numeric_profile']==('apac-hoa-salient-order2-math-v1' if order==2 else PROFILE) and h['hoa_complete'] and h['common_window']==t['common_window']
+    assert (h['coefficient_count'],h['core_channels'],h['transport_channels'],h['order'],h['channel_order'],h['normalization'])==(n,5,n,order,'ACN','SN3D')
     assert r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset']
     same_fields(r['packet_tail'],t['tail'],'tail');same_fields(r['drc'],t['drc'],'DRC')
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
     same_fields(h['spatial'],t['spatial'],'spatial');assert h['spatial']['effective_global_coding_mode']==last_mode
     assert h['spatial']['salient']['history_frame_sha256']==last_sha
-    assert len(r['elements'])==len(h['channels_after_hoa'])==16
+    assert len(r['elements'])==len(h['channels_after_hoa'])==n
     for a,b in zip(r['elements'],t['elements']):
         for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','tns','bwe2'):same_fields(a[key],b[key],key)
         assert a['element_complete'] and len(a['channels'])==len(b['channels'])

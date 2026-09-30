@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.static_ambient_enabled() {
+            return if context.dynamic_selection_enabled() {
+                hoa::DYNAMIC_BACKEND
+            } else if context.static_ambient_enabled() {
                 hoa::STATIC_AMBIENT_BACKEND
             } else if context.salient_components() != 0 && context.ambient_components() != 0 {
                 hoa::MIXED_BACKEND
@@ -332,6 +334,13 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.dynamic_selection_enabled() {
+                return if context.ambient_components() == 0 {
+                    "hoa_dynamic9_to16_salient_sq_drc_off"
+                } else {
+                    "hoa_dynamic9_to16_mixed_sq_drc_off"
+                };
+            }
             if context.static_ambient_enabled() {
                 return match (context.order(), context.salient_components()) {
                     (1, 0) => "hoa1_static_ambient_sq_drc_off",

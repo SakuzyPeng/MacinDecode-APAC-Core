@@ -1,5 +1,5 @@
 //! Static ambient selection and exact-rational FOA transforms.
-use super::{ChannelPacketReport, hoa::HoaCoefficientSpectrum};
+use super::{ChannelPacketReport, hoa::RecoverySlotSpectrum};
 use crate::config::ParseError;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -93,7 +93,7 @@ fn transform(input: [f32; 4], index: u8, output: usize) -> f32 {
 pub(super) fn restore(
     packet: &ChannelPacketReport,
     data: &mut StaticAmbientData,
-    output: &mut [HoaCoefficientSpectrum],
+    output: &mut [RecoverySlotSpectrum],
     position: usize,
 ) -> Result<(), ParseError> {
     let count = data.selection.len();

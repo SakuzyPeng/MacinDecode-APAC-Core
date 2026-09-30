@@ -3,6 +3,7 @@ mod bundle;
 mod channels;
 mod hoa;
 mod hoa_ambient;
+mod hoa_dynamic;
 mod hoa_salient;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
@@ -41,12 +42,17 @@ pub use drc::{
 pub(crate) use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{
     HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaMixedMapping, HoaPacketReport,
-    HoaSpatialData, parse_hoa_packet,
+    HoaSpatialData, RecoverySlotSpectrum, parse_hoa_packet,
 };
 pub use hoa::{NUMERIC_PROFILE as HOA_NUMERIC_PROFILE, STATE_PROFILE as HOA_STATE_PROFILE};
 pub use hoa_ambient::{AmbientSpectrum, AmbientTransform, StaticAmbientData};
 pub(crate) use hoa_ambient::{
     format_sha256 as hoa_ambient_format_sha256, math_sha256 as hoa_ambient_math_sha256,
+};
+pub(crate) use hoa_dynamic::format_sha256 as hoa_dynamic_format_sha256;
+pub use hoa_dynamic::{
+    DynamicBandMapping, DynamicSelectionData, DynamicSelectionEncoding, InternalAmbientData,
+    InternalAmbientSpectrum,
 };
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};

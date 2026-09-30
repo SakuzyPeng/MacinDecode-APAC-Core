@@ -26,6 +26,8 @@ pub(super) struct HoaConfiguration {
     pub order: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
+    pub recovery_slots: u8,
+    pub dynamic_method: Option<u8>,
     pub transport_channels: u8,
     pub core_channels: u8,
     pub salient_components: u8,
@@ -49,10 +51,17 @@ impl HoaConfiguration {
         };
         // Unsupported values select a bounded diagnostic shape, then fail the
         // exact field checks below. No untrusted dimension is used to allocate.
-        let order = match value("components[0].hoa.order") {
-            Some(1) => 1,
-            Some(2) => 2,
-            _ => 3,
+        let dynamic = parsed.fields.iter().any(|f| {
+            f.name == "components[0].hoa.dynamic_selection_config_present" && f.value == json!(true)
+        });
+        let order = if dynamic {
+            2
+        } else {
+            match value("components[0].hoa.order") {
+                Some(1) => 1,
+                Some(2) => 2,
+                _ => 3,
+            }
         };
         let salient = order == 2
             || (order == 3 && value("components[0].hoa.max_salient_components") == Some(5));
@@ -64,13 +73,16 @@ impl HoaConfiguration {
             HoaPath::Ambient
         };
         // Separate mixed instances were measured, not extrapolated from dimensions.
-        let (channels, preroll_bytes) = match (order, path) {
+        let (recovery_slots, preroll_bytes) = match (order, path) {
             (2, HoaPath::Mixed) => (9, 18432),
             (3, HoaPath::Mixed) => (16, 32768),
             (1, _) => (4, 8192),
             (2, _) => (9, 18432),
             _ => (16, 32768),
         };
+        let channels = if dynamic { 16 } else { recovery_slots };
+        // Both reduced-slot 16-carrier instances were independently measured.
+        let preroll_bytes = if dynamic { 32768 } else { preroll_bytes };
         let salient_components = if salient { 5 } else { 0 };
         let ambient_components = match path {
             HoaPath::Ambient => channels,
@@ -112,6 +124,9 @@ impl HoaConfiguration {
         Self {
             order,
             channels,
+            recovery_slots,
+            dynamic_method: dynamic
+                .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
             transport_channels: channels,
             core_channels: salient_components + ambient_components,
             salient_components,
@@ -130,16 +145,27 @@ impl HoaConfiguration {
         }
     }
     pub fn numeric_profile(self) -> &'static str {
+        if self.dynamic_method.is_some() {
+            return super::hoa_dynamic::NUMERIC_PROFILE;
+        }
+        self.recovery_numeric_profile()
+    }
+    pub fn recovery_numeric_profile(self) -> &'static str {
         if self.static_ambient {
             return super::hoa_ambient::NUMERIC_PROFILE;
         }
         match self.path {
             HoaPath::Ambient => NUMERIC_PROFILE,
-            HoaPath::Salient => super::hoa_salient::numeric_profile(usize::from(self.channels)),
+            HoaPath::Salient => {
+                super::hoa_salient::numeric_profile(usize::from(self.recovery_slots))
+            }
             HoaPath::Mixed => MIXED_NUMERIC_PROFILE,
         }
     }
     pub fn state_profile(self) -> &'static str {
+        if self.dynamic_method.is_some() {
+            return super::hoa_dynamic::STATE_PROFILE;
+        }
         if self.static_ambient {
             return super::hoa_ambient::STATE_PROFILE;
         }
@@ -150,13 +176,13 @@ impl HoaConfiguration {
         }
     }
     pub fn mixed_mapping(self) -> Option<HoaMixedMapping> {
-        (self.path == HoaPath::Mixed).then(|| HoaMixedMapping {
+        (self.path == HoaPath::Mixed && self.dynamic_method.is_none()).then(|| HoaMixedMapping {
             ambient_transport_channels: (0..4).collect(),
             salient_transport_channels: (4..9).collect(),
             ambient_output_coefficients: self.ambient_indices().to_vec(),
             unused_transport_channels: (9..self.transport_channels).collect(),
             descriptor_numeric_profile: super::hoa_salient::numeric_profile(usize::from(
-                self.channels,
+                self.recovery_slots,
             ))
             .into(),
         })
@@ -230,11 +256,34 @@ impl HoaFrameContext {
             "ancillary.custom_data_present",
             "components[0].hoa.flag_b",
             "components[0].hoa.flag_d",
-            "components[0].hoa.dynamic_selection_config_present",
             "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
+        }
+        packet_config::check(
+            &parsed.fields,
+            "components[0].hoa.dynamic_selection_config_present",
+            json!(shape.dynamic_method.is_some()),
+            "cookie",
+            &mut rejected,
+        );
+        if let Some(method) = shape.dynamic_method {
+            if method > 2 {
+                let position = parsed
+                    .fields
+                    .iter()
+                    .find(|f| f.name == "components[0].hoa.dynamic_selection.parameter")
+                    .map_or(0, |f| f.bit_offset);
+                rejected.push(format!("components[0].hoa.dynamic_selection.parameter={method} at cookie bit {position} (expected 0..2)"));
+            }
+            packet_config::check(
+                &parsed.fields,
+                "components[0].hoa.dynamic_selection.subbands_minus_one",
+                json!(7),
+                "cookie",
+                &mut rejected,
+            );
         }
         if salient {
             for i in 0..5 {
@@ -264,7 +313,7 @@ impl HoaFrameContext {
             .get("components[0].hoa.ambient_selection")
             .and_then(|v| v.as_array());
         if declared.is_none_or(|v| v.len() != indices.len())
-            || indices.iter().any(|&v| v >= shape.channels)
+            || indices.iter().any(|&v| v >= shape.recovery_slots)
             || indices.windows(2).any(|w| w[0] >= w[1])
         {
             let position = parsed
@@ -272,7 +321,7 @@ impl HoaFrameContext {
                 .iter()
                 .find(|f| f.name == "components[0].hoa.ambient_selection_present")
                 .map_or(0, |f| f.bit_offset);
-            rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.channels));
+            rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.recovery_slots));
         }
         for name in ["full_order", "flag_a", "flag_e", "flag_f"] {
             packet_config::check(
@@ -381,6 +430,22 @@ impl HoaFrameContext {
     pub fn order(&self) -> u8 {
         self.configuration.order
     }
+    pub fn output_order(&self) -> u8 {
+        if self.dynamic_selection_enabled() {
+            3
+        } else {
+            self.order()
+        }
+    }
+    pub fn recovery_slot_count(&self) -> usize {
+        usize::from(self.configuration.recovery_slots)
+    }
+    pub fn dynamic_selection_enabled(&self) -> bool {
+        self.configuration.dynamic_method.is_some()
+    }
+    pub fn recovery_numeric_profile(&self) -> &'static str {
+        self.configuration.recovery_numeric_profile()
+    }
     pub fn numeric_profile(&self) -> &'static str {
         self.configuration.numeric_profile()
     }
@@ -395,7 +460,7 @@ impl HoaFrameContext {
     }
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
-            .then(|| super::hoa_salient::numeric_profile(usize::from(self.configuration.channels)))
+            .then(|| super::hoa_salient::numeric_profile(self.recovery_slot_count()))
     }
     pub fn state_profile(&self) -> &'static str {
         self.configuration.state_profile()
@@ -413,6 +478,8 @@ pub(crate) struct HoaState {
     pub salient: Option<Box<super::hoa_salient::SalientState>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_ambient_transform: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_dynamic_mapping: Option<[[u8; 9]; 8]>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -431,6 +498,11 @@ pub struct HoaSpatialData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaCoefficientSpectrum {
     pub acn_index: u8,
+    pub scaled: Vec<f32>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoverySlotSpectrum {
+    pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -457,6 +529,12 @@ pub struct HoaFrameInfo {
     pub channels_after_hoa: Vec<HoaCoefficientSpectrum>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mixed: Option<HoaMixedMapping>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_order: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_coefficient_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_selection: Option<super::hoa_dynamic::DynamicSelectionData>,
 }
 impl Default for HoaFrameInfo {
     fn default() -> Self {
@@ -474,6 +552,9 @@ impl Default for HoaFrameInfo {
             spectral_stage: "hoa_coefficients_before_synthesis".into(),
             channels_after_hoa: vec![],
             mixed: None,
+            output_order: None,
+            output_coefficient_count: None,
+            dynamic_selection: None,
         }
     }
 }
@@ -563,7 +644,7 @@ pub(super) fn spatial(
         None
     };
     let descriptors = if configuration.salient_components != 0 {
-        let channels = usize::from(configuration.channels);
+        let channels = usize::from(configuration.recovery_slots);
         Some(super::hoa_salient::read(
             parser,
             mode,
@@ -591,7 +672,7 @@ pub(super) fn spatial(
 
 pub(super) fn restore(
     report: &ChannelPacketReport,
-) -> Result<Vec<HoaCoefficientSpectrum>, ParseError> {
+) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     // P^-1 I P = I for the qualified identity ambient map, including the
     // native short-window transpose pair. No unverified matrix or extra gain.
     let mut result = Vec::with_capacity(usize::from(report.channel_count));
@@ -608,8 +689,8 @@ pub(super) fn restore(
                 "invalid ambient spectrum",
             ));
         }
-        result.push(HoaCoefficientSpectrum {
-            acn_index: index as u8,
+        result.push(RecoverySlotSpectrum {
+            slot_index: index as u8,
             scaled: scaled
                 .into_iter()
                 .map(|v| if v == 0. { 0. } else { v })

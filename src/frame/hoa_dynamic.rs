@@ -1,0 +1,392 @@
+//! Validated eight-band, nine-slot to sixteen-ACN selection. No audio arithmetic.
+use super::{
+    Parser,
+    hoa::{HoaCoefficientSpectrum, HoaConfiguration, HoaState, RecoverySlotSpectrum},
+    hoa_ambient::{AmbientTransform, StaticAmbientData},
+};
+use crate::config::ParseError;
+use serde::{Deserialize, Serialize};
+use std::sync::OnceLock;
+
+pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
+pub const STATE_PROFILE: &str = "apac-hoa-dynamic-selection-state-v1";
+
+#[derive(Deserialize)]
+struct Format {
+    format_profile: String,
+    format_sha256: String,
+    internal_slots: usize,
+    output_coefficients: usize,
+    subbands: usize,
+    long_ends: [[usize; 8]; 3],
+    short_ends: [[usize; 8]; 3],
+}
+fn format() -> &'static Format {
+    static DATA: OnceLock<Format> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let value: Format =
+            serde_json::from_str(include_str!("../../data/hoa-dynamic-format-v1.json"))
+                .expect("built-in dynamic selection boundaries");
+        assert_eq!(value.format_profile, "apac-hoa-dynamic-selection-format-v1");
+        assert_eq!(
+            (
+                value.internal_slots,
+                value.output_coefficients,
+                value.subbands
+            ),
+            (9, 16, 8)
+        );
+        for (long, short) in value.long_ends.iter().zip(value.short_ends.iter()) {
+            assert_eq!(long[7], 1024);
+            assert!(long.windows(2).all(|w| w[0] < w[1]));
+            assert!(
+                long.iter()
+                    .zip(short)
+                    .all(|(&a, &b)| a % 8 == 0 && a / 8 == b)
+            );
+        }
+        value
+    })
+}
+pub(crate) fn format_sha256() -> &'static str {
+    &format().format_sha256
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DynamicSelectionEncoding {
+    IndexList,
+    Bitmap,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DynamicBandMapping {
+    pub subband_index: usize,
+    pub target_acn_indices: [u8; 9],
+    pub start_bit_offset: usize,
+    pub end_bit_offset: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InternalAmbientSpectrum {
+    pub transport_slot: u8,
+    pub slot_index: u8,
+    pub scaled: Vec<f32>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InternalAmbientData {
+    pub explicit_selection: bool,
+    pub selection: Vec<u8>,
+    pub transform_config: AmbientTransform,
+    pub effective_index: u8,
+    pub index_source: String,
+    pub index_start_bit_offset: Option<usize>,
+    pub index_end_bit_offset: Option<usize>,
+    pub channels_after_transform: Vec<InternalAmbientSpectrum>,
+}
+impl From<StaticAmbientData> for InternalAmbientData {
+    fn from(data: StaticAmbientData) -> Self {
+        Self {
+            explicit_selection: data.explicit_selection,
+            selection: data.selection,
+            transform_config: data.transform_config,
+            effective_index: data.effective_index,
+            index_source: data.index_source,
+            index_start_bit_offset: data.index_start_bit_offset,
+            index_end_bit_offset: data.index_end_bit_offset,
+            channels_after_transform: data
+                .channels_after_transform
+                .into_iter()
+                .map(|v| InternalAmbientSpectrum {
+                    transport_slot: v.transport_slot,
+                    slot_index: v.acn_index,
+                    scaled: v.scaled,
+                })
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DynamicSelectionData {
+    pub encoding: DynamicSelectionEncoding,
+    pub method: u8,
+    pub subband_ends: [usize; 8],
+    pub lines_per_window: [usize; 8],
+    pub start_bit_offset: usize,
+    pub end_bit_offset: usize,
+    pub internal_spatial_end_bit_offset: usize,
+    pub mappings: Vec<DynamicBandMapping>,
+    pub recovery_numeric_profile: String,
+    pub ambient_recovery_slots: Vec<u8>,
+    pub ambient_transport_channels: Vec<u8>,
+    pub salient_transport_channels: Vec<u8>,
+    pub unused_transport_channels: Vec<u8>,
+    pub before_selection: Vec<RecoverySlotSpectrum>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub internal_ambient: Option<InternalAmbientData>,
+}
+
+pub(super) fn read_and_apply(
+    parser: &mut Parser<'_>,
+    configuration: HoaConfiguration,
+    block: u8,
+    input: Vec<RecoverySlotSpectrum>,
+    ambient: Option<StaticAmbientData>,
+    state: &mut HoaState,
+) -> Result<(DynamicSelectionData, Vec<HoaCoefficientSpectrum>), ParseError> {
+    let start = parser.bits.position();
+    let method = configuration.dynamic_method.expect("dynamic context");
+    if method > 2
+        || input.len() != 9
+        || input.iter().enumerate().any(|(i, v)| {
+            usize::from(v.slot_index) != i
+                || v.scaled.len() != 1024
+                || v.scaled.iter().any(|x| !x.is_finite())
+        })
+    {
+        return Err(ParseError::new(
+            start,
+            "hoa-dynamic-input",
+            "requires nine finite restored slots and a supported subdivision",
+        ));
+    }
+    let listed = parser.flag("hoa.dynamic_selection.index_list")?;
+    let mut mappings = Vec::with_capacity(8);
+    let mut saved = [[0u8; 9]; 8];
+    for (band, targets) in saved.iter_mut().enumerate() {
+        let begin = parser.bits.position();
+        if listed {
+            let mut seen = 0u16;
+            for (slot, target) in targets.iter_mut().enumerate() {
+                let position = parser.bits.position();
+                *target = parser.take(
+                    &format!("hoa.dynamic_selection.bands[{band}].target[{slot}]"),
+                    4,
+                )? as u8;
+                let bit = 1u16 << *target;
+                if seen & bit != 0 {
+                    return Err(ParseError::new(
+                        position,
+                        "hoa-dynamic-selection",
+                        format!("duplicate target ACN {} in band {band}", *target),
+                    ));
+                }
+                seen |= bit;
+            }
+        } else {
+            let mut selected = [false; 16];
+            for (acn, value) in selected.iter_mut().enumerate() {
+                *value = parser.flag(&format!(
+                    "hoa.dynamic_selection.bands[{band}].selected[{acn}]"
+                ))?;
+            }
+            let count = selected.iter().filter(|&&v| v).count();
+            if count != 9 {
+                return Err(ParseError::new(
+                    begin,
+                    "hoa-dynamic-selection",
+                    format!("band {band} selects {count} coefficients; expected nine"),
+                ));
+            }
+            for (target, acn) in targets.iter_mut().zip(
+                selected
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &value)| value.then_some(i)),
+            ) {
+                *target = acn as u8;
+            }
+        }
+        mappings.push(DynamicBandMapping {
+            subband_index: band,
+            target_acn_indices: *targets,
+            start_bit_offset: begin,
+            end_bit_offset: parser.bits.position(),
+        });
+    }
+    let ends = format().long_ends[usize::from(method)];
+    let per_window = if block == 2 {
+        format().short_ends[usize::from(method)]
+    } else {
+        ends
+    };
+    let mut output: Vec<_> = (0..16)
+        .map(|acn| HoaCoefficientSpectrum {
+            acn_index: acn,
+            scaled: vec![0.; 1024],
+        })
+        .collect();
+    for line in 0..1024 {
+        let frequency = if block == 2 { line % 128 } else { line };
+        let band = per_window
+            .iter()
+            .position(|&end| frequency < end)
+            .expect("complete frequency coverage");
+        for (slot, source) in input.iter().enumerate() {
+            output[usize::from(saved[band][slot])].scaled[line] = source.scaled[line];
+        }
+    }
+    state.last_dynamic_mapping = Some(saved);
+    let ambient_count = configuration.ambient_components;
+    Ok((
+        DynamicSelectionData {
+            encoding: if listed {
+                DynamicSelectionEncoding::IndexList
+            } else {
+                DynamicSelectionEncoding::Bitmap
+            },
+            method,
+            subband_ends: ends,
+            lines_per_window: per_window,
+            start_bit_offset: start,
+            end_bit_offset: parser.bits.position(),
+            internal_spatial_end_bit_offset: start,
+            mappings,
+            recovery_numeric_profile: configuration.recovery_numeric_profile().into(),
+            ambient_recovery_slots: configuration.ambient_indices().to_vec(),
+            ambient_transport_channels: (0..ambient_count).collect(),
+            salient_transport_channels: (ambient_count..ambient_count + 5).collect(),
+            unused_transport_channels: (configuration.core_channels
+                ..configuration.transport_channels)
+                .collect(),
+            before_selection: input,
+            internal_ambient: ambient.map(Into::into),
+        },
+        output,
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::bits::BitReader;
+    fn bytes(v: &serde_json::Value) -> Vec<u8> {
+        v.as_str()
+            .unwrap()
+            .as_bytes()
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+            .collect()
+    }
+    #[test]
+    fn mapping_encodings_check_every_bit_boundary_and_short_window_coordinate() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-dynamic-state-v1.json")).unwrap();
+        let fixture = &data["fixtures"][0];
+        let context =
+            crate::frame::HoaFrameContext::from_cookie(&bytes(&fixture["cookie"])).unwrap();
+        let template = crate::frame::parse_hoa_packet(&context, &bytes(&fixture["first"]))
+            .unwrap()
+            .packet
+            .frame;
+        for row in data["mapping_cases"].as_array().unwrap() {
+            let context =
+                crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
+            let raw = bytes(&row["bytes"]);
+            let end = row["bits"].as_u64().unwrap() as usize;
+            let listed = row["truth"]["encoding"] == "index_list";
+            for cut in 0..=end {
+                let mut parser = Parser {
+                    capture: true,
+                    bits: BitReader::new(&raw),
+                    report: template.clone(),
+                };
+                parser.bits.set_end(cut).unwrap();
+                let input = (0..9)
+                    .map(|slot| RecoverySlotSpectrum {
+                        slot_index: slot,
+                        scaled: vec![f32::from(slot + 1); 1024],
+                    })
+                    .collect();
+                let mut state = HoaState::default();
+                let result = read_and_apply(
+                    &mut parser,
+                    context.configuration,
+                    2,
+                    input,
+                    None,
+                    &mut state,
+                );
+                if cut < end {
+                    let e = result.unwrap_err();
+                    assert_eq!(e.kind, "truncated");
+                    assert_eq!(
+                        e.bit_offset,
+                        if listed && cut > 0 {
+                            1 + 4 * ((cut - 1) / 4)
+                        } else {
+                            cut
+                        }
+                    );
+                    assert!(state.last_dynamic_mapping.is_none());
+                } else {
+                    let (selection, output) = result.unwrap();
+                    assert_eq!(selection.end_bit_offset, end);
+                    let actual = serde_json::to_value(&selection).unwrap();
+                    for (key, expected) in row["truth"].as_object().unwrap() {
+                        assert_eq!(&actual[key], expected, "{key}");
+                    }
+                    for line in 0..1024 {
+                        let frequency = line % 128;
+                        let band = row["truth"]["lines_per_window"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .position(|v| frequency < v.as_u64().unwrap() as usize)
+                            .unwrap();
+                        let targets = row["truth"]["mappings"][band]["target_acn_indices"]
+                            .as_array()
+                            .unwrap();
+                        for (acn, spectrum) in output.iter().enumerate() {
+                            let expected = targets
+                                .iter()
+                                .position(|v| v.as_u64().unwrap() as usize == acn)
+                                .map_or(0., |slot| (slot + 1) as f32);
+                            assert_eq!(spectrum.scaled[line].to_bits(), expected.to_bits());
+                        }
+                    }
+                    parser.bits.set_end(raw.len() * 8).unwrap();
+                    assert_eq!(parser.bits.read(5).unwrap(), 0b10101);
+                }
+            }
+        }
+    }
+    #[test]
+    fn invalid_internal_spectrum_precedes_missing_mapping_bits() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-dynamic-state-v1.json")).unwrap();
+        let f = &data["fixtures"][0];
+        let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        let template = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"]))
+            .unwrap()
+            .packet
+            .frame;
+        let mut parser = Parser {
+            capture: true,
+            bits: BitReader::new(&[]),
+            report: template,
+        };
+        let mut input: Vec<_> = (0..9)
+            .map(|slot| RecoverySlotSpectrum {
+                slot_index: slot,
+                scaled: vec![0.; 1024],
+            })
+            .collect();
+        input[0].scaled[0] = f32::INFINITY;
+        let mut state = HoaState::default();
+        let error = read_and_apply(
+            &mut parser,
+            context.configuration,
+            0,
+            input,
+            None,
+            &mut state,
+        )
+        .unwrap_err();
+        assert_eq!(error.kind, "hoa-dynamic-input");
+        assert!(state.last_dynamic_mapping.is_none());
+    }
+}

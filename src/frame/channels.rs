@@ -626,10 +626,14 @@ fn parse_impl(
         let hoa = result.hoa.as_mut().expect("HOA context");
         hoa.numeric_profile = shape.numeric_profile().into();
         hoa.order = shape.order;
-        hoa.coefficient_count = usize::from(shape.channels);
+        hoa.coefficient_count = usize::from(shape.recovery_slots);
         hoa.transport_channels = usize::from(shape.transport_channels);
         hoa.core_channels = usize::from(shape.core_channels);
         hoa.mixed = shape.mixed_mapping();
+        if shape.dynamic_method.is_some() {
+            hoa.output_order = Some(3);
+            hoa.output_coefficient_count = Some(usize::from(shape.channels));
+        }
     }
     let code = if context.asp_header {
         parser.take("frame.type_code", 2)?
@@ -773,6 +777,9 @@ fn parse_impl(
                 &result,
                 data,
                 state.salient.as_mut().expect("salient state"),
+                usize::from(shape.recovery_slots),
+                (shape.salient_components != 0 && shape.ambient_components != 0)
+                    .then(|| shape.ambient_indices()),
             )?
         } else {
             super::hoa::restore(&result)?
@@ -780,7 +787,31 @@ fn parse_impl(
         if let Some(data) = &mut spatial.ambient {
             super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;
         }
+        let (dynamic, restored) = if shape.dynamic_method.is_some() {
+            let (data, spectra) = super::hoa_dynamic::read_and_apply(
+                &mut parser,
+                shape,
+                common_window.expect("HOA window"),
+                restored,
+                spatial.ambient.take(),
+                state,
+            )?;
+            spatial.end_bit_offset = data.end_bit_offset;
+            (Some(data), spectra)
+        } else {
+            (
+                None,
+                restored
+                    .into_iter()
+                    .map(|s| super::hoa::HoaCoefficientSpectrum {
+                        acn_index: s.slot_index,
+                        scaled: s.scaled,
+                    })
+                    .collect(),
+            )
+        };
         let hoa = result.hoa.as_mut().expect("HOA context");
+        hoa.dynamic_selection = dynamic;
         hoa.spatial = Some(spatial);
         hoa.channels_after_hoa = restored;
         hoa.hoa_complete = true;

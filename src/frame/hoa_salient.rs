@@ -2,7 +2,7 @@
 //! Format tables and independent mathematical constants have separate identities.
 use super::{
     ChannelPacketReport, Parser,
-    hoa::HoaCoefficientSpectrum,
+    hoa::RecoverySlotSpectrum,
     spectrum::{Codebook, Trie},
 };
 use crate::config::{ConfigField, ParseError};
@@ -376,8 +376,9 @@ pub(super) fn restore(
     packet: &ChannelPacketReport,
     data: &mut SalientSpatialData,
     state: &mut SalientState,
-) -> Result<Vec<HoaCoefficientSpectrum>, ParseError> {
-    let coefficients = usize::from(packet.channel_count);
+    coefficients: usize,
+    ambient_selection: Option<&[u8]>,
+) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     for d in &mut data.descriptors {
         let mut v = if d.mode == 5 {
             direction(
@@ -436,9 +437,9 @@ pub(super) fn restore(
         d.restored = v.clone();
         state.history[d.component_index][d.subband_index] = v;
     }
-    let mut output: Vec<_> = (0..packet.channel_count)
-        .map(|k| HoaCoefficientSpectrum {
-            acn_index: k,
+    let mut output: Vec<_> = (0..coefficients)
+        .map(|k| RecoverySlotSpectrum {
+            slot_index: k as u8,
             scaled: vec![0.; 1024],
         })
         .collect();
@@ -448,7 +449,6 @@ pub(super) fn restore(
         .expect("HOA report")
         .common_window
         .expect("common window");
-    let mixed = packet.hoa.as_ref().expect("HOA report").mixed.as_ref();
     for line in 0..1024 {
         let frequency = if block == 2 { line % 128 } else { line };
         let band = data
@@ -459,11 +459,9 @@ pub(super) fn restore(
         for (k, out) in output.iter_mut().enumerate() {
             // flag_d=false: selected ambient coefficients replace the salient result.
             // Their transport samples already passed the SQ/TNS/BWE2 finite checks.
-            if let Some(slot) = mixed.and_then(|m| {
-                m.ambient_output_coefficients
-                    .iter()
-                    .position(|&acn| usize::from(acn) == k)
-            }) {
+            if let Some(slot) =
+                ambient_selection.and_then(|m| m.iter().position(|&index| usize::from(index) == k))
+            {
                 let element = &packet.elements[slot];
                 let value = if element.present {
                     element.channels_after_bwe2[0].scaled[line]
@@ -475,7 +473,7 @@ pub(super) fn restore(
             }
             let mut sum = 0.;
             for sc in 0..5 {
-                let e = &packet.elements[sc + if mixed.is_some() { 4 } else { 0 }];
+                let e = &packet.elements[sc + if ambient_selection.is_some() { 4 } else { 0 }];
                 let sample = if e.present {
                     f64::from(e.channels_after_bwe2[0].scaled[line])
                 } else {
@@ -503,6 +501,41 @@ pub(super) fn restore(
 mod tests {
     use super::*;
     use crate::config::bits::BitReader;
+    #[test]
+    fn restored_numeric_error_precedes_corrupt_dynamic_mapping_and_rolls_back() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-dynamic-state-v1.json")).unwrap();
+        let bytes = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_str()
+                .unwrap()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                .collect()
+        };
+        for f in data["fixtures"].as_array().unwrap() {
+            let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+            let mut drc = context.initial_drc_state();
+            let mut state = super::super::HoaState {
+                salient: Some(Box::new(SalientState::new(9))),
+                ..Default::default()
+            };
+            state.salient.as_mut().unwrap().history[0][0][7] = f64::MAX;
+            let before = state.clone();
+            let error = crate::frame::parse_hoa_packet_with_state(
+                &context,
+                &bytes(&f["dynamic_error"]),
+                &mut drc,
+                &mut state,
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, "hoa-numeric");
+            assert!(error.bit_offset <= f["internal_end_bit"].as_u64().unwrap() as usize);
+            assert_eq!(state, before);
+        }
+    }
 
     fn packed(bits: &[bool]) -> Vec<u8> {
         let mut bytes = vec![0; bits.len().div_ceil(8)];

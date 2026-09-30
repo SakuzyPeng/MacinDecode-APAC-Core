@@ -300,6 +300,67 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
     }
 }
 
+#[test]
+fn dynamic_hoa_dimensions_mapping_state_and_all_outputs_are_atomic() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-dynamic-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported() && context.dynamic_selection_enabled());
+        assert_eq!(
+            (
+                context.order(),
+                context.output_order(),
+                context.recovery_slot_count(),
+                context.channel_count()
+            ),
+            (2, 3, 9, 16)
+        );
+        assert_eq!(context.maximum_preroll_bytes(), 32768);
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        assert_eq!(
+            decoder.backend(),
+            "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1"
+        );
+        let first = bytes(&f["first"]);
+        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 16384);
+        let before = snapshot(&decoder);
+        for key in [
+            "last_element_error",
+            "late_spatial_error",
+            "dynamic_error",
+            "bitmap_too_few",
+            "bitmap_too_many",
+            "late_tail_error",
+            "embedded_error",
+            "outer_after_embedded_error",
+        ] {
+            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+            assert_eq!(snapshot(&decoder), before, "{key}");
+        }
+        for end in 0..first.len() {
+            assert!(decoder.decode_frame(&first[..end]).is_err());
+            assert_eq!(snapshot(&decoder), before);
+        }
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&first).unwrap();
+        for key in ["embedded_good", "next"] {
+            assert_eq!(
+                decoder.decode_frame(&bytes(&f[key])).unwrap(),
+                fresh.decode_frame(&bytes(&f[key])).unwrap()
+            );
+            assert_eq!(snapshot(&decoder), snapshot(&fresh));
+        }
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        assert!(decoder.scan_frame(&first).is_err());
+    }
+}
+
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
 #[test]

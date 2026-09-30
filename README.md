@@ -309,7 +309,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无动态选择或重映射，固定配置如下。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。其他阶数、N3D、其他混合数量、其他分量／子带配置、超出下述范围的 ambient 选择／变换、LRVQ 和结构更新仍不支持。
+**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无重映射。下表为原固定维度配置，另有下述九槽到十六系数的动态选择路径。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。其他阶数、N3D、其他混合数量、其他分量／子带配置、超出下述范围的选择／变换、LRVQ 和结构更新仍不支持。
 
 | 路径 | salient／ambient | 传输 SCE | 输出顺序 |
 |---|---|---:|---|
@@ -413,6 +413,28 @@ python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-t
 ```
 
 `validate_hoa_static_native.py` 复核两份主序列、两个单分支探针及一个独立相消控制的已有捕获，不重复旧 SQ 工具跟踪。`validate_hoa_static_checks.py` 执行精简接口和旧代表回归。所有验收入口显式接收二进制与报告路径；Windows 使用对应 `.exe`，缺少必需二进制会失败。
+
+**受限动态 HOA 选择**：接受内部阶数 2、九个恢复槽位、输出三阶 16 系数的两种固定配置：5 salient／0 ambient 或 5 salient／4 ambient。两者都完整读取 16 个 SCE，核心通道分别为 5／9；每个 salient 分量仍为四个空间子带、九项系数、六位量化。`order()` 与报告的 `hoa.order`／`coefficient_count` 继续表示 cookie 中内部阶数与维度；`output_order()`、`channel_count()` 以及 PCM 布局表示输出阶数 3、16 个 ACN 系数。`recovery_slot_count()` 和 `dynamic_selection_enabled()` 可查询新分支。
+
+动态选择固定八个频率子带，支持参数 0 的感知锚点划分、参数 1 的 AAC 频带插值及参数 2 的等宽划分；参数 3 和其他子带数量拒绝。短窗每窗使用相应长窗终点除以八，选择行不等于短窗编号，也不受短窗分组控制。每个核心帧在空间描述之后读取八组映射：索引列表保留九个目标的线上顺序，位图按 ACN 升序形成九个目标。重复列表目标及位图数量不符均报错，不使用旧映射补足损坏载荷。
+
+恢复先在九槽空间完成原有描述与 ambient 数值处理，再将每个子带的九个 Float32 值逐位复制到 16 个输出位置，其余位置为正零。mixed 的静态 ambient 选择属于内部 `0..8`，现有固定／帧内四路变换继续适用；输出阶数不会改变二阶描述除以 3 的规则。DRC 基准声道数为 16，描述历史留在内部槽位，overlap 始终属于最终 ACN。内嵌帧、错误回滚及 reset 保持原子语义。
+
+`hoa.dynamic_selection` 是可选类型化报告，记录编码方式、八组映射、频带边界、位范围、基础恢复规则与 `before_selection` 九槽频谱；内部结果使用 `slot_index`。内部 ambient 结果放在 `dynamic_selection.internal_ambient`，不使用全局 `acn_index` 标注。`hoa.channels_after_hoa` 始终是最终 16 个 ACN 频谱，新报告另有 `output_order`／`output_coefficient_count`；旧报告不新增这些可选字段。
+
+新规则为 `apac-hoa-dynamic-selection-math-v1`、状态为 `apac-hoa-dynamic-selection-state-v1`、后端为 `rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1`。PCM 元数据分别记录基础恢复、二阶描述和动态划分格式摘要；原有常量和旧配置标识不变。动态复制不引入音频乘加或舍入，内部数值错误优先于后续映射错误。新实例的 preroll 容量均实测为 32,768 字节。
+
+包目录、CAF、受限 MP4／M4A 入口及范围规则保持不变，输出预算与交错步长使用 16 个声道；所有 HOA 仍从包零预热并拒绝 fast。新增语义序列只覆盖必要分支，原生验证使用两份主控制和感知边界短探针，旧路径只取受影响代表。
+
+```sh
+python3 -B scripts/generate_hoa_dynamic_format.py --check
+python3 -B scripts/generate_hoa_dynamic_manifest.py --check
+python3 -B scripts/validate_hoa_dynamic.py --binary target/debug/apac-tool --report reports/hoa-dynamic-math.json
+python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-dynamic-math.json --report reports/hoa-dynamic-release.json
+```
+
+`validate_hoa_dynamic_native.py` 复核指定的哈希约束捕获；其隔离映射参考由原生描述历史及已知传输激励重建，不伪称原生中间缓冲快照。`validate_hoa_dynamic_checks.py` 执行相关接口测试与旧代表摘要检查；正式构建和便携验证不读取苹果文件或研究目录。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

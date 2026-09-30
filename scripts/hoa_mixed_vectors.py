@@ -33,7 +33,8 @@ def mapping(order):
                 descriptor_numeric_profile='apac-hoa-salient-order2-math-v1' if order==2 else 'apac-hoa-salient-math-v1')
 
 
-def spatial(case, origin, *, order=3):
+def spatial(case, origin, *, order=3, selection=None):
+    selection=list(range(4)) if selection is None else list(selection)
     n=(order+1)**2; fmt=format_for(order); global_mode=case.get('global_mode')
     wire=bits(int(global_mode is not None),1)
     if global_mode is not None: wire+=bits(global_mode,3)
@@ -47,11 +48,12 @@ def spatial(case, origin, *, order=3):
             else: assert mode==global_mode
             q=list(spec.get('quantized',[0 if mode==3 else 32]*n))
             signs=list(spec.get('signs_positive',[True]*n)); cluster=None; angles=(None,None)
-            omitted=list(range(4)) if mode<4 else []; coded=set()
+            omitted=selection if mode<4 else []; coded=set()
             def huff(book,index):
                 length,code=book[index]; return bits(code,length)
             if mode==0:
-                for i in range(4,n): wire+=bits(q[i],6); coded.add(i)
+                for i in range(n):
+                    if i not in omitted: wire+=bits(q[i],6); coded.add(i)
             elif mode==5:
                 angles=spec.get('angles',(0,90)); wire+=bits(angles[0],9)+bits(angles[1],8)
                 for i in range(4): wire+=huff(fmt['modes'][1]['codebooks'][0],q[i]); coded.add(i)
@@ -71,7 +73,7 @@ def spatial(case, origin, *, order=3):
                                coded_coefficient_indices=indices,ambient_omitted_coefficients=omitted,
                                cluster=cluster,azimuth_degrees=angles[0],elevation_offset_degrees=angles[1]))
     return wire,dict(start_bit_offset=origin,end_bit_offset=origin+len(wire),single_coding_mode=global_mode is not None,
-                     coding_mode=global_mode,ambient_indices=list(range(4)),
+                     coding_mode=global_mode,ambient_indices=selection,
                      salient=dict(subband_ends=ENDS,descriptors=result))
 
 

@@ -301,6 +301,21 @@ fn decode_with_access(
             value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
         }
     }
+    if decoder
+        .hoa_context
+        .as_ref()
+        .is_some_and(|c| c.static_ambient_enabled())
+    {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        value["hoa_ambient_format_sha256"] = json!(crate::frame::hoa_ambient_format_sha256());
+        value["hoa_ambient_tables_sha256"] = json!(crate::frame::hoa_ambient_math_sha256());
+    }
     out.json("pcm.json", &pcm)?;
     let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,

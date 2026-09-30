@@ -59,8 +59,7 @@ class MixedHoaTests(unittest.TestCase):
         raw=cookie(order=3); path=self.path(); path.write_bytes(raw)
         parsed=json.loads(self.run_tool('parse-cookie',path).stdout); wire=''.join(format(v,'08b') for v in raw)
         variants=[('components[0].hoa.flag_d','1'),('components[0].hoa.ambient_components_encoded','0101'),
-                  ('components[0].hoa.salient[0].subbands_minus_one','0010'),('components[0].hoa.salient[4].order','10'),
-                  ('components[0].hoa.parameter_3_present','100'),('components[0].hoa.ambient_selection_present','10011')]
+                  ('components[0].hoa.salient[0].subbands_minus_one','0010'),('components[0].hoa.salient[4].order','10')]
         for name,encoded in variants:
             field=next(f for f in parsed['fields'] if f['name']==name); at=field['bit_offset']
             cfg=pack(wire[:at]+encoded+wire[at+field['bit_length']:]); cfg=len(cfg).to_bytes(4,'big')+cfg[4:]

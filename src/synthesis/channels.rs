@@ -54,7 +54,10 @@ pub(super) fn render(
     counts.drc_payload_frames += u64::from(packet.drc_complete == Some(true));
     counts.drc_missing_history_frames += u64::from(packet.drc_history_sufficient == Some(false));
     if let Some(hoa) = &packet.hoa
-        && hoa.spatial.as_ref().is_some_and(|s| s.salient.is_some())
+        && hoa
+            .spatial
+            .as_ref()
+            .is_some_and(|s| s.salient.is_some() || s.ambient.is_some())
     {
         counts.absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
         let channels = states.len();

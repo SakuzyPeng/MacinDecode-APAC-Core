@@ -309,7 +309,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无动态选择或重映射，固定配置如下。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。其他阶数、N3D、其他混合数量／选择、其他分量／子带配置、非恒等 ambient 变换、LRVQ 和结构更新仍不支持。
+**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无动态选择或重映射，固定配置如下。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。其他阶数、N3D、其他混合数量、其他分量／子带配置、超出下述范围的 ambient 选择／变换、LRVQ 和结构更新仍不支持。
 
 | 路径 | salient／ambient | 传输 SCE | 输出顺序 |
 |---|---|---:|---|
@@ -322,9 +322,9 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
-限定的一、三阶 ambient 恢复均已确认是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、实际阶数、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
+原无选择／变换扩展的一、三阶 ambient 恢复均已确认是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、实际阶数、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
 
-HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。一／二／三阶分别实测的内嵌 preroll 容量为 8,192／18,432／32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、全部系数 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。ambient 的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空。
+HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。一／二／三阶分别实测的内嵌 preroll 容量为 8,192／18,432／32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、全部系数 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。原恒等 ambient 路径的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空；启用变换时按恢复后的输出系数管理 overlap。
 
 ```sh
 apac-tool parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
@@ -377,7 +377,7 @@ python3 -B scripts/validate_hoa_orders_media.py --binary target/release/apac-too
 
 `validate_hoa_orders_native.py` 复核已保存的新增原生边界和恢复证据；无需重新跟踪原有 SQ 工具。正式构建及便携向量不依赖苹果文件、研究目录或网络。
 
-**固定混合 HOA**：二／三阶均接受 5 salient＋4 ambient，每个 salient 分量仍为四个空间子带、六位描述量化和与输出相同的阶数。传输槽位 `0..3` 是 ambient，`4..8` 是 salient；三阶 `9..15` 仍完整读取和数值校验，但不参与恢复。核心通道数均为 9，输出系数分别为 9／16。ACN0..3 由 ambient 精确覆盖，其他系数由五个 salient 分量恢复；DRC 基准声道数使用输出数。
+**固定混合 HOA**：二／三阶均接受 5 salient＋4 ambient，每个 salient 分量仍为四个空间子带、六位描述量化和与输出相同的阶数。传输槽位 `0..3` 是 ambient，`4..8` 是 salient；三阶 `9..15` 仍完整读取和数值校验，但不参与恢复。核心通道数均为 9，输出系数分别为 9／16。默认映射中 ACN0..3 由 ambient 精确覆盖，其他系数由五个 salient 分量恢复；DRC 基准声道数使用输出数。
 
 `hoa.mixed` 记录两类传输映射、ambient 输出位置、未使用槽位和描述数学标识。混合描述新增可选的 `coded_coefficient_indices` 与 `ambient_omitted_coefficients`：`quantized`／`signs_positive` 只保存实际编码项，按前者所列 ACN 索引递增排列；`restored` 始终为完整的 9／16 项。模式 0–3 省略前四项并将对应恢复历史置零，模式 4／5 保留完整变换或方向描述。纯 ambient／salient 报告不新增这些可选字段，旧数组含义保持不变。
 
@@ -395,6 +395,24 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 `validate_hoa_mixed_native.py --binary PATH --capture ORDER2_CAPTURE --capture ORDER3_CAPTURE --report REPORT` 复核已有混合原生捕获；省略 `--binary` 仅证明原生规则，不代表 Rust 验收完成。`validate_hoa_mixed_checks.py` 接受 CLI／库测试二进制和旧报告路径，运行受影响接口测试及旧 HOA、离散声道代表摘要检查；具体参数见 `--help`。
+
+**静态 ambient 选择与四路变换**：上述一／三阶纯 ambient 和二／三阶 mixed 支持 cookie 中的静态选择及三套四路变换。mixed 选择必须是四个严格递增、互不重复且在输出系数范围内的 ACN 索引；纯 ambient 只接受完整系数集合的显式恒等选择。cookie 的 `parameter_3` 缺席表示关闭，值 1–3 固定选择矩阵 0–2，值 4 则在每个核心帧的空间模式头之前读取两位索引，索引 3 为恒等。帧内矩阵选择不改变静态 ACN 选择表，缺席传输或零频带也必须完整读取索引。
+
+新路径先恢复全部 salient 描述和历史，再对前四个 ambient 传输槽位执行变换，最后按选择表覆盖输出。mixed 模式 0–3 省略的是选择集合，不限于前四项；模式 4／5 的描述仍完整保留。三套矩阵系数均为精确 `±1/2`，新变换采用固定 Float64 Neumaier 补偿求和及最终一次 Float32 舍入，避免强相消丢失小信号。纯 ambient 的其余槽位不变；缺席输入不会清空其他输入经变换产生的输出系数。
+
+启用新语法的配置使用 `apac-hoa-static-ambient-math-v1`、`apac-hoa-static-ambient-state-v1` 和 `rust_hoa_static_ambient_sq_drc_off_f64_fft_v1`。原配置的后端、数值标识和输出保持不变。`hoa.spatial.ambient` 可选报告记录选择表、`transform_config`、`effective_index`、`index_source`、索引位范围及 `channels_after_transform`；固定模式的帧索引位范围为 null。原始传输频谱保留，旧 JSON 缺失新增字段时仍可读取。上下文提供 `ambient_selection()`、`ambient_transform()` 和 `static_ambient_enabled()` 查询，PCM 实现元数据新增格式与数学表摘要。
+
+三个输入入口、顺序预热、内嵌帧优先与外层包原子回滚均保持原规则，HOA fast 仍拒绝。验证只运行新增语义序列和受影响代表；原生强相消差异单独保留，独立数学容差不变。
+
+```sh
+python3 -B scripts/generate_hoa_static_ambient_tables.py --check
+python3 -B scripts/generate_hoa_static_ambient_manifest.py --check
+python3 -B scripts/validate_hoa_static_ambient.py --binary target/debug/apac-tool --report reports/hoa-static-math.json
+python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-static-math.json --report reports/hoa-static-release.json
+```
+
+`validate_hoa_static_native.py` 复核两份主序列、两个单分支探针及一个独立相消控制的已有捕获，不重复旧 SQ 工具跟踪。`validate_hoa_static_checks.py` 执行精简接口和旧代表回归。所有验收入口显式接收二进制与报告路径；Windows 使用对应 `.exe`，缺少必需二进制会失败。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

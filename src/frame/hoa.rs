@@ -1,6 +1,6 @@
 //! Qualified first/second/third-order ACN/SN3D configurations.
 use super::{
-    ChannelFrameContext, ChannelPacketReport, Parser,
+    AmbientTransform, ChannelFrameContext, ChannelPacketReport, Parser, StaticAmbientData,
     drc::{DrcContext, DrcState},
     packet_config::{self, PacketConfiguration},
 };
@@ -31,6 +31,10 @@ pub(super) struct HoaConfiguration {
     pub salient_components: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
+    pub ambient_selection: [u8; 16],
+    pub explicit_ambient_selection: bool,
+    pub ambient_transform: AmbientTransform,
+    pub static_ambient: bool,
     pub sample_rate_hz: u64,
     pub preroll_bytes: u64,
 }
@@ -73,6 +77,38 @@ impl HoaConfiguration {
             HoaPath::Salient => 0,
             HoaPath::Mixed => 4,
         };
+        let flag = |name: &str| {
+            parsed
+                .fields
+                .iter()
+                .any(|f| f.name == name && f.value == json!(true))
+        };
+        let explicit_ambient_selection = flag("components[0].hoa.ambient_selection_present");
+        let transform_present = flag("components[0].hoa.parameter_3_present");
+        let mut ambient_selection = std::array::from_fn(|i| i as u8);
+        if let Some(indices) = parsed
+            .derived
+            .get("components[0].hoa.ambient_selection")
+            .and_then(|v| v.as_array())
+        {
+            for (slot, value) in ambient_selection.iter_mut().zip(indices) {
+                *slot = value
+                    .as_u64()
+                    .and_then(|v| u8::try_from(v).ok())
+                    .unwrap_or(u8::MAX);
+            }
+        }
+        let ambient_transform = match parsed
+            .derived
+            .get("components[0].hoa.parameter_3")
+            .and_then(|v| v.as_u64())
+        {
+            Some(value @ 1..=3) => AmbientTransform::Fixed {
+                index: (value - 1) as u8,
+            },
+            Some(4) => AmbientTransform::PerFrame,
+            _ => AmbientTransform::Disabled,
+        };
         Self {
             order,
             channels,
@@ -81,6 +117,10 @@ impl HoaConfiguration {
             salient_components,
             ambient_components,
             path,
+            ambient_selection,
+            explicit_ambient_selection,
+            ambient_transform,
+            static_ambient: explicit_ambient_selection || transform_present,
             sample_rate_hz: if value("global.sample_rate_index") == Some(4) {
                 44100
             } else {
@@ -90,6 +130,9 @@ impl HoaConfiguration {
         }
     }
     pub fn numeric_profile(self) -> &'static str {
+        if self.static_ambient {
+            return super::hoa_ambient::NUMERIC_PROFILE;
+        }
         match self.path {
             HoaPath::Ambient => NUMERIC_PROFILE,
             HoaPath::Salient => super::hoa_salient::numeric_profile(usize::from(self.channels)),
@@ -97,6 +140,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(self) -> &'static str {
+        if self.static_ambient {
+            return super::hoa_ambient::STATE_PROFILE;
+        }
         match self.path {
             HoaPath::Ambient => STATE_PROFILE,
             HoaPath::Salient => super::hoa_salient::STATE_PROFILE,
@@ -107,13 +153,16 @@ impl HoaConfiguration {
         (self.path == HoaPath::Mixed).then(|| HoaMixedMapping {
             ambient_transport_channels: (0..4).collect(),
             salient_transport_channels: (4..9).collect(),
-            ambient_output_coefficients: (0..4).collect(),
+            ambient_output_coefficients: self.ambient_indices().to_vec(),
             unused_transport_channels: (9..self.transport_channels).collect(),
             descriptor_numeric_profile: super::hoa_salient::numeric_profile(usize::from(
                 self.channels,
             ))
             .into(),
         })
+    }
+    pub fn ambient_indices(&self) -> &[u8] {
+        &self.ambient_selection[..usize::from(self.ambient_components)]
     }
 }
 
@@ -182,7 +231,6 @@ impl HoaFrameContext {
             "components[0].hoa.flag_b",
             "components[0].hoa.flag_d",
             "components[0].hoa.dynamic_selection_config_present",
-            "components[0].hoa.ambient_selection_present",
             "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
@@ -201,14 +249,30 @@ impl HoaFrameContext {
                 }
             }
         }
-        if shape.ambient_components > 3 {
+        if shape.ambient_components == 0 {
             packet_config::check(
                 &parsed.fields,
-                "components[0].hoa.parameter_3_present",
+                "components[0].hoa.ambient_selection_present",
                 json!(false),
                 "cookie",
                 &mut rejected,
             );
+        }
+        let indices = shape.ambient_indices();
+        let declared = parsed
+            .derived
+            .get("components[0].hoa.ambient_selection")
+            .and_then(|v| v.as_array());
+        if declared.is_none_or(|v| v.len() != indices.len())
+            || indices.iter().any(|&v| v >= shape.channels)
+            || indices.windows(2).any(|w| w[0] >= w[1])
+        {
+            let position = parsed
+                .fields
+                .iter()
+                .find(|f| f.name == "components[0].hoa.ambient_selection_present")
+                .map_or(0, |f| f.bit_offset);
+            rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.channels));
         }
         for name in ["full_order", "flag_a", "flag_e", "flag_f"] {
             packet_config::check(
@@ -320,6 +384,15 @@ impl HoaFrameContext {
     pub fn numeric_profile(&self) -> &'static str {
         self.configuration.numeric_profile()
     }
+    pub fn static_ambient_enabled(&self) -> bool {
+        self.configuration.static_ambient
+    }
+    pub fn ambient_selection(&self) -> &[u8] {
+        self.configuration.ambient_indices()
+    }
+    pub fn ambient_transform(&self) -> AmbientTransform {
+        self.configuration.ambient_transform
+    }
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
             .then(|| super::hoa_salient::numeric_profile(usize::from(self.configuration.channels)))
@@ -338,6 +411,8 @@ pub(crate) struct HoaState {
     pub last_global_coding_mode: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub salient: Option<Box<super::hoa_salient::SalientState>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_ambient_transform: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -350,6 +425,8 @@ pub struct HoaSpatialData {
     pub ambient_indices: Vec<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub salient: Option<super::hoa_salient::SalientSpatialData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ambient: Option<StaticAmbientData>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaCoefficientSpectrum {
@@ -443,9 +520,32 @@ pub(super) fn spatial(
     block: u8,
 ) -> Result<HoaSpatialData, ParseError> {
     let start = parser.bits.position();
-    // flag_b=false fixes the configuration from the cookie. parameter_3 is
-    // absent (no ambient transform), and dynamic selection is off. The salient
-    // branch adds its descriptors after the common global-mode header.
+    // Static selection comes from the cookie. A per-frame transform always
+    // consumes its selector, even when every transport SCE is absent.
+    let ambient = if configuration.static_ambient {
+        let (index, source, begin, end) = match configuration.ambient_transform {
+            AmbientTransform::Disabled => (3, "disabled", None, None),
+            AmbientTransform::Fixed { index } => (index, "cookie", None, None),
+            AmbientTransform::PerFrame => {
+                let begin = parser.bits.position();
+                let index = parser.take("hoa.ambient.transform_index", 2)? as u8;
+                (index, "frame", Some(begin), Some(parser.bits.position()))
+            }
+        };
+        state.last_ambient_transform = Some(index);
+        Some(StaticAmbientData {
+            explicit_selection: configuration.explicit_ambient_selection,
+            selection: configuration.ambient_indices().to_vec(),
+            transform_config: configuration.ambient_transform,
+            effective_index: index,
+            index_source: source.into(),
+            index_start_bit_offset: begin,
+            index_end_bit_offset: end,
+            channels_after_transform: vec![],
+        })
+    } else {
+        None
+    };
     let single = parser.flag("hoa.spatial.single_coding_mode")?;
     let mode = if single {
         let position = parser.bits.position();
@@ -472,7 +572,7 @@ pub(super) fn spatial(
                 .salient
                 .get_or_insert_with(|| Box::new(super::hoa_salient::SalientState::new(channels))),
             channels,
-            configuration.path == HoaPath::Mixed,
+            (configuration.path == HoaPath::Mixed).then(|| configuration.ambient_indices()),
         )?)
     } else {
         None
@@ -483,8 +583,9 @@ pub(super) fn spatial(
         single_coding_mode: single,
         coding_mode: mode,
         effective_global_coding_mode: state.last_global_coding_mode,
-        ambient_indices: (0..configuration.ambient_components).collect(),
+        ambient_indices: configuration.ambient_indices().to_vec(),
         salient: descriptors,
+        ambient,
     })
 }
 
@@ -494,8 +595,7 @@ pub(super) fn restore(
     // P^-1 I P = I for the qualified identity ambient map, including the
     // native short-window transpose pair. No unverified matrix or extra gain.
     let mut result = Vec::with_capacity(usize::from(report.channel_count));
-    for e in &report.elements {
-        let index = e.configuration.output_channels[0];
+    for (index, e) in report.elements.iter().enumerate() {
         let scaled = if e.present {
             e.channels_after_bwe2[0].scaled.clone()
         } else {
@@ -509,7 +609,7 @@ pub(super) fn restore(
             ));
         }
         result.push(HoaCoefficientSpectrum {
-            acn_index: index,
+            acn_index: index as u8,
             scaled: scaled
                 .into_iter()
                 .map(|v| if v == 0. { 0. } else { v })

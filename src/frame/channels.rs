@@ -152,12 +152,13 @@ impl ChannelFrameContext {
                     element_index: i,
                     kind: ElementKind::Sce,
                     tce_type: 0,
-                    output_channels: if hoa.salient_components != 0 {
+                    output_channels: if hoa.salient_components != 0 || hoa.static_ambient {
                         vec![]
                     } else {
                         vec![i]
                     },
-                    transport_channels: (hoa.salient_components != 0).then(|| vec![i]),
+                    transport_channels: (hoa.salient_components != 0 || hoa.static_ambient)
+                        .then(|| vec![i]),
                 })
                 .collect(),
             maximum_preroll_bytes: hoa.preroll_bytes,
@@ -765,7 +766,7 @@ fn parse_impl(
             shape,
             common_window.expect("HOA window"),
         )?;
-        let restored = if let Some(data) = &mut spatial.salient {
+        let mut restored = if let Some(data) = &mut spatial.salient {
             // Set the current packet identity before recording the history source.
             result.frame.packet_sha256 = parser.report.packet_sha256.clone();
             super::hoa_salient::restore(
@@ -776,6 +777,9 @@ fn parse_impl(
         } else {
             super::hoa::restore(&result)?
         };
+        if let Some(data) = &mut spatial.ambient {
+            super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;
+        }
         let hoa = result.hoa.as_mut().expect("HOA context");
         hoa.spatial = Some(spatial);
         hoa.channels_after_hoa = restored;

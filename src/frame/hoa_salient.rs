@@ -204,8 +204,9 @@ pub(super) fn read(
     block: u8,
     state: &SalientState,
     coefficients: usize,
-    mixed: bool,
+    ambient_selection: Option<&[u8]>,
 ) -> Result<SalientSpatialData, ParseError> {
+    let mixed = ambient_selection.is_some();
     let mut descriptors = Vec::with_capacity(20);
     for component in 0..5 {
         for band in 0..4 {
@@ -237,11 +238,18 @@ pub(super) fn read(
                 coded_coefficient_indices: None,
                 ambient_omitted_coefficients: None,
             };
-            let omitted = if mixed && mode < 4 { 4 } else { 0 };
+            let omitted = if mode < 4 {
+                ambient_selection.unwrap_or(&[])
+            } else {
+                &[]
+            };
             let mut coded = vec![false; coefficients];
             match mode {
                 0 => {
-                    for (i, is_coded) in coded.iter_mut().enumerate().skip(omitted) {
+                    for (i, is_coded) in coded.iter_mut().enumerate() {
+                        if omitted.contains(&(i as u8)) {
+                            continue;
+                        }
                         d.quantized[i] = parser.take(&format!("{name}.quantized[{i}]"), 6)? as u8;
                         *is_coded = true;
                     }
@@ -281,7 +289,7 @@ pub(super) fn read(
                             continue;
                         }
                         for &i in group {
-                            if i < omitted {
+                            if omitted.contains(&(i as u8)) {
                                 continue;
                             }
                             d.quantized[i] = huffman(
@@ -311,7 +319,8 @@ pub(super) fn read(
                     d.signs_positive = indices.iter().map(|&i| d.signs_positive[i]).collect();
                 }
                 d.coded_coefficient_indices = Some(indices);
-                d.ambient_omitted_coefficients = Some((0..omitted).collect());
+                d.ambient_omitted_coefficients =
+                    Some(omitted.iter().map(|&v| usize::from(v)).collect());
             }
             d.end_bit_offset = parser.bits.position();
             descriptors.push(d);
@@ -439,7 +448,7 @@ pub(super) fn restore(
         .expect("HOA report")
         .common_window
         .expect("common window");
-    let mixed = packet.hoa.as_ref().expect("HOA report").mixed.is_some();
+    let mixed = packet.hoa.as_ref().expect("HOA report").mixed.as_ref();
     for line in 0..1024 {
         let frequency = if block == 2 { line % 128 } else { line };
         let band = data
@@ -450,8 +459,12 @@ pub(super) fn restore(
         for (k, out) in output.iter_mut().enumerate() {
             // flag_d=false: selected ambient coefficients replace the salient result.
             // Their transport samples already passed the SQ/TNS/BWE2 finite checks.
-            if mixed && k < 4 {
-                let element = &packet.elements[k];
+            if let Some(slot) = mixed.and_then(|m| {
+                m.ambient_output_coefficients
+                    .iter()
+                    .position(|&acn| usize::from(acn) == k)
+            }) {
+                let element = &packet.elements[slot];
                 let value = if element.present {
                     element.channels_after_bwe2[0].scaled[line]
                 } else {
@@ -462,7 +475,7 @@ pub(super) fn restore(
             }
             let mut sum = 0.;
             for sc in 0..5 {
-                let e = &packet.elements[sc + if mixed { 4 } else { 0 }];
+                let e = &packet.elements[sc + if mixed.is_some() { 4 } else { 0 }];
                 let sample = if e.present {
                     f64::from(e.channels_after_bwe2[0].scaled[line])
                 } else {

@@ -2,6 +2,7 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_ambient;
 mod hoa_salient;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
@@ -43,6 +44,10 @@ pub use hoa::{
     HoaSpatialData, parse_hoa_packet,
 };
 pub use hoa::{NUMERIC_PROFILE as HOA_NUMERIC_PROFILE, STATE_PROFILE as HOA_STATE_PROFILE};
+pub use hoa_ambient::{AmbientSpectrum, AmbientTransform, StaticAmbientData};
+pub(crate) use hoa_ambient::{
+    format_sha256 as hoa_ambient_format_sha256, math_sha256 as hoa_ambient_math_sha256,
+};
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;

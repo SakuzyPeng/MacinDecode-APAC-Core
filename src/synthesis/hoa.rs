@@ -6,6 +6,7 @@ use crate::{
 };
 pub(super) const BACKEND: &str = "rust_hoa_ambient_sq_drc_off_f64_fft_v1";
 pub(super) const SALIENT_BACKEND: &str = "rust_hoa_salient_sq_drc_off_f64_fft_v1";
+pub(super) const MIXED_BACKEND: &str = "rust_hoa_mixed_sq_drc_off_f64_fft_v1";
 pub(super) fn decode(
     context: &HoaFrameContext,
     drc: &mut DrcState,

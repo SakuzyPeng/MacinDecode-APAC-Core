@@ -39,8 +39,8 @@ pub use drc::{
 };
 pub(crate) use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{
-    HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaPacketReport, HoaSpatialData,
-    parse_hoa_packet,
+    HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaMixedMapping, HoaPacketReport,
+    HoaSpatialData, parse_hoa_packet,
 };
 pub use hoa::{NUMERIC_PROFILE as HOA_NUMERIC_PROFILE, STATE_PROFILE as HOA_STATE_PROFILE};
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};

@@ -147,13 +147,17 @@ impl ChannelFrameContext {
                 Some("HOA ACN/SN3D".into()),
             )),
             channel_labels: (0..hoa.channels).map(|i| format!("ACN{i}")).collect(),
-            elements: (0..hoa.channels)
+            elements: (0..hoa.transport_channels)
                 .map(|i| ElementConfiguration {
                     element_index: i,
                     kind: ElementKind::Sce,
                     tce_type: 0,
-                    output_channels: if hoa.salient { vec![] } else { vec![i] },
-                    transport_channels: hoa.salient.then(|| vec![i]),
+                    output_channels: if hoa.salient_components != 0 {
+                        vec![]
+                    } else {
+                        vec![i]
+                    },
+                    transport_channels: (hoa.salient_components != 0).then(|| vec![i]),
                 })
                 .collect(),
             maximum_preroll_bytes: hoa.preroll_bytes,
@@ -622,12 +626,9 @@ fn parse_impl(
         hoa.numeric_profile = shape.numeric_profile().into();
         hoa.order = shape.order;
         hoa.coefficient_count = usize::from(shape.channels);
-        hoa.transport_channels = usize::from(shape.channels);
-        hoa.core_channels = if shape.salient {
-            5
-        } else {
-            usize::from(shape.channels)
-        };
+        hoa.transport_channels = usize::from(shape.transport_channels);
+        hoa.core_channels = usize::from(shape.core_channels);
+        hoa.mixed = shape.mixed_mapping();
     }
     let code = if context.asp_header {
         parser.take("frame.type_code", 2)?

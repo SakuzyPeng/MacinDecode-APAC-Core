@@ -167,6 +167,89 @@ fn hoa_order_dimensions_rates_and_transactions_are_qualified() {
     }
 }
 
+#[test]
+fn mixed_hoa_rolls_back_all_output_history_and_drc_and_resets() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-mixed-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported());
+        assert_eq!(
+            (
+                context.salient_components(),
+                context.ambient_components(),
+                context.core_channels()
+            ),
+            (5, 4, 9)
+        );
+        assert_eq!(
+            context.transport_channels(),
+            context.channel_count() as usize
+        );
+        assert_eq!(context.state_profile(), "apac-hoa-mixed-state-v1");
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        assert_eq!(decoder.backend(), "rust_hoa_mixed_sq_drc_off_f64_fft_v1");
+        let first = bytes(&f["first"]);
+        assert_eq!(
+            decoder.decode_frame(&first).unwrap().len(),
+            1024 * context.channel_count() as usize
+        );
+        let before = snapshot(&decoder);
+        for key in [
+            "last_element_error",
+            "late_spatial_error",
+            "late_tail_error",
+            "embedded_error",
+            "outer_after_embedded_error",
+        ] {
+            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+            assert_eq!(snapshot(&decoder), before, "{key}");
+        }
+        for end in 0..first.len() {
+            assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+            assert_eq!(snapshot(&decoder), before);
+        }
+        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
+        clean.decode_frame(&first).unwrap();
+        for key in ["embedded_good", "next"] {
+            assert_eq!(
+                decoder.decode_frame(&bytes(&f[key])).unwrap(),
+                clean.decode_frame(&bytes(&f[key])).unwrap()
+            );
+            assert_eq!(snapshot(&decoder), snapshot(&clean));
+        }
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        assert!(decoder.scan_frame(&first).is_err());
+    }
+}
+
+#[test]
+fn old_hoa_json_does_not_gain_mixed_fields() {
+    for source in [
+        include_str!("../../data/hoa-salient-state-v1.json"),
+        include_str!("../../data/hoa-ambient-state-v1.json"),
+    ] {
+        let f: Value = serde_json::from_str(source).unwrap();
+        let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        let report = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"])).unwrap();
+        let value = serde_json::to_value(&report).unwrap();
+        assert!(value["hoa"].get("mixed").is_none());
+        if let Some(descriptors) = value["hoa"]["spatial"]["salient"]["descriptors"].as_array() {
+            for d in descriptors {
+                assert!(d.get("coded_coefficient_indices").is_none());
+                assert!(d.get("ambient_omitted_coefficients").is_none());
+            }
+        }
+        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        assert!(restored.hoa().mixed.is_none());
+    }
+}
+
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
 #[test]

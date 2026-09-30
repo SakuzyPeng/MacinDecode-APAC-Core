@@ -1,0 +1,202 @@
+{
+  "profile": "apac-hoa-mixed-math-v1",
+  "cases": [
+    {
+      "index": 0,
+      "kind": "mixed2-44100",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 11,
+      "input_sha256": "18490f00dea6eb64e0df2fd59557198de32908bde22dd55dee326b82510a9da9",
+      "truth_sha256": "caa138bc588d92e061424cad4f5728472171eeaa3dedb8ac63633c96114013c5"
+    },
+    {
+      "index": 1,
+      "kind": "mixed3-48000",
+      "configuration": {
+        "order": 3,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 11,
+      "input_sha256": "bf7f6f52850c651022a441351c333446ed8896d21aedacda0f080cccac2147c1",
+      "truth_sha256": "888b92c3de5489aef206f9bf100a82314fbc5f1abc63fbaa0e8e5e85451f9a15"
+    },
+    {
+      "index": 2,
+      "kind": "core_and_output_basis_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 10,
+      "input_sha256": "cb9aef880ccda3919c537f395540c1d25a9344acad7a2a312c1915f329fb74a2",
+      "truth_sha256": "e49334875e408074c351362820369ed06af09a1613fa1785a191059dc553e85b"
+    },
+    {
+      "index": 3,
+      "kind": "subband_boundaries_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "d2536aad247b7c5707d2aa5da11d928b4bbe5d55a2bf04aca367018e0e1732a7",
+      "truth_sha256": "b7e22ec1068e94924b572473b1ae0b2adafcf32dd6e826019300c1aaa6ad29a1"
+    },
+    {
+      "index": 4,
+      "kind": "absent_and_unused_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 5,
+      "input_sha256": "0f2a03f04115bb625c9c15f2110683eb783e8a9721bedd6b3a2c3a9b7a9c4e5a",
+      "truth_sha256": "ea5bac0150d07b2cda494ab43f16de30ef556fd700121a03dea2007bf9aeb91f"
+    },
+    {
+      "index": 5,
+      "kind": "joint_tools_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "698e13a44566fdd4ffd54423e7a4ea0d773ca7e3df099cedc440c2e0cd15931c",
+      "truth_sha256": "a460f07431137d4956df2509d060374f1d36f722f9537bd04a0241d1bfff3f4d"
+    },
+    {
+      "index": 6,
+      "kind": "escape_cancellation_2",
+      "configuration": {
+        "order": 2,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "9e920467ba05e6aef3b5c90e3c5af1305e47cd1022ae4155001149bd4a28272f",
+      "truth_sha256": "d13ee2fce007127acf393b511014e5c1585f6eae77e3b8de469956aa78592af8"
+    },
+    {
+      "index": 7,
+      "kind": "core_and_output_basis_3",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 10,
+      "input_sha256": "1c8167c76d2fffc453413cc09a306d37b5275b1a1eca825fa0c04f6d9d0a28bc",
+      "truth_sha256": "47e54865f07eac95ed6147e9a0bb7f3a88250d5c838cac79b29cb5ddd7a55cb2"
+    },
+    {
+      "index": 8,
+      "kind": "subband_boundaries_3",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "1178f64015a51ad11cfe51ef60a54abb53a64bccff643f755400fdfe3f54dc4b",
+      "truth_sha256": "c3a10dd2734a63c17f08765f6cdac964b7cc0b4b6beb5daaefb37805f2ec017b"
+    },
+    {
+      "index": 9,
+      "kind": "absent_and_unused_3",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 5,
+      "input_sha256": "275d6653425bc7eed208ee918ca3f7d4f7082e9ffbf01d665e38ddc898b8dd1f",
+      "truth_sha256": "a4ed3dc6456cdc81ee448388a375080df1af56a36657fb1456d0c7406635ba1e"
+    },
+    {
+      "index": 10,
+      "kind": "joint_tools_3",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "fdc41615afeb6f7f6a87a639eda46416be637edb2990de0652d1d7d3f083cb94",
+      "truth_sha256": "3e7c5aa6f830c077c01b665d645e4e7820ad4f22919042fd6250b277f6c9c7a4"
+    },
+    {
+      "index": 11,
+      "kind": "escape_cancellation_3",
+      "configuration": {
+        "order": 3,
+        "rate": 44100,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "d494556732cf162dcb57596f7c40368c583962f07675bd3a7e10196f66be06a4",
+      "truth_sha256": "a5ca12254fc2c7af3eea43eca76dfa2af809fafdd3320b69a845bcdc6f02a3dd"
+    },
+    {
+      "index": 12,
+      "kind": "per_component_modes_groups",
+      "configuration": {
+        "order": 3,
+        "rate": 48000,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "04e87b812006ec92480c44478cc9f2e41e9ddc058875204ca75e5c04bf10bb5f",
+      "truth_sha256": "2a11732e88e193348b254edf4c1328265b083651294b0bd4db5d7ef7bec54125"
+    },
+    {
+      "index": 13,
+      "kind": "zero_sfb_bwe2",
+      "configuration": {
+        "order": 2,
+        "rate": 44100,
+        "scene": false,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 3,
+      "input_sha256": "761661595c75cbf29e24df970cd84abd2bd9904e069b2f626325278bbd3fa778",
+      "truth_sha256": "35e6c4f8576b98b662ae6eff1b76365f961bb2ea6c5e886ba1aa4476367f0395"
+    }
+  ],
+  "sha256": "b869d20d008b626b8c5c76cce687cb3d06468dbe4067bc96d754a60d674292bd"
+}

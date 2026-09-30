@@ -43,6 +43,12 @@ pub struct SalientDescriptor {
     pub azimuth_degrees: Option<u16>,
     pub elevation_offset_degrees: Option<u8>,
     pub restored: Vec<f64>,
+    /// For mixed frames, quantized/sign arrays are compact and follow these ACN indices.
+    /// Legacy pure-salient arrays retain their historical shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub coded_coefficient_indices: Option<Vec<usize>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ambient_omitted_coefficients: Option<Vec<usize>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -198,6 +204,7 @@ pub(super) fn read(
     block: u8,
     state: &SalientState,
     coefficients: usize,
+    mixed: bool,
 ) -> Result<SalientSpatialData, ParseError> {
     let mut descriptors = Vec::with_capacity(20);
     for component in 0..5 {
@@ -227,11 +234,16 @@ pub(super) fn read(
                 azimuth_degrees: None,
                 elevation_offset_degrees: None,
                 restored: vec![0.; coefficients],
+                coded_coefficient_indices: None,
+                ambient_omitted_coefficients: None,
             };
+            let omitted = if mixed && mode < 4 { 4 } else { 0 };
+            let mut coded = vec![false; coefficients];
             match mode {
                 0 => {
-                    for i in 0..coefficients {
+                    for (i, is_coded) in coded.iter_mut().enumerate().skip(omitted) {
                         d.quantized[i] = parser.take(&format!("{name}.quantized[{i}]"), 6)? as u8;
+                        *is_coded = true;
                     }
                 }
                 5 => {
@@ -241,7 +253,7 @@ pub(super) fn read(
                         Some(parser.take(&format!("{name}.elevation_offset_degrees"), 8)? as u8);
                     // The qualified configuration carries explicit first-order coefficients.
                     d.quantized.truncate(4);
-                    for i in 0..4 {
+                    for (i, is_coded) in coded.iter_mut().enumerate().take(4) {
                         d.quantized[i] = huffman(
                             parser,
                             &format!("{name}.quantized[{i}]"),
@@ -249,6 +261,7 @@ pub(super) fn read(
                             0,
                             coefficients,
                         )?;
+                        *is_coded = true;
                     }
                 }
                 _ => {
@@ -268,6 +281,9 @@ pub(super) fn read(
                             continue;
                         }
                         for &i in group {
+                            if i < omitted {
+                                continue;
+                            }
                             d.quantized[i] = huffman(
                                 parser,
                                 &format!("{name}.quantized[{i}]"),
@@ -275,6 +291,7 @@ pub(super) fn read(
                                 book,
                                 coefficients,
                             )?;
+                            coded[i] = true;
                             if m.signs {
                                 d.signs_positive[i] =
                                     parser.flag(&format!("{name}.sign_positive[{i}]"))?;
@@ -282,6 +299,19 @@ pub(super) fn read(
                         }
                     }
                 }
+            }
+            if mixed {
+                let indices: Vec<_> = coded
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &v)| v.then_some(i))
+                    .collect();
+                d.quantized = indices.iter().map(|&i| d.quantized[i]).collect();
+                if !d.signs_positive.is_empty() {
+                    d.signs_positive = indices.iter().map(|&i| d.signs_positive[i]).collect();
+                }
+                d.coded_coefficient_indices = Some(indices);
+                d.ambient_omitted_coefficients = Some((0..omitted).collect());
             }
             d.end_bit_offset = parser.bits.position();
             descriptors.push(d);
@@ -349,10 +379,14 @@ pub(super) fn restore(
         } else {
             vec![0.; coefficients]
         };
-        for (i, &q) in d.quantized.iter().enumerate() {
+        for (encoded, &q) in d.quantized.iter().enumerate() {
+            let i = d
+                .coded_coefficient_indices
+                .as_ref()
+                .map_or(encoded, |indices| indices[encoded]);
             let magnitude = f64::from(q) / 32.;
             v[i] = if d.mode == 3 {
-                let delta = if d.signs_positive[i] {
+                let delta = if d.signs_positive[encoded] {
                     magnitude
                 } else {
                     -magnitude
@@ -405,6 +439,7 @@ pub(super) fn restore(
         .expect("HOA report")
         .common_window
         .expect("common window");
+    let mixed = packet.hoa.as_ref().expect("HOA report").mixed.is_some();
     for line in 0..1024 {
         let frequency = if block == 2 { line % 128 } else { line };
         let band = data
@@ -413,9 +448,21 @@ pub(super) fn restore(
             .position(|&end| frequency < end)
             .expect("covered line");
         for (k, out) in output.iter_mut().enumerate() {
+            // flag_d=false: selected ambient coefficients replace the salient result.
+            // Their transport samples already passed the SQ/TNS/BWE2 finite checks.
+            if mixed && k < 4 {
+                let element = &packet.elements[k];
+                let value = if element.present {
+                    element.channels_after_bwe2[0].scaled[line]
+                } else {
+                    0.
+                };
+                out.scaled[line] = if value == 0. { 0. } else { value };
+                continue;
+            }
             let mut sum = 0.;
             for sc in 0..5 {
-                let e = &packet.elements[sc];
+                let e = &packet.elements[sc + if mixed { 4 } else { 0 }];
                 let sample = if e.present {
                     f64::from(e.channels_after_bwe2[0].scaled[line])
                 } else {
@@ -507,6 +554,71 @@ mod tests {
                 direction(0, 90, coefficients)[0],
                 if coefficients == 9 { 1. / 3. } else { 0.25 }
             );
+        }
+    }
+
+    #[test]
+    fn mixed_spatial_modes_preserve_markers_and_reject_every_bit_truncation() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-mixed-state-v1.json")).unwrap();
+        let bytes = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_str()
+                .unwrap()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                .collect()
+        };
+        for row in data["spatial_cases"].as_array().unwrap() {
+            let f = data["fixtures"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|f| f["order"] == row["order"])
+                .unwrap();
+            let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+            let template = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"]))
+                .unwrap()
+                .packet
+                .frame;
+            let raw = bytes(&row["bytes"]);
+            let end = row["bits"].as_u64().unwrap() as usize;
+            let configuration = context.configuration;
+            for limit in 0..=end {
+                let mut parser = Parser {
+                    capture: true,
+                    bits: BitReader::new(&raw),
+                    report: template.clone(),
+                };
+                parser.bits.set_end(limit).unwrap();
+                let result = super::super::hoa::spatial(
+                    &mut parser,
+                    &mut super::super::hoa::HoaState::default(),
+                    configuration,
+                    0,
+                );
+                if limit < end {
+                    let error = result.unwrap_err();
+                    assert_eq!(error.kind, "truncated");
+                    assert!(error.bit_offset <= limit);
+                } else {
+                    let actual = result.unwrap();
+                    let spatial = actual.salient.unwrap();
+                    assert_eq!(actual.end_bit_offset, end);
+                    for d in &spatial.descriptors {
+                        let expected = &row["truth"]["salient"]["descriptors"]
+                            [d.component_index * 4 + d.subband_index];
+                        let actual = serde_json::to_value(d).unwrap();
+                        for (key, value) in expected.as_object().unwrap() {
+                            assert_eq!(&actual[key], value, "{key}");
+                        }
+                    }
+                    parser.bits.set_end(raw.len() * 8).unwrap();
+                    assert_eq!(parser.bits.read(5).unwrap(), 0b10101);
+                }
+            }
         }
     }
 }

@@ -13,11 +13,24 @@ use serde_json::json;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
+pub const MIXED_NUMERIC_PROFILE: &str = "apac-hoa-mixed-math-v1";
+pub const MIXED_STATE_PROFILE: &str = "apac-hoa-mixed-state-v1";
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum HoaPath {
+    Ambient,
+    Salient,
+    Mixed,
+}
 #[derive(Debug, Clone, Copy)]
 pub(super) struct HoaConfiguration {
     pub order: u8,
+    /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
-    pub salient: bool,
+    pub transport_channels: u8,
+    pub core_channels: u8,
+    pub salient_components: u8,
+    pub ambient_components: u8,
+    pub path: HoaPath,
     pub sample_rate_hz: u64,
     pub preroll_bytes: u64,
 }
@@ -39,15 +52,35 @@ impl HoaConfiguration {
         };
         let salient = order == 2
             || (order == 3 && value("components[0].hoa.max_salient_components") == Some(5));
-        let (channels, preroll_bytes) = match order {
-            1 => (4, 8192),
-            2 => (9, 18432),
+        let path = if salient && value("components[0].hoa.ambient_components_encoded") == Some(4) {
+            HoaPath::Mixed
+        } else if salient {
+            HoaPath::Salient
+        } else {
+            HoaPath::Ambient
+        };
+        // Separate mixed instances were measured, not extrapolated from dimensions.
+        let (channels, preroll_bytes) = match (order, path) {
+            (2, HoaPath::Mixed) => (9, 18432),
+            (3, HoaPath::Mixed) => (16, 32768),
+            (1, _) => (4, 8192),
+            (2, _) => (9, 18432),
             _ => (16, 32768),
+        };
+        let salient_components = if salient { 5 } else { 0 };
+        let ambient_components = match path {
+            HoaPath::Ambient => channels,
+            HoaPath::Salient => 0,
+            HoaPath::Mixed => 4,
         };
         Self {
             order,
             channels,
-            salient,
+            transport_channels: channels,
+            core_channels: salient_components + ambient_components,
+            salient_components,
+            ambient_components,
+            path,
             sample_rate_hz: if value("global.sample_rate_index") == Some(4) {
                 44100
             } else {
@@ -57,18 +90,30 @@ impl HoaConfiguration {
         }
     }
     pub fn numeric_profile(self) -> &'static str {
-        if self.salient {
-            super::hoa_salient::numeric_profile(usize::from(self.channels))
-        } else {
-            NUMERIC_PROFILE
+        match self.path {
+            HoaPath::Ambient => NUMERIC_PROFILE,
+            HoaPath::Salient => super::hoa_salient::numeric_profile(usize::from(self.channels)),
+            HoaPath::Mixed => MIXED_NUMERIC_PROFILE,
         }
     }
     pub fn state_profile(self) -> &'static str {
-        if self.salient {
-            super::hoa_salient::STATE_PROFILE
-        } else {
-            STATE_PROFILE
+        match self.path {
+            HoaPath::Ambient => STATE_PROFILE,
+            HoaPath::Salient => super::hoa_salient::STATE_PROFILE,
+            HoaPath::Mixed => MIXED_STATE_PROFILE,
         }
+    }
+    pub fn mixed_mapping(self) -> Option<HoaMixedMapping> {
+        (self.path == HoaPath::Mixed).then(|| HoaMixedMapping {
+            ambient_transport_channels: (0..4).collect(),
+            salient_transport_channels: (4..9).collect(),
+            ambient_output_coefficients: (0..4).collect(),
+            unused_transport_channels: (9..self.transport_channels).collect(),
+            descriptor_numeric_profile: super::hoa_salient::numeric_profile(usize::from(
+                self.channels,
+            ))
+            .into(),
+        })
     }
 }
 
@@ -76,13 +121,13 @@ impl HoaConfiguration {
 pub struct HoaFrameContext {
     pub(crate) transport: ChannelFrameContext,
     #[serde(skip)]
-    configuration: HoaConfiguration,
+    pub(super) configuration: HoaConfiguration,
 }
 impl HoaFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         let parsed = config::parse_cookie(cookie)?;
         let shape = HoaConfiguration::selected(&parsed);
-        let salient = shape.salient;
+        let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
         for (name, value) in [
@@ -108,13 +153,20 @@ impl HoaFrameContext {
             ("components[0].hoa.order", u64::from(shape.order)),
             (
                 "components[0].hoa.max_salient_components",
-                if salient { 5 } else { 0 },
+                u64::from(shape.salient_components),
             ),
             (
                 "components[0].hoa.ambient_components_encoded",
-                if salient { 0 } else { channels - 1 },
+                if salient {
+                    u64::from(shape.ambient_components)
+                } else {
+                    channels - 1
+                },
             ),
-            ("components[0].hoa.tce_count", channels),
+            (
+                "components[0].hoa.tce_count",
+                u64::from(shape.transport_channels),
+            ),
             ("components[0].hoa.layout_family", 190),
             ("components[0].hoa.layout_channels", channels),
         ] {
@@ -148,7 +200,8 @@ impl HoaFrameContext {
                     );
                 }
             }
-        } else {
+        }
+        if shape.ambient_components > 3 {
             packet_config::check(
                 &parsed.fields,
                 "components[0].hoa.parameter_3_present",
@@ -166,7 +219,7 @@ impl HoaFrameContext {
                 &mut rejected,
             );
         }
-        for i in 0..channels {
+        for i in 0..shape.transport_channels {
             packet_config::check(
                 &parsed.fields,
                 &format!("components[0].hoa.tce[{i}].type"),
@@ -250,13 +303,26 @@ impl HoaFrameContext {
         self.transport.maximum_preroll_bytes()
     }
     pub fn salient_components(&self) -> usize {
-        if self.configuration.salient { 5 } else { 0 }
+        usize::from(self.configuration.salient_components)
+    }
+    pub fn ambient_components(&self) -> usize {
+        usize::from(self.configuration.ambient_components)
+    }
+    pub fn core_channels(&self) -> usize {
+        usize::from(self.configuration.core_channels)
+    }
+    pub fn transport_channels(&self) -> usize {
+        usize::from(self.configuration.transport_channels)
     }
     pub fn order(&self) -> u8 {
         self.configuration.order
     }
     pub fn numeric_profile(&self) -> &'static str {
         self.configuration.numeric_profile()
+    }
+    pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
+        (self.configuration.salient_components != 0)
+            .then(|| super::hoa_salient::numeric_profile(usize::from(self.configuration.channels)))
     }
     pub fn state_profile(&self) -> &'static str {
         self.configuration.state_profile()
@@ -291,6 +357,14 @@ pub struct HoaCoefficientSpectrum {
     pub scaled: Vec<f32>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HoaMixedMapping {
+    pub ambient_transport_channels: Vec<u8>,
+    pub salient_transport_channels: Vec<u8>,
+    pub ambient_output_coefficients: Vec<u8>,
+    pub unused_transport_channels: Vec<u8>,
+    pub descriptor_numeric_profile: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaFrameInfo {
     pub numeric_profile: String,
     pub order: u8,
@@ -304,6 +378,8 @@ pub struct HoaFrameInfo {
     pub hoa_complete: bool,
     pub spectral_stage: String,
     pub channels_after_hoa: Vec<HoaCoefficientSpectrum>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mixed: Option<HoaMixedMapping>,
 }
 impl Default for HoaFrameInfo {
     fn default() -> Self {
@@ -320,6 +396,7 @@ impl Default for HoaFrameInfo {
             hoa_complete: false,
             spectral_stage: "hoa_coefficients_before_synthesis".into(),
             channels_after_hoa: vec![],
+            mixed: None,
         }
     }
 }
@@ -385,7 +462,7 @@ pub(super) fn spatial(
     } else {
         None
     };
-    let descriptors = if configuration.salient {
+    let descriptors = if configuration.salient_components != 0 {
         let channels = usize::from(configuration.channels);
         Some(super::hoa_salient::read(
             parser,
@@ -395,6 +472,7 @@ pub(super) fn spatial(
                 .salient
                 .get_or_insert_with(|| Box::new(super::hoa_salient::SalientState::new(channels))),
             channels,
+            configuration.path == HoaPath::Mixed,
         )?)
     } else {
         None
@@ -405,11 +483,7 @@ pub(super) fn spatial(
         single_coding_mode: single,
         coding_mode: mode,
         effective_global_coding_mode: state.last_global_coding_mode,
-        ambient_indices: if configuration.salient {
-            vec![]
-        } else {
-            (0..configuration.channels).collect()
-        },
+        ambient_indices: (0..configuration.ambient_components).collect(),
         salient: descriptors,
     })
 }

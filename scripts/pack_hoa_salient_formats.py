@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Factor/check all twelve dictionaries while preserving their expanded table digests."""
+"""Factor/check all forty dictionaries while preserving their expanded table digests."""
 import argparse
 from hoa_salient_format import DATA, format_name, shared_name, load_format, split_format, expand_format, json_bytes
 
@@ -9,7 +9,7 @@ def main():
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     outputs = {}
-    for order in range(1, 4):
+    for order in range(1, 11):
         for precision in range(6, 10):
             expanded = load_format(DATA / format_name(order, precision))
             stored, shared = split_format(expanded)
@@ -28,7 +28,7 @@ def main():
                 raise ValueError(f'noncanonical shared dictionary: {name}')
         else:
             path.write_bytes(raw)
-    print(f'12 dictionaries, 3 shared payloads, {sum(map(len, outputs.values()))} bytes')
+    print(f'40 dictionaries, 10 shared payloads, {sum(map(len, outputs.values()))} bytes')
 
 
 if __name__ == '__main__':

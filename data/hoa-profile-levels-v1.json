@@ -1,0 +1,13 @@
+{
+  "format_profile": "apac-hoa-profile-levels-v1",
+  "component_type": 2,
+  "profiles": [
+    {"profile_id": 0, "maximum_output_channels_by_level": [121]},
+    {"profile_id": 5, "maximum_output_channels_by_level": [16, 36, 49]}
+  ],
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "method": "ASC type 2 bounds in the shared profile-level table and decoder validation"
+  }
+}

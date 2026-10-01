@@ -17,11 +17,10 @@ fn bytes(value: &Value) -> Vec<u8> {
         .collect()
 }
 
-#[test]
-fn every_wide_dictionary_symbol_preserves_its_value_and_following_bits() {
+pub(super) fn check_words(counts: &[usize], precisions: std::ops::RangeInclusive<u8>) -> usize {
     let mut words = 0;
-    for count in [4, 9, 16] {
-        for precision in 7..=9 {
+    for &count in counts {
+        for precision in precisions.clone() {
             let c = constants_for_bits(count, precision);
             for (mode, format) in c.format.modes.iter().enumerate() {
                 for (book, entries) in format.codebooks.iter().enumerate() {
@@ -47,7 +46,12 @@ fn every_wide_dictionary_symbol_preserves_its_value_and_following_bits() {
             }
         }
     }
-    assert_eq!(words, 3 * 8 * (128 + 256 + 512));
+    words
+}
+
+#[test]
+fn every_wide_dictionary_symbol_preserves_its_value_and_following_bits() {
+    assert_eq!(check_words(&[4, 9, 16], 7..=9), 3 * 8 * (128 + 256 + 512));
 }
 
 #[test]

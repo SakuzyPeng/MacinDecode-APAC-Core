@@ -9,8 +9,8 @@ from hoa_packed_tables import pack_codebook, unpack_codebook, pack_matrix, unpac
 
 
 class SharedFormatTests(unittest.TestCase):
-    def test_all_twelve_dictionaries_round_trip_without_duplicate_shared_tables(self):
-        for order in range(1, 4):
+    def test_all_forty_dictionaries_round_trip_without_duplicate_shared_tables(self):
+        for order in range(1, 11):
             shared_path = DATA / shared_name(order)
             expected_shared = shared_path.read_bytes()
             base = format_for(order)

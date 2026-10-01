@@ -9,6 +9,9 @@ PROFILE='apac-hoa-ambient-math-v1'
 
 def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000):
     n=(order+1)**2
+    if order==0 or order>3:
+        from hoa_salient_subbands_vectors import cookie as generic_cookie
+        return generic_cookie(scene,drc,rich,order=order,rate=rate,path='replace',counts=[],ambient_count=n,profile=0 if order>6 else 5,level=0 if order==0 or order>6 else 1 if order<=5 else 2)
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(5,6),(0,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
     wire=''.join(bits(v,w) for v,w in fields)
     wire+='1100110'+bits(1,2)+bits(0,2)+bits(0,2)+bits(order,4)+bits(0,4)+bits(n-1,(n-1).bit_length())+'00'+bits(n,5)+'000'*n

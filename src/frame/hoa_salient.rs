@@ -14,6 +14,9 @@ use std::sync::OnceLock;
 mod format;
 use format::Format;
 
+pub const EXPANDED_PROFILE: &str = "apac-hoa-expanded-orders-v1";
+pub const EXPANDED_NUMERIC_PROFILE: &str = "apac-hoa-expanded-orders-math-v1";
+pub const EXPANDED_STATE_PROFILE: &str = "apac-hoa-expanded-orders-state-v1";
 pub const QUANTIZATION_PROFILE: &str = "apac-hoa-salient-quantization-v1";
 pub const QUANTIZATION_NUMERIC_PROFILE: &str = "apac-hoa-salient-quantization-math-v1";
 pub const QUANTIZATION_STATE_PROFILE: &str = "apac-hoa-salient-quantization-state-v1";
@@ -44,6 +47,10 @@ mod counts_tests;
 #[path = "hoa_quantization_tests.rs"]
 mod quantization_tests;
 
+#[cfg(test)]
+#[path = "hoa_expanded_orders_tests.rs"]
+mod expanded_orders_tests;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
     history: Vec<Vec<Vec<f64>>>,
@@ -64,9 +71,13 @@ impl SalientState {
     ) -> Self {
         let coefficients = coefficients.as_ref();
         let counts = counts.as_ref();
-        assert!(!counts.is_empty() && counts.len() <= 16 && counts.len() == coefficients.len());
+        assert!(!counts.is_empty() && counts.len() <= 121 && counts.len() == coefficients.len());
         assert!(counts.iter().all(|n| (1..=16).contains(n)));
-        assert!(coefficients.iter().all(|n| matches!(n, 4 | 9 | 16)));
+        assert!(
+            coefficients
+                .iter()
+                .all(|&n| (4..=121).contains(&n) && n.isqrt().pow(2) == n)
+        );
         Self {
             history: counts
                 .iter()
@@ -165,7 +176,9 @@ pub(super) fn component_information(
                 component_index,
                 order,
                 coefficient_count,
-                numeric_profile: if precision == 6 {
+                numeric_profile: if order > 3 {
+                    EXPANDED_NUMERIC_PROFILE
+                } else if precision == 6 {
                     numeric_profile(coefficient_count)
                 } else {
                     QUANTIZATION_NUMERIC_PROFILE
@@ -233,7 +246,7 @@ fn constants(coefficients: usize) -> &'static Constants {
     constants_for_bits(coefficients, 6)
 }
 fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants {
-    static DATA: [OnceLock<Constants>; 12] = [const { OnceLock::new() }; 12];
+    static DATA: [OnceLock<Constants>; 40] = [const { OnceLock::new() }; 40];
     let (index, source, profile) = match (coefficients, precision) {
         (4, 6) => (
             0,
@@ -294,6 +307,146 @@ fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants 
             11,
             include_str!("../../data/hoa-salient-order3-q9-format-v1.json"),
             "apac-hoa-salient-order3-q9-format-v1",
+        ),
+        (25, 6) => (
+            12,
+            include_str!("../../data/hoa-salient-order4-format-v1.json"),
+            "apac-hoa-salient-order4-format-v1",
+        ),
+        (25, 7) => (
+            13,
+            include_str!("../../data/hoa-salient-order4-q7-format-v1.json"),
+            "apac-hoa-salient-order4-q7-format-v1",
+        ),
+        (25, 8) => (
+            14,
+            include_str!("../../data/hoa-salient-order4-q8-format-v1.json"),
+            "apac-hoa-salient-order4-q8-format-v1",
+        ),
+        (25, 9) => (
+            15,
+            include_str!("../../data/hoa-salient-order4-q9-format-v1.json"),
+            "apac-hoa-salient-order4-q9-format-v1",
+        ),
+        (36, 6) => (
+            16,
+            include_str!("../../data/hoa-salient-order5-format-v1.json"),
+            "apac-hoa-salient-order5-format-v1",
+        ),
+        (36, 7) => (
+            17,
+            include_str!("../../data/hoa-salient-order5-q7-format-v1.json"),
+            "apac-hoa-salient-order5-q7-format-v1",
+        ),
+        (36, 8) => (
+            18,
+            include_str!("../../data/hoa-salient-order5-q8-format-v1.json"),
+            "apac-hoa-salient-order5-q8-format-v1",
+        ),
+        (36, 9) => (
+            19,
+            include_str!("../../data/hoa-salient-order5-q9-format-v1.json"),
+            "apac-hoa-salient-order5-q9-format-v1",
+        ),
+        (49, 6) => (
+            20,
+            include_str!("../../data/hoa-salient-order6-format-v1.json"),
+            "apac-hoa-salient-order6-format-v1",
+        ),
+        (49, 7) => (
+            21,
+            include_str!("../../data/hoa-salient-order6-q7-format-v1.json"),
+            "apac-hoa-salient-order6-q7-format-v1",
+        ),
+        (49, 8) => (
+            22,
+            include_str!("../../data/hoa-salient-order6-q8-format-v1.json"),
+            "apac-hoa-salient-order6-q8-format-v1",
+        ),
+        (49, 9) => (
+            23,
+            include_str!("../../data/hoa-salient-order6-q9-format-v1.json"),
+            "apac-hoa-salient-order6-q9-format-v1",
+        ),
+        (64, 6) => (
+            24,
+            include_str!("../../data/hoa-salient-order7-format-v1.json"),
+            "apac-hoa-salient-order7-format-v1",
+        ),
+        (64, 7) => (
+            25,
+            include_str!("../../data/hoa-salient-order7-q7-format-v1.json"),
+            "apac-hoa-salient-order7-q7-format-v1",
+        ),
+        (64, 8) => (
+            26,
+            include_str!("../../data/hoa-salient-order7-q8-format-v1.json"),
+            "apac-hoa-salient-order7-q8-format-v1",
+        ),
+        (64, 9) => (
+            27,
+            include_str!("../../data/hoa-salient-order7-q9-format-v1.json"),
+            "apac-hoa-salient-order7-q9-format-v1",
+        ),
+        (81, 6) => (
+            28,
+            include_str!("../../data/hoa-salient-order8-format-v1.json"),
+            "apac-hoa-salient-order8-format-v1",
+        ),
+        (81, 7) => (
+            29,
+            include_str!("../../data/hoa-salient-order8-q7-format-v1.json"),
+            "apac-hoa-salient-order8-q7-format-v1",
+        ),
+        (81, 8) => (
+            30,
+            include_str!("../../data/hoa-salient-order8-q8-format-v1.json"),
+            "apac-hoa-salient-order8-q8-format-v1",
+        ),
+        (81, 9) => (
+            31,
+            include_str!("../../data/hoa-salient-order8-q9-format-v1.json"),
+            "apac-hoa-salient-order8-q9-format-v1",
+        ),
+        (100, 6) => (
+            32,
+            include_str!("../../data/hoa-salient-order9-format-v1.json"),
+            "apac-hoa-salient-order9-format-v1",
+        ),
+        (100, 7) => (
+            33,
+            include_str!("../../data/hoa-salient-order9-q7-format-v1.json"),
+            "apac-hoa-salient-order9-q7-format-v1",
+        ),
+        (100, 8) => (
+            34,
+            include_str!("../../data/hoa-salient-order9-q8-format-v1.json"),
+            "apac-hoa-salient-order9-q8-format-v1",
+        ),
+        (100, 9) => (
+            35,
+            include_str!("../../data/hoa-salient-order9-q9-format-v1.json"),
+            "apac-hoa-salient-order9-q9-format-v1",
+        ),
+        (121, 6) => (
+            36,
+            include_str!("../../data/hoa-salient-order10-format-v1.json"),
+            "apac-hoa-salient-order10-format-v1",
+        ),
+        (121, 7) => (
+            37,
+            include_str!("../../data/hoa-salient-order10-q7-format-v1.json"),
+            "apac-hoa-salient-order10-q7-format-v1",
+        ),
+        (121, 8) => (
+            38,
+            include_str!("../../data/hoa-salient-order10-q8-format-v1.json"),
+            "apac-hoa-salient-order10-q8-format-v1",
+        ),
+        (121, 9) => (
+            39,
+            include_str!("../../data/hoa-salient-order10-q9-format-v1.json"),
+            "apac-hoa-salient-order10-q9-format-v1",
         ),
         _ => unreachable!("qualified HOA dictionary key"),
     };
@@ -362,6 +515,7 @@ pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
         4 => ORDER1_NUMERIC_PROFILE,
         9 => ORDER2_NUMERIC_PROFILE,
         16 => NUMERIC_PROFILE,
+        n if (25..=121).contains(&n) && n.isqrt().pow(2) == n => EXPANDED_NUMERIC_PROFILE,
         _ => unreachable!("qualified descriptor dimension"),
     }
 }
@@ -594,10 +748,69 @@ pub(super) fn read(
     })
 }
 
+#[derive(Deserialize)]
+struct ExpandedMath {
+    numeric_profile: String,
+    tables_sha256: String,
+    normalizations_f64: Vec<Vec<u64>>,
+}
+fn expanded_math() -> &'static ExpandedMath {
+    static DATA: OnceLock<ExpandedMath> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let data: ExpandedMath =
+            serde_json::from_str(include_str!("../../data/hoa-expanded-orders-math-v1.json"))
+                .expect("higher-order normalizations");
+        assert_eq!(data.numeric_profile, EXPANDED_NUMERIC_PROFILE);
+        assert_eq!(data.normalizations_f64.len(), 11);
+        for (order, row) in data.normalizations_f64.iter().enumerate() {
+            assert_eq!(row.len(), (order + 1).pow(2));
+        }
+        data
+    })
+}
+pub(crate) fn expanded_math_sha256() -> &'static str {
+    &expanded_math().tables_sha256
+}
+fn expanded_direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
+    let order = coefficients.isqrt() - 1;
+    let common = common_math();
+    let [radial, z] = common.elevation[usize::from(elevation)];
+    let weights = &expanded_math().normalizations_f64[order];
+    let mut output = vec![0.; coefficients];
+    let mut diagonal = 1.;
+    for m in 0..=order {
+        if m != 0 {
+            diagonal *= (2 * m - 1) as f64 * radial;
+        }
+        let [cosine, sine] = common.azimuth[(m * usize::from(azimuth)) % 360];
+        let mut previous = 0.;
+        let mut current = diagonal;
+        for degree in m..=order {
+            if degree > m {
+                let next = ((2 * degree - 1) as f64 * z * current
+                    - (degree + m - 1) as f64 * previous)
+                    / (degree - m) as f64;
+                previous = current;
+                current = next;
+            }
+            let center = degree * (degree + 1);
+            let amplitude = current * f64::from_bits(weights[center + m]);
+            output[center + m] = amplitude * cosine;
+            if m != 0 {
+                output[center - m] = -(amplitude * sine);
+            }
+        }
+    }
+    output
+}
+
 /// Normalized real order-1/2/3 spherical harmonics, with no Condon-Shortley sign.
 /// Native direction descriptors use an N3D unit vector (divide by order+1);
 /// the first four entries are then replaced by explicit scalar coefficients.
 fn direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
+    if coefficients > 16 {
+        return expanded_direction(azimuth, elevation, coefficients);
+    }
     let c = common_math();
     let [ca, sa] = c.azimuth[usize::from(azimuth)];
     let [ce, z] = c.elevation[usize::from(elevation)];
@@ -745,6 +958,7 @@ pub(super) fn restore(
                 continue;
             }
             let mut sum = 0.;
+            let mut compensated = super::hoa_additive::Sum::default();
             for (sc, &band) in bands.iter().enumerate() {
                 let e = &packet.elements[sc + ambient_selection.map_or(0, <[u8]>::len)];
                 let sample = if e.present {
@@ -756,9 +970,17 @@ pub(super) fn restore(
                 // This is structural zero extension, not recovery from a missing payload.
                 let descriptor = state.history[sc][band].get(k).copied().unwrap_or(0.);
                 let product = descriptor * sample;
-                sum += product;
+                if coefficients > 16 {
+                    compensated.add(product);
+                } else {
+                    sum += product;
+                }
             }
-            let value = sum as f32;
+            let value = if coefficients > 16 {
+                compensated.result()
+            } else {
+                sum
+            } as f32;
             if !value.is_finite() {
                 return Err(ParseError::new(
                     data.descriptors.last().expect("descriptors").end_bit_offset,

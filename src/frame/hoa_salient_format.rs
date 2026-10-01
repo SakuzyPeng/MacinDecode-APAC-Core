@@ -65,11 +65,18 @@ struct SharedFormat {
 }
 
 fn shared_format(order: usize) -> &'static SharedFormat {
-    static DATA: [OnceLock<SharedFormat>; 3] = [const { OnceLock::new() }; 3];
-    const SOURCES: [&str; 3] = [
+    static DATA: [OnceLock<SharedFormat>; 10] = [const { OnceLock::new() }; 10];
+    const SOURCES: [&str; 10] = [
         include_str!("../../data/hoa-salient-order1-shared-v1.json"),
         include_str!("../../data/hoa-salient-order2-shared-v1.json"),
         include_str!("../../data/hoa-salient-order3-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order4-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order5-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order6-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order7-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order8-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order9-shared-v1.json"),
+        include_str!("../../data/hoa-salient-order10-shared-v1.json"),
     ];
     DATA[order - 1].get_or_init(|| {
         let data: StoredSharedFormat =
@@ -154,7 +161,7 @@ mod tests {
 
     #[test]
     fn all_expanded_digests_match_and_quantization_widths_share_table_storage() {
-        for order in 1usize..=3 {
+        for order in 1usize..=10 {
             let coefficients = (order + 1).pow(2);
             let base = &constants_for_bits(coefficients, 6).format;
             for precision in 6..=9 {

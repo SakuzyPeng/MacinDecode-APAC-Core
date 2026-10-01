@@ -24,6 +24,8 @@ pub(super) enum HoaPath {
 #[derive(Debug, Clone)]
 pub(super) struct HoaConfiguration {
     pub order: u8,
+    pub profile_id: u8,
+    pub level_id: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
     pub recovery_slots: u8,
@@ -38,7 +40,7 @@ pub(super) struct HoaConfiguration {
     pub salient_partition_method: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
-    pub ambient_selection: [u8; 16],
+    pub ambient_selection: Vec<u8>,
     pub explicit_ambient_selection: bool,
     pub ambient_transform: AmbientTransform,
     pub static_ambient: bool,
@@ -64,8 +66,7 @@ impl HoaConfiguration {
             2
         } else {
             match value("components[0].hoa.order") {
-                Some(1) => 1,
-                Some(2) => 2,
+                Some(order @ 0..=10) => order as u8,
                 _ => 3,
             }
         };
@@ -80,19 +81,11 @@ impl HoaConfiguration {
         } else {
             HoaPath::Ambient
         };
-        // Replacement and additive mixed instances were measured independently.
-        // Capacities are not extrapolated from dimensions.
-        let (recovery_slots, preroll_bytes) = match (order, path) {
-            (2, HoaPath::Mixed) => (9, 18432),
-            (3, HoaPath::Mixed) => (16, 32768),
-            (1, _) => (4, 8192),
-            (2, _) => (9, 18432),
-            _ => (16, 32768),
-        };
+        let recovery_slots = (order + 1).pow(2);
         let channels = if dynamic { 16 } else { recovery_slots };
-        // The pure, replacement-mixed and additive-mixed reduced-slot instances
-        // were each measured at 32768 bytes.
-        let preroll_bytes = if dynamic { 32768 } else { preroll_bytes };
+        // The bound decoder allocates 2048 bytes per declared output channel
+        // (ASP Initialize); capacity probes independently verify the new sizes.
+        let preroll_bytes = u64::from(channels) * 2048;
         // Keep the diagnostic shape bounded; exact cookie checks reject excess counts.
         let salient_components = declared_salient.min(u64::from(recovery_slots)) as u8;
         let ambient_components = declared_ambient.min(u64::from(recovery_slots)) as u8;
@@ -104,7 +97,7 @@ impl HoaConfiguration {
         };
         let explicit_ambient_selection = flag("components[0].hoa.ambient_selection_present");
         let transform_present = flag("components[0].hoa.parameter_3_present");
-        let mut ambient_selection = std::array::from_fn(|i| i as u8);
+        let mut ambient_selection: Vec<u8> = (0..recovery_slots).collect();
         if let Some(indices) = parsed
             .derived
             .get("components[0].hoa.ambient_selection")
@@ -130,6 +123,8 @@ impl HoaConfiguration {
         };
         Self {
             order,
+            profile_id: value("global.profile_id").unwrap_or(5) as u8,
+            level_id: value("global.level_id").unwrap_or(0) as u8,
             channels,
             recovery_slots,
             dynamic_method: dynamic
@@ -160,8 +155,11 @@ impl HoaConfiguration {
             salient_orders: (0..salient_components)
                 .map(
                     |i| match value(&format!("components[0].hoa.salient[{i}].order")) {
-                        Some(1) if salient => 1,
-                        Some(2) if salient && order == 3 && !dynamic => 2,
+                        Some(component_order)
+                            if salient && (1..=u64::from(order)).contains(&component_order) =>
+                        {
+                            component_order as u8
+                        }
                         _ => order,
                     },
                 )
@@ -198,6 +196,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
+        if self.expanded_orders() {
+            return super::hoa_salient::EXPANDED_NUMERIC_PROFILE;
+        }
         if self.quantization_extended() {
             return super::hoa_salient::QUANTIZATION_NUMERIC_PROFILE;
         }
@@ -225,6 +226,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.expanded_orders() {
+            return super::hoa_salient::EXPANDED_STATE_PROFILE;
+        }
         if self.quantization_extended() {
             return super::hoa_salient::QUANTIZATION_STATE_PROFILE;
         }
@@ -266,9 +270,13 @@ impl HoaConfiguration {
     }
     pub fn component_orders_extended(&self) -> bool {
         self.salient_components != 0
-            && (self.quantization_extended()
+            && (self.expanded_orders()
+                || self.quantization_extended()
                 || self.component_count_extended()
                 || self.salient_orders.iter().any(|&o| o != self.order))
+    }
+    pub fn expanded_orders(&self) -> bool {
+        self.order == 0 || self.order > 3
     }
     pub fn quantization_extended(&self) -> bool {
         self.salient_components != 0 && self.quantization_bits != 6
@@ -288,6 +296,9 @@ impl HoaConfiguration {
             .collect()
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
+        if self.salient_orders.iter().any(|&o| o > 3) {
+            return super::hoa_salient::EXPANDED_NUMERIC_PROFILE;
+        }
         if self.quantization_extended() {
             return super::hoa_salient::QUANTIZATION_NUMERIC_PROFILE;
         }
@@ -304,6 +315,30 @@ impl HoaConfiguration {
     }
 }
 
+fn profile_channel_limit(profile: u8, level: u8) -> Option<u64> {
+    #[derive(Deserialize)]
+    struct Entry {
+        profile_id: u8,
+        maximum_output_channels_by_level: Vec<u64>,
+    }
+    #[derive(Deserialize)]
+    struct Table {
+        profiles: Vec<Entry>,
+    }
+    static TABLE: std::sync::OnceLock<Table> = std::sync::OnceLock::new();
+    TABLE
+        .get_or_init(|| {
+            serde_json::from_str(include_str!("../../data/hoa-profile-levels-v1.json"))
+                .expect("HOA profile limits")
+        })
+        .profiles
+        .iter()
+        .find(|e| e.profile_id == profile)?
+        .maximum_output_channels_by_level
+        .get(usize::from(level))
+        .copied()
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct HoaFrameContext {
     pub(crate) transport: ChannelFrameContext,
@@ -317,14 +352,26 @@ impl HoaFrameContext {
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
+        if profile_channel_limit(shape.profile_id, shape.level_id)
+            .is_none_or(|maximum| channels > maximum)
+        {
+            rejected.push(format!(
+                "HOA profile {} level {} does not allow {channels} output channels",
+                shape.profile_id, shape.level_id
+            ));
+        }
+        if salient && shape.salient_orders.contains(&0) {
+            rejected.push("zero-order salient dictionaries are not qualified".into());
+        }
+
         if shape.core_channels > shape.transport_channels {
             rejected.push("HOA core channels exceed available transport channels".into());
         }
         for (name, value) in [
             ("box.version_flags", 0),
             ("bitstream_version", 0x800),
-            ("global.profile_id", 5),
-            ("global.level_id", 0),
+            ("global.profile_id", u64::from(shape.profile_id)),
+            ("global.level_id", u64::from(shape.level_id)),
             (
                 "global.sample_rate_index",
                 if shape.sample_rate_hz == 44100 { 4 } else { 3 },
@@ -553,6 +600,15 @@ impl HoaFrameContext {
     }
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.transport.maximum_preroll_bytes()
+    }
+    pub fn profile_id(&self) -> u8 {
+        self.configuration.profile_id
+    }
+    pub fn level_id(&self) -> u8 {
+        self.configuration.level_id
+    }
+    pub(crate) fn expanded_orders(&self) -> bool {
+        self.configuration.expanded_orders()
     }
     pub fn quantization_bits(&self) -> u8 {
         self.configuration.quantization_bits

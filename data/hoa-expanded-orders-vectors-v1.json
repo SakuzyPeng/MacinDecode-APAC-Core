@@ -1,0 +1,206 @@
+{
+  "profile": "apac-hoa-expanded-orders-v1",
+  "formats": {
+    "format_sha256": "34a1c3e35818d53aa92749639318bf244ecb347fe7571c7ac2105482e7b05a6f",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+      "spatial_methods12": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+      "lower": "07a71bfc7a8ac09cf51669e31d25031118630425ae9446f2a0f96fb0dddfbb78",
+      "lower_counts": "5fdb73e5f1d0ae7bdfe06ae784b6213416ac13e00f94da2616d0e39914407960",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88",
+      "order1_q7": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+      "order1_q8": "9f8d01e8463d5bc551549424b4b6f5c40180aceb002200f006b0a90cd77981c8",
+      "order1_q9": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+      "order2_q7": "75ffddf990ba989457d57a21a16434acca390e1d45f80ff988f743e254790a69",
+      "order2_q8": "f6008a4398c01c163c4e8d36ac2a014cd71e7a30b66b0558e2a06471e4079beb",
+      "order2_q9": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+      "order3_q7": "e430204b6acf6a48a72558b22a7cef5a586e2428182aed76cfd0af3043f000da",
+      "order3_q8": "d799f383c754514ed7aa673ae06dfd0d3546b8ecf42dfcadd26b3e41b5e59227",
+      "order3_q9": "ef01235ef79dcff21d2535f34bf3b445fbb6fffd3c827d401c38975e7d39ee86",
+      "order4_q6": "67ef3ba90337f8191928fe4adc7834fd3b5475f8ac7dbbb9f289a963dcec3550",
+      "order4_q7": "18352f604e9e799380a29a98c1737d07d198489967839e65499865c9b5ddadbb",
+      "order4_q8": "5967e184b8f3b4ebe71fe7add1085eef34398f3331251f9af58610f739303ac8",
+      "order4_q9": "82dad6dc8686459a4ae15ef2bef1ce3c55a81d0782744a686303033fb2b7034d",
+      "order5_q6": "26418199b6cdda2c579381efa16bf7948c637982d24fc270f3176c2a27bb7eac",
+      "order5_q7": "4ab3cb5f93702b0835b458fcd2a000ba9c0df662c51831f47870d1a38c428cc3",
+      "order5_q8": "59e3d3f75abe3e91791cfa323797526843f3e66c75085b1c318a49c8f384b514",
+      "order5_q9": "aaf5af4e4d5f99b8fdd27557b2812ca49c1429e4eea225f1de458fa81e037c52",
+      "order6_q6": "7ff3fa31099affd5eb67090d9fcdea9c037226b238180e1efaf79a987c895271",
+      "order6_q7": "7e8ef668018db2715ff67d62fbcc0782a24f255b2efb21370c110f1199a47927",
+      "order6_q8": "3dd597320235adde4ca2e1d4004acebe0bba6531f78faac36d38bb68f3a69fcf",
+      "order6_q9": "5860f655e42b0c4667bdb82f3fbc2580f3cf9b794a26408b8e3ee71d5591a4ba",
+      "order7_q6": "d455dd174c6a9b6cf4a6abb33d986b31a7a9da1f28d08c7ce1ccc30e3474d970",
+      "order7_q7": "34d848c0adabb9fcf08f2c14814a4d9dd440b90aebe229fafc51e25464bda23a",
+      "order7_q8": "44a87c0a85cb74be89709253a85189d448ff0cbb927167cc5a244bf3cc722a3b",
+      "order7_q9": "b4626080bc78401d8fe7ce6ba8c402318e2dd43dc231ceb86f7cf7831fe4d8be",
+      "order8_q6": "bb005496376edd3808e449bf62499959ccf810bf44a453fa4fdf703d65869833",
+      "order8_q7": "ade541c04d70a60156dada8cfbddf3aa9db16e7876de678e43924d24cd76848f",
+      "order8_q8": "cb8ff30e7a03edb3fd71ce2ad0d7031ad3a87b492c7d7062f5622439153ce707",
+      "order8_q9": "824fde5816ec4a37e1f309a269b18e29299c3db132a366c4a6d6975d20bc22b5",
+      "order9_q6": "e1b0f46362b62af91fe3661f74ee10cf08f41a2b5aacc42d241cbca5266f5c69",
+      "order9_q7": "daa0a552c9f03105e02716560234f55d54ded3de0711066a04708283827be1f1",
+      "order9_q8": "db9e69a627dce5f09788584dcdabeed4f9ddd927e2f450838bdfc7a88f9ea984",
+      "order9_q9": "5ce7269d5b254a8231314ef61fbc13890243b3919ba5d795951d1a3b68d76021",
+      "order10_q6": "d909e16a61c54e3c5c03769d50d92fe36fa7c46d414d51ca2048fa41b34db5f1",
+      "order10_q7": "c2b5a50e173e3c6bcc9480db8f003d9e72d7532e03dcc9a812d035d1f859180a",
+      "order10_q8": "6da565e372aaee6ef9d512af46aa740988d5477585cba6504046ce1945911634",
+      "order10_q9": "26c9cea68850587856cd2a6e101061041771a90c77434f25cf9d436c03dc4a71",
+      "expanded_math": "c14a03e48b0167bfa97639982df4c6353cedae7504962811193f7c788ad9ada7",
+      "profile_limits": "12a757d6723028b2a345bba53b2f227a1c59c928335d20283673bb4086f9cfed"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "zero",
+      "configuration": {
+        "order": 0,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [],
+        "component_orders": [],
+        "ambient_count": 1,
+        "quantization_bits": 6,
+        "profile": 5,
+        "level": 0,
+        "scene": false,
+        "transform": 0
+      },
+      "packets": 5,
+      "input_sha256": "ecab5448f57650fab03cbf52722deb133af6a8701740f55473bb5907cacf2828",
+      "truth_sha256": "1200226e335fb7647afdcb07b61ba620bbce69e9b50068949e47f0681497c7a9"
+    },
+    {
+      "index": 1,
+      "kind": "fourth",
+      "configuration": {
+        "order": 4,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          4
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 6,
+        "profile": 5,
+        "level": 1,
+        "scene": false,
+        "transform": 0
+      },
+      "packets": 6,
+      "input_sha256": "faadc71754635bc98f9311fa730bbb65c61a5aaf5396ef67913531eb3f99cc61",
+      "truth_sha256": "9a553433a596559c61b50b29fcddb76aa3e3985bdb291ef43f22ce0af45ee6c9"
+    },
+    {
+      "index": 2,
+      "kind": "sixth",
+      "configuration": {
+        "order": 6,
+        "path": "add",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1
+        ],
+        "component_orders": [
+          2,
+          6
+        ],
+        "ambient_count": 4,
+        "quantization_bits": 9,
+        "profile": 5,
+        "level": 2,
+        "scene": false,
+        "transform": 4
+      },
+      "packets": 6,
+      "input_sha256": "d930838cc2a0cc6e7e9ac069bba7cbed597f20afa765bfaf263aaae0b6d465f5",
+      "truth_sha256": "adb47ddad5479b2eee7ab06a94f5582a61ec1e3ef177616fb145eab16028066c"
+    },
+    {
+      "index": 3,
+      "kind": "seventh-ambient",
+      "configuration": {
+        "order": 7,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [],
+        "component_orders": [],
+        "ambient_count": 64,
+        "quantization_bits": 6,
+        "profile": 0,
+        "level": 0,
+        "scene": false,
+        "transform": 4
+      },
+      "packets": 5,
+      "input_sha256": "14f1b9d22a20448dd3ad83e81db78e52f8992273ef42b1185caa38ec3a5392f9",
+      "truth_sha256": "b3539a7573a2d2868cfe11e6c3411974e9684801bf30eaa72d86cd0a34ff835b"
+    },
+    {
+      "index": 4,
+      "kind": "tenth",
+      "configuration": {
+        "order": 10,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "component_orders": [
+          10
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 8,
+        "profile": 0,
+        "level": 0,
+        "scene": false,
+        "transform": 0
+      },
+      "packets": 6,
+      "input_sha256": "60f168e9beec67bfba3289913d54a53082612dbe755848a66d49e9816da3cd4d",
+      "truth_sha256": "271fd735aee05512f08ed1b4abff9fa6cdeef57457393d961173e3daa64b18ef"
+    },
+    {
+      "index": 5,
+      "kind": "compensated-cancellation",
+      "configuration": {
+        "order": 4,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          3,
+          3,
+          3
+        ],
+        "scene": false,
+        "profile": 5,
+        "level": 1
+      },
+      "packets": 2,
+      "input_sha256": "b8bdc756742ec65ad60bb50c7d8316b1447113fe49903ed9583e6252dc2882aa",
+      "truth_sha256": "b329bd38983a4081e6446c395f0f8f20601d5a61aae9a4d31a8ee0f25ceef372"
+    }
+  ],
+  "sha256": "04da8a28c847d15578717653401c67d6c8feccbc08884d7bfbdd6c4e261a9b42"
+}

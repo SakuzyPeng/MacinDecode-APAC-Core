@@ -17,8 +17,8 @@ SHARED_PROFILE = 'apac-hoa-salient-shared-v1'
 
 
 def format_name(order, precision=6):
-    if order not in range(1, 4) or precision not in range(6, 10):
-        raise ValueError('dictionary key outside order 1..3 / precision 6..9')
+    if order not in range(1, 11) or precision not in range(6, 10):
+        raise ValueError('dictionary key outside order 1..10 / precision 6..9')
     suffix = f'-q{precision}' if precision != 6 else ''
     stem = '' if (order, precision) == (3, 6) else f'-order{order}{suffix}'
     return f'hoa-salient{stem}-format-v1.json'
@@ -68,7 +68,7 @@ def expand_shared(shared):
     if shared['schema_version'] == 1:
         return shared
     if (shared['schema_version'] != 2 or shared.get('matrix_encoding') != MATRIX_ENCODING
-            or shared['order'] not in range(1, 4)):
+            or shared['order'] not in range(1, 11)):
         raise ValueError('incompatible packed HOA matrices')
     expanded = {key: value for key, value in shared.items() if key != 'matrix_encoding'}
     expanded.update(schema_version=1, matrices_f32=[
@@ -109,7 +109,7 @@ def expand_format(stored, shared):
     return expanded
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=10)
 def _shared(path):
     return expand_shared(json.loads(path.read_text()))
 
@@ -126,7 +126,7 @@ def load_format(path):
     return expand_format(stored, _shared(path.with_name(stored['shared_file']).resolve()))
 
 
-@lru_cache(maxsize=12)
+@lru_cache(maxsize=40)
 def format_for(order, quantization_bits=6):
     return load_format(DATA / format_name(order, quantization_bits))
 

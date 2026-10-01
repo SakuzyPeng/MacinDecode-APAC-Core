@@ -73,9 +73,9 @@ def check(r,t,last_mode,last_sha,opts):
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
     orders=opts.get('component_orders',[order]*len(counts));dimensions=[(o+1)**2 for o in orders]
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
-    if opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
+    if order>3 or opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        recovery_profile='apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
+        recovery_profile='apac-hoa-expanded-orders-math-v1' if order>3 else 'apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
         require(side['component_orders']==component_information(orders,opts.get('quantization_bits',6)) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
         if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==recovery_profile,'dynamic base recovery differs')
         if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
@@ -131,7 +131,7 @@ def ranges(binary,root,kind,opts,payloads,full,index,range_kinds=None):
     n=shape(opts['order'],opts['dynamic']);stride=n*4;prime=31;remainder=17;valid=len(payloads)*1024-prime-remainder;expected=full[prime*stride:(prime+valid)*stride];middle=len(payloads)//2*1024-prime
     requests=[(0,valid),(0,1031),(middle,1031),((len(payloads)-2)*1024-prime,1024),(valid-9,100),(valid,1)];records=[]
     for name,encode in [('caf',caf_encode),('mp4',mp4_encode)]:
-        source=root/name;source.write_bytes(encode(cookie(**opts),payloads,rate=opts['rate'],channels=n,priming=prime,remainder=remainder,variant=index)[0])
+        source=root/name;source.write_bytes(encode(cookie(**opts),payloads,rate=opts['rate'],channels=n,priming=prime,remainder=remainder,variant=index,**({'layout_tag':(190<<16)|n} if name=='caf' else {}))[0])
         for j,(start,count) in enumerate(requests):
             out=root/(name+str(j));r=command(binary,'decode-sq',source,'--out',out,'--start-frame',start,'--frames',count);raw=(out/'pcm.f32le').read_bytes();saved=min(count,valid-start)
             require(raw==expected[start*stride:(start+saved)*stride] and r['saved_frames']==saved and r['input']['consistency_verified'],'container range differs');records.append(dict(container=name,start=start,frames=saved,pcm_sha256=hashlib.sha256(raw).hexdigest()))

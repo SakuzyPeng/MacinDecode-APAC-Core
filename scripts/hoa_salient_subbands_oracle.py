@@ -30,9 +30,10 @@ class Decoder:
             internal=[[0.]*1024 for _ in range(self.slots)]
             for line in range(1024):
                 frequency=line%128 if short else line;bands=[next(b for b,end in enumerate(grid) if frequency<end) for grid in grids]
+                active=[s for s in range(len(self.counts)) if sources[offset+s][line]!=0.]
                 for k in range(self.slots):
                     if path=='replace' and k in selected:internal[k][line]=ambient[selected.index(k)][line];continue
-                    value=sum((D.from_float(sources[offset+s][line])*self.history[s][bands[s]][k] for s in range(len(self.counts)) if k<self.dimensions[s]),D(0))
+                    value=sum((D.from_float(sources[offset+s][line])*self.history[s][bands[s]][k] for s in active if k<self.dimensions[s]),D(0))
                     if path=='add' and k in selected:value+=exact_ambient[selected.index(k)][line]
                     internal[k][line]=round_f32(value)
             dyn=truth.get('dynamic_selection');scaled=internal

@@ -309,7 +309,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**受限 HOA**：支持 profile 5、level 0、单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无重映射。下表为原固定维度配置，另有下述九槽到十六系数的动态选择路径。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。其他阶数、N3D、其他混合数量、其他分量／子带配置、超出下述范围的选择／变换、LRVQ 和结构更新仍不支持。
+**HOA 系数解码（实验性）**：支持下述完整阶和动态配置，保持单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无重映射。下表为最初的固定维度配置，数量、量化、阶数及 profile／level 扩展见后续说明。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。未列出的配置组合、N3D、非完整阶、LRVQ 和结构更新仍不支持。
 
 | 路径 | salient／ambient | 传输 SCE | 输出顺序 |
 |---|---|---:|---|
@@ -594,7 +594,21 @@ python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-too
   --reference-report reports/hoa-quantization-math.json --report reports/hoa-quantization-release.json
 ```
 
-**HOA 字典存储**：一至三阶的 12 份字典按阶数共用 `data/hoa-salient-orderN-shared-v1.json` 中的四个矩阵和三个唯一系数分组。字典文件使用存储 schema 3，`shared_file` 引用存储 schema 2 的共享文件。码表采用 `preorder-tree-msb-hex-v1`，矩阵采用 `micro21-msb-hex-v1`；两者均以小写十六进制存储。Python 的 `hoa_salient_format.format_for(order, quantization_bits)` 返回兼容旧 schema 的完整字典，仍可载入历史完整／共享字典；Rust 在初始化时展开并共享常量。`tables_sha256` 始终覆盖展开后的原始表内容，已有格式标识、报告和 PCM 摘要保持不变。
+**零至十阶完整系数域**：固定配置扩展到 1／4／9／16／25／36／49／64／81／100／121 个系数。零阶支持纯 ambient；salient 描述支持一至十阶、6–9 位量化，数量受实际系数及传输容量约束。profile 5 的 level 0／1／2 分别允许最多 16／36／49 个输出通道；profile 0、level 0 允许最多 121 个。较高 level 可以承载较小配置，超出表中限制明确拒绝。
+
+高阶方向采用独立关联勒让德递推、既有角度常量及 100／200 位一致舍入的归一化常量；一至三阶保留原运算顺序。高阶恢复使用 Float64 补偿求和，最后一次舍入为 Float32，保留强相消的小残差。内嵌容量按已核实的 ASP 规则取实际输出通道数乘 2048 字节，另受线上长度编码和普通包限额约束。
+
+新增配置使用 `apac-hoa-expanded-orders-v1`、`apac-hoa-expanded-orders-math-v1`／`apac-hoa-expanded-orders-state-v1` 及 `rust_hoa_expanded_orders_sq_drc_off_f64_fft_v1`；PCM 记录 `hoa_expanded_orders_profile`、`hoa_expanded_math_sha256`，非默认 profile／level 另记录实际值。上下文新增 `profile_id()`、`level_id()`。包目录、CAF、MP4 均按 cookie 的实际 HOA 布局核对，零阶不冒充普通单声道。非完整阶及零阶 salient 仍未开放，动态维度范围保持前述限制。
+
+```sh
+python3 -B scripts/generate_hoa_higher_order_math.py --check
+python3 -B scripts/generate_hoa_expanded_orders_manifest.py --check
+python3 -B scripts/validate_hoa_expanded_orders.py --binary target/debug/apac-tool --report reports/hoa-expanded-orders-math.json
+python3 -B scripts/validate_hoa_expanded_orders.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-expanded-orders-math.json --report reports/hoa-expanded-orders-release.json
+```
+
+**HOA 字典存储**：一至十阶的 40 份字典按阶数共用 `data/hoa-salient-orderN-shared-v1.json` 中的四个矩阵和三个唯一系数分组。字典文件使用存储 schema 3，`shared_file` 引用存储 schema 2 的共享文件。码表采用 `preorder-tree-msb-hex-v1`，矩阵采用 `micro21-msb-hex-v1`；两者均以小写十六进制存储。Python 的 `hoa_salient_format.format_for(order, quantization_bits)` 返回兼容旧 schema 的完整字典，仍可载入历史完整／共享字典；Rust 在初始化时展开并共享常量。`tables_sha256` 始终覆盖展开后的原始表内容，已有格式标识、报告和 PCM 摘要保持不变。
 
 码表按原二叉树先序存储：一位区分内部节点和叶子，叶子随后携带与量化位数等宽的符号索引，左右路径恢复原始码长和码字。矩阵每项使用一位符号和二十位整数幅值，幅值除以一百万后舍入至 Float32，再恢复符号位，包括负零。生成器逐项检查原始 Float32 位模式；不能精确表示的数值会报错。两种编码均按高位优先排列，末字节补零；加载器校验长度、填充位以及完整树的深度和符号唯一性。
 

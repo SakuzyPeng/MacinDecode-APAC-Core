@@ -1,0 +1,53 @@
+{
+  "schema_version": 3,
+  "format_profile": "apac-hoa-salient-order6-format-v1",
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "architecture": "x86_64",
+    "method": "shared spatial encoder/decoder wire dictionaries"
+  },
+  "tables_sha256": "7ff3fa31099affd5eb67090d9fcdea9c037226b238180e1efaf79a987c895271",
+  "order": 6,
+  "quantization_bits": 6,
+  "modes": [
+    {
+      "mode": 0,
+      "codebooks": []
+    },
+    {
+      "mode": 1,
+      "codebooks": [
+        "3017d759cd750da7101e505eff788aef11d8847f7cfbea1c79301477192e1655b5650b6d16312f06ca638260eb1ba73a04e7297bd55489a95227e6169a6be3c2"
+      ]
+    },
+    {
+      "mode": 2,
+      "codebooks": [
+        "6000d21b80e892f715d66714f4e3ff83e7df239922390a1fa4d4bec25224620feefc94386dd956c5ac8b868206bad9ef8cb6f1ae964d41477d2a752be6315ec2",
+        "05dc8350e13a852d17186f858550e52e6ef12a4409f6d96d199a6be21786b6da2a838822bc1ea09fdf3ebdfeedd63c94c0778842f30e374e7bb396559b29e3c0"
+      ]
+    },
+    {
+      "mode": 3,
+      "codebooks": [
+        "104240a14674b490a8b0ba0d6dce23e7975ecfbef566c78294f99161a108e0aab219f46465693637f06d1ffa72731ebc77fd79596ada9ab8c38afdc9b2a34480"
+      ]
+    },
+    {
+      "mode": 4,
+      "codebooks": [
+        "032e6340a5d5da4eb1537d6b05a04fe3476a9a800f28af644219fa17f7d4181f3c7723a37a912a64ed370c8ceaeaa9bbb130af63605f164d8e6e0e4e92f55bba",
+        "60185780f532870d5980911e5f6a75ce29fddca9188b4d6e61fe1fef7e2e1919d5b6027257ce9b6c957768014446424181266efb1971aead87922c4fbd6a69be",
+        "0bec4c8b2d6a48ce92d84b8d0aade9dc99560a29a23bcc5912aa0c774b6d2daa1c19b3857d568531d4f03d90df509f88303ffc89ebbf39edc4c49edc5b2b5ec0",
+        "6005c1326b6cbb2c620c2a6a9ab08291efef7b0cea0dcf3e16f25f1786ba26fe10da0e3ca33132ab9d7b45168951eb5d03d3f3fc0e711b27e6126755693a7c90"
+      ]
+    },
+    {
+      "mode": 5,
+      "codebooks": []
+    }
+  ],
+  "shared_file": "hoa-salient-order6-shared-v1.json",
+  "codebook_encoding": "preorder-tree-msb-hex-v1"
+}

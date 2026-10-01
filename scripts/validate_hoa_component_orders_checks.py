@@ -10,12 +10,13 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False):
+def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
     if ambient_counts:p.add_argument('--counts-reference',type=Path,required=True)
     if quantization:p.add_argument('--ambient-reference',type=Path,required=True)
+    if expanded_orders:p.add_argument('--quantization-reference',type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
@@ -32,7 +33,12 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
         import hoa_salient_subbands_vectors as spatial
-        if quantization:
+        if expanded_orders:
+            import hoa_quantization_vectors as quantization_vectors
+            import hoa_ambient_counts_vectors as ambient_counts_vectors
+            import hoa_salient_counts_vectors as counts
+            references=((a.quantization_reference,quantization_vectors,{'q7-first','q8-mixed','q9-dynamic'}),(a.ambient_reference,ambient_counts_vectors,{'pure-second','twelve'}),(a.counts_reference,counts,{'first-four'}))
+        elif quantization:
             import hoa_ambient_counts_vectors as ambient_counts_vectors
             import hoa_salient_counts_vectors as counts
             import hoa_order1_vectors as order1

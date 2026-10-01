@@ -280,6 +280,23 @@ fn decode_with_access(
             .as_mut()
             .unwrap()["hoa_numeric_profile"] = json!(profile);
     }
+    if let Some(context) = &decoder.hoa_context {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        if context.expanded_orders() {
+            value["hoa_expanded_orders_profile"] = json!(crate::frame::HOA_EXPANDED_ORDERS_PROFILE);
+            value["hoa_expanded_math_sha256"] = json!(crate::frame::hoa_expanded_math_sha256());
+        }
+        if context.profile_id() != 5 || context.level_id() != 0 {
+            value["hoa_profile_id"] = json!(context.profile_id());
+            value["hoa_level_id"] = json!(context.level_id());
+        }
+    }
     if let Some(context) = &decoder.hoa_context
         && context.ambient_count_extended()
     {

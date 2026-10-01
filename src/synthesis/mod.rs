@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.quantization_extended() {
+            return if context.expanded_orders() {
+                hoa::EXPANDED_BACKEND
+            } else if context.quantization_extended() {
                 hoa::QUANTIZATION_BACKEND
             } else if context.ambient_count_extended() {
                 hoa::AMBIENT_COUNTS_BACKEND
@@ -344,6 +346,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.expanded_orders() {
+                return "hoa_orders_zero_to_ten_sq_drc_off";
+            }
             if context.quantization_extended() {
                 return "hoa_salient_6_to9_bits_sq_drc_off";
             }

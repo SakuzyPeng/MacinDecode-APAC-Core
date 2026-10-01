@@ -16,7 +16,7 @@ TABLES = json.loads((Path(__file__).resolve().parents[1] / 'data/sq-codebooks.js
 def bits(n, width):
     if not 0 <= n < 1 << width:
         raise ValueError('value does not fit bit width')
-    return format(n, f'0{width}b')
+    return format(n, f'0{width}b') if width else ''
 
 
 def pack(s):

@@ -39,12 +39,12 @@ pub struct HoaAdditiveData {
 }
 
 #[derive(Default)]
-struct Sum {
+pub(super) struct Sum {
     value: f64,
     correction: f64,
 }
 impl Sum {
-    fn add(&mut self, product: f64) -> bool {
+    pub(super) fn add(&mut self, product: f64) -> bool {
         let next = self.value + product;
         let residual = if self.value.abs() >= product.abs() {
             (self.value - next) + product
@@ -55,7 +55,7 @@ impl Sum {
         self.value = next;
         product.is_finite() && next.is_finite() && self.correction.is_finite()
     }
-    fn result(&self) -> f64 {
+    pub(super) fn result(&self) -> f64 {
         self.value + self.correction
     }
 }

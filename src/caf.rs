@@ -205,11 +205,12 @@ impl CafReader {
             .collect();
         let channels = ints[4];
         let layout = crate::channel_layout::layout(u64::from(channels));
-        if layout.is_none() && !matches!(channels, 4 | 9 | 16) {
+        let hoa_count = (1..=121).contains(&channels) && channels.isqrt().pow(2) == channels;
+        if layout.is_none() && !hoa_count {
             return Err(invalid(
                 b"desc",
                 desc.offset + 24,
-                "supported counts are 1, 2, 6, 8, 12, 24 or qualified HOA 4, 9, 16",
+                "requires a supported discrete layout or a qualified full-order HOA count up to 121",
             ));
         }
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];

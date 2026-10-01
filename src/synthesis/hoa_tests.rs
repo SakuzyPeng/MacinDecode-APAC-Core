@@ -496,3 +496,71 @@ fn additive_last_output_synthesis_failure_preserves_all_packet_state() {
         assert_eq!(snapshot(&decoder), before);
     }
 }
+
+#[test]
+fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-subbands-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported());
+        assert_eq!(
+            context.dynamic_subband_count(),
+            Some(f["options"]["subbands"].as_u64().unwrap() as usize)
+        );
+        assert_eq!(context.maximum_preroll_bytes(), 32768);
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        decoder.decode_frame(&bytes(&f["first"])).unwrap();
+        let before = snapshot(&decoder);
+        for (key, value) in f["errors"].as_object().unwrap() {
+            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert_eq!(snapshot(&decoder), before, "{key}");
+        }
+        let mut alternate = SqDecoder::from_cookie(&cookie).unwrap();
+        alternate.decode_frame(&bytes(&f["first"])).unwrap();
+        assert_eq!(
+            decoder.decode_frame(&bytes(&f["next"])).unwrap(),
+            alternate.decode_frame(&bytes(&f["alternate"])).unwrap()
+        );
+        assert_ne!(
+            decoder.hoa_state.last_dynamic_mapping.unwrap()[7],
+            alternate.hoa_state.last_dynamic_mapping.unwrap()[7]
+        );
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&bytes(&f["first"])).unwrap();
+        fresh.decode_frame(&bytes(&f["next"])).unwrap();
+        assert_eq!(
+            decoder.decode_frame(&bytes(&f["embedded_good"])).unwrap(),
+            fresh.decode_frame(&bytes(&f["embedded_good"])).unwrap()
+        );
+        assert_eq!(snapshot(&decoder), snapshot(&fresh));
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        let report = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"])).unwrap();
+        let value = serde_json::to_value(&report).unwrap();
+        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            restored
+                .hoa()
+                .dynamic_selection
+                .as_ref()
+                .unwrap()
+                .mappings
+                .len(),
+            8
+        );
+        assert!(decoder.scan_frame(&bytes(&f["first"])).is_err());
+    }
+    let old: Value =
+        serde_json::from_str(include_str!("../../data/hoa-ambient-state-v1.json")).unwrap();
+    assert_eq!(
+        crate::frame::HoaFrameContext::from_cookie(&bytes(&old["cookie"]))
+            .unwrap()
+            .dynamic_subband_count(),
+        None
+    );
+}

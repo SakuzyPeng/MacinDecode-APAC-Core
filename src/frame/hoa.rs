@@ -28,6 +28,7 @@ pub(super) struct HoaConfiguration {
     pub channels: u8,
     pub recovery_slots: u8,
     pub dynamic_method: Option<u8>,
+    pub dynamic_subbands: Option<u8>,
     pub transport_channels: u8,
     pub core_channels: u8,
     pub salient_components: u8,
@@ -130,6 +131,10 @@ impl HoaConfiguration {
             recovery_slots,
             dynamic_method: dynamic
                 .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
+            dynamic_subbands: dynamic.then(|| {
+                (value("components[0].hoa.dynamic_selection.subbands_minus_one").unwrap_or(7) + 1)
+                    as u8
+            }),
             transport_channels: channels,
             core_channels: salient_components + ambient_components,
             salient_components,
@@ -300,10 +305,12 @@ impl HoaFrameContext {
                     .map_or(0, |f| f.bit_offset);
                 rejected.push(format!("components[0].hoa.dynamic_selection.parameter={method} at cookie bit {position} (expected 0..2)"));
             }
+            // All 1..=8 counts retain eight wire mappings. The new counts and
+            // capacities were checked with hash-bound native instances.
             packet_config::check(
                 &parsed.fields,
                 "components[0].hoa.dynamic_selection.subbands_minus_one",
-                json!(7),
+                json!(shape.dynamic_subbands.expect("dynamic bands") - 1),
                 "cookie",
                 &mut rejected,
             );
@@ -462,6 +469,10 @@ impl HoaFrameContext {
     }
     pub fn recovery_slot_count(&self) -> usize {
         usize::from(self.configuration.recovery_slots)
+    }
+    /// Effective frequency bands; every dynamic frame still carries eight mapping rows.
+    pub fn dynamic_subband_count(&self) -> Option<usize> {
+        self.configuration.dynamic_subbands.map(usize::from)
     }
     pub fn dynamic_selection_enabled(&self) -> bool {
         self.configuration.dynamic_method.is_some()

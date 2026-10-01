@@ -1,4 +1,4 @@
-//! Validated eight-band, nine-slot to sixteen-ACN selection. No audio arithmetic.
+//! Eight wire rows and one-to-eight effective frequency bands. No audio arithmetic.
 use super::{
     Parser,
     hoa::{HoaCoefficientSpectrum, HoaConfiguration, HoaState, RecoverySlotSpectrum},
@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
+pub const SUBBAND_PROFILE: &str = "apac-hoa-dynamic-subbands-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-dynamic-selection-state-v1";
 
 #[derive(Deserialize)]
@@ -48,8 +49,77 @@ fn format() -> &'static Format {
         value
     })
 }
-pub(crate) fn format_sha256() -> &'static str {
-    &format().format_sha256
+#[derive(Deserialize)]
+struct SubbandTable {
+    subbands: usize,
+    long_ends: [Vec<usize>; 3],
+    short_ends: [Vec<usize>; 3],
+}
+#[derive(Deserialize)]
+struct ExtendedFormat {
+    format_profile: String,
+    format_sha256: String,
+    base_format_sha256: String,
+    internal_slots: usize,
+    output_coefficients: usize,
+    wire_mapping_groups: usize,
+    tables: Vec<SubbandTable>,
+}
+fn extended_format() -> &'static ExtendedFormat {
+    static DATA: OnceLock<ExtendedFormat> = OnceLock::new();
+    DATA.get_or_init(|| {
+        let value: ExtendedFormat =
+            serde_json::from_str(include_str!("../../data/hoa-dynamic-format-v2.json"))
+                .expect("built-in effective subbands");
+        assert_eq!(value.format_profile, "apac-hoa-dynamic-selection-format-v2");
+        assert_eq!(value.base_format_sha256, format().format_sha256);
+        assert_eq!(
+            (
+                value.internal_slots,
+                value.output_coefficients,
+                value.wire_mapping_groups,
+                value.tables.len()
+            ),
+            (9, 16, 8, 7)
+        );
+        for (i, table) in value.tables.iter().enumerate() {
+            assert_eq!(table.subbands, i + 1);
+            for (long, short) in table.long_ends.iter().zip(&table.short_ends) {
+                assert_eq!((long.len(), short.len()), (i + 1, i + 1));
+                assert_eq!(long.last(), Some(&1024));
+                assert!(long[0] > 0 && long.windows(2).all(|w| w[0] < w[1]));
+                assert!(
+                    long.iter()
+                        .zip(short)
+                        .all(|(&a, &b)| a % 8 == 0 && a / 8 == b)
+                );
+            }
+        }
+        value
+    })
+}
+pub(crate) fn format_sha256(count: usize) -> &'static str {
+    if count == 8 {
+        &format().format_sha256
+    } else {
+        &extended_format().format_sha256
+    }
+}
+fn boundaries(count: usize, method: usize, short: bool) -> &'static [usize] {
+    if count == 8 {
+        if short {
+            &format().short_ends[method]
+        } else {
+            &format().long_ends[method]
+        }
+    } else {
+        let table = &extended_format().tables[count - 1];
+        if short {
+            &table.short_ends[method]
+        } else {
+            &table.long_ends[method]
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,8 +181,15 @@ impl From<StaticAmbientData> for InternalAmbientData {
 pub struct DynamicSelectionData {
     pub encoding: DynamicSelectionEncoding,
     pub method: u8,
-    pub subband_ends: [usize; 8],
-    pub lines_per_window: [usize; 8],
+    pub subband_ends: Vec<usize>,
+    pub lines_per_window: Vec<usize>,
+    /// The first N of the eight validated wire mappings are effective.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_subband_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subband_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format_sha256: Option<String>,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub internal_spatial_end_bit_offset: usize,
@@ -137,7 +214,9 @@ pub(super) fn read_and_apply(
 ) -> Result<(DynamicSelectionData, Vec<HoaCoefficientSpectrum>), ParseError> {
     let start = parser.bits.position();
     let method = configuration.dynamic_method.expect("dynamic context");
-    if method > 2
+    let count = usize::from(configuration.dynamic_subbands.unwrap_or(0));
+    if !(1..=8).contains(&count)
+        || method > 2
         || input.len() != 9
         || input.iter().enumerate().any(|(i, v)| {
             usize::from(v.slot_index) != i
@@ -205,12 +284,8 @@ pub(super) fn read_and_apply(
             end_bit_offset: parser.bits.position(),
         });
     }
-    let ends = format().long_ends[usize::from(method)];
-    let per_window = if block == 2 {
-        format().short_ends[usize::from(method)]
-    } else {
-        ends
-    };
+    let ends = boundaries(count, usize::from(method), false).to_vec();
+    let per_window = boundaries(count, usize::from(method), block == 2).to_vec();
     let mut output: Vec<_> = (0..16)
         .map(|acn| HoaCoefficientSpectrum {
             acn_index: acn,
@@ -239,6 +314,9 @@ pub(super) fn read_and_apply(
             method,
             subband_ends: ends,
             lines_per_window: per_window,
+            active_subband_count: (count < 8).then_some(count),
+            subband_profile: (count < 8).then(|| SUBBAND_PROFILE.into()),
+            format_sha256: (count < 8).then(|| format_sha256(count).into()),
             start_bit_offset: start,
             end_bit_offset: parser.bits.position(),
             internal_spatial_end_bit_offset: start,
@@ -331,6 +409,94 @@ mod tests {
                     }
                     for line in 0..1024 {
                         let frequency = line % 128;
+                        let band = row["truth"]["lines_per_window"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .position(|v| frequency < v.as_u64().unwrap() as usize)
+                            .unwrap();
+                        let targets = row["truth"]["mappings"][band]["target_acn_indices"]
+                            .as_array()
+                            .unwrap();
+                        for (acn, spectrum) in output.iter().enumerate() {
+                            let expected = targets
+                                .iter()
+                                .position(|v| v.as_u64().unwrap() as usize == acn)
+                                .map_or(0., |slot| (slot + 1) as f32);
+                            assert_eq!(spectrum.scaled[line].to_bits(), expected.to_bits());
+                        }
+                    }
+                    parser.bits.set_end(raw.len() * 8).unwrap();
+                    assert_eq!(parser.bits.read(5).unwrap(), 0b10101);
+                }
+            }
+        }
+    }
+    #[test]
+    fn effective_subbands_check_every_wire_bit_and_all_boundary_lines() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-subbands-state-v1.json")).unwrap();
+        let fixture = &data["fixtures"][0];
+        let context =
+            crate::frame::HoaFrameContext::from_cookie(&bytes(&fixture["cookie"])).unwrap();
+        let template = crate::frame::parse_hoa_packet(&context, &bytes(&fixture["first"]))
+            .unwrap()
+            .packet
+            .frame;
+        for row in data["mapping_cases"].as_array().unwrap() {
+            let context =
+                crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
+            assert_eq!(
+                context.dynamic_subband_count(),
+                Some(row["truth"]["active_subband_count"].as_u64().unwrap() as usize)
+            );
+            let block = row["block"].as_u64().unwrap() as u8;
+            let raw = bytes(&row["bytes"]);
+            let end = row["bits"].as_u64().unwrap() as usize;
+            let listed = row["truth"]["encoding"] == "index_list";
+            for cut in 0..=end {
+                let mut parser = Parser {
+                    capture: true,
+                    bits: BitReader::new(&raw),
+                    report: template.clone(),
+                };
+                parser.bits.set_end(cut).unwrap();
+                let input = (0..9)
+                    .map(|slot| RecoverySlotSpectrum {
+                        slot_index: slot,
+                        scaled: vec![f32::from(slot + 1); 1024],
+                    })
+                    .collect();
+                let mut state = HoaState::default();
+                let result = read_and_apply(
+                    &mut parser,
+                    context.configuration,
+                    block,
+                    input,
+                    None,
+                    &mut state,
+                );
+                if cut < end {
+                    let e = result.unwrap_err();
+                    assert_eq!(e.kind, "truncated");
+                    assert_eq!(
+                        e.bit_offset,
+                        if listed && cut > 0 {
+                            1 + 4 * ((cut - 1) / 4)
+                        } else {
+                            cut
+                        }
+                    );
+                    assert!(state.last_dynamic_mapping.is_none());
+                } else {
+                    let (selection, output) = result.unwrap();
+                    assert_eq!(selection.end_bit_offset, end);
+                    let actual = serde_json::to_value(&selection).unwrap();
+                    for (key, expected) in row["truth"].as_object().unwrap() {
+                        assert_eq!(&actual[key], expected, "{key}");
+                    }
+                    for line in 0..1024 {
+                        let frequency = if block == 2 { line % 128 } else { line };
                         let band = row["truth"]["lines_per_window"]
                             .as_array()
                             .unwrap()

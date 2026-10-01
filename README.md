@@ -416,7 +416,7 @@ python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-t
 
 **受限动态 HOA 选择**：接受内部阶数 2、九个恢复槽位、输出三阶 16 系数的两种固定配置：5 salient／0 ambient 或 5 salient／4 ambient。两者都完整读取 16 个 SCE，核心通道分别为 5／9；每个 salient 分量仍为四个空间子带、九项系数、六位量化。`order()` 与报告的 `hoa.order`／`coefficient_count` 继续表示 cookie 中内部阶数与维度；`output_order()`、`channel_count()` 以及 PCM 布局表示输出阶数 3、16 个 ACN 系数。`recovery_slot_count()` 和 `dynamic_selection_enabled()` 可查询新分支。
 
-动态选择固定八个频率子带，支持参数 0 的感知锚点划分、参数 1 的 AAC 频带插值及参数 2 的等宽划分；参数 3 和其他子带数量拒绝。短窗每窗使用相应长窗终点除以八，选择行不等于短窗编号，也不受短窗分组控制。每个核心帧在空间描述之后读取八组映射：索引列表保留九个目标的线上顺序，位图按 ACN 升序形成九个目标。重复列表目标及位图数量不符均报错，不使用旧映射补足损坏载荷。
+原八带动态配置支持参数 0 的感知锚点划分、参数 1 的 AAC 频带插值及参数 2 的等宽划分；参数 3 仍拒绝；1–7 个有效子带见下文扩展。短窗每窗使用相应长窗终点除以八，选择行不等于短窗编号，也不受短窗分组控制。每个核心帧在空间描述之后读取八组映射：索引列表保留九个目标的线上顺序，位图按 ACN 升序形成九个目标。重复列表目标及位图数量不符均报错，不使用旧映射补足损坏载荷。
 
 恢复先在九槽空间完成原有描述与 ambient 数值处理，再将每个子带的九个 Float32 值逐位复制到 16 个输出位置，其余位置为正零。mixed 的静态 ambient 选择属于内部 `0..8`，现有固定／帧内四路变换继续适用；输出阶数不会改变二阶描述除以 3 的规则。DRC 基准声道数为 16，描述历史留在内部槽位，overlap 始终属于最终 ACN。内嵌帧、错误回滚及 reset 保持原子语义。
 
@@ -453,6 +453,25 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 `validate_hoa_additive_native.py` 复核三份指定原生捕获；`validate_hoa_additive_checks.py` 运行新增／受影响接口检查及旧代表摘要核对。人工控制不代表真实叠加媒体覆盖，日常和发布均不重跑旧全量矩阵或媒体库。
+
+**动态 HOA 的 1–8 子带**：在内部二阶九槽、输出三阶十六系数的纯 salient、覆盖式 mixed 和叠加式 mixed 路径中，接受 cookie 声明的 1–8 个有效频率子带，支持既有方法 0／1／2。salient 的四个描述子带不变，动态子带也与八个短窗及短窗分组独立。`HoaFrameContext::dynamic_subband_count() -> Option<usize>` 返回有效数量；非动态配置返回 `None`。
+
+线上载荷始终包含 **八组映射**：列表模式为一个模式位加八组九个四位索引，位图模式为一个模式位加八组十六位位图。只使用前 N 组进行恢复，后续组仍完整读取、校验和报告；损坏或截断未使用组同样失败。合法修改未使用组不会改变 PCM。数量来自 cookie，不提供帧内修改或额外 CLI 开关。
+
+`DynamicSelectionData.subband_ends` 和 `lines_per_window` 现为有界 `Vec<usize>`，长度等于有效数量，`mappings` 始终为八组。1–7 带报告增加 `active_subband_count`、`subband_profile=apac-hoa-dynamic-subbands-v1` 和 `format_sha256`；PCM 实现元数据增加 `hoa_dynamic_subband_count`／`hoa_dynamic_subband_profile`，动态格式摘要指向 `apac-hoa-dynamic-selection-format-v2`。原八带报告省略这些新增字段，继续使用 v1 格式、原标识与原输出；旧 JSON 仍可读取。
+
+新边界使用经过验证的整数表，运行时不做浮点插值。原描述、覆盖／叠加、动态复制、合成及状态／后端规则不变。包目录、CAF、受限 MP4／M4A 使用原入口；范围继续从包零预热，HOA fast 仍拒绝，所有失败按外层包回滚。
+
+```sh
+python3 -B scripts/generate_hoa_dynamic_subbands_format.py --check
+python3 -B scripts/generate_hoa_dynamic_subbands_manifest.py --check
+python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/debug/apac-tool --report reports/hoa-subbands-math.json
+python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-subbands-math.json --report reports/hoa-subbands-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_dynamic_subbands
+```
+
+新增验收把轻量边界／复制检查与代表 PCM 序列分开；`validate_hoa_dynamic_subbands_native.py` 复核指定的原生捕获，`validate_hoa_dynamic_subbands_checks.py` 执行相关接口及旧代表回归。原八带生成器和清单保持不变。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

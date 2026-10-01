@@ -51,6 +51,7 @@ pub use hoa_ambient::{AmbientSpectrum, AmbientTransform, StaticAmbientData};
 pub(crate) use hoa_ambient::{
     format_sha256 as hoa_ambient_format_sha256, math_sha256 as hoa_ambient_math_sha256,
 };
+pub use hoa_dynamic::SUBBAND_PROFILE as HOA_DYNAMIC_SUBBAND_PROFILE;
 pub(crate) use hoa_dynamic::format_sha256 as hoa_dynamic_format_sha256;
 pub use hoa_dynamic::{
     DynamicBandMapping, DynamicSelectionData, DynamicSelectionEncoding, InternalAmbientData,

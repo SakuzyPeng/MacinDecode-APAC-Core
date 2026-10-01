@@ -328,10 +328,16 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
-        value["hoa_dynamic_format_sha256"] = json!(crate::frame::hoa_dynamic_format_sha256());
+        value["hoa_dynamic_format_sha256"] = json!(crate::frame::hoa_dynamic_format_sha256(
+            context.dynamic_subband_count().expect("dynamic bands")
+        ));
         value["hoa_internal_order"] = json!(context.order());
         value["hoa_output_order"] = json!(context.output_order());
         value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
+        if let Some(count) = context.dynamic_subband_count().filter(|&n| n < 8) {
+            value["hoa_dynamic_subband_count"] = json!(count);
+            value["hoa_dynamic_subband_profile"] = json!(crate::frame::HOA_DYNAMIC_SUBBAND_PROFILE);
+        }
     }
     if let Some(context) = &decoder.hoa_context
         && context.ambient_combination() == crate::frame::AmbientCombination::Add

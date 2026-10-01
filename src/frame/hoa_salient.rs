@@ -595,6 +595,62 @@ mod tests {
         }
     }
 
+    #[test]
+    fn effective_subband_numeric_failure_precedes_inactive_rows_and_tail() {
+        let fixtures: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-subbands-state-v1.json")).unwrap();
+        for f in fixtures["fixtures"].as_array().unwrap() {
+            let bytes = |v: &serde_json::Value| -> Vec<u8> {
+                v.as_str()
+                    .unwrap()
+                    .as_bytes()
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                    .collect()
+            };
+            let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+            for key in ["inactive_duplicate", "late_tail_error"] {
+                let mut drc = context.initial_drc_state();
+                let mut state = super::super::HoaState {
+                    salient: Some(Box::new(SalientState::new(9))),
+                    ..Default::default()
+                };
+                state.salient.as_mut().unwrap().history[0][0][7] = f64::MAX;
+                let before = state.clone();
+                let before_drc =
+                    serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                        .unwrap();
+                let error = crate::frame::parse_hoa_packet_with_state(
+                    &context,
+                    &bytes(&f["errors"][key]),
+                    &mut drc,
+                    &mut state,
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error.kind,
+                    if context.ambient_combination() == crate::frame::AmbientCombination::Add {
+                        "hoa-additive-numeric"
+                    } else {
+                        "hoa-numeric"
+                    }
+                );
+                assert_eq!(
+                    error.bit_offset,
+                    f["internal_end_bit"].as_u64().unwrap() as usize
+                );
+                assert_eq!(state, before);
+                assert_eq!(
+                    serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                        .unwrap(),
+                    before_drc
+                );
+            }
+        }
+    }
+
     fn packed(bits: &[bool]) -> Vec<u8> {
         let mut bytes = vec![0; bits.len().div_ceil(8)];
         for (i, &value) in bits.iter().enumerate() {

@@ -150,6 +150,7 @@ impl HoaConfiguration {
             }),
             salient_orders: std::array::from_fn(|i| {
                 match value(&format!("components[0].hoa.salient[{i}].order")) {
+                    Some(1) if salient => 1,
                     Some(2) if salient && order == 3 && !dynamic => 2,
                     _ => order,
                 }

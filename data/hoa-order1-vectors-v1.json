@@ -1,0 +1,499 @@
+{
+  "profile": "apac-hoa-salient-order1-v1",
+  "formats": {
+    "format_sha256": "421205445cc50d5b8119f20f8f9956c51c432dc457012907457478410cb0c040",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+      "spatial_methods12": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+      "lower": "07a71bfc7a8ac09cf51669e31d25031118630425ae9446f2a0f96fb0dddfbb78",
+      "lower_counts": "5fdb73e5f1d0ae7bdfe06ae784b6213416ac13e00f94da2616d0e39914407960",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "pure2",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "drc": true,
+        "rich": true,
+        "scene": true,
+        "component_orders": [
+          1,
+          2,
+          1,
+          2,
+          1
+        ],
+        "counts": [
+          1,
+          3,
+          4,
+          9,
+          16
+        ],
+        "spatial_method": 0,
+        "selection": null,
+        "transform": 0,
+        "method": 0,
+        "subbands": 5
+      },
+      "packets": 9,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 195,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 2,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 1,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 2,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 1,
+          "bit_offset": 225,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "f7c2f833ff292f79d411385d6cb64f78e513724c9efbb971d3abbf946e527ceb",
+      "truth_sha256": "f5c0bbc9ac6ccde71d133d925825bb119c39a3c8b9f9d919ae549c44dfe14982"
+    },
+    {
+      "index": 1,
+      "kind": "replace3",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "drc": false,
+        "rich": false,
+        "scene": true,
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          3
+        ],
+        "counts": [
+          16,
+          9,
+          4,
+          3,
+          1
+        ],
+        "spatial_method": 1,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 0,
+        "subbands": 5
+      },
+      "packets": 9,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 2,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 3,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 1,
+          "bit_offset": 219,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 3,
+          "bit_offset": 225,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "41a23706f363c6c9edaf91eb1c7e41f1206df03029043295f3ca9abde9bf9a2e",
+      "truth_sha256": "832894e3737c2bc9d8aab7ac2b05aeb8c653c76cfd4026e8401d8668ff9de39d"
+    },
+    {
+      "index": 2,
+      "kind": "dynamic-add",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 48000,
+        "drc": false,
+        "rich": false,
+        "scene": true,
+        "component_orders": [
+          1,
+          2,
+          1,
+          2,
+          1
+        ],
+        "counts": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "spatial_method": 2,
+        "selection": [
+          0,
+          2,
+          4,
+          8
+        ],
+        "transform": 4,
+        "method": 0,
+        "subbands": 5
+      },
+      "packets": 9,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 2,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 1,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 2,
+          "bit_offset": 219,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 1,
+          "bit_offset": 225,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "7612ed5bdffc5dde2391fdc4b38508e9b4e749cecf41acc0c0754bb81eef45f1",
+      "truth_sha256": "7b6381d3a40cfb0cedf711551a50fba814116392bacfaf8658595ea6827e6e78"
+    },
+    {
+      "index": 3,
+      "kind": "fully-omitted",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 44100,
+        "drc": false,
+        "scene": true,
+        "component_orders": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "spatial_method": 0,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4
+      },
+      "packets": 3,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 195,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 1,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 1,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 1,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 1,
+          "bit_offset": 219,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "84c647563bee5e794d5ded501682bdaef090decc54640d5254c105db165897b3",
+      "truth_sha256": "10a50ceee233a6f866be90ab432187f01223eac712ae89fdacd34c3417ac4df8"
+    },
+    {
+      "index": 4,
+      "kind": "all-first-pure",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "component_orders": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "spatial_method": 0,
+        "scene": true
+      },
+      "packets": 3,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 195,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 1,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 1,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 1,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 1,
+          "bit_offset": 219,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "15c8a9b06eda20b38987dcdfe02cbff2a437a514090de6b92a2dc0809c55b703",
+      "truth_sha256": "d61e3d30ef296164ee72b55cf4d7b78214eaf37e8b673cbe2469b683420a0b51"
+    },
+    {
+      "index": 5,
+      "kind": "boundary-add",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "dynamic": false,
+        "rate": 44100,
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          3
+        ],
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "spatial_method": 2,
+        "scene": true,
+        "selection": [
+          0,
+          3,
+          4,
+          15
+        ],
+        "transform": 0
+      },
+      "packets": 3,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 195,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 2,
+          "bit_offset": 201,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 3,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 1,
+          "bit_offset": 213,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 3,
+          "bit_offset": 219,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "cb45035e49c2b75ff069d79729016238660048c035bc66526c90ae688b7a9f7c",
+      "truth_sha256": "ee9858e8599e6aa9a497d325ef7996edb9c0295c8a0fb38ba64f4f2edbb96c05"
+    },
+    {
+      "index": 6,
+      "kind": "dynamic-empty",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": true,
+        "rate": 44100,
+        "component_orders": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "counts": [
+          16,
+          16,
+          16,
+          16,
+          16
+        ],
+        "spatial_method": 1,
+        "scene": true,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 3,
+      "cookie_orders": [
+        {
+          "name": "components[0].hoa.salient[0].order",
+          "value": 1,
+          "bit_offset": 207,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[1].order",
+          "value": 1,
+          "bit_offset": 219,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[2].order",
+          "value": 1,
+          "bit_offset": 231,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[3].order",
+          "value": 1,
+          "bit_offset": 243,
+          "bit_length": 2
+        },
+        {
+          "name": "components[0].hoa.salient[4].order",
+          "value": 1,
+          "bit_offset": 255,
+          "bit_length": 2
+        }
+      ],
+      "input_sha256": "dc7e8729f23a60a74cce7dfd4ef76859bcb60ccd0edaf7071e1dec6aff8aeebb",
+      "truth_sha256": "a2879f0722118df2a0a4ca2a67119eb14799143320e6f858c064b5f5b0587007"
+    }
+  ],
+  "sha256": "4b4c3b54f16dd23d0f066fc2278dc17eaed0dc542ac9a0f7c0ef2223725abfa3"
+}

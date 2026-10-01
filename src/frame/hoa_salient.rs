@@ -1,4 +1,4 @@
-//! Restricted order-2/3, five-component spatial descriptors with bounded local grids.
+//! Restricted order-1/2/3, five-component spatial descriptors with bounded local grids.
 //! Format tables and independent mathematical constants have separate identities.
 use super::{
     ChannelPacketReport, Parser,
@@ -11,6 +11,8 @@ use serde_json::json;
 use std::sync::OnceLock;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
+pub const ORDER1_NUMERIC_PROFILE: &str = "apac-hoa-salient-order1-math-v1";
+pub const ORDER1_PROFILE: &str = "apac-hoa-salient-order1-v1";
 pub const ORDER2_NUMERIC_PROFILE: &str = "apac-hoa-salient-order2-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-salient-state-v1";
 pub const COMPONENT_ORDERS_NUMERIC_PROFILE: &str = "apac-hoa-component-orders-math-v1";
@@ -19,6 +21,10 @@ pub const COMPONENT_ORDERS_STATE_PROFILE: &str = "apac-hoa-component-orders-stat
 #[cfg(test)]
 #[path = "hoa_component_orders_tests.rs"]
 mod component_orders_tests;
+
+#[cfg(test)]
+#[path = "hoa_order1_tests.rs"]
+mod order1_tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
@@ -36,7 +42,7 @@ impl SalientState {
     }
     pub(super) fn with_dimensions(coefficients: [usize; 5], counts: [usize; 5]) -> Self {
         assert!(counts.iter().all(|n| (1..=16).contains(n)));
-        assert!(coefficients.iter().all(|n| matches!(n, 9 | 16)));
+        assert!(coefficients.iter().all(|n| matches!(n, 4 | 9 | 16)));
         Self {
             history: counts
                 .iter()
@@ -90,6 +96,8 @@ pub struct SalientSpatialData {
     pub partition_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub component_orders: Option<Vec<SalientComponentOrderInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order1_profile: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
@@ -184,9 +192,15 @@ struct CommonMath {
     roots: [f64; 7],
 }
 fn constants(coefficients: usize) -> &'static Constants {
+    static ORDER1: OnceLock<Constants> = OnceLock::new();
     static ORDER2: OnceLock<Constants> = OnceLock::new();
     static ORDER3: OnceLock<Constants> = OnceLock::new();
     let (cell, source, profile) = match coefficients {
+        4 => (
+            &ORDER1,
+            include_str!("../../data/hoa-salient-order1-format-v1.json"),
+            "apac-hoa-salient-order1-format-v1",
+        ),
         9 => (
             &ORDER2,
             include_str!("../../data/hoa-salient-order2-format-v1.json"),
@@ -255,10 +269,11 @@ fn common_math() -> &'static CommonMath {
     })
 }
 pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
-    if coefficients == 9 {
-        ORDER2_NUMERIC_PROFILE
-    } else {
-        NUMERIC_PROFILE
+    match coefficients {
+        4 => ORDER1_NUMERIC_PROFILE,
+        9 => ORDER2_NUMERIC_PROFILE,
+        16 => NUMERIC_PROFILE,
+        _ => unreachable!("qualified descriptor dimension"),
     }
 }
 pub(crate) fn format_sha256(coefficients: usize) -> &'static str {
@@ -465,11 +480,15 @@ pub(super) fn read(
         partition_profile: (partition_method != 0)
             .then(|| super::hoa_salient_subbands::PARTITION_PROFILE.into()),
         component_orders: configuration.component_order_info(),
+        order1_profile: configuration
+            .salient_orders
+            .contains(&1)
+            .then(|| ORDER1_PROFILE.into()),
         descriptors,
     })
 }
 
-/// Normalized real order-2/3 spherical harmonics, with no Condon-Shortley sign.
+/// Normalized real order-1/2/3 spherical harmonics, with no Condon-Shortley sign.
 /// Native direction descriptors use an N3D unit vector (divide by order+1);
 /// the first four entries are then replaced by explicit scalar coefficients.
 fn direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
@@ -503,7 +522,12 @@ fn direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
     ];
     out.into_iter()
         .take(coefficients)
-        .map(|v| if coefficients == 9 { v / 3. } else { v * 0.25 })
+        .map(|v| match coefficients {
+            4 => v * 0.5,
+            9 => v / 3.,
+            16 => v * 0.25,
+            _ => unreachable!("qualified descriptor dimension"),
+        })
         .collect()
 }
 
@@ -867,7 +891,7 @@ mod tests {
 
     #[test]
     fn all_spatial_codewords_and_bit_truncations_preserve_the_marker() {
-        for coefficients in [9, 16] {
+        for coefficients in [4, 9, 16] {
             let c = constants(coefficients);
             let mut checked = 0;
             for (mode, m) in c.format.modes.iter().enumerate() {

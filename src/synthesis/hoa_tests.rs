@@ -658,10 +658,25 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
         "../../data/hoa-component-orders-state-v1.json"
     ))
     .unwrap();
-    for f in data["fixtures"].as_array().unwrap() {
+    let first_order: Value =
+        serde_json::from_str(include_str!("../../data/hoa-order1-state-v1.json")).unwrap();
+    for f in data["fixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(first_order["fixtures"].as_array().unwrap())
+    {
         let cookie = bytes(&f["cookie"]);
         let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
         assert!(context.is_supported());
+        let order = f["options"]["order"].as_u64().unwrap() as u8;
+        let slots = (usize::from(order) + 1).pow(2);
+        let output_order = if f["options"]["dynamic"] == true {
+            3
+        } else {
+            order
+        };
+        let channels = (u32::from(output_order) + 1).pow(2);
         assert_eq!(
             (
                 context.order(),
@@ -669,7 +684,7 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
                 context.channel_count(),
                 context.recovery_slot_count()
             ),
-            (3, 3, 16, 16)
+            (order, output_order, channels, slots)
         );
         assert_eq!(
             serde_json::to_value(context.salient_component_orders()).unwrap(),
@@ -679,8 +694,15 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
             context.descriptor_numeric_profile(),
             Some("apac-hoa-component-orders-math-v1")
         );
+        // This frozen fixture rejected order 1 before that extension. Keep the
+        // archived input unchanged and use still-unsupported order 0 here.
+        let mut invalid = bytes(&f["bad_order_cookie"]);
+        let at = f["cookie_orders"][0]["bit_offset"].as_u64().unwrap() as usize;
+        for bit in at..at + 2 {
+            invalid[bit / 8] &= !(1 << (7 - bit % 8));
+        }
         assert!(
-            !crate::frame::HoaFrameContext::from_cookie(&bytes(&f["bad_order_cookie"]))
+            !crate::frame::HoaFrameContext::from_cookie(&invalid)
                 .unwrap()
                 .is_supported()
         );
@@ -693,9 +715,15 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
             decoder.state_profile(),
             "apac-hoa-component-orders-state-v1"
         );
-        assert_eq!(decoder.channel_layout().ambisonic_order, Some(3));
+        assert_eq!(
+            decoder.channel_layout().ambisonic_order,
+            Some(u32::from(output_order))
+        );
         let first = bytes(&f["first"]);
-        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 16 * 1024);
+        assert_eq!(
+            decoder.decode_frame(&first).unwrap().len(),
+            channels as usize * 1024
+        );
         let before = snapshot(&decoder);
         for (key, value) in f["errors"].as_object().unwrap() {
             assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");

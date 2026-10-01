@@ -297,6 +297,13 @@ fn decode_with_access(
             value["hoa_salient_component_orders"] = json!(context.salient_component_orders());
             value["hoa_salient_components"] = json!(context.component_order_info());
             value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
+            if context
+                .salient_component_orders()
+                .is_some_and(|orders| orders.contains(&1))
+            {
+                value["hoa_salient_order1_profile"] =
+                    json!(crate::frame::HOA_SALIENT_ORDER1_PROFILE);
+            }
         } else {
             value["hoa_format_sha256"] = json!(crate::frame::hoa_salient_format_sha256(
                 context.recovery_slot_count()

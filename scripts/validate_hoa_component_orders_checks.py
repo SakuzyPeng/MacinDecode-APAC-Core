@@ -10,9 +10,9 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main():
+def main(*,first_order=False):
     p=argparse.ArgumentParser(description=__doc__)
-    for name in ('binary','test-binary','report','partition-reference','spatial-reference','legacy-reference'):p.add_argument('--'+name,type=Path,required=True)
+    for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
@@ -24,11 +24,16 @@ def main():
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))
             print(module,count[1],flush=True)
         env=dict(os.environ,APAC_TOOL_BINARY=str(a.binary),PYTHONDONTWRITEBYTECODE='1')
-        proc=subprocess.run([sys.executable,'-B','-m','unittest','-v','test_hoa_component_orders','test_hoa_salient_partition','test_hoa_salient_subbands','test_access.AccessTests.test_default_is_unchanged_and_fast_is_explicit_for_files'],cwd=ROOT/'scripts',env=env,capture_output=True,text=True)
+        modules=['test_hoa_order1','test_hoa_component_orders','test_hoa_salient_partition'] if first_order else ['test_hoa_component_orders','test_hoa_salient_partition','test_hoa_salient_subbands']
+        proc=subprocess.run([sys.executable,'-B','-m','unittest','-v',*modules,'test_access.AccessTests.test_default_is_unchanged_and_fast_is_explicit_for_files'],cwd=ROOT/'scripts',env=env,capture_output=True,text=True)
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
         import hoa_salient_subbands_vectors as spatial
-        for reference,module,selected in ((a.partition_reference,partition,{'pure2','replace3','fixed-add','dynamic-add'}),(a.spatial_reference,spatial,{'minimum-one'})):
+        if first_order:
+            import hoa_component_orders_vectors as components
+            references=((a.component_reference,components,{'pure','replace','add','all-order2'}),(a.partition_reference,partition,{'pure2','dynamic-add'}))
+        else:references=((a.partition_reference,partition,{'pure2','replace3','fixed-add','dynamic-add'}),(a.spatial_reference,spatial,{'minimum-one'}))
+        for reference,module,selected in references:
             old=json.loads(reference.read_text());require(old['passed'] and not old['errors'],'invalid reference');require(old['vector_manifest_sha256']==module.manifest()['sha256'],'old generator changed')
             found=0
             for index,(kind,opts,cases) in enumerate(module.sequences()):
@@ -49,7 +54,7 @@ def main():
         opts,cases=next((opts,cases) for name,opts,cases in ambient.sequences() if name==kind)
         with workspace(r,kind) as root:now=legacy(a.binary,root,ambient,opts,cases,static=True)
         require(all(now[k]==expected[k] for k in now),'old ambient changed');r['legacy'].append(dict(kind=kind,passed=True,reference_sha256=sha256_file(a.legacy_reference),**now))
-        require(len(r['legacy'])==6 and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'cases missing/source changed')
+        require(len(r['legacy'])==(7 if first_order else 6) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'cases missing/source changed')
         r['passed']=True
     except Exception as e:r['errors'].append(str(e))
     write_json(a.report,r);print(json.dumps(dict(passed=r['passed'],rust=sum(t['passed'] for t in r['rust']),python=r['python']['passed'] if r['python'] else None,legacy=len(r['legacy']),errors=r['errors'])))

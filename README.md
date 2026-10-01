@@ -519,7 +519,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 `validate_hoa_salient_partition_native.py` 复核四份短原生捕获与整组 1–16 带缓存；`validate_hoa_salient_partition_checks.py` 检查受影响接口及五个旧代表。独立数学使用六组短序列，逐线边界测试不执行额外 IMDCT；不重跑旧完整矩阵或媒体库。
 
-**固定三阶中的二／三阶 salient 分量混合**：整体三阶、16 个 SCE 和 16 通道 ACN/SN3D 输出保持不变，五个分量可以各自声明二阶或三阶，例如 `[2,3,2,3,3]`。纯 salient、覆盖 mixed、叠加 mixed 均支持；也允许全部为二阶。保持两采样率、每分量 1–16 带、空间方法 0／1／2、静态 ambient 选择和四路变换。零／一阶描述、动态配置的新阶数组合及帧内阶数更新仍拒绝。
+**固定三阶中的二／三阶 salient 分量混合**：整体三阶、16 个 SCE 和 16 通道 ACN/SN3D 输出保持不变，五个分量可以各自声明二阶或三阶，例如 `[2,3,2,3,3]`。纯 salient、覆盖 mixed、叠加 mixed 均支持；也允许全部为二阶。保持两采样率、每分量 1–16 带、空间方法 0／1／2、静态 ambient 选择和四路变换。一阶描述的扩展见下文；零阶描述、超出下述范围的动态阶数组合及帧内阶数更新仍拒绝。
 
 `HoaFrameContext::salient_component_orders() -> Option<[u8; 5]>` 返回五个实际阶数；无 salient 返回 `None`。`order()`、`recovery_slot_count()`、`output_order()`、`channel_count()` 仍表示整体配置。本扩展中分别为 3、16、3、16，不能用第一份描述的九项维度决定 PCM 步长。
 
@@ -540,6 +540,26 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 `validate_hoa_component_orders_native.py` 复核三份主控制及全二阶短探针；`validate_hoa_component_orders_checks.py` 执行相关检查与六个旧代表，元数据必须使用对应平台的旧报告。独立数学只运行新增短序列，不重跑旧完整矩阵或媒体库。
+
+**一阶 salient 描述**：在固定二阶、固定三阶和动态九槽→十六系数中，五个 salient 分量可以分别声明一阶。固定二阶及动态路径接受分量阶数 1／2，固定三阶接受 1／2／3；纯 salient、覆盖 mixed、叠加 mixed 均支持，也允许全部分量为一阶。整体恢复／输出仍分别为 9／9、16／16、9／16，未新增整体一阶的五分量 salient 配置。
+
+一阶描述使用独立 `apac-hoa-salient-order1-format-v1` 字典（八套 Huffman 表、四个 4×4 矩阵）和 `apac-hoa-salient-order1-math-v1`。沿用 Float64 反量化、差分和矩阵运算；一阶方向定义除以 2，复用旧角度和根式常量。当前显式系数标志下，模式 5 始终读取方向角和四个显式系数，再覆盖全部四项；角度保留在报告和来源摘要中，不因最终被覆盖而跳过载荷。
+
+覆盖 mixed 的模式 0–3 可省略全部四项：当选择为 0..3 时，量化值、符号和编码索引数组为空，四项恢复向量及历史清零。描述仍然存在，统一模式下位范围可以为零长度；空数组不代表四个线上零码字。模式 4／5 仍完整读取、恢复四项。动态路径继续先恢复九槽，再读取并校验完整八组九槽映射，不能缩成四槽或跳过零槽。
+
+接口不变：`salient_component_orders()` 可返回 1，`component_orders` 报告记录四项维度及一阶数学／格式摘要。含一阶分量的 `hoa.spatial.salient.order1_profile` 和 PCM 实现元数据 `hoa_salient_order1_profile` 为 `apac-hoa-salient-order1-v1`。固定配置复用 `component-orders` 组合数学、状态和后端；动态配置保留 `dynamic-selection` 顶层数学，并记录 `component-orders` 基础恢复。其他历史配置不增加字段或改变标识、常量、PCM。
+
+维持五个 salient、零／四个 ambient、44.1／48 kHz、1024 帧、六位量化、每分量 1–16 带、空间方法 0／1／2、已有选择／变换范围、SQ、中性场景、DRC／响度关闭及 `experimental=true`。全部传输 SCE 仍须完整校验；overlap 和 DRC 属于实际输出，内嵌优先、数值首错、原子回滚、reset、容器核验及输出保护不变。零阶、越过内部阶数、其他分量数量、帧内重配置和 HOA fast 仍拒绝。
+
+```sh
+python3 -B scripts/generate_hoa_order1_manifest.py --check
+python3 -B scripts/validate_hoa_order1.py --binary target/debug/apac-tool --report reports/hoa-order1-math.json
+python3 -B scripts/validate_hoa_order1.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-order1-math.json --report reports/hoa-order1-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_order1
+```
+
+`validate_hoa_order1_native.py` 复核四份短原生捕获，`validate_hoa_order1_checks.py` 检查受影响接口与七个旧代表（使用对应平台的旧元数据参考）。一阶码表完整检查及逐位截断属于低成本验证；完整数学仅使用新增短序列，不重跑旧完整矩阵或媒体库。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

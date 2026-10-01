@@ -14,6 +14,7 @@ pub use channels::{
     parse_channel_packet,
 };
 pub(crate) use channels::{ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet};
+pub use hoa_salient::ORDER1_PROFILE as HOA_SALIENT_ORDER1_PROFILE;
 pub use hoa_salient::{
     SalientComponentOrderInfo, SalientDescriptor, SalientSpatialData, SalientSubbandInfo,
 };

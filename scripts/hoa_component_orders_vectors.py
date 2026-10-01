@@ -14,7 +14,7 @@ BACKEND='rust_hoa_component_orders_sq_drc_off_f64_fft_v1'
 
 def component_information(orders):
     return [dict(component_index=s,order=o,coefficient_count=(o+1)**2,
-                 numeric_profile='apac-hoa-salient-order2-math-v1' if o==2 else 'apac-hoa-salient-math-v1',
+                 numeric_profile=f'apac-hoa-salient-order{o}-math-v1' if o in (1,2) else 'apac-hoa-salient-math-v1',
                  format_sha256=format_for(o)['tables_sha256']) for s,o in enumerate(orders)]
 
 

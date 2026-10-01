@@ -55,7 +55,10 @@ def check(r,t,last_mode,last_sha,opts):
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
     if list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        require(side['component_orders']==component_information(orders) and h['numeric_profile']==component_profile,'component order/profile differs')
+        require(side['component_orders']==component_information(orders) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else component_profile),'component order/profile differs')
+        if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==component_profile,'dynamic base recovery differs')
+        if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
+        else:require('order1_profile' not in side,'first-order marker leaked into old descriptors')
     else:require('component_orders' not in side,'component metadata leaked into old configuration')
     if len(set(counts))!=1:require('subband_ends' not in side and 'lines_per_window' not in side,'fabricated shared grid')
     spatial_method=opts.get('spatial_method',0)
@@ -91,6 +94,7 @@ def fingerprints(rows,generated,opts):
             h=node['hoa'];side=h['spatial']['salient'];d=h.get('dynamic_selection');structure.append({k:node[k] for k in ('fields','derived','status','stop_bit_offset','component_end_bit_offset','packet_tail','drc','drc_history_sufficient')});structure[-1]['component_subbands']=side.get('component_subbands')
             if opts.get('spatial_method',0):structure[-1]['partition']={k:side.get(k) for k in ('partition_method','partition_profile','format_sha256','subband_ends','lines_per_window')}
             if 'component_orders' in side:structure[-1]['component_orders']=side['component_orders']
+            if 'order1_profile' in side:structure[-1]['order1_profile']=side['order1_profile']
             values=[v for desc in side['descriptors'] for v in desc['restored']];hashes['descriptors'].update(struct.pack('<'+str(len(values))+'d',*values))
             hashes['internal'].update(float_bytes([v for c in (d['before_selection'] if d else h['channels_after_hoa']) for v in c['scaled']]));hashes['hoa'].update(float_bytes([v for c in h['channels_after_hoa'] for v in c['scaled']]))
             if d:hashes['mapping'].update(bytes(v for row in d['mappings'] for v in row['target_acn_indices']))

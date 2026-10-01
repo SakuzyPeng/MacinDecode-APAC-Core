@@ -108,6 +108,7 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
     if component_orders is not None and list(component_orders)!=[order]*5:
         from hoa_component_orders_vectors import component_information
         salient['component_orders']=component_information(component_orders)
+        if 1 in component_orders:salient['order1_profile']='apac-hoa-salient-order1-v1'
     side=dict(start_bit_offset=origin,end_bit_offset=origin+len(wire),single_coding_mode=mode is not None,coding_mode=mode,ambient_indices=selected,salient=salient)
     if mixed and (selection is not None or transform):side['ambient']=dict(explicit_selection=selection is not None,selection=selected,transform_config=dict(mode='per_frame') if transform==4 else dict(mode='fixed',index=transform-1) if transform else dict(mode='disabled'),effective_index=index,index_source='frame' if transform==4 else 'cookie' if transform else 'disabled',index_start_bit_offset=origin if transform==4 else None,index_end_bit_offset=at if transform==4 else None)
     return wire,side

@@ -65,7 +65,7 @@ class ComponentOrdersTests(unittest.TestCase):
         self.assertEqual(p.returncode,0,p.stderr);self.assertEqual(json.loads((root/'last').read_text())['report'],rows[-1])
 
     def test_unsupported_component_orders_stop_before_output(self):
-        for bad in (0,1):
+        for bad in (0,):
             root=self.path();opts=dict(component_orders=[2,3,2,3,3]);bundle(root,[packet({},**opts)[0]],**opts)
             self.change_cookie(root,cookie(component_orders=[bad,3,2,3,3]));out=self.path()
             p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('salient[0].order',p.stderr)

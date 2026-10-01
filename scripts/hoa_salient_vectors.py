@@ -11,8 +11,9 @@ from drc_vectors import header as drc_header, payload as drc_payload
 PROFILE='apac-hoa-salient-math-v1'
 FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-format-v1.json').read_text())
 ORDER2_FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-order2-format-v1.json').read_text())
+ORDER1_FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-order1-format-v1.json').read_text())
 ENDS=[32,80,216,1024]
-def format_for(order):return ORDER2_FORMAT if order==2 else FORMAT
+def format_for(order):return ORDER1_FORMAT if order==1 else ORDER2_FORMAT if order==2 else FORMAT
 
 
 def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000):

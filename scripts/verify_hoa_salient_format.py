@@ -43,8 +43,8 @@ def reader(path):
 
 
 def extract(path, order=3):
-    if order not in (2,3):
-        raise ValueError('only verified second/third order spatial dictionaries')
+    if order not in (1,2,3):
+        raise ValueError('only verified first/second/third order spatial dictionaries')
     coefficients=(order+1)**2
     read = reader(path)
     def pointer(address):
@@ -55,7 +55,7 @@ def extract(path, order=3):
         return [(pointer(p), pointer(p+8)) for p in range(begin, end, 16)]
     modes = []
     for mode in range(6):
-        address = {2:0xaa7a50,3:0xaa7f90}[order] + mode*56
+        address = {1:0xaa7510,2:0xaa7a50,3:0xaa7f90}[order] + mode*56
         groups = [list(struct.unpack('<'+'H'*((end-begin)//2), read(begin, end-begin)))
                   for begin, end in spans(address+16)]
         books = []
@@ -72,7 +72,7 @@ def extract(path, order=3):
                           signs=bool(read(address+48, 1)[0]), matrices_f32=matrices))
     values = dict(order=order, quantization_bits=6, modes=modes)
     digest = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    return dict(schema_version=1, format_profile='apac-hoa-salient-order2-format-v1' if order==2 else 'apac-hoa-salient-format-v1',
+    return dict(schema_version=1, format_profile=f'apac-hoa-salient-order{order}-format-v1' if order in (1,2) else 'apac-hoa-salient-format-v1',
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
@@ -81,12 +81,12 @@ def extract(path, order=3):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--component', type=Path, default=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))
-    p.add_argument('--order', type=int, choices=(2,3), default=3)
+    p.add_argument('--order', type=int, choices=(1,2,3), default=3)
     p.add_argument('--table', type=Path)
     p.add_argument('--write', action='store_true')
     a = p.parse_args(); result = extract(a.component,a.order)
     if a.table is None:
-        a.table=ROOT/('data/hoa-salient-order2-format-v1.json' if a.order==2 else 'data/hoa-salient-format-v1.json')
+        a.table=ROOT/(f'data/hoa-salient-order{a.order}-format-v1.json' if a.order in (1,2) else 'data/hoa-salient-format-v1.json')
     raw = (json.dumps(result, indent=2)+'\n').encode()
     if a.write:
         with a.table.open('xb') as f:

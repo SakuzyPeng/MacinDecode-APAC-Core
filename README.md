@@ -473,13 +473,13 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 新增验收把轻量边界／复制检查与代表 PCM 序列分开；`validate_hoa_dynamic_subbands_native.py` 复核指定的原生捕获，`validate_hoa_dynamic_subbands_checks.py` 执行相关接口及旧代表回归。原八带生成器和清单保持不变。
 
-**每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；保持感知划分 `parameter_1=0`、六位量化，以及分量阶数等于内部阶数。原纯 ambient 路径不变，不开放其他空间划分方法、分量数、分量阶数组合或帧内重配置。
+**每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；默认感知划分为 `parameter_1=0`，方法 1／2 的扩展见下文；保持六位量化，以及分量阶数等于内部阶数。原纯 ambient 路径不变，不开放其他分量数、分量阶数组合或帧内重配置。
 
 `HoaFrameContext::salient_subband_counts() -> Option<[usize; 5]>` 返回五个实际数量；无 salient 时返回 `None`。载荷按分量、该分量的局部子带读取，描述总数为五个数量之和，最多 80 条。每条频率线分别查找各分量自己的描述区间；描述历史也按实际数量保存，不采用原生历史缓冲中的填充步长。普通／覆盖恢复仍按分量 0..4 求和，叠加仍使用原补偿规则。动态选择随后按自身有效子带恢复，完整八组线上映射规则不变。
 
 `SalientSpatialData.subband_ends`／`lines_per_window` 改为有界 `Vec<usize>`。五个数量相同时保存真实公共端点；不同时这两个向量为空且 JSON 省略对应字段。新增可选 `component_subbands` 保存五份 `SalientSubbandInfo`（分量序号、数量和长／短窗端点），`descriptors` 只保存实际编码的描述。不要用固定四带或最大数量计算紧凑描述偏移。
 
-新配置的报告记录 `subband_profile=apac-hoa-salient-subbands-v1` 和格式摘要；PCM 元数据增加 `hoa_salient_subband_counts`、`hoa_salient_subband_profile`、`hoa_salient_subband_format_sha256`。原 `[4,4,4,4,4]` 不新增字段，保留旧 JSON、数学、状态和后端标识及输出。正式构建只使用验证过的整数边界，复用现有字典、角度和矩阵常量。
+新配置的报告记录 `subband_profile=apac-hoa-salient-subbands-v1` 和格式摘要；PCM 元数据增加 `hoa_salient_subband_counts`、`hoa_salient_subband_profile`、`hoa_salient_subband_format_sha256`。原方法 0 的 `[4,4,4,4,4]` 不新增字段，保留旧 JSON、数学、状态和后端标识及输出。正式构建只使用验证过的整数边界，复用现有字典、角度和矩阵常量。
 
 包目录、CAF、受限 MP4／M4A 接口和范围规则不变。缺席或未使用载波仍完整校验；内嵌帧先处理，所有描述历史、overlap、映射和 DRC 按外层包原子提交。HOA fast 继续在创建输出前拒绝。
 
@@ -493,6 +493,31 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 `validate_hoa_salient_subbands_native.py` 复核四份短原生捕获；`validate_hoa_salient_subbands_checks.py` 运行相关接口与旧四带代表摘要检查。边界按缓存整组核对，完整数学只使用语义代表序列，不枚举五个数量的全部组合或重跑旧全量矩阵。
+
+**salient 空间划分方法 1／2**：所有上述五分量 salient、覆盖／叠加 mixed 的固定及动态路径均接受 cookie `components[0].hoa.parameter_1` 为 0／1／2。五个分量共用空间方法，各自仍可声明 1–16 带。它与 `hoa.dynamic_selection.parameter` 及动态有效带数独立；不会增加线上描述或改变紧凑历史的维度。方法 3、纯 ambient 的新增参数组合及帧内方法更新继续拒绝。
+
+| 空间方法 | 划分依据 | 四带长窗终点 |
+|---|---|---|
+| 0 | 原感知频率锚点 | `[32,80,216,1024]` |
+| 1 | 既有 49 个长窗频带插值 | `[56,208,568,1024]` |
+| 2 | 等宽划分 | `[256,512,768,1024]` |
+
+边界采用已核对的整数表，短窗每窗端点为长窗端点除以八，与短窗分组独立；两采样率使用相同的已验证结果。一带都覆盖 1024 线，数量不同时分别按每个分量的端点选择描述。浮点求和、描述历史、覆盖／叠加、动态复制及输出合成继续沿用原数学规则，不增加平台插值或新的数学／状态／后端标识。
+
+`HoaFrameContext::salient_partition_method() -> Option<u8>` 返回空间方法，无 salient 时返回 `None`。方法 1／2 的 `hoa.spatial.salient` 增加可选 `partition_method`、`partition_profile=apac-hoa-salient-partition-v1`，`format_sha256` 指向 `apac-hoa-salient-subbands-format-v2`；相同数量仍报告真实公共边界，不同数量仍使用逐分量报告。PCM 实现元数据增加 `hoa_salient_partition_method`／`hoa_salient_partition_profile`，并记录五个数量及实际格式摘要，即使数量均为四带也记录。历史方法 0 的 JSON、格式摘要、标识和输出保持不变。
+
+三个输入入口无需新参数，由 cookie 选择方法；HOA 仍顺序预热，fast 在创建输出前拒绝。内嵌帧、数值首错、整包回滚、重置、容器核验及 128 MiB 输出保护不变。
+
+```sh
+python3 -B scripts/generate_hoa_salient_partition_format.py --check
+python3 -B scripts/generate_hoa_salient_partition_manifest.py --check
+python3 -B scripts/validate_hoa_salient_partition.py --binary target/debug/apac-tool --report reports/hoa-partition-math.json
+python3 -B scripts/validate_hoa_salient_partition.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-partition-math.json --report reports/hoa-partition-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_partition
+```
+
+`validate_hoa_salient_partition_native.py` 复核四份短原生捕获与整组 1–16 带缓存；`validate_hoa_salient_partition_checks.py` 检查受影响接口及五个旧代表。独立数学使用六组短序列，逐线边界测试不执行额外 IMDCT；不重跑旧完整矩阵或媒体库。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

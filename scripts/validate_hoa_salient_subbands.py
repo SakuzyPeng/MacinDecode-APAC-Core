@@ -48,7 +48,14 @@ def check(r,t,last_mode,last_sha,opts):
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
     require(all(len(d['restored'])==m for d in side['descriptors']),'descriptor dimension differs')
     if len(set(counts))!=1:require('subband_ends' not in side and 'lines_per_window' not in side,'fabricated shared grid')
-    if list(counts)!=[4]*5:require(side['subband_profile']==PROFILE and side['format_sha256']==generate()['format_sha256'],'spatial-grid profile differs')
+    spatial_method=opts.get('spatial_method',0)
+    if spatial_method:
+        from generate_hoa_salient_partition_format import PROFILE as partition_profile,generate as partition_format
+        require(side['partition_method']==spatial_method and side['partition_profile']==partition_profile and side['format_sha256']==partition_format()['format_sha256'],'spatial partition differs')
+    else:
+        require('partition_method' not in side and 'partition_profile' not in side,'legacy partition fields changed')
+        if list(counts)!=[4]*5:require(side['format_sha256']==generate()['format_sha256'],'spatial-grid format differs')
+    if list(counts)!=[4]*5:require(side['subband_profile']==PROFILE,'spatial-grid profile differs')
     require(len(r['elements'])==n and len(h['channels_after_hoa'])==n,'wrong channel count')
     for a,b in zip(r['elements'],t['elements']):
         for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','tns','bwe2'):same_fields(a[key],b[key],key)
@@ -72,6 +79,7 @@ def fingerprints(rows,generated,opts):
         last,previous=check(row,truth,last,previous,opts)
         for node,t in nodes(row,truth):
             h=node['hoa'];side=h['spatial']['salient'];d=h.get('dynamic_selection');structure.append({k:node[k] for k in ('fields','derived','status','stop_bit_offset','component_end_bit_offset','packet_tail','drc','drc_history_sufficient')});structure[-1]['component_subbands']=side.get('component_subbands')
+            if opts.get('spatial_method',0):structure[-1]['partition']={k:side.get(k) for k in ('partition_method','partition_profile','format_sha256','subband_ends','lines_per_window')}
             values=[v for desc in side['descriptors'] for v in desc['restored']];hashes['descriptors'].update(struct.pack('<'+str(len(values))+'d',*values))
             hashes['internal'].update(float_bytes([v for c in (d['before_selection'] if d else h['channels_after_hoa']) for v in c['scaled']]));hashes['hoa'].update(float_bytes([v for c in h['channels_after_hoa'] for v in c['scaled']]))
             if d:hashes['mapping'].update(bytes(v for row in d['mappings'] for v in row['target_acn_indices']))
@@ -94,12 +102,14 @@ def ranges(binary,root,kind,opts,payloads,full,index):
     require((root/'trimmed-pcm/pcm.f32le').read_bytes()==expected[middle*stride:(middle+r['saved_frames'])*stride],'bundle slice differs');return records
 
 
-def validate(binary,r,reference):
-    frozen=manifest();require(frozen==json.loads((ROOT/'data/hoa-spatial-subbands-vectors-v1.json').read_text()),'manifest changed');require(generate()==json.loads((ROOT/'data/hoa-salient-subbands-format-v1.json').read_text()),'format changed')
+def validate(binary,r,reference,*,vectors=None,format_generator=generate,frozen_name='hoa-spatial-subbands-vectors-v1.json',format_name='hoa-salient-subbands-format-v1.json'):
+    if vectors is None:
+        import hoa_salient_subbands_vectors as vectors
+    frozen=vectors.manifest();require(frozen==json.loads((ROOT/'data'/frozen_name).read_text()),'manifest changed');require(format_generator()==json.loads((ROOT/'data'/format_name).read_text()),'format changed')
     if reference:
         require(reference['passed'] and reference['mode']=='independent_math' and not reference['errors'],'invalid reference')
         for k in ('code_commit','source_sha256','vector_manifest_sha256','format_sha256','profile','atol','rtol'):require(reference[k]==r[k],k+' differs')
-    for identity,(kind,opts,cases) in zip(frozen['cases'],sequences()):
+    for identity,(kind,opts,cases) in zip(frozen['cases'],vectors.sequences()):
         index=identity['index'];m=(opts.get('order',3)+1)**2;n=shape(opts.get('order',3),opts.get('dynamic',False))
         with workspace(r,kind) as root:
             generated=[packet(c,**opts) for c in cases];payloads=[raw for raw,_ in generated];cfg=cookie(**opts);bundle(root/'bundle',payloads,**opts)
@@ -117,6 +127,8 @@ def validate(binary,r,reference):
                             measure(r['metrics'][stage],[v for c in actual[key] for v in c],[v for c in expected[key] for v in c],dict(case=index,packet=pi,stage=stage,role='current' if node is row else 'embedded'),t['common_window'],m,n,stage=='descriptors',t['spatial']['salient']['descriptors'] if stage=='descriptors' else None)
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm');full=(root/'pcm/pcm.f32le').read_bytes();impl=decoded['pcm']['decoder_settings']['implementation']['value']
             require(impl['hoa_salient_subband_counts']==list(opts.get('counts',[1,3,4,9,16])) and impl['hoa_salient_subband_profile']==PROFILE and impl['hoa_salient_subband_format_sha256']==r['format_sha256'],'subband metadata differs')
+            if opts.get('spatial_method',0):require(impl['hoa_salient_partition_method']==opts['spatial_method'] and impl['hoa_salient_partition_profile']==r['profile'],'partition metadata differs')
+            else:require('hoa_salient_partition_method' not in impl and 'hoa_salient_partition_profile' not in impl,'old partition metadata changed')
             require(decoded['pcm']['channels']==n and decoded['pcm']['sample_rate']==opts.get('rate',48000) and decoded['drc_processing']==decoded['loudness_normalization']=='off','output configuration differs')
             require(len(full)==len(cases)*1024*n*4 and decoded['saved_frames']==len(cases)*1024,'PCM timeline differs')
             if oracle:measured(r['metrics']['pcm'],struct.unpack('<'+str(len(full)//4)+'f',full),expected_pcm,dict(case=index,stage='pcm'),0,m,n)
@@ -126,11 +138,13 @@ def validate(binary,r,reference):
         print('spatial subbands',index+1,'/'+str(len(frozen['cases'])),kind,flush=True)
 
 
-def main():
+def main(*,vectors=None,format_generator=generate,frozen_name='hoa-spatial-subbands-vectors-v1.json',format_name='hoa-salient-subbands-format-v1.json',profile=PROFILE):
+    if vectors is None:
+        import hoa_salient_subbands_vectors as vectors
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--reference-report',type=Path);a=p.parse_args();require(a.binary.is_file() and not a.report.exists(),'binary missing/report exists')
-    r=dict(passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=manifest()['sha256'],format_sha256=generate()['format_sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('transport','descriptors','internal','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    r=dict(passed=False,profile=profile,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=vectors.manifest()['sha256'],format_sha256=format_generator()['format_sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('transport','descriptors','internal','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        validate(a.binary.resolve(),r,json.loads(a.reference_report.read_text()) if a.reference_report else None);require(len(r['cases'])==len(manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases/source changed');r['passed']=True
+        validate(a.binary.resolve(),r,json.loads(a.reference_report.read_text()) if a.reference_report else None,vectors=vectors,format_generator=format_generator,frozen_name=frozen_name,format_name=format_name);require(len(r['cases'])==len(vectors.manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases/source changed');r['passed']=True
     except Exception as e:r['errors'].append(str(e))
     r['stage_sha256']=digest(r['cases']);a.report.parent.mkdir(parents=True,exist_ok=True)
     with a.report.open('x') as f:json.dump(r,f,indent=2);f.write('\n')

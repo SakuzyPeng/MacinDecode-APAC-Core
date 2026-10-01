@@ -39,7 +39,7 @@ class SpatialSubbandTests(unittest.TestCase):
         for f in state_fixtures()['fixtures']:
             root=self.path();bundle(root,[bytes.fromhex(f['first'])],**f['options']);self.change_cookie(root,bytes.fromhex(f['bad_count_cookie']));out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('hoa-subband-count',p.stderr)
         raw=cookie();cfg=self.path();cfg.write_bytes(raw);r=json.loads(self.run_tool('parse-cookie',cfg).stdout);f=next(f for f in r['fields'] if f['name']=='components[0].hoa.parameter_1');wire=''.join(format(v,'08b') for v in raw);at=f['bit_offset']
-        for method in (1,2,3):
+        for method in (3,):
             changed=pack(wire[:at]+bits(method,2)+wire[at+2:]);root=self.path();bundle(root,[packet({})[0]]);self.change_cookie(root,changed);out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('hoa.parameter_1',p.stderr)
     def test_stateful_range_keeps_each_components_history(self):
         _,opts,cases=list(native_controls())[2];root=self.path();bundle(root,[packet(c,**opts)[0] for c in cases],**opts);p=self.run_tool('parse-packets',root,'--depth','hoa','--output',root/'all');self.assertEqual(p.returncode,0,p.stderr)

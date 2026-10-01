@@ -1,0 +1,384 @@
+{
+  "profile": "apac-hoa-salient-partition-v1",
+  "cases": [
+    {
+      "index": 0,
+      "kind": "pure2",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "drc": true,
+        "rich": true,
+        "scene": true,
+        "spatial_method": 1,
+        "counts": [
+          1,
+          3,
+          4,
+          9,
+          16
+        ],
+        "method": 2,
+        "subbands": 8,
+        "selection": null,
+        "transform": 0
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 215,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "7cf5568e7deacaadb6df04ef4b127350d9a00a1ca1c4b3eee2ab964ce2165ca5",
+      "truth_sha256": "3058dfcb3aa7289e9c8dddc509eedcf33ede093f2351d18890f019770d67e1fe"
+    },
+    {
+      "index": 1,
+      "kind": "replace3",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "drc": false,
+        "rich": false,
+        "scene": true,
+        "spatial_method": 2,
+        "counts": [
+          16,
+          9,
+          4,
+          3,
+          1
+        ],
+        "method": 2,
+        "subbands": 8,
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 191,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "887d75700af5b4e965b8ca0bc8137218d44cd269adf20f09b7f248f4909ee7f5",
+      "truth_sha256": "1870e65f4dea8dba3a18e349de97551e5f5ca37048e7758e566b961e3343c3c3"
+    },
+    {
+      "index": 2,
+      "kind": "dynamic-add",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 48000,
+        "drc": false,
+        "rich": false,
+        "scene": true,
+        "spatial_method": 1,
+        "counts": [
+          16,
+          16,
+          16,
+          16,
+          16
+        ],
+        "method": 2,
+        "subbands": 3,
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 197,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 209,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 221,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 233,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 245,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "ad20e9b28e6d21104b94ef565dd68466bd7d0a879cd9bb428dfc132f5805903e",
+      "truth_sha256": "6c19988a6fc180bc00751d9eb3c9bf5c06c4491db225294b70a9857e0d1624ff"
+    },
+    {
+      "index": 3,
+      "kind": "dynamic-replace",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": true,
+        "rate": 44100,
+        "drc": false,
+        "rich": false,
+        "scene": true,
+        "spatial_method": 2,
+        "counts": [
+          16,
+          16,
+          16,
+          16,
+          16
+        ],
+        "method": 0,
+        "subbands": 7,
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 197,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 209,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 221,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 233,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 245,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "e25e6f1ff6dfab5ff29a1539b8a177fdea3fbd0f451858650ade695f7b7ccec5",
+      "truth_sha256": "f86a04c141029f48ad1357b505849b34e5000c7c4e68f0fd4209ebf3c5ca3f28"
+    },
+    {
+      "index": 4,
+      "kind": "fixed-add",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "dynamic": false,
+        "rate": 44100,
+        "spatial_method": 1,
+        "counts": [
+          4,
+          4,
+          4,
+          4,
+          4
+        ],
+        "selection": [
+          1,
+          5,
+          10,
+          15
+        ],
+        "transform": 4,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 215,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "fb196f415b23c9330dca744922556943f72e9953e8e08273aef40ba17ae607e0",
+      "truth_sha256": "cbcfcdc670a525e44ae318fb3635b4e40cf1749341764badfd9e3b75c8eeb8bf"
+    },
+    {
+      "index": 5,
+      "kind": "dynamic-pure",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": true,
+        "rate": 48000,
+        "spatial_method": 2,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "selection": null,
+        "transform": 0,
+        "method": 1,
+        "subbands": 5,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 7,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "5d1707c06adb1cac6f8f77705b0649a951c3bcfd8d2dfd3a7ad2ca0df6ee797a",
+      "truth_sha256": "8802e1562a63ed72b7ab7fa2e3e66b54d492234787b9fde58a1ddfdfe1e91a83"
+    }
+  ],
+  "sha256": "2da8ca7f250285731e39554b211be6682f4a9fd99ee74ea2931f1ac21dff9b58"
+}

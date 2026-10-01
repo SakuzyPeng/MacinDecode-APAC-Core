@@ -25,7 +25,7 @@ class Decoder:
             index=ambient_data.get('effective_index',3);offset=4 if mixed else 0
             ambient=ambient_transform(sources[:4],index) if path=='replace' else []
             exact_ambient=[[D.from_float(sources[r][line]) if index==3 else sum((D.from_float(sources[j][line])*SIGNS[index][j][r]/2 for j in range(4)),D(0)) for line in range(1024)] for r in range(4)] if path=='add' else []
-            short=truth['common_window']==2;grids=[[v//8 if short else v for v in boundaries(n,0)] for n in self.counts]
+            short=truth['common_window']==2;grids=[[v//8 if short else v for v in boundaries(n,self.options.get('spatial_method',0))] for n in self.counts]
             internal=[[0.]*1024 for _ in range(self.slots)]
             for line in range(1024):
                 frequency=line%128 if short else line;bands=[next(b for b,end in enumerate(grid) if frequency<end) for grid in grids]

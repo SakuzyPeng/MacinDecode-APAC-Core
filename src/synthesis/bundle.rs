@@ -352,11 +352,11 @@ fn decode_with_access(
         value["hoa_ambient_combination"] = json!(context.ambient_combination());
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
     }
-    if let Some(counts) = decoder
+    if let Some((counts, method)) = decoder
         .hoa_context
         .as_ref()
-        .and_then(|c| c.salient_subband_counts())
-        .filter(|c| *c != [4; 5])
+        .and_then(|c| Some((c.salient_subband_counts()?, c.salient_partition_method()?)))
+        .filter(|(counts, method)| *counts != [4; 5] || *method != 0)
     {
         let value = pcm
             .decoder_settings
@@ -368,7 +368,12 @@ fn decode_with_access(
         value["hoa_salient_subband_counts"] = json!(counts);
         value["hoa_salient_subband_profile"] = json!(crate::frame::HOA_SALIENT_SUBBAND_PROFILE);
         value["hoa_salient_subband_format_sha256"] =
-            json!(crate::frame::hoa_salient_subbands_format_sha256());
+            json!(crate::frame::hoa_salient_subbands_format_sha256(method));
+        if method != 0 {
+            value["hoa_salient_partition_method"] = json!(method);
+            value["hoa_salient_partition_profile"] =
+                json!(crate::frame::HOA_SALIENT_PARTITION_PROFILE);
+        }
     }
     out.json("pcm.json", &pcm)?;
     let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":backend,"native_apis_used":false,

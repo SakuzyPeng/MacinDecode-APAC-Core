@@ -33,7 +33,7 @@ def verify(truth,trace,opts):
         require((read['start']['relative_bit_offset'],read['end']['relative_bit_offset'])==(t['spatial']['start_bit_offset'],t['spatial']['end_bit_offset']),'spatial endpoints differ')
         require(entry['window']==t['common_window'] and entry['end']['relative_bit_offset']==t['core_end_bit_offset'],'window/core endpoint differs')
         require(history['subbands']==counts and history['coefficient_counts']==[m]*5 and history['maximum_subbands']==maximum,'component dimensions differ')
-        require(history['subband_tables']==[boundaries(i,0) for i in range(1,maximum+1)],'cached perceptual grids differ')
+        require(history['subband_tables']==[boundaries(i,opts.get('spatial_method',0)) for i in range(1,maximum+1)],'cached perceptual grids differ')
         require((history['coefficients'],history['output_channels'],history['salient'],history['ambient'])==(m,n,5,ambient),'dimensions differ')
         require(bool(history['flags'][3])==(path=='add'),'combination flag differs')
         require(len(history['history'])==5*maximum*m and float_bytes(read['before']['history'])==float_bytes(previous),'padded history transition differs')
@@ -54,7 +54,7 @@ def verify(truth,trace,opts):
         index=static.get('effective_index',3)
         if opts.get('transform',0):require(history['transform_index']==index and history['transform_count']==opts['transform'],'transform differs')
         transformed=ambient_transform(sources[:ambient],index) if ambient else [];internal=[[0.]*1024 for _ in range(m)];short=t['common_window']==2
-        grids=[[v//8 if short else v for v in boundaries(c,0)] for c in counts]
+        grids=[[v//8 if short else v for v in boundaries(c,opts.get('spatial_method',0))] for c in counts]
         for line in range(1024):
             frequency=line%128 if short else line;bands=[next(b for b,end in enumerate(g) if frequency<end) for g in grids]
             for k in range(m):
@@ -77,9 +77,11 @@ def verify(truth,trace,opts):
     return dict(passed=True,core_frames=total,counts=counts,capacity_bytes=capacity,cached_grid_count=maximum,compact_parameter_stride='sum of preceding component counts times coefficients',native_history_stride=maximum*m,logical_history_values=sum(counts)*m,parameters_boundaries_history_exact=True,isolated_recovery_bytes_exact=True,internal_reference='reconstructed from native descriptor history and known transport inputs',descriptor_float_diagnostics=metrics)
 
 
-def main():
+def main(*,vectors=None):
+    if vectors is None:
+        import hoa_salient_subbands_vectors as vectors
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path);p.add_argument('--capture',type=Path,action='append',required=True);p.add_argument('--report',type=Path,required=True);a=p.parse_args();require(not a.report.exists() and (a.binary is None or a.binary.is_file()),'report exists/binary missing')
-    controls={name:(opts,cases) for name,opts,cases in native_controls()};r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary) if a.binary else None,component_sha256=COMPONENT_SHA256,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    controls={name:(opts,cases) for name,opts,cases in vectors.native_controls()};r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary) if a.binary else None,component_sha256=COMPONENT_SHA256,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         require(len(a.capture)==len(controls) and {p.name for p in a.capture}==set(controls),'missing native branch')
         for root in a.capture:

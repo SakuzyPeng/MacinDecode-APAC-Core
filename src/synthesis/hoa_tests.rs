@@ -571,10 +571,21 @@ fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
         "../../data/hoa-spatial-subbands-state-v1.json"
     ))
     .unwrap();
-    for f in data["fixtures"].as_array().unwrap() {
+    let partition: Value =
+        serde_json::from_str(include_str!("../../data/hoa-partition-state-v1.json")).unwrap();
+    for f in data["fixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(partition["fixtures"].as_array().unwrap())
+    {
         let cookie = bytes(&f["cookie"]);
         let ctx = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
         assert!(ctx.is_supported());
+        assert_eq!(
+            ctx.salient_partition_method(),
+            Some(f["options"]["spatial_method"].as_u64().unwrap_or(0) as u8)
+        );
         let counts: Vec<_> = f["options"]["counts"]
             .as_array()
             .unwrap()

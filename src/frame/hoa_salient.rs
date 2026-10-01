@@ -73,6 +73,10 @@ pub struct SalientSpatialData {
     pub subband_profile: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub format_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partition_method: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partition_profile: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
@@ -254,6 +258,7 @@ pub(super) fn read(
     state: &SalientState,
     coefficients: usize,
     ambient_selection: Option<&[u8]>,
+    partition_method: u8,
 ) -> Result<SalientSpatialData, ParseError> {
     let mixed = ambient_selection.is_some();
     let counts: [usize; 5] = std::array::from_fn(|sc| state.history[sc].len());
@@ -378,7 +383,8 @@ pub(super) fn read(
     }
     let extended = counts != [4; 5];
     let common = counts.iter().all(|&n| n == counts[0]);
-    let ends = |n, short| super::hoa_salient_subbands::boundaries(n, short).to_vec();
+    let ends =
+        |n, short| super::hoa_salient_subbands::boundaries(n, partition_method, short).to_vec();
     Ok(SalientSpatialData {
         history_frame_sha256: state.previous_frame_sha256.clone(),
         subband_ends: if common {
@@ -404,7 +410,11 @@ pub(super) fn read(
                 .collect()
         }),
         subband_profile: extended.then(|| super::hoa_salient_subbands::SUBBAND_PROFILE.into()),
-        format_sha256: extended.then(|| super::hoa_salient_subbands::format_sha256().into()),
+        format_sha256: (extended || partition_method != 0)
+            .then(|| super::hoa_salient_subbands::format_sha256(partition_method).into()),
+        partition_method: (partition_method != 0).then_some(partition_method),
+        partition_profile: (partition_method != 0)
+            .then(|| super::hoa_salient_subbands::PARTITION_PROFILE.into()),
         descriptors,
     })
 }
@@ -728,7 +738,14 @@ mod tests {
             "../../data/hoa-spatial-subbands-state-v1.json"
         ))
         .unwrap();
-        for f in fixtures["fixtures"].as_array().unwrap() {
+        let partition: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-partition-state-v1.json")).unwrap();
+        for f in fixtures["fixtures"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(partition["fixtures"].as_array().unwrap())
+        {
             let bytes = |v: &serde_json::Value| -> Vec<u8> {
                 v.as_str()
                     .unwrap()
@@ -923,6 +940,8 @@ mod tests {
             "../../data/hoa-spatial-subbands-state-v1.json"
         ))
         .unwrap();
+        let partition: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-partition-state-v1.json")).unwrap();
         let bytes = |v: &serde_json::Value| -> Vec<u8> {
             v.as_str()
                 .unwrap()
@@ -933,7 +952,12 @@ mod tests {
                 .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
                 .collect()
         };
-        for row in data["restoration_cases"].as_array().unwrap() {
+        for row in data["restoration_cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(partition["restoration_cases"].as_array().unwrap())
+        {
             let ctx = crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
             let mut packet = crate::frame::parse_hoa_packet(&ctx, &bytes(&row["packet"]))
                 .unwrap()
@@ -999,6 +1023,8 @@ mod tests {
             "../../data/hoa-spatial-subbands-state-v1.json"
         ))
         .unwrap();
+        let partition: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-partition-state-v1.json")).unwrap();
         let bytes = |v: &serde_json::Value| -> Vec<u8> {
             v.as_str()
                 .unwrap()
@@ -1015,7 +1041,12 @@ mod tests {
             .unwrap()
             .packet
             .frame;
-        for row in data["spatial_cases"].as_array().unwrap() {
+        for row in data["spatial_cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .chain(partition["spatial_cases"].as_array().unwrap())
+        {
             let ctx = crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
             let raw = bytes(&row["bytes"]);
             let end = row["bits"].as_u64().unwrap() as usize;

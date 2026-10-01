@@ -33,6 +33,7 @@ pub(super) struct HoaConfiguration {
     pub core_channels: u8,
     pub salient_components: u8,
     pub salient_subbands: [u8; 5],
+    pub salient_partition_method: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
     pub ambient_selection: [u8; 16],
@@ -146,6 +147,10 @@ impl HoaConfiguration {
                 .unwrap_or(3)
                     + 1) as u8
             }),
+            salient_partition_method: match value("components[0].hoa.parameter_1") {
+                Some(method @ 1..=2) if salient => method as u8,
+                _ => 0,
+            },
             ambient_components,
             path,
             ambient_selection,
@@ -250,7 +255,10 @@ impl HoaFrameContext {
             ("components[0].parameter_0", 0),
             ("components[0].parameter_1", 0),
             ("components[0].hoa.parameter_0", 1),
-            ("components[0].hoa.parameter_1", 0),
+            (
+                "components[0].hoa.parameter_1",
+                u64::from(shape.salient_partition_method),
+            ),
             ("components[0].hoa.parameter_2_minus_six", 0),
             ("components[0].hoa.order", u64::from(shape.order)),
             (
@@ -510,6 +518,11 @@ impl HoaFrameContext {
         (self.configuration.salient_components != 0)
             .then(|| self.configuration.salient_subbands.map(usize::from))
     }
+    /// Cookie spatial partition, independent of the dynamic selection partition.
+    pub fn salient_partition_method(&self) -> Option<u8> {
+        (self.configuration.salient_components != 0)
+            .then_some(self.configuration.salient_partition_method)
+    }
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
             .then(|| super::hoa_salient::numeric_profile(self.recovery_slot_count()))
@@ -718,6 +731,7 @@ pub(super) fn spatial(
                     configuration.ambient_indices()
                 }
             }),
+            configuration.salient_partition_method,
         )?)
     } else {
         None

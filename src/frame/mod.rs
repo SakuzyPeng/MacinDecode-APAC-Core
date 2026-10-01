@@ -18,6 +18,7 @@ pub use hoa_salient::{SalientDescriptor, SalientSpatialData, SalientSubbandInfo}
 pub(crate) use hoa_salient::{
     format_sha256 as hoa_salient_format_sha256, math_sha256 as hoa_salient_math_sha256,
 };
+pub use hoa_salient_subbands::PARTITION_PROFILE as HOA_SALIENT_PARTITION_PROFILE;
 pub use hoa_salient_subbands::SUBBAND_PROFILE as HOA_SALIENT_SUBBAND_PROFILE;
 pub(crate) use hoa_salient_subbands::format_sha256 as hoa_salient_subbands_format_sha256;
 mod bwe2;

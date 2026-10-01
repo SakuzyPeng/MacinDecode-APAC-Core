@@ -22,13 +22,13 @@ def esc(value):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),_count_fields=None):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,_count_fields=None):
     assert len(counts)==5 and all(1<=n<=16 for n in counts);mixed=path!='salient';assert mixed or (selection is None and not transform)
     n=shape(order,dynamic);m=(order+1)**2
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(5,6),(0,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
     wire=''.join(bits(v,w) for v,w in fields)+'110'+bits(int(path=='add'),1)+'11'+bits(int(dynamic),1)
     if dynamic:wire+=bits(method,2)+bits(subbands-1,4)
-    wire+=bits(1,2)+bits(0,2)+bits(0,2)+bits(order,4)+bits(5,4)+bits(4 if mixed else 0,4)
+    wire+=bits(1,2)+bits(spatial_method,2)+bits(0,2)+bits(order,4)+bits(5,4)+bits(4 if mixed else 0,4)
     for sc,count in enumerate(counts):
         at=len(wire);encoded=esc(count-1);wire+=encoded
         if _count_fields is not None:_count_fields.append(dict(name=f'components[0].hoa.salient[{sc}].subbands_minus_one',value=count-1,bit_offset=at,bit_length=len(encoded)))
@@ -61,7 +61,7 @@ def descriptors(counts,mode=0,coefficient=None,component=0,*,order=3,cluster=0,a
     return result
 
 
-def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,counts=(1,3,4,9,16)):
+def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,counts=(1,3,4,9,16),spatial_method=0):
     m=(order+1)**2;mixed=path!='salient';selected=(list(range(4)) if selection is None else list(selection)) if mixed else []
     index=case.get('transform_index',3) if transform==4 else transform-1 if transform else 3
     wire=bits(index,2) if transform==4 else '';at=origin+len(wire);mode=case.get('global_mode');wire+=bits(int(mode is not None),1)
@@ -96,17 +96,20 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
                    signs_positive=([signs[i] for i in indices] if mixed else signs) if coding==3 else [],cluster=cluster,azimuth_degrees=angles[0],elevation_offset_degrees=angles[1])
             if mixed:d.update(coded_coefficient_indices=indices,ambient_omitted_coefficients=omitted)
             result.append(d)
-    short=case.get('block',0)==2;grids=[dict(component_index=sc,subband_count=count,subband_ends=boundaries(count,0),lines_per_window=[v//8 if short else v for v in boundaries(count,0)]) for sc,count in enumerate(counts)]
+    short=case.get('block',0)==2;grids=[dict(component_index=sc,subband_count=count,subband_ends=boundaries(count,spatial_method),lines_per_window=[v//8 if short else v for v in boundaries(count,spatial_method)]) for sc,count in enumerate(counts)]
     salient=dict(descriptors=result)
     if len(set(counts))==1:salient.update(subband_ends=grids[0]['subband_ends'],lines_per_window=grids[0]['lines_per_window'])
     if list(counts)!=[4]*5:salient.update(component_subbands=grids,subband_profile=PROFILE,format_sha256=generate()['format_sha256'])
+    if spatial_method:
+        from generate_hoa_salient_partition_format import PROFILE as partition_profile,generate as partition_format
+        salient.update(partition_method=spatial_method,partition_profile=partition_profile,format_sha256=partition_format()['format_sha256'])
     side=dict(start_bit_offset=origin,end_bit_offset=origin+len(wire),single_coding_mode=mode is not None,coding_mode=mode,ambient_indices=selected,salient=salient)
     if mixed and (selection is not None or transform):side['ambient']=dict(explicit_selection=selection is not None,selection=selected,transform_config=dict(mode='per_frame') if transform==4 else dict(mode='fixed',index=transform-1) if transform else dict(mode='disabled'),effective_index=index,index_source='frame' if transform==4 else 'cookie' if transform else 'disabled',index_start_bit_offset=origin if transform==4 else None,index_end_bit_offset=at if transform==4 else None)
     return wire,side
 
 
-def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16)):
-    n=shape(order,dynamic);mixed=path!='salient';opts=dict(scene=scene,drc=drc,rich=rich,order=order,rate=rate,path=path,dynamic=dynamic,selection=selection,transform=transform,method=method,subbands=subbands,counts=counts)
+def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0):
+    n=shape(order,dynamic);mixed=path!='salient';opts=dict(scene=scene,drc=drc,rich=rich,order=order,rate=rate,path=path,dynamic=dynamic,selection=selection,transform=transform,method=method,subbands=subbands,counts=counts,spatial_method=spatial_method)
     typ=case.get('frame_type',1);wire=bits(typ,2);inner=None;inner_range=None
     if typ==2:
         wire+='0'+bits(int('preroll' in case),2)
@@ -119,7 +122,7 @@ def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salie
         else:
             encoded,truth=single(dict(spec,block=block),0,rate,begin-2);wire+=encoded[:2]+encoded[4:];truth['end_bit_offset']=truth.pop('tns_end_bit_offset');present=True
         truth.update(configuration=dict(element_index=i,kind='sce',tce_type=0,output_channels=[],transport_channels=[i]),present=present,start_bit_offset=begin);elements.append(truth)
-    encoded,side=spatial(case,len(wire),order=order,path=path,selection=selection,transform=transform,counts=counts);wire+=encoded;base_end=len(wire);dyn=None;selected=side['ambient_indices']
+    encoded,side=spatial(case,len(wire),order=order,path=path,selection=selection,transform=transform,counts=counts,spatial_method=spatial_method);wire+=encoded;base_end=len(wire);dyn=None;selected=side['ambient_indices']
     if dynamic:
         encoded,dyn=mapping_wire(case,len(wire),method);wire+=encoded;dyn.update(subband_ends=boundaries(subbands,method),lines_per_window=[v//8 if block==2 else v for v in boundaries(subbands,method)],internal_spatial_end_bit_offset=base_end,ambient_recovery_slots=selected,ambient_transport_channels=list(range(4)) if mixed else [],salient_transport_channels=list(range(4,9)) if mixed else list(range(5)),unused_transport_channels=list(range(9 if mixed else 5,n)))
         if subbands<8:dyn.update(active_subband_count=subbands,subband_profile='apac-hoa-dynamic-subbands-v1',format_sha256=dynamic_format()['format_sha256'])
@@ -213,9 +216,9 @@ def manifest():
     return dict(profile=PROFILE,cases=rows,sha256=hashlib.sha256(json.dumps(rows,sort_keys=True,separators=(',',':')).encode()).hexdigest())
 
 
-def state_fixtures():
+def state_fixtures(controls=None,spatial_methods=(0,)):
     fixtures=[];spatial_cases=[]
-    for name,opts,_ in list(native_controls())[:3]:
+    for name,opts,_ in (list(native_controls())[:3] if controls is None else controls):
         counts=opts['counts'];m=(opts['order']+1)**2
         opts=dict(opts,drc=True,rich=True);common=dict(order=opts['order'],path=opts['path'],dynamic=opts['dynamic'])
         a=dict(basis(counts,m-2,0,4,**common),transform_index=0,drc=dict(header=True,gains=[-3]))
@@ -231,19 +234,21 @@ def state_fixtures():
         fields=[];cfg=cookie(**opts,_count_fields=fields);sixteen=next(f for f in fields if f['value']==15)
         fixtures.append(dict(options=opts,cookie=cfg.hex(),cookie_counts=fields,bad_count_cookie=replace(cfg,sixteen['bit_offset'],'1111000001'),first=first.hex(),next=good.hex(),embedded_good=outer.hex(),errors=errors,internal_end_bit=t['internal_spatial_end_bit_offset']))
         for mode in range(6):
-            c=basis(counts,m-2,4,mode,**common);wire,truth=spatial(c,0,order=opts['order'],path=opts['path'],counts=counts,selection=opts['selection'],transform=opts['transform'])
+            c=basis(counts,m-2,4,mode,**common);wire,truth=spatial(c,0,order=opts['order'],path=opts['path'],counts=counts,selection=opts['selection'],transform=opts['transform'],spatial_method=opts.get('spatial_method',0))
             spatial_cases.append(dict(cookie=cfg.hex(),bytes=pack(wire+'10101').hex(),bits=len(wire),truth=truth))
     # Low-cost full-line controls: valid descriptor entries, independent grids,
     # all five nonzero carriers; no IMDCT or Cartesian product of five counts.
     restoration=[]
-    for order in (2,3):
-        for start in range(1,17,5):
-            counts=[min(16,start+i) for i in range(5)];opts=dict(order=order,path='salient',counts=counts)
-            for block in (0,2):
-                c=basis(counts,0,0,0,order=order,block=block)
-                for sc in range(5):
-                    for b,d in enumerate(c['descriptors'][sc]):d['quantized'][0]=32+sc+b
-                    c['elements'][sc]=excitation(sc,block,order=order)['elements'][sc]
-                raw,truth=packet(c,**opts)
-                restoration.append(dict(cookie=cookie(**opts).hex(),packet=raw.hex(),counts=counts,block=block,grids=[boundaries(n,0) for n in counts]))
+    for spatial_method in spatial_methods:
+        for order in (2,3):
+            for start in range(1,17,5):
+                counts=[min(16,start+i) for i in range(5)];opts=dict(order=order,path='salient',counts=counts)
+                if spatial_method:opts['spatial_method']=spatial_method
+                for block in (0,2):
+                    c=basis(counts,0,0,0,order=order,block=block)
+                    for sc in range(5):
+                        for b,d in enumerate(c['descriptors'][sc]):d['quantized'][0]=32+sc+b
+                        c['elements'][sc]=excitation(sc,block,order=order)['elements'][sc]
+                    raw,truth=packet(c,**opts)
+                    restoration.append(dict(cookie=cookie(**opts).hex(),packet=raw.hex(),counts=counts,block=block,grids=[boundaries(n,spatial_method) for n in counts]))
     return dict(fixtures=fixtures,spatial_cases=spatial_cases,restoration_cases=restoration)

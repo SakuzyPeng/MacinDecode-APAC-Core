@@ -791,7 +791,7 @@ fn parse_impl(
                         .then(|| shape.ambient_indices()),
                 )?
             } else {
-                super::hoa::restore(&result)?
+                super::hoa::restore(&result, shape)?
             };
             if let Some(data) = &mut spatial.ambient {
                 super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;

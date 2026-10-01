@@ -17,7 +17,7 @@ def spatial(frame,pointer):
           [('frame_samples',0x28),('output_channels',0x2c),('coefficients',0x30),
            ('salient',0x34),('ambient',0x38),('transform_count',0x50),('transform_index',0x54),('coding_mode',0x118)]}
     n=info['coefficients']; s=info['salient']
-    if n not in (4,9,16) or info['output_channels']!=COUNT or not 1<=s<=n or s+info['ambient']>COUNT or info['ambient'] not in (0,4) or info['transform_count']>4:
+    if n not in (4,9,16) or info['output_channels']!=COUNT or not 0<=s<=n or s+info['ambient']>COUNT or not 0<=info['ambient']<=n or info['transform_count']>4:
         raise RuntimeError('unqualified mixed HOA configuration')
     SPATIAL=pointer; info['flags']=list(base.memory(frame,pointer+0x10,0x12))
     info['ambient_indices']=vector(frame,pointer+0x638,'I',info['ambient'])
@@ -26,7 +26,7 @@ def spatial(frame,pointer):
     info['subbands']=vector(frame,pointer+0x58,'I',s)
     info['coefficient_counts']=vector(frame,pointer+0x70,'I',s)
     if len(info['subbands'])!=s or any(not 1<=v<=16 for v in info['subbands']): raise RuntimeError('unqualified spatial subband counts')
-    maximum=max(info['subbands']);info['maximum_subbands']=hoa.u32(frame,pointer+0x44)
+    maximum=max(info['subbands'],default=0);info['maximum_subbands']=hoa.u32(frame,pointer+0x44)
     if maximum!=info['maximum_subbands']: raise RuntimeError('maximum subband count differs')
     for name,offset,kind in [('quantized',0xb8,'i'),('history',0xe8,'f'),('signs',0x100,'B')]:
         info[name]=vector(frame,pointer+offset,kind,s*16*16)

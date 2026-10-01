@@ -20,7 +20,7 @@ def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 
 
 def verify(truth,trace,opts):
-    counts=opts['counts'];maximum=max(counts);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=0 if path=='salient' else 4
+    counts=opts['counts'];maximum=max(counts,default=0);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=opts.get('ambient_count',0 if path=='salient' else 4)
     dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*len(counts))]
     caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity={4:8192,9:18432,16:32768}[n]
     require(caps and all(c['status']==0 and c['capacity_bytes']==capacity for c in caps),'native capacity differs')
@@ -39,10 +39,10 @@ def verify(truth,trace,opts):
         require(bool(history['flags'][3])==(path=='add'),'combination flag differs')
         require(len(history['history'])==len(counts)*maximum*m and float_bytes(read['before']['history'])==float_bytes(previous),'padded history transition differs')
         wanted=[];actual=[]
-        for spec in t['spatial']['salient']['descriptors']:
+        for spec in t['spatial'].get('salient',{}).get('descriptors',[]):
             sc,b,mode=spec['component_index'],spec['subband_index'],spec['mode'];compact=sum(counts[i]*dimensions[i] for i in range(sc))+b*dimensions[sc];padded=(sc*maximum+b)*m
             indices=spec.get('coded_coefficient_indices',list(range(len(spec['quantized']))))
-            require(raw['modes'][sc][b]==mode and raw['omitted_counts'][sc][b]==(4 if path=='replace' and mode<4 else 0),'mode/omission differs')
+            require(raw['modes'][sc][b]==mode and raw['omitted_counts'][sc][b]==(ambient if path=='replace' and mode<4 else 0),'mode/omission differs')
             require([raw['quantized'][compact+i] for i in indices]==spec['quantized'],'compact payload offset differs')
             if mode==3:require([bool(raw['signs'][compact+i]) for i in indices]==spec['signs_positive'],'signs differ')
             if mode==4:require(raw['clusters'][sc][b]==spec['cluster'],'cluster differs')

@@ -669,7 +669,7 @@ pub(super) fn restore(
             }
             let mut sum = 0.;
             for (sc, &band) in bands.iter().enumerate() {
-                let e = &packet.elements[sc + if ambient_selection.is_some() { 4 } else { 0 }];
+                let e = &packet.elements[sc + ambient_selection.map_or(0, <[u8]>::len)];
                 let sample = if e.present {
                     f64::from(e.channels_after_bwe2[0].scaled[line])
                 } else {

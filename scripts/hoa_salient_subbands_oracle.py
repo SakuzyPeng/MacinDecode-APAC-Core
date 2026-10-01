@@ -19,13 +19,13 @@ class Decoder:
         if truth['inner']:self.decode(truth['inner'])
         with localcontext() as ctx:
             ctx.prec=200;side=truth['spatial'];vectors=[];path=self.options.get('path','salient');mixed=path!='salient'
-            for spec in side['salient']['descriptors']:
+            for spec in side.get('salient',{}).get('descriptors',[]):
                 sc,b=spec['component_index'],spec['subband_index'];v=descriptor(spec,self.history[sc][b]);self.history[sc][b]=v;vectors.append(v)
             sources=[spectra(e)['bwe2'][0] if e['present'] else [0.]*1024 for e in truth['elements']]
             selected=side['ambient_indices'];ambient_data=truth.get('dynamic_selection',{}).get('internal_ambient',{}) if truth.get('dynamic_selection') else side.get('ambient',{})
-            index=ambient_data.get('effective_index',3);offset=4 if mixed else 0
-            ambient=ambient_transform(sources[:4],index) if path=='replace' else []
-            exact_ambient=[[D.from_float(sources[r][line]) if index==3 else sum((D.from_float(sources[j][line])*SIGNS[index][j][r]/2 for j in range(4)),D(0)) for line in range(1024)] for r in range(4)] if path=='add' else []
+            index=ambient_data.get('effective_index',3);offset=self.options.get('ambient_count',4 if mixed else 0)
+            ambient=ambient_transform(sources[:offset],index) if path=='replace' else []
+            exact_ambient=[[D.from_float(sources[r][line]) if index==3 or r>=4 else sum((D.from_float(sources[j][line])*SIGNS[index][j][r]/2 for j in range(4)),D(0)) for line in range(1024)] for r in range(offset)] if path=='add' else []
             short=truth['common_window']==2;grids=[[v//8 if short else v for v in boundaries(n,self.options.get('spatial_method',0))] for n in self.counts]
             internal=[[0.]*1024 for _ in range(self.slots)]
             for line in range(1024):

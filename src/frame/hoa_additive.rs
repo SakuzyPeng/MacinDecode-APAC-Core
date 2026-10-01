@@ -133,19 +133,31 @@ pub(super) fn restore(
                     .get(slot)
                     .copied()
                     .unwrap_or(0.);
-                let product = descriptor * f64::from(sources[4 + sc][line]);
+                let product = descriptor
+                    * f64::from(sources[usize::from(configuration.ambient_components) + sc][line]);
                 if !sum.add(product) {
                     return Err(error(slot, line));
                 }
             }
             if let Some(row) = selected.iter().position(|&k| usize::from(k) == slot) {
                 let mut contribution = Sum::default();
-                for (j, source) in sources.iter().take(4).enumerate() {
-                    if index == 3 && j != row {
-                        continue;
-                    }
-                    let product = f64::from(source[line])
-                        * super::hoa_ambient::matrix_coefficient(index, row, j);
+                for (j, source) in sources
+                    .iter()
+                    .take(usize::from(configuration.ambient_components))
+                    .enumerate()
+                {
+                    let coefficient = if index == 3 || row >= 4 {
+                        if j != row {
+                            continue;
+                        }
+                        1.
+                    } else {
+                        if j >= 4 {
+                            continue;
+                        }
+                        super::hoa_ambient::matrix_coefficient(index, row, j)
+                    };
+                    let product = f64::from(source[line]) * coefficient;
                     if !sum.add(product) || !contribution.add(product) {
                         return Err(error(slot, line));
                     }
@@ -178,7 +190,7 @@ pub(super) fn restore(
             salient_transport_channels: (configuration.ambient_components
                 ..configuration.core_channels)
                 .collect(),
-            ambient_transport_channels: (0..4).collect(),
+            ambient_transport_channels: (0..configuration.ambient_components).collect(),
             effective_transform_index: index,
             spectral_stage: if configuration.dynamic_method.is_some() {
                 "hoa_recovery_slots_before_dynamic_selection"

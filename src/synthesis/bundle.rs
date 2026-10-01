@@ -280,6 +280,19 @@ fn decode_with_access(
             .as_mut()
             .unwrap()["hoa_numeric_profile"] = json!(profile);
     }
+    if let Some(context) = &decoder.hoa_context
+        && context.ambient_count_extended()
+    {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        value["hoa_ambient_component_count"] = json!(context.ambient_components());
+        value["hoa_ambient_count_profile"] = json!("apac-hoa-ambient-counts-v1");
+    }
     if decoder
         .hoa_context
         .as_ref()

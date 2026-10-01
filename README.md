@@ -561,7 +561,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 `validate_hoa_order1_native.py` 复核四份短原生捕获，`validate_hoa_order1_checks.py` 检查受影响接口与七个旧代表（使用对应平台的旧元数据参考）。一阶码表完整检查及逐位截断属于低成本验证；完整数学仅使用新增短序列，不重跑旧完整矩阵或媒体库。
 
-**可变 salient 数量**：既有一至三阶 SQ 恢复域允许实际数量 S 的 salient 分量；固定一／二／三阶分别最多 4／9／16 个，混合路径仍有四个 ambient，要求核心数量不超过实际传输通道。动态九槽→十六系数最多九个 salient，既有纯 salient、覆盖／叠加 mixed、分量阶数、空间划分及子带组合适用。纯二阶 ambient 和其他 ambient 数量仍待单独扩展。
+**可变 salient 数量**：既有一至三阶 SQ 恢复域允许实际数量 S 的 salient 分量；固定一／二／三阶分别最多 4／9／16 个，混合路径仍有四个 ambient，要求核心数量不超过实际传输通道。动态九槽→十六系数最多九个 salient，既有纯 salient、覆盖／叠加 mixed、分量阶数、空间划分及子带组合适用。ambient 数量和纯二阶路径见下文扩展。
 
 `salient_subband_counts()` 与 `salient_component_orders()` 返回实际长度的 `Option<Vec<usize>>`／`Option<Vec<u8>>`。数量不同于五时，空间报告新增 `component_count`、`count_profile=apac-hoa-salient-counts-v1`，记录全部分量的实际阶数；历史、描述和传输映射不补成五项。PCM 元数据新增 `hoa_salient_component_count`、`hoa_salient_count_profile`；恢复／状态规则为 `apac-hoa-salient-counts-math-v1`／`apac-hoa-salient-counts-state-v1`，后端为 `rust_hoa_salient_counts_sq_drc_off_f64_fft_v1`。动态路径保留动态顶层数学标识，记录新的基础恢复规则。原五分量配置的报告、标识和 PCM 保持兼容。
 
@@ -570,6 +570,17 @@ python3 -B scripts/generate_hoa_salient_counts_manifest.py --check
 python3 -B scripts/validate_hoa_salient_counts.py --binary target/debug/apac-tool --report reports/hoa-counts-math.json
 python3 -B scripts/validate_hoa_salient_counts.py --binary target/release/apac-tool \
   --reference-report reports/hoa-counts-math.json --report reports/hoa-counts-release.json
+```
+
+**可变 ambient 数量（SCE 传输）**：一至三阶固定恢复域支持 1 至实际系数数的 ambient，包括纯二阶 ambient 及只恢复所选系数的纯 ambient；与 salient 混合时仍要求核心总数不超过传输容量。九槽→十六系数动态路径沿用内部槽位选择。覆盖描述省略实际 ambient 选择与描述范围的交集；叠加路径保留全部描述。四路变换只作用于前四个 ambient，其余保持恒等；不足四个时使用无变换语法，不读取帧内变换索引。未选中且无 salient 贡献的输出为零，未使用载波仍完整校验。
+
+新 ambient 数量配置使用 `apac-hoa-ambient-counts-math-v1`／`apac-hoa-ambient-counts-state-v1` 和 `rust_hoa_ambient_counts_sq_drc_off_f64_fft_v1`，PCM 元数据记录 `hoa_ambient_component_count` 及 `hoa_ambient_count_profile=apac-hoa-ambient-counts-v1`。原纯一／三阶完整 ambient、零／四 ambient 混合配置的标识和数值保持不变。这里仍限定 SCE，其他传输元素组合尚未开放。
+
+```sh
+python3 -B scripts/generate_hoa_ambient_counts_manifest.py --check
+python3 -B scripts/validate_hoa_ambient_counts.py --binary target/debug/apac-tool --report reports/hoa-ambient-counts-math.json
+python3 -B scripts/validate_hoa_ambient_counts.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-ambient-counts-math.json --report reports/hoa-ambient-counts-release.json
 ```
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：

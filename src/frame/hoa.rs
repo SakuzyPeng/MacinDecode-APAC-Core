@@ -70,7 +70,9 @@ impl HoaConfiguration {
         };
         let declared_salient = value("components[0].hoa.max_salient_components").unwrap_or(0);
         let salient = declared_salient != 0;
-        let path = if salient && value("components[0].hoa.ambient_components_encoded") == Some(4) {
+        let declared_ambient = value("components[0].hoa.ambient_components_encoded").unwrap_or(0)
+            + u64::from(!salient);
+        let path = if salient && declared_ambient != 0 {
             HoaPath::Mixed
         } else if salient {
             HoaPath::Salient
@@ -92,11 +94,7 @@ impl HoaConfiguration {
         let preroll_bytes = if dynamic { 32768 } else { preroll_bytes };
         // Keep the diagnostic shape bounded; exact cookie checks reject excess counts.
         let salient_components = declared_salient.min(u64::from(recovery_slots)) as u8;
-        let ambient_components = match path {
-            HoaPath::Ambient => channels,
-            HoaPath::Salient => 0,
-            HoaPath::Mixed => 4,
-        };
+        let ambient_components = declared_ambient.min(u64::from(recovery_slots)) as u8;
         let flag = |name: &str| {
             parsed
                 .fields
@@ -172,7 +170,9 @@ impl HoaConfiguration {
             ambient_selection,
             explicit_ambient_selection,
             ambient_transform,
-            static_ambient: explicit_ambient_selection || transform_present,
+            static_ambient: explicit_ambient_selection
+                || transform_present
+                || (!salient && ambient_components != channels),
             ambient_combination: if flag("components[0].hoa.flag_d") {
                 super::AmbientCombination::Add
             } else {
@@ -193,6 +193,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
+        if self.ambient_count_extended() {
+            return super::hoa_ambient::COUNTS_NUMERIC_PROFILE;
+        }
         if self.component_count_extended() {
             return super::hoa_salient::COUNTS_NUMERIC_PROFILE;
         }
@@ -214,6 +217,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.ambient_count_extended() {
+            return super::hoa_ambient::COUNTS_STATE_PROFILE;
+        }
         if self.component_count_extended() {
             return super::hoa_salient::COUNTS_STATE_PROFILE;
         }
@@ -251,6 +257,11 @@ impl HoaConfiguration {
         self.salient_components != 0
             && (self.component_count_extended()
                 || self.salient_orders.iter().any(|&o| o != self.order))
+    }
+    pub fn ambient_count_extended(&self) -> bool {
+        (self.path == HoaPath::Mixed && self.ambient_components != 4)
+            || (self.path == HoaPath::Ambient
+                && (self.order == 2 || self.ambient_components != self.channels))
     }
     pub fn component_count_extended(&self) -> bool {
         self.salient_components != 0 && self.salient_components != 5
@@ -290,10 +301,6 @@ impl HoaFrameContext {
         if shape.core_channels > shape.transport_channels {
             rejected.push("HOA core channels exceed available transport channels".into());
         }
-        // Stage M extends salient counts; pure second-order ambient is not yet qualified.
-        if shape.path == HoaPath::Ambient && shape.order == 2 {
-            rejected.push("second-order pure ambient is not yet qualified".into());
-        }
         for (name, value) in [
             ("box.version_flags", 0),
             ("bitstream_version", 0x800),
@@ -327,7 +334,7 @@ impl HoaFrameContext {
                 if salient {
                     u64::from(shape.ambient_components)
                 } else {
-                    channels - 1
+                    u64::from(shape.ambient_components) - 1
                 },
             ),
             (
@@ -527,6 +534,9 @@ impl HoaFrameContext {
     }
     pub fn salient_components(&self) -> usize {
         usize::from(self.configuration.salient_components)
+    }
+    pub(crate) fn ambient_count_extended(&self) -> bool {
+        self.configuration.ambient_count_extended()
     }
     pub fn ambient_components(&self) -> usize {
         usize::from(self.configuration.ambient_components)
@@ -822,12 +832,21 @@ pub(super) fn spatial(
 
 pub(super) fn restore(
     report: &ChannelPacketReport,
+    configuration: &HoaConfiguration,
 ) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     // P^-1 I P = I for the qualified identity ambient map, including the
     // native short-window transpose pair. No unverified matrix or extra gain.
     let mut result = Vec::with_capacity(usize::from(report.channel_count));
-    for (index, e) in report.elements.iter().enumerate() {
-        let scaled = if e.present {
+    for (index, e) in report
+        .elements
+        .iter()
+        .take(usize::from(configuration.recovery_slots))
+        .enumerate()
+    {
+        let scaled = if e.present
+            && !configuration.static_ambient
+            && index < usize::from(configuration.ambient_components)
+        {
             e.channels_after_bwe2[0].scaled.clone()
         } else {
             vec![0.; 1024]

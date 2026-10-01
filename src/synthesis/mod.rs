@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.salient_components() != 0 && context.salient_components() != 5 {
+            return if context.ambient_count_extended() {
+                hoa::AMBIENT_COUNTS_BACKEND
+            } else if context.salient_components() != 0 && context.salient_components() != 5 {
                 hoa::COUNTS_BACKEND
             } else if context.component_orders_extended() {
                 hoa::COMPONENT_ORDERS_BACKEND
@@ -340,6 +342,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.ambient_count_extended() {
+                return "hoa_variable_ambient_counts_sq_drc_off";
+            }
             if context.salient_components() != 0 && context.salient_components() != 5 {
                 return "hoa_variable_salient_counts_sq_drc_off";
             }

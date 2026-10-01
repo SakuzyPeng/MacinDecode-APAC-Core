@@ -4,6 +4,8 @@ use crate::config::ParseError;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
+pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-ambient-counts-math-v1";
+pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-ambient-counts-state-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-static-ambient-state-v1";
 
@@ -116,7 +118,7 @@ pub(super) fn restore(
             }
         })
         .collect();
-    if count < 4
+    if (count < 4 && data.effective_index != 3)
         || data.effective_index > 3
         || sources
             .iter()
@@ -131,7 +133,7 @@ pub(super) fn restore(
     for (slot, &acn) in data.selection.iter().enumerate() {
         let mut scaled = sources[slot].clone();
         for (line, value) in scaled.iter_mut().enumerate() {
-            if slot < 4 {
+            if slot < 4 && data.effective_index != 3 {
                 *value = transform(
                     std::array::from_fn(|i| sources[i][line]),
                     data.effective_index,
@@ -164,6 +166,82 @@ pub(super) fn restore(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn count_data() -> serde_json::Value {
+        serde_json::from_str(include_str!("../../data/hoa-ambient-counts-state-v1.json")).unwrap()
+    }
+    fn count_bytes(value: &serde_json::Value) -> Vec<u8> {
+        value
+            .as_str()
+            .unwrap()
+            .as_bytes()
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn every_ambient_count_preserves_the_last_source_and_zeros_unused_outputs() {
+        for f in count_data()["counts"].as_array().unwrap() {
+            let context =
+                crate::frame::HoaFrameContext::from_cookie(&count_bytes(&f["cookie"])).unwrap();
+            assert!(context.is_supported(), "{:?}", context.rejection());
+            assert_eq!(
+                context.ambient_components(),
+                f["ambient"].as_u64().unwrap() as usize
+            );
+            assert_eq!(
+                context.salient_components(),
+                f["salient"].as_u64().unwrap() as usize
+            );
+            let report =
+                crate::frame::parse_hoa_packet(&context, &count_bytes(&f["packet"])).unwrap();
+            assert!(report.packet.packet_complete && report.hoa().hoa_complete);
+            let active = context.ambient_components() - 1;
+            let source = &report.packet.elements[active].channels_after_bwe2[0].scaled;
+            assert!(source.iter().any(|&v| v != 0.));
+            for (index, channel) in report.hoa().channels_after_hoa.iter().enumerate() {
+                if index == active {
+                    assert_eq!(&channel.scaled, source);
+                } else {
+                    assert!(channel.scaled.iter().all(|&v| v == 0.));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn ambient_count_selection_and_overlaps_roll_back_with_embedded_frames() {
+        for f in count_data()["fixtures"].as_array().unwrap() {
+            let cookie = count_bytes(&f["cookie"]);
+            let first = count_bytes(&f["first"]);
+            let good = count_bytes(&f["good"]);
+            let bad = count_bytes(&f["bad"]);
+            let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+            let mut state = crate::frame::HoaState::default();
+            let mut drc = context.initial_drc_state();
+            crate::frame::parse_hoa_packet_with_state(&context, &first, &mut drc, &mut state)
+                .unwrap();
+            let before = state.clone();
+            let failed =
+                crate::frame::parse_hoa_packet_with_state(&context, &bad, &mut drc, &mut state);
+            assert!(failed.is_err() || !failed.unwrap().packet.packet_complete);
+            assert_eq!(state, before);
+            let mut decoder = crate::synthesis::SqDecoder::from_cookie(&cookie).unwrap();
+            let mut clean = crate::synthesis::SqDecoder::from_cookie(&cookie).unwrap();
+            let initial = decoder.decode_frame(&first).unwrap();
+            clean.decode_frame(&first).unwrap();
+            assert!(decoder.decode_frame(&bad).is_err());
+            assert_eq!(
+                decoder.decode_frame(&good).unwrap(),
+                clean.decode_frame(&good).unwrap()
+            );
+            decoder.reset();
+            assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
+        }
+    }
     #[test]
     fn compensated_transform_retains_small_residual_and_detects_overflow() {
         // SQ q=4096, sf=252 gives exactly 2^54; q=1, sf=100 gives 1.

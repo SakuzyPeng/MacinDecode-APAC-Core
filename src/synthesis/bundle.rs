@@ -292,6 +292,16 @@ fn decode_with_access(
             value["hoa_expanded_orders_profile"] = json!(crate::frame::HOA_EXPANDED_ORDERS_PROFILE);
             value["hoa_expanded_math_sha256"] = json!(crate::frame::hoa_expanded_math_sha256());
         }
+        if context.transport_extended() {
+            value["hoa_transport_profile"] = json!(crate::frame::HOA_TRANSPORT_PROFILE);
+            value["hoa_transport_format_sha256"] =
+                json!(crate::frame::hoa_transport_format_sha256());
+            value["hoa_transport_channels"] = json!(context.transport_channels());
+            value["hoa_core_channels"] = json!(context.core_channels());
+            value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
+            value["hoa_output_coefficient_count"] = json!(context.channel_count());
+            value["hoa_transport_elements"] = json!(context.transport_elements());
+        }
         if context.profile_id() != 5 || context.level_id() != 0 {
             value["hoa_profile_id"] = json!(context.profile_id());
             value["hoa_level_id"] = json!(context.level_id());

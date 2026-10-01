@@ -42,17 +42,19 @@ def measure(total,actual,expected,location,block,slots,n,wide=False,descriptor_r
 def check_pure_ambient(r,t,last_mode,last_sha,opts):
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete ambient packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
-    h=r['hoa'];m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));ambient=opts['ambient_count']
-    require(h['hoa_complete'] and (h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(m,ambient,n,n),'ambient dimensions differ')
+    h=r['hoa'];m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));ambient=opts['ambient_count'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
+    require(h['hoa_complete'] and (h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(m,ambient,transport,n),'ambient dimensions differ')
     same_fields(h['spatial'],t['spatial'],'ambient spatial');require(h['spatial'].get('salient') is None,'fabricated salient data')
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
     require(h['spatial']['effective_global_coding_mode']==last_mode,'ambient mode history differs')
     same_fields(r['packet_tail'],t['tail'],'tail');same_fields(r['drc'],t['drc'],'DRC')
     require(r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset'],'ambient endpoints differ')
-    require(len(r['elements'])==n and len(h['channels_after_hoa'])==n,'ambient carriers/outputs differ')
+    require(len(r['elements'])==len(types) and len(h['channels_after_hoa'])==n,'ambient carriers/outputs differ')
+    if 'tce_types' in opts:require(h['transport_profile']=='apac-hoa-transports-v1' and h['transport_element_count']==len(types) and h['transport_format_sha256']==sha256_file(ROOT/'data/hoa-transports-format-v1.json') and r['packet_state_profile']=='apac-hoa-transports-state-v1','transport identity differs')
     for a,b in zip(r['elements'],t['elements']):
         require(a['element_complete'],'incomplete ambient carrier')
-        for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','tns','bwe2'):same_fields(a[key],b[key],key)
+        for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','cac','tns','bwe2'):same_fields(a[key],b[key],key)
+        if 'extension' in b:same_fields(a['extension'],b['extension'],'extension body')
         for x,y in zip(a['channels'],b['channels']):same_fields(x,{k:v for k,v in y.items() if k!='scaled'},'ambient integers')
     for acn,c in enumerate(h['channels_after_hoa']):require(c['acn_index']==acn,'ambient ACN order differs');float32(c['scaled'])
     return last_mode,r['packet_sha256']
@@ -63,8 +65,8 @@ def check(r,t,last_mode,last_sha,opts):
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete HOA packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
     else:require(r['embedded_preroll'] is None,'fabricated inner frame')
-    order=opts.get('order',3);dynamic=opts.get('dynamic',False);m=(order+1)**2;n=shape(order,dynamic);counts=opts.get('counts',[1,3,4,9,16]);path=opts.get('path','salient');h=r['hoa']
-    require(h['hoa_complete'] and h['common_window']==t['common_window'] and (h['order'],h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(order,m,len(counts)+opts.get('ambient_count',0 if path=='salient' else 4),n,n),'dimensions differ')
+    order=opts.get('order',3);dynamic=opts.get('dynamic',False);m=(order+1)**2;n=shape(order,dynamic);counts=opts.get('counts',[1,3,4,9,16]);path=opts.get('path','salient');h=r['hoa'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
+    require(h['hoa_complete'] and h['common_window']==t['common_window'] and (h['order'],h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(order,m,len(counts)+opts.get('ambient_count',0 if path=='salient' else 4),transport,n),'dimensions differ')
     require(r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset'],'core/tail boundary differs')
     same_fields(r['packet_tail'],t['tail'],'tail');same_fields(r['drc'],t['drc'],'DRC')
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
@@ -90,9 +92,11 @@ def check(r,t,last_mode,last_sha,opts):
         require('partition_method' not in side and 'partition_profile' not in side,'legacy partition fields changed')
         if list(counts)!=[4]*5:require(side['format_sha256']==generate()['format_sha256'],'spatial-grid format differs')
     if list(counts)!=[4]*5:require(side['subband_profile']==PROFILE,'spatial-grid profile differs')
-    require(len(r['elements'])==n and len(h['channels_after_hoa'])==n,'wrong channel count')
+    require(len(r['elements'])==len(types) and len(h['channels_after_hoa'])==n,'wrong channel count')
+    if 'tce_types' in opts:require(h['transport_profile']=='apac-hoa-transports-v1' and h['transport_element_count']==len(types) and h['transport_format_sha256']==sha256_file(ROOT/'data/hoa-transports-format-v1.json') and r['packet_state_profile']=='apac-hoa-transports-state-v1','transport identity differs')
     for a,b in zip(r['elements'],t['elements']):
-        for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','tns','bwe2'):same_fields(a[key],b[key],key)
+        for key in ('configuration','present','start_bit_offset','end_bit_offset','shared_ics','cac','tns','bwe2'):same_fields(a[key],b[key],key)
+        if 'extension' in b:same_fields(a['extension'],b['extension'],'extension body')
         require(a['element_complete'] and len(a['channels'])==len(b['channels']),'carrier not fully validated')
         for x,y in zip(a['channels'],b['channels']):same_fields(x,{k:v for k,v in y.items() if k!='scaled'},'integers')
     if dynamic:
@@ -121,14 +125,17 @@ def fingerprints(rows,generated,opts):
             hashes['internal'].update(float_bytes([v for c in (d['before_selection'] if d else h['channels_after_hoa']) for v in c['scaled']]));hashes['hoa'].update(float_bytes([v for c in h['channels_after_hoa'] for v in c['scaled']]))
             if d:hashes['mapping'].update(bytes(v for row in d['mappings'] for v in row['target_acn_indices']))
             for e in node['elements']:
-                hashes['transport'].update(float_bytes(e['channels_after_bwe2'][0]['scaled'] if e['present'] else [0.]*1024))
-                if e['present']:hashes['quantized'].update(struct.pack('<1024i',*e['channels'][0]['quantized']))
+                mapping=e['configuration'].get('transport_channels',e['configuration']['output_channels'])
+                for local,_ in enumerate(mapping):
+                    hashes['transport'].update(float_bytes(e['channels_after_bwe2'][local]['scaled'] if e['present'] else [0.]*1024))
+                    if e['present']:hashes['quantized'].update(struct.pack('<1024i',*e['channels'][local]['quantized']))
+                if 'tce_types' in opts:structure.append({k:e.get(k) for k in ('configuration','extension','start_bit_offset','end_bit_offset')})
     return dict(state_sha256=digest(structure),**{k+'_sha256':v.hexdigest() for k,v in hashes.items()})
 
 
 def ranges(binary,root,kind,opts,payloads,full,index,range_kinds=None):
     if kind not in (('pure2','replace3','dynamic-add') if range_kinds is None else range_kinds):return []
-    n=shape(opts['order'],opts['dynamic']);stride=n*4;prime=31;remainder=17;valid=len(payloads)*1024-prime-remainder;expected=full[prime*stride:(prime+valid)*stride];middle=len(payloads)//2*1024-prime
+    n=shape(opts['order'],opts.get('dynamic',False));stride=n*4;prime=31;remainder=17;valid=len(payloads)*1024-prime-remainder;expected=full[prime*stride:(prime+valid)*stride];middle=len(payloads)//2*1024-prime
     requests=[(0,valid),(0,1031),(middle,1031),((len(payloads)-2)*1024-prime,1024),(valid-9,100),(valid,1)];records=[]
     for name,encode in [('caf',caf_encode),('mp4',mp4_encode)]:
         source=root/name;source.write_bytes(encode(cookie(**opts),payloads,rate=opts['rate'],channels=n,priming=prime,remainder=remainder,variant=index,**({'layout_tag':(190<<16)|n} if name=='caf' else {}))[0])
@@ -150,7 +157,7 @@ def validate(binary,r,reference,*,vectors=None,format_generator=generate,frozen_
     for identity,(kind,opts,cases) in zip(frozen['cases'],vectors.sequences()):
         index=identity['index'];m=(opts.get('order',3)+1)**2;n=shape(opts.get('order',3),opts.get('dynamic',False))
         with workspace(r,kind) as root:
-            generated=[packet(c,**opts) for c in cases];payloads=[raw for raw,_ in generated];cfg=cookie(**opts);bundle(root/'bundle',payloads,**opts)
+            generated=[vectors.packet(c,**opts) for c in cases];payloads=[raw for raw,_ in generated];cfg=cookie(**opts);bundle(root/'bundle',payloads,**opts)
             summary=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed');require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'incomplete parse');rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]
             record=dict(identity,passed=True,**fingerprints(rows,generated,opts));oracle=None if reference else Decoder(opts);expected_pcm=[];cursor=0
             history=dict(origin='cookie',source=hashlib.sha256(cfg).hexdigest(),metadata_origin='cookie',metadata_source=hashlib.sha256(cfg).hexdigest(),history=False)
@@ -160,7 +167,7 @@ def validate(binary,r,reference,*,vectors=None,format_generator=generate,frozen_
                     drc_history(node,t,history,n)
                     if oracle:
                         expected=oracle.records[cursor];cursor+=1;h=node['hoa'];d=h.get('dynamic_selection');descs=(h['spatial'].get('salient') or {}).get('descriptors',[])
-                        actual=dict(transport=[e['channels_after_bwe2'][0]['scaled'] if e['present'] else [0.]*1024 for e in node['elements']],vectors=[v['restored'] for v in descs],internal=[c['scaled'] for c in (d['before_selection'] if d else h['channels_after_hoa'])],scaled=[c['scaled'] for c in h['channels_after_hoa']])
+                        actual=dict(transport=[e['channels_after_bwe2'][local]['scaled'] if e['present'] else [0.]*1024 for e in node['elements'] for local,_ in enumerate(e['configuration'].get('transport_channels',e['configuration']['output_channels']))],vectors=[v['restored'] for v in descs],internal=[c['scaled'] for c in (d['before_selection'] if d else h['channels_after_hoa'])],scaled=[c['scaled'] for c in h['channels_after_hoa']])
                         for stage,key in [('transport','transport'),('descriptors','vectors'),('internal','internal'),('hoa','scaled')]:
                             measure(r['metrics'][stage],[v for c in actual[key] for v in c],[v for c in expected[key] for v in c],dict(case=index,packet=pi,stage=stage,role='current' if node is row else 'embedded'),t['common_window'],m,n,stage=='descriptors',t['spatial'].get('salient',{}).get('descriptors',[]) if stage=='descriptors' else None,[len(v) for v in expected['vectors']] if stage=='descriptors' else None)
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm');full=(root/'pcm/pcm.f32le').read_bytes();impl=decoded['pcm']['decoder_settings']['implementation']['value']

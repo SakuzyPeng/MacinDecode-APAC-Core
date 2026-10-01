@@ -78,18 +78,8 @@ pub(super) fn restore(
         .as_ref()
         .map_or(3, |data| data.effective_index);
     let selected = configuration.ambient_indices();
-    let sources: Vec<_> = packet
-        .elements
-        .iter()
-        .take(usize::from(configuration.core_channels))
-        .map(|e| {
-            if e.present {
-                e.channels_after_bwe2[0].scaled.clone()
-            } else {
-                vec![0.; 1024]
-            }
-        })
-        .collect();
+    let sources = super::hoa_transport::spectra(packet)?;
+    let sources = &sources[..usize::from(configuration.core_channels)];
     let error = |slot: usize, line: usize| {
         ParseError::new(
             side.descriptors.last().expect("descriptors").end_bit_offset,

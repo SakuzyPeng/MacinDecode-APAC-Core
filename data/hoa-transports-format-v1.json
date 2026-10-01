@@ -1,0 +1,59 @@
+{
+  "format_profile": "apac-hoa-transports-format-v1",
+  "elements": [
+    {
+      "type": 0,
+      "name": "sce",
+      "channels": 1,
+      "tns": true,
+      "bwe2": true
+    },
+    {
+      "type": 1,
+      "name": "cpe",
+      "channels": 2,
+      "tns": true,
+      "bwe2": true
+    },
+    {
+      "type": 3,
+      "name": "lfe",
+      "channels": 1,
+      "tns": false,
+      "bwe2": false
+    },
+    {
+      "type": 6,
+      "name": "extension",
+      "channels": 0,
+      "tns": false,
+      "bwe2": false
+    }
+  ],
+  "common_window_bits": 2,
+  "independent_cpe_right_window_bits": 0,
+  "extension": {
+    "format_flag": false,
+    "length_bits": [
+      7,
+      8,
+      16
+    ],
+    "sizes_include_headers": true,
+    "unit": "byte",
+    "payload_semantics": "opaque and not used for audio recovery",
+    "payload_parameter_bits": [
+      8,
+      8,
+      16
+    ],
+    "zero_length_is_empty": true
+  },
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "decoder": "HOA initialization, shared ICS and core element deserialization",
+    "encoder": "HOA WriteICSInfo delegates to WriteMaxSfbWindowGroupInfo; core SCE/CPE/LFE writers",
+    "verification": "hash-bound read-only runtime element, tool, spatial and synthesis boundaries"
+  }
+}

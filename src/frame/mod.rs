@@ -8,6 +8,7 @@ pub use hoa_additive::{AmbientCombination, AmbientContribution, HoaAdditiveData}
 mod hoa_dynamic;
 mod hoa_salient;
 mod hoa_salient_subbands;
+mod hoa_transport;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
     ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
@@ -28,6 +29,8 @@ pub(crate) use hoa_salient::{
 pub use hoa_salient_subbands::PARTITION_PROFILE as HOA_SALIENT_PARTITION_PROFILE;
 pub use hoa_salient_subbands::SUBBAND_PROFILE as HOA_SALIENT_SUBBAND_PROFILE;
 pub(crate) use hoa_salient_subbands::format_sha256 as hoa_salient_subbands_format_sha256;
+pub use hoa_transport::HoaExtensionData;
+pub(crate) use hoa_transport::format_sha256 as hoa_transport_format_sha256;
 mod bwe2;
 mod cac;
 mod drc;
@@ -52,6 +55,7 @@ pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
 pub use drc::{
     DrcConfiguration, DrcNode, DrcParameters, DrcPayload, DrcReport, DrcTimeDelta, parse_drc,
 };
+pub use hoa::TRANSPORT_PROFILE as HOA_TRANSPORT_PROFILE;
 pub(crate) use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{
     HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaMixedMapping, HoaPacketReport,

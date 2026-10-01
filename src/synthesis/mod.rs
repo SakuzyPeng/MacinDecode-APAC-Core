@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.expanded_orders() {
+            return if context.transport_extended() {
+                hoa::TRANSPORT_BACKEND
+            } else if context.expanded_orders() {
                 hoa::EXPANDED_BACKEND
             } else if context.quantization_extended() {
                 hoa::QUANTIZATION_BACKEND
@@ -346,6 +348,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.transport_extended() {
+                return "hoa_sq_transport_compositions_drc_off";
+            }
             if context.expanded_orders() {
                 return "hoa_orders_zero_to_ten_sq_drc_off";
             }

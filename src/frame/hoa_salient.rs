@@ -928,6 +928,7 @@ pub(super) fn restore(
     ambient_selection: Option<&[u8]>,
 ) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     restore_descriptors(packet, data, state)?;
+    let sources = super::hoa_transport::spectra(packet)?;
     let mut output: Vec<_> = (0..coefficients)
         .map(|k| RecoverySlotSpectrum {
             slot_index: k as u8,
@@ -940,7 +941,9 @@ pub(super) fn restore(
         .expect("HOA report")
         .common_window
         .expect("common window");
-    for line in 0..1024 {
+    // All validated carriers have 1024 lines; retaining this frequency-major
+    // traversal preserves each component's interval and the numerical order.
+    for (line, _) in sources[0].iter().enumerate() {
         let frequency = if block == 2 { line % 128 } else { line };
         let bands = data.bands_for_frequency(frequency);
         for (k, out) in output.iter_mut().enumerate() {
@@ -949,24 +952,15 @@ pub(super) fn restore(
             if let Some(slot) =
                 ambient_selection.and_then(|m| m.iter().position(|&index| usize::from(index) == k))
             {
-                let element = &packet.elements[slot];
-                let value = if element.present {
-                    element.channels_after_bwe2[0].scaled[line]
-                } else {
-                    0.
-                };
+                let value = sources[slot][line];
                 out.scaled[line] = if value == 0. { 0. } else { value };
                 continue;
             }
             let mut sum = 0.;
             let mut compensated = super::hoa_additive::Sum::default();
             for (sc, &band) in bands.iter().enumerate() {
-                let e = &packet.elements[sc + ambient_selection.map_or(0, <[u8]>::len)];
-                let sample = if e.present {
-                    f64::from(e.channels_after_bwe2[0].scaled[line])
-                } else {
-                    0.
-                };
+                let sample =
+                    f64::from(sources[sc + ambient_selection.map_or(0, <[u8]>::len)][line]);
                 // Qualified lower-order descriptors have no higher ACN entries.
                 // This is structural zero extension, not recovery from a missing payload.
                 let descriptor = state.history[sc][band].get(k).copied().unwrap_or(0.);

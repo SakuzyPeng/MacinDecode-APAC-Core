@@ -79,7 +79,7 @@ impl CookieReport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ParseError {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub element_index: Option<u8>,
+    pub element_index: Option<usize>,
     pub bit_offset: usize,
     pub kind: String,
     pub message: String,

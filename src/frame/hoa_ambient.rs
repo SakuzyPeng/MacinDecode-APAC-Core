@@ -106,18 +106,8 @@ pub(super) fn restore(
     position: usize,
 ) -> Result<(), ParseError> {
     let count = data.selection.len();
-    let sources: Vec<_> = packet
-        .elements
-        .iter()
-        .take(count)
-        .map(|element| {
-            if element.present {
-                element.channels_after_bwe2[0].scaled.clone()
-            } else {
-                vec![0.; 1024]
-            }
-        })
-        .collect();
+    let sources = super::hoa_transport::spectra(packet)?;
+    let sources = &sources[..count];
     if (count < 4 && data.effective_index != 3)
         || data.effective_index > 3
         || sources
@@ -131,7 +121,7 @@ pub(super) fn restore(
         ));
     }
     for (slot, &acn) in data.selection.iter().enumerate() {
-        let mut scaled = sources[slot].clone();
+        let mut scaled = sources[slot].to_vec();
         for (line, value) in scaled.iter_mut().enumerate() {
             if slot < 4 && data.effective_index != 3 {
                 *value = transform(

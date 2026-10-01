@@ -19,12 +19,13 @@ from native_frame_trace import COMPONENT_SHA256
 def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 
 
-def verify(truth,trace,opts):
+def verify(truth,trace,opts,*,isolated_exact=True,layout_adapter=None):
     counts=opts['counts'];maximum=max(counts,default=0);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=opts.get('ambient_count',0 if path=='salient' else 4)
     dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*len(counts))]
     caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity=2048*n
     require(caps and all(c['status']==0 and c['capacity_bytes']==capacity for c in caps),'native capacity differs')
     expected=[[[D(0)]*dimensions[s] for _ in range(c)] for s,c in enumerate(counts)];previous=[0.]*(len(counts)*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0
+    recovery_metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);recovery_exact=True;semantic_exact=True;layout_diagnostics=[]
     for seq,role,t in frames(truth):
         events=[e for e in trace['hoa_events'] if (e['sequence'],e['role'])==(seq,role)]
         def one(kind):
@@ -51,7 +52,7 @@ def verify(truth,trace,opts):
             v=descriptor(dict(spec,quantization_bits=opts.get('quantization_bits',6)),expected[sc][b]);expected[sc][b]=v;wanted.extend(map(float,v));actual.extend(history['history'][padded:padded+dimensions[sc]])
             require(float_bytes(history['history'][padded+dimensions[sc]:padded+m])==bytes(4*(m-dimensions[sc])),'nonzero higher-order native history padding')
         measurement=compare(actual,wanted,dict(sequence=seq,role=role));merge_metrics(metrics,measurement);require(measurement['passed'],'descriptor diagnostics exceed tolerance')
-        previous=history['history'];sources=[c['scaled'] for c in entry['transport']];require(len(sources)==n,'missing carriers')
+        previous=history['history'];sources=[c['scaled'] for c in entry['transport']];require(len(sources)==sum(2 if typ==1 else 0 if typ==6 else 1 for typ in opts.get('tce_types',[0]*n)),'missing carriers')
         selected=t['spatial']['ambient_indices'];require(history['ambient_indices']==selected,'ambient selection differs')
         static=t['dynamic_selection'].get('internal_ambient',{}) if t['dynamic_selection'] else t['spatial'].get('ambient',{})
         index=static.get('effective_index',3)
@@ -75,9 +76,25 @@ def verify(truth,trace,opts):
                 frequency=line%128 if short else line;b=next(b for b,end in enumerate(dyn['lines_per_window']) if frequency<end)
                 for slot,acn in enumerate(dyn['mappings'][b]['target_acn_indices']):output[acn][line]=internal[slot][line]
         synth=[e for e in trace['events'] if e['kind']=='synthesis' and (e['sequence'],e['role'])==(seq,role)];require(len(synth)==n,'missing outputs')
-        for acn,e in enumerate(synth):require(e['channel_index']==acn and float_bytes(e['input'])==float_bytes(output[acn]),f'isolated recovery differs at {seq}/{role}/ACN{acn}')
+        for acn,e in enumerate(synth):semantic_exact &= float_bytes(e['input'])==float_bytes(output[acn])
+        if layout_adapter is not None:
+            output,diagnostics=layout_adapter(t,entry,output,synth,opts)
+            if diagnostics:layout_diagnostics.append(dict(sequence=seq,role=role,**diagnostics))
+        for acn,e in enumerate(synth):
+            require(e['channel_index']==acn,'native synthesis output ordering differs')
+            exact=float_bytes(e['input'])==float_bytes(output[acn]);recovery_exact &= exact
+            if isolated_exact:require(exact,f'isolated recovery differs at {seq}/{role}/ACN{acn}')
+            else:
+                measurement=compare(e['input'],output[acn],dict(sequence=seq,role=role,acn=acn))
+                merge_metrics(recovery_metrics,measurement)
+                require(measurement['passed'],f'isolated native diagnostic exceeds unchanged tolerance at {seq}/{role}/ACN{acn}')
         total+=1
-    return dict(passed=True,core_frames=total,counts=counts,capacity_bytes=capacity,cached_grid_count=maximum,compact_parameter_stride='sum of preceding component counts times coefficients',native_history_stride=maximum*m,logical_history_values=sum(n*c for n,c in zip(counts,dimensions)),parameters_boundaries_history_exact=True,isolated_recovery_bytes_exact=True,internal_reference='reconstructed from native descriptor history and known transport inputs',descriptor_float_diagnostics=metrics)
+    result=dict(passed=True,core_frames=total,counts=counts,capacity_bytes=capacity,cached_grid_count=maximum,compact_parameter_stride='sum of preceding component counts times coefficients',native_history_stride=maximum*m,logical_history_values=sum(n*c for n,c in zip(counts,dimensions)),parameters_boundaries_history_exact=True,isolated_recovery_bytes_exact=semantic_exact,internal_reference='reconstructed from native descriptor history and known transport inputs',descriptor_float_diagnostics=metrics)
+    if not isolated_exact:result['isolated_recovery_float_diagnostics']=recovery_metrics
+    if layout_adapter is not None:
+        result['native_layout_diagnostics']=layout_diagnostics
+        result['native_layout_reconstruction_bytes_exact']=recovery_exact
+    return result
 
 
 def main(*,vectors=None):

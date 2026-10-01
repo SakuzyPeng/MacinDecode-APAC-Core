@@ -24,10 +24,11 @@ pub enum ElementKind {
     Sce,
     Cpe,
     Lfe,
+    Extension,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ElementConfiguration {
-    pub element_index: u8,
+    pub element_index: usize,
     pub kind: ElementKind,
     pub tce_type: u8,
     /// Absolute output channel indices in the declared tagged layout.
@@ -97,7 +98,7 @@ impl ChannelFrameContext {
                 let output_channels = (channel..channel + width).collect();
                 channel += width;
                 ElementConfiguration {
-                    element_index: index as u8,
+                    element_index: index,
                     kind: match typ {
                         0 => ElementKind::Sce,
                         1 => ElementKind::Cpe,
@@ -147,18 +148,39 @@ impl ChannelFrameContext {
                 Some("HOA ACN/SN3D".into()),
             )),
             channel_labels: (0..hoa.channels).map(|i| format!("ACN{i}")).collect(),
-            elements: (0..hoa.transport_channels)
-                .map(|i| ElementConfiguration {
-                    element_index: i,
-                    kind: ElementKind::Sce,
-                    tce_type: 0,
-                    output_channels: if hoa.salient_components != 0 || hoa.static_ambient {
-                        vec![]
-                    } else {
-                        vec![i]
-                    },
-                    transport_channels: (hoa.salient_components != 0 || hoa.static_ambient)
-                        .then(|| vec![i]),
+            elements: hoa
+                .transport_types
+                .iter()
+                .enumerate()
+                .scan(0usize, |first, (i, &kind)| {
+                    let width = match kind {
+                        0 | 3 => 1,
+                        1 => 2,
+                        _ => 0,
+                    };
+                    let mapped: Vec<_> = (*first..*first + width)
+                        .map(|v| u8::try_from(v).unwrap_or(u8::MAX))
+                        .collect();
+                    *first += width;
+                    Some(ElementConfiguration {
+                        element_index: i,
+                        kind: match kind {
+                            1 => ElementKind::Cpe,
+                            3 => ElementKind::Lfe,
+                            6 => ElementKind::Extension,
+                            _ => ElementKind::Sce,
+                        },
+                        tce_type: kind,
+                        output_channels: if hoa.salient_components != 0 || hoa.static_ambient {
+                            vec![]
+                        } else {
+                            mapped.clone()
+                        },
+                        transport_channels: (hoa.salient_components != 0
+                            || hoa.static_ambient
+                            || hoa.transport_extended())
+                        .then_some(mapped),
+                    })
                 })
                 .collect(),
             maximum_preroll_bytes: hoa.preroll_bytes,
@@ -226,6 +248,8 @@ pub struct ElementReport {
     pub bwe2_complete: bool,
     pub bwe2: Option<ElementBwe2Data>,
     pub channels_after_bwe2: Vec<Bwe2ChannelSpectrum>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extension: Option<super::HoaExtensionData>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChannelPreroll {
@@ -267,7 +291,7 @@ fn finish(
     report.frame.unknown_ranges.sort_by_key(|r| r.bit_offset);
     Ok(report)
 }
-fn element_error(mut error: ParseError, index: u8) -> ParseError {
+fn element_error(mut error: ParseError, index: usize) -> ParseError {
     error.element_index = Some(index);
     error.message = format!("element {index}: {}", error.message);
     error
@@ -284,6 +308,12 @@ fn read_element(
     let prefix = format!("components[0].tce[{index}]");
     element.present = parser.flag(&format!("{prefix}.present"))?;
     if !element.present {
+        element.end_bit_offset = Some(parser.bits.position());
+        element.element_complete = true;
+        return Ok(true);
+    }
+    if element.configuration.kind == ElementKind::Extension {
+        element.extension = Some(super::hoa_transport::read(parser, &prefix)?);
         element.end_bit_offset = Some(parser.bits.position());
         element.element_complete = true;
         return Ok(true);
@@ -316,6 +346,8 @@ fn read_element(
         element.shared_ics = Some(shared);
         let right = if shared {
             left.clone()
+        } else if let Some(block) = common_window {
+            parser.ics_with_block(&format!("{prefix}.right_ics"), block)?
         } else {
             parser.ics(&format!("{prefix}.right_ics"))?
         };
@@ -420,7 +452,7 @@ fn extensions(
     element: &mut ElementReport,
     scratch: &mut ScanWorkspace,
 ) -> Result<(), ParseError> {
-    if !element.present {
+    if !element.present || element.configuration.kind == ElementKind::Extension {
         return Ok(());
     }
     element.bwe2_applicable = element.configuration.kind != ElementKind::Lfe;
@@ -632,6 +664,11 @@ fn parse_impl(
         hoa.order = shape.order;
         hoa.coefficient_count = usize::from(shape.recovery_slots);
         hoa.transport_channels = usize::from(shape.transport_channels);
+        if shape.transport_extended() {
+            hoa.transport_profile = Some(super::hoa::TRANSPORT_PROFILE.into());
+            hoa.transport_format_sha256 = Some(super::hoa_transport::format_sha256().into());
+            hoa.transport_element_count = Some(shape.transport_types.len());
+        }
         hoa.core_channels = usize::from(shape.core_channels);
         hoa.mixed = shape.mixed_mapping();
         if shape.dynamic_method.is_some() {
@@ -741,6 +778,7 @@ fn parse_impl(
             bwe2_complete: false,
             bwe2: None,
             channels_after_bwe2: vec![],
+            extension: None,
         };
         let supported = read_element(&mut parser, context, &mut element, scratch, common_window)
             .map_err(|e| element_error(e, configuration.element_index))?;

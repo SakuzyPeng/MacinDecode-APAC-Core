@@ -309,16 +309,19 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
 
-**HOA 系数解码（实验性）**：支持下述完整阶和动态配置，保持单 HOA ASC（类型 2）、44.1／48 kHz、1024 帧、ACN/SN3D、无重映射。下表为最初的固定维度配置，数量、量化、阶数及 profile／level 扩展见后续说明。解码按 ASC 类型及完整配置分派，不按声道数单独放行。输出为交错的 **ACN 系数 PCM**，不进行空间渲染或归一化转换。未列出的配置组合、N3D、非完整阶、LRVQ 和结构更新仍不支持。
+**HOA 系数解码（实验性）**：纯 Rust SQ 后端从合格 HOA ASC 输出交错系数 PCM，不进行空间渲染或播放增益处理。按 cookie 的完整字段及 ASC 类型分派，声道数量本身不构成资格。
 
-| 路径 | salient／ambient | 传输 SCE | 输出顺序 |
-|---|---|---:|---|
-| 一阶 ambient | 0／4 | 4 | ACN0..ACN3 |
-| 二阶 salient | 5／0 | 9 | ACN0..ACN8 |
-| 三阶 ambient | 0／16 | 16 | ACN0..ACN15 |
-| 三阶 salient | 5／0 | 16 | ACN0..ACN15 |
-| 二阶 mixed | 5／4 | 9 | ACN0..ACN8 |
-| 三阶 mixed | 5／4 | 16 | ACN0..ACN15 |
+| 能力 | 当前支持范围 |
+|---|---|
+| 固定恢复域 | 零至十阶完整系数域，1／4／9／16／25／36／49／64／81／100／121 系数；零阶仅纯 ambient |
+| 分量与描述 | 可变 salient／ambient 数量；salient 一至整体阶数、6–9 位量化、每分量 1–16 带、空间方法 0–2 |
+| 传输元素 | HOA SCE、CPE、LFE及零通道扩展元素；核心数量 ≤ 传输通道 ≤ 输出数量，元素数量独立计算 |
+| 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及九槽→十六系数动态选择的已验证配置 |
+| 动态分带 | 方法 0–2、1–8 有效带；每帧完整读取八组九槽列表／位图 |
+| 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
+| 输出与访问 | ACN/SN3D，包目录、CAF、受限 MP4／M4A；范围请求从包零顺序推进 |
+
+LRVQ、非完整阶、N3D、自定义布局／remapping、其他动态维度、帧内重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
@@ -574,7 +577,7 @@ python3 -B scripts/validate_hoa_salient_counts.py --binary target/release/apac-t
 
 **可变 ambient 数量（SCE 传输）**：一至三阶固定恢复域支持 1 至实际系数数的 ambient，包括纯二阶 ambient 及只恢复所选系数的纯 ambient；与 salient 混合时仍要求核心总数不超过传输容量。九槽→十六系数动态路径沿用内部槽位选择。覆盖描述省略实际 ambient 选择与描述范围的交集；叠加路径保留全部描述。四路变换只作用于前四个 ambient，其余保持恒等；不足四个时使用无变换语法，不读取帧内变换索引。未选中且无 salient 贡献的输出为零，未使用载波仍完整校验。
 
-新 ambient 数量配置使用 `apac-hoa-ambient-counts-math-v1`／`apac-hoa-ambient-counts-state-v1` 和 `rust_hoa_ambient_counts_sq_drc_off_f64_fft_v1`，PCM 元数据记录 `hoa_ambient_component_count` 及 `hoa_ambient_count_profile=apac-hoa-ambient-counts-v1`。原纯一／三阶完整 ambient、零／四 ambient 混合配置的标识和数值保持不变。这里仍限定 SCE，其他传输元素组合尚未开放。
+新 ambient 数量配置使用 `apac-hoa-ambient-counts-math-v1`／`apac-hoa-ambient-counts-state-v1` 和 `rust_hoa_ambient_counts_sq_drc_off_f64_fft_v1`，PCM 元数据记录 `hoa_ambient_component_count` 及 `hoa_ambient_count_profile=apac-hoa-ambient-counts-v1`。原纯一／三阶完整 ambient、零／四 ambient 混合配置的标识和数值保持不变。此处的数量规则同样用于下述已验证传输组合。
 
 ```sh
 python3 -B scripts/generate_hoa_ambient_counts_manifest.py --check
@@ -619,6 +622,24 @@ python3 -B scripts/pack_hoa_salient_formats.py --check
 PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format
 ```
 
+**HOA 传输组合**：CPE 两路各占一个连续载波，LFE 占一个，扩展元素占零个。所有音频载波仍完整读取并数值校验，包括未参与空间恢复的载波。公共两位窗型供全部 HOA ICS 使用，CPE 独立右头不重复读取窗型；SCE／CPE 复用现有 SQ、CAC、TNS、逐元素 BWE2，LFE 不携带 TNS／BWE2，不增加播放增益。
+
+扩展元素的已支持格式位为零，外层长度使用 7／8／16 逃逸，正长度包含自身头，零也表示空载荷。非空载荷先读取一个 8／8／16 逃逸的原始参数，再读取剩余的不透明字节；该参数不决定长度，参考实现不将其用于音频恢复。报告保留实际参数、边界、声明长度和 SHA-256；截断、参数头越界及不支持格式位明确失败。
+
+`HoaFrameContext::transport_elements()` 返回元素配置和载波映射。元素序号及错误中的 `element_index` 使用 `usize`，可准确表示含大量零通道扩展元素的列表；JSON 仍使用整数。新组合增加可选 `hoa.transport_profile`／`transport_format_sha256`／`transport_element_count` 和 PCM 格式摘要、维度／映射元数据，标识为 `apac-hoa-transports-v1`、`apac-hoa-transports-state-v1` 与 `rust_hoa_transports_sq_cac_tns_bwe2_drc_off_f64_fft_v1`；恢复数学沿用原模型，原全 SCE 配置的标识和输出不变。
+
+恢复后的每个输出系数都按公共窗型合成。已确认的原生实现缺陷包括短窗逆重排只遍历传输元素、以及从首元素（可能是扩展元素）取得合成窗型；这些情况下独立输出有意遵循公共窗语义及数学参考。原生错排行为单独重建、核对和报告，不进入生产恢复公式，也不通过放宽浮点容差处理。
+
+```sh
+python3 -B scripts/generate_hoa_transports_manifest.py --check
+python3 -B scripts/validate_hoa_transports.py --binary target/debug/apac-tool --report reports/hoa-transports-math.json
+python3 -B scripts/validate_hoa_transports.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-transports-math.json --report reports/hoa-transports-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_transports
+```
+
+`validate_hoa_transports_native.py --captures CAPTURE_MANIFEST --binary BINARY --report REPORT` 复核命名捕获清单；清单的路径相对自身目录。`validate_hoa_transports_checks.py` 仅检查新增用例、受影响 HOA 代表及一份旧离散声道序列，旧元数据参考必须来自相同平台。
+
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
 ```sh
@@ -651,7 +672,7 @@ PY
 
 包目录声明了布局时，布局标签须与 cookie 确定的解码布局一致，bitmap 必须为零且不能带声道描述；显示名称不参与比较。布局不匹配会在创建输出目录前报错，避免声道数相同但顺序不同的布局被误标到 PCM。
 
-CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、1／2／6／8／12／24 声道或上述 44.1／48 kHz、4／9／16 系数 HOA、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的已支持布局取值；存在时仅接受与 cookie 一致的上述标准标签（HOA 为 family 190）、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
+CAF 输入按文件内容识别，不依赖 `.caf` 扩展名。首版支持 CAF v1、零文件 flags、首块 `desc`、`apac`、44.1／48 kHz、1／2／6／8／12／24 声道或上述 44.1／48 kHz、最多 121 个完整阶系数 HOA、可变包长、固定 1024 帧／包及零格式 flags／bits-per-channel。要求唯一的 `desc`、`kuki`、`pakt`、`data`；其余块顺序可变，未知块按长度跳过，仅末尾 `data` 允许长度 `-1`。`chan` 缺席时从 cookie 的已支持布局取值；存在时仅接受与 cookie 一致的上述标准标签（HOA 为 family 190）、零 bitmap、零描述项。edit count 可非零；不支持其他容器形式时返回明确错误，不回退到原生解码。
 
 CAF 默认顺序模式从第 0 包解码，前置 PCM 被丢弃，以建立 overlap、DRC 与内嵌帧状态；不生成未经验证的随机访问依赖信息，也不套用包目录的 4096 包依赖搜索限额。短范围结束后仍读取剩余包作结构与摘要核验，不宣称其 APAC 语法已完成。`pakt` 决定有效帧及 priming／remainder，包长总和须精确覆盖音频数据，空有效区间不增加隐含帧。
 

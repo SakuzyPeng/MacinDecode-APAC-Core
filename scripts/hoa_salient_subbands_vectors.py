@@ -27,7 +27,7 @@ def esc(value,widths=(4,6,8)):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None):
     assert 0<=len(counts)<=121 and all(1<=n<=16 for n in counts);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;assert mixed or (selection is None and not transform)
     n=shape(order,dynamic);m=(order+1)**2
     assert component_orders is None or len(component_orders)==len(counts)
@@ -53,7 +53,8 @@ def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',d
     if ambient>3:
         wire+=bits(int(transform!=0),1)
         if transform:wire+=bits(transform-1,2)
-    wire+=esc(n,(5,10,16))+'000'*n+'0'+bits(190,16)+bits(n,16)+'0'+'0'+bits(0,3)+bits(0,2)
+    types=[0]*n if tce_types is None else list(tce_types)
+    wire+=esc(len(types),(5,10,16))+''.join(bits(t,3) for t in types)+'0'+bits(190,16)+bits(n,16)+'0'+'0'+bits(0,3)+bits(0,2)
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
     if drc:wire+=drc_header(rate,rich=rich,channels=n)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]

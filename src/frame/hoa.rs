@@ -15,6 +15,8 @@ pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
 pub const MIXED_NUMERIC_PROFILE: &str = "apac-hoa-mixed-math-v1";
 pub const MIXED_STATE_PROFILE: &str = "apac-hoa-mixed-state-v1";
+pub const TRANSPORT_PROFILE: &str = "apac-hoa-transports-v1";
+pub const TRANSPORT_STATE_PROFILE: &str = "apac-hoa-transports-state-v1";
 
 /// One salient component's actual descriptor shape, in cookie order.
 ///
@@ -42,6 +44,7 @@ pub(super) struct HoaConfiguration {
     pub dynamic_method: Option<u8>,
     pub dynamic_subbands: Option<u8>,
     pub transport_channels: u8,
+    pub transport_types: Vec<u8>,
     pub core_channels: u8,
     pub salient_components: u8,
     pub quantization_bits: u8,
@@ -92,6 +95,21 @@ impl HoaConfiguration {
         };
         let recovery_slots = (order + 1).pow(2);
         let channels = if dynamic { 16 } else { recovery_slots };
+        let transport_types: Vec<u8> = parsed
+            .fields
+            .iter()
+            .filter(|f| f.name.starts_with("components[0].hoa.tce[") && f.name.ends_with("].type"))
+            .map(|f| f.value.as_u64().unwrap_or(u64::MAX).min(255) as u8)
+            .collect();
+        let transport_channels = transport_types
+            .iter()
+            .map(|t| match t {
+                0 | 3 => 1usize,
+                1 => 2,
+                _ => 0,
+            })
+            .sum::<usize>()
+            .min(255) as u8;
         // The bound decoder allocates 2048 bytes per declared output channel
         // (ASP Initialize); capacity probes independently verify the new sizes.
         let preroll_bytes = u64::from(channels) * 2048;
@@ -144,7 +162,8 @@ impl HoaConfiguration {
                     .min(7)
                     + 1) as u8
             }),
-            transport_channels: channels,
+            transport_channels,
+            transport_types,
             core_channels: salient_components + ambient_components,
             salient_components,
             quantization_bits: value("components[0].hoa.parameter_2_minus_six")
@@ -235,6 +254,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.transport_extended() {
+            return TRANSPORT_STATE_PROFILE;
+        }
         if self.expanded_orders() {
             return super::hoa_salient::EXPANDED_STATE_PROFILE;
         }
@@ -300,6 +322,9 @@ impl HoaConfiguration {
     }
     pub fn component_count_extended(&self) -> bool {
         self.salient_components != 0 && self.salient_components != 5
+    }
+    pub fn transport_extended(&self) -> bool {
+        self.transport_channels != self.channels || self.transport_types.iter().any(|&t| t != 0)
     }
     pub fn salient_dimensions(&self) -> Vec<usize> {
         self.salient_configurations
@@ -384,6 +409,9 @@ impl HoaFrameContext {
         if shape.core_channels > shape.transport_channels {
             rejected.push("HOA core channels exceed available transport channels".into());
         }
+        if shape.transport_channels == 0 || shape.transport_channels > shape.channels {
+            rejected.push("HOA requires 1..output-count transport channels".into());
+        }
         for (name, value) in [
             ("box.version_flags", 0),
             ("bitstream_version", 0x800),
@@ -425,7 +453,7 @@ impl HoaFrameContext {
             ),
             (
                 "components[0].hoa.tce_count",
-                u64::from(shape.transport_channels),
+                shape.transport_types.len() as u64,
             ),
             ("components[0].hoa.layout_family", 190),
             ("components[0].hoa.layout_channels", channels),
@@ -531,11 +559,14 @@ impl HoaFrameContext {
                 &mut rejected,
             );
         }
-        for i in 0..shape.transport_channels {
+        for (i, &kind) in shape.transport_types.iter().enumerate() {
+            if !matches!(kind, 0 | 1 | 3 | 6) {
+                rejected.push(format!("components[0].hoa.tce[{i}].type={kind} is not a supported HOA transport element"));
+            }
             packet_config::check(
                 &parsed.fields,
                 &format!("components[0].hoa.tce[{i}].type"),
-                json!(0),
+                json!(kind),
                 "cookie",
                 &mut rejected,
             );
@@ -648,6 +679,10 @@ impl HoaFrameContext {
     pub fn transport_channels(&self) -> usize {
         usize::from(self.configuration.transport_channels)
     }
+    /// Cookie elements in wire order, with each element's carrier range.
+    pub fn transport_elements(&self) -> &[super::ElementConfiguration] {
+        self.transport.elements()
+    }
     pub fn order(&self) -> u8 {
         self.configuration.order
     }
@@ -676,6 +711,9 @@ impl HoaFrameContext {
     }
     pub fn static_ambient_enabled(&self) -> bool {
         self.configuration.static_ambient
+    }
+    pub(crate) fn transport_extended(&self) -> bool {
+        self.configuration.transport_extended()
     }
     pub fn ambient_combination(&self) -> super::AmbientCombination {
         self.configuration.ambient_combination
@@ -779,6 +817,12 @@ pub struct HoaFrameInfo {
     pub coefficient_count: usize,
     pub core_channels: usize,
     pub transport_channels: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_format_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transport_element_count: Option<usize>,
     pub common_window: Option<u8>,
     pub spatial: Option<HoaSpatialData>,
     pub hoa_complete: bool,
@@ -805,6 +849,9 @@ impl Default for HoaFrameInfo {
             coefficient_count: 16,
             core_channels: 16,
             transport_channels: 16,
+            transport_profile: None,
+            transport_format_sha256: None,
+            transport_element_count: None,
             common_window: None,
             spatial: None,
             hoa_complete: false,
@@ -941,24 +988,22 @@ pub(super) fn restore(
 ) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     // P^-1 I P = I for the qualified identity ambient map, including the
     // native short-window transpose pair. No unverified matrix or extra gain.
-    let mut result = Vec::with_capacity(usize::from(report.channel_count));
-    for (index, e) in report
-        .elements
-        .iter()
-        .take(usize::from(configuration.recovery_slots))
-        .enumerate()
-    {
-        let scaled = if e.present
-            && !configuration.static_ambient
+    let sources = super::hoa_transport::spectra(report)?;
+    let mut result = Vec::with_capacity(usize::from(configuration.recovery_slots));
+    for index in 0..usize::from(configuration.recovery_slots) {
+        let scaled = if !configuration.static_ambient
             && index < usize::from(configuration.ambient_components)
         {
-            e.channels_after_bwe2[0].scaled.clone()
+            sources
+                .get(index)
+                .expect("qualified ambient carrier")
+                .to_vec()
         } else {
             vec![0.; 1024]
         };
         if scaled.len() != 1024 || scaled.iter().any(|v| !v.is_finite()) {
             return Err(ParseError::new(
-                e.end_bit_offset.unwrap_or(e.start_bit_offset),
+                report.frame.stop_bit_offset,
                 "hoa-numeric",
                 "invalid ambient spectrum",
             ));

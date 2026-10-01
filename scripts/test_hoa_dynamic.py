@@ -41,7 +41,7 @@ class DynamicHoaTests(unittest.TestCase):
         original=cookie(mixed=True,selection=[0,2,4,8]); path=self.path(); path.write_bytes(original)
         r=json.loads(self.run_tool('parse-cookie',path).stdout); wire=''.join(format(v,'08b') for v in original)
         for name,value in [('components[0].hoa.dynamic_selection.parameter',3),('components[0].hoa.dynamic_selection.subbands_minus_one',6),
-                           ('components[0].hoa.order',3),('components[0].hoa.salient[0].order',1),('components[0].hoa.flag_d',1)]:
+                           ('components[0].hoa.order',3),('components[0].hoa.salient[0].order',1),('components[0].hoa.flag_a',0)]:
             f=next(f for f in r['fields'] if f['name']==name); at=f['bit_offset']; raw=pack(wire[:at]+bits(value,f['bit_length'])+wire[at+f['bit_length']:])
             root=self.path(); bundle(root,[packet({},mixed=True,selection=[0,2,4,8])[0]],mixed=True,selection=[0,2,4,8]); (root/'cookie.bin').write_bytes(raw)
             manifest=json.loads((root/'manifest.json').read_text()); manifest['file']['cookie']['value']=dict(bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest()); (root/'manifest.json').write_text(json.dumps(manifest))

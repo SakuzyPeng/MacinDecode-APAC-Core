@@ -372,13 +372,12 @@ fn direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
         .collect()
 }
 
-pub(super) fn restore(
+pub(super) fn restore_descriptors(
     packet: &ChannelPacketReport,
     data: &mut SalientSpatialData,
     state: &mut SalientState,
     coefficients: usize,
-    ambient_selection: Option<&[u8]>,
-) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
+) -> Result<(), ParseError> {
     for d in &mut data.descriptors {
         let mut v = if d.mode == 5 {
             direction(
@@ -437,6 +436,18 @@ pub(super) fn restore(
         d.restored = v.clone();
         state.history[d.component_index][d.subband_index] = v;
     }
+    state.previous_frame_sha256 = Some(packet.frame.packet_sha256.clone());
+    Ok(())
+}
+
+pub(super) fn restore(
+    packet: &ChannelPacketReport,
+    data: &mut SalientSpatialData,
+    state: &mut SalientState,
+    coefficients: usize,
+    ambient_selection: Option<&[u8]>,
+) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
+    restore_descriptors(packet, data, state, coefficients)?;
     let mut output: Vec<_> = (0..coefficients)
         .map(|k| RecoverySlotSpectrum {
             slot_index: k as u8,
@@ -493,7 +504,6 @@ pub(super) fn restore(
             out.scaled[line] = if value == 0. { 0. } else { value };
         }
     }
-    state.previous_frame_sha256 = Some(packet.frame.packet_sha256.clone());
     Ok(output)
 }
 
@@ -534,6 +544,54 @@ mod tests {
             assert_eq!(error.kind, "hoa-numeric");
             assert!(error.bit_offset <= f["internal_end_bit"].as_u64().unwrap() as usize);
             assert_eq!(state, before);
+        }
+    }
+
+    #[test]
+    fn additive_numeric_failure_precedes_mapping_and_tail_and_rolls_back() {
+        let fixtures: serde_json::Value =
+            serde_json::from_str(include_str!("../../data/hoa-additive-state-v1.json")).unwrap();
+        let f = &fixtures["fixtures"][2];
+        let bytes = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_str()
+                .unwrap()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                .collect()
+        };
+        let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        for key in ["dynamic_error", "late_tail_error"] {
+            let mut drc = context.initial_drc_state();
+            let mut state = super::super::HoaState {
+                salient: Some(Box::new(SalientState::new(9))),
+                ..Default::default()
+            };
+            state.salient.as_mut().unwrap().history[0][0][8] = f64::MAX;
+            let before = state.clone();
+            let before_drc =
+                serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                    .unwrap();
+            let error = crate::frame::parse_hoa_packet_with_state(
+                &context,
+                &bytes(&f["errors"][key]),
+                &mut drc,
+                &mut state,
+            )
+            .unwrap_err();
+            assert_eq!(error.kind, "hoa-additive-numeric");
+            assert_eq!(
+                error.bit_offset,
+                f["internal_end_bit"].as_u64().unwrap() as usize
+            );
+            assert_eq!(state, before);
+            assert_eq!(
+                serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                    .unwrap(),
+                before_drc
+            );
         }
     }
 

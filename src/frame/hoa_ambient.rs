@@ -70,6 +70,13 @@ pub(crate) fn math_sha256() -> &'static str {
     &tables().tables_sha256
 }
 
+pub(super) fn matrix_coefficient(index: u8, row: usize, column: usize) -> f64 {
+    if index == 3 {
+        return f64::from(u8::from(row == column));
+    }
+    f64::from_bits(tables().decoder_matrices_f64[usize::from(index)][row * 4 + column])
+}
+
 fn transform(input: [f32; 4], index: u8, output: usize) -> f32 {
     if index == 3 {
         return input[output];

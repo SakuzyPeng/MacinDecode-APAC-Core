@@ -2,7 +2,9 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_additive;
 mod hoa_ambient;
+pub use hoa_additive::{AmbientCombination, AmbientContribution, HoaAdditiveData};
 mod hoa_dynamic;
 mod hoa_salient;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;

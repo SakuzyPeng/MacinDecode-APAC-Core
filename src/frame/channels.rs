@@ -770,23 +770,30 @@ fn parse_impl(
             shape,
             common_window.expect("HOA window"),
         )?;
-        let mut restored = if let Some(data) = &mut spatial.salient {
-            // Set the current packet identity before recording the history source.
-            result.frame.packet_sha256 = parser.report.packet_sha256.clone();
-            super::hoa_salient::restore(
-                &result,
-                data,
-                state.salient.as_mut().expect("salient state"),
-                usize::from(shape.recovery_slots),
-                (shape.salient_components != 0 && shape.ambient_components != 0)
-                    .then(|| shape.ambient_indices()),
-            )?
+        result.frame.packet_sha256 = parser.report.packet_sha256.clone();
+        let restored = if shape.ambient_combination == super::AmbientCombination::Add {
+            let (restored, additive) =
+                super::hoa_additive::restore(&result, &mut spatial, state, shape)?;
+            result.hoa.as_mut().expect("HOA context").additive = Some(additive);
+            restored
         } else {
-            super::hoa::restore(&result)?
+            let mut restored = if let Some(data) = &mut spatial.salient {
+                super::hoa_salient::restore(
+                    &result,
+                    data,
+                    state.salient.as_mut().expect("salient state"),
+                    usize::from(shape.recovery_slots),
+                    (shape.salient_components != 0 && shape.ambient_components != 0)
+                        .then(|| shape.ambient_indices()),
+                )?
+            } else {
+                super::hoa::restore(&result)?
+            };
+            if let Some(data) = &mut spatial.ambient {
+                super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;
+            }
+            restored
         };
-        if let Some(data) = &mut spatial.ambient {
-            super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;
-        }
         let (dynamic, restored) = if shape.dynamic_method.is_some() {
             let (data, spectra) = super::hoa_dynamic::read_and_apply(
                 &mut parser,

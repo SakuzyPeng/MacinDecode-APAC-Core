@@ -333,6 +333,19 @@ fn decode_with_access(
         value["hoa_output_order"] = json!(context.output_order());
         value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
     }
+    if let Some(context) = &decoder.hoa_context
+        && context.ambient_combination() == crate::frame::AmbientCombination::Add
+    {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        value["hoa_ambient_combination"] = json!(context.ambient_combination());
+        value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
+    }
     out.json("pcm.json", &pcm)?;
     let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":super::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":super::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,

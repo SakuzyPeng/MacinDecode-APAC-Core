@@ -436,6 +436,24 @@ python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
 
 `validate_hoa_dynamic_native.py` 复核指定的哈希约束捕获；其隔离映射参考由原生描述历史及已知传输激励重建，不伪称原生中间缓冲快照。`validate_hoa_dynamic_checks.py` 执行相关接口测试与旧代表摘要检查；正式构建和便携验证不读取苹果文件或研究目录。
 
+**Ambient 与 salient 叠加**：在上述固定二阶、固定三阶和动态九槽→十六系数的 5 salient＋4 ambient 配置中，接受 cookie `flag_d=true`。传输槽位 `0..3` 为 ambient、`4..8` 为 salient；静态选择、三套四路变换、帧内变换索引及既有动态划分均可组合。模式 0–3 完整读取九／十六项描述及规定的符号，差分历史不省略 ambient 位置。模式 4／5 沿用完整恢复。`flag_d=false` 继续使用原有省略与覆盖规则；纯 ambient／salient 的新标志组合仍拒绝。
+
+`frame::AmbientCombination::{Replace, Add}` 和 `HoaFrameContext::ambient_combination()` 提供类型化查询。叠加先计算五个 salient 乘积，再按 ambient 输入 `0..3` 加入矩阵贡献，以 Float64、固定顺序 Neumaier 补偿求和，合并后一次转换为 Float32；不将两路分别舍入后再相加。恒等变换直接使用对应 ambient 输入，非有限结果报错。新增规则为 `apac-hoa-additive-math-v1`、状态为 `apac-hoa-additive-state-v1`，后端为 `rust_hoa_additive_sq_drc_off_f64_fft_v1`。动态分支继续记录动态复制标识，并以 `hoa_recovery_numeric_profile` 标明叠加恢复；旧配置的标识和输出不变。
+
+可选 `hoa.additive` 记录策略、选择表、变换索引、恢复阶段与 `ambient_contributions`。这些诊断贡献采用 Float64；其 `recovery_index` 依 `coordinate_space` 指向固定路径的 ACN 或动态路径的内部槽位，不用诊断值回写计算。新增路径的原 `channels_after_transform` 数组为空，避免伪造中途 Float32 舍入；原始传输频谱及最终 ACN 频谱仍完整保留。描述报告的实际编码索引和空省略集合明确表示线上完整读取。历史报告缺少新增字段时仍可读取。
+
+包目录、CAF、受限 MP4／M4A 使用原入口，无需新增开关。输出 overlap 属于最终 ACN，内嵌帧优先，全部历史、DRC 和 overlap 原子提交。范围请求仍从包零预热，HOA fast 在创建输出前拒绝。叠加实例的内嵌容量分别为二阶 18,432 bytes、三阶及动态配置 32,768 bytes。
+
+```sh
+python3 -B scripts/generate_hoa_additive_manifest.py --check
+python3 -B scripts/validate_hoa_additive.py --binary target/debug/apac-tool --report reports/hoa-additive-math.json
+python3 -B scripts/validate_hoa_additive.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-additive-math.json --report reports/hoa-additive-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_additive
+```
+
+`validate_hoa_additive_native.py` 复核三份指定原生捕获；`validate_hoa_additive_checks.py` 运行新增／受影响接口检查及旧代表摘要核对。人工控制不代表真实叠加媒体覆盖，日常和发布均不重跑旧全量矩阵或媒体库。
+
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
 ```sh

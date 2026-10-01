@@ -37,6 +37,7 @@ pub(super) struct HoaConfiguration {
     pub explicit_ambient_selection: bool,
     pub ambient_transform: AmbientTransform,
     pub static_ambient: bool,
+    pub ambient_combination: super::AmbientCombination,
     pub sample_rate_hz: u64,
     pub preroll_bytes: u64,
 }
@@ -72,7 +73,8 @@ impl HoaConfiguration {
         } else {
             HoaPath::Ambient
         };
-        // Separate mixed instances were measured, not extrapolated from dimensions.
+        // Replacement and additive mixed instances were measured independently.
+        // Capacities are not extrapolated from dimensions.
         let (recovery_slots, preroll_bytes) = match (order, path) {
             (2, HoaPath::Mixed) => (9, 18432),
             (3, HoaPath::Mixed) => (16, 32768),
@@ -81,7 +83,8 @@ impl HoaConfiguration {
             _ => (16, 32768),
         };
         let channels = if dynamic { 16 } else { recovery_slots };
-        // Both reduced-slot 16-carrier instances were independently measured.
+        // The pure, replacement-mixed and additive-mixed reduced-slot instances
+        // were each measured at 32768 bytes.
         let preroll_bytes = if dynamic { 32768 } else { preroll_bytes };
         let salient_components = if salient { 5 } else { 0 };
         let ambient_components = match path {
@@ -136,6 +139,11 @@ impl HoaConfiguration {
             explicit_ambient_selection,
             ambient_transform,
             static_ambient: explicit_ambient_selection || transform_present,
+            ambient_combination: if flag("components[0].hoa.flag_d") {
+                super::AmbientCombination::Add
+            } else {
+                super::AmbientCombination::Replace
+            },
             sample_rate_hz: if value("global.sample_rate_index") == Some(4) {
                 44100
             } else {
@@ -151,6 +159,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(self) -> &'static str {
+        if self.ambient_combination == super::AmbientCombination::Add {
+            return super::hoa_additive::NUMERIC_PROFILE;
+        }
         if self.static_ambient {
             return super::hoa_ambient::NUMERIC_PROFILE;
         }
@@ -163,6 +174,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(self) -> &'static str {
+        if self.ambient_combination == super::AmbientCombination::Add {
+            return super::hoa_additive::STATE_PROFILE;
+        }
         if self.dynamic_method.is_some() {
             return super::hoa_dynamic::STATE_PROFILE;
         }
@@ -255,12 +269,21 @@ impl HoaFrameContext {
             "ancillary.metadata_present",
             "ancillary.custom_data_present",
             "components[0].hoa.flag_b",
-            "components[0].hoa.flag_d",
             "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
         }
+        packet_config::check(
+            &parsed.fields,
+            "components[0].hoa.flag_d",
+            json!(
+                shape.path == HoaPath::Mixed
+                    && shape.ambient_combination == super::AmbientCombination::Add
+            ),
+            "cookie",
+            &mut rejected,
+        );
         packet_config::check(
             &parsed.fields,
             "components[0].hoa.dynamic_selection_config_present",
@@ -452,6 +475,9 @@ impl HoaFrameContext {
     pub fn static_ambient_enabled(&self) -> bool {
         self.configuration.static_ambient
     }
+    pub fn ambient_combination(&self) -> super::AmbientCombination {
+        self.configuration.ambient_combination
+    }
     pub fn ambient_selection(&self) -> &[u8] {
         self.configuration.ambient_indices()
     }
@@ -535,6 +561,8 @@ pub struct HoaFrameInfo {
     pub output_coefficient_count: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dynamic_selection: Option<super::hoa_dynamic::DynamicSelectionData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub additive: Option<super::hoa_additive::HoaAdditiveData>,
 }
 impl Default for HoaFrameInfo {
     fn default() -> Self {
@@ -555,6 +583,7 @@ impl Default for HoaFrameInfo {
             output_order: None,
             output_coefficient_count: None,
             dynamic_selection: None,
+            additive: None,
         }
     }
 }
@@ -653,7 +682,13 @@ pub(super) fn spatial(
                 .salient
                 .get_or_insert_with(|| Box::new(super::hoa_salient::SalientState::new(channels))),
             channels,
-            (configuration.path == HoaPath::Mixed).then(|| configuration.ambient_indices()),
+            (configuration.path == HoaPath::Mixed).then(|| {
+                if configuration.ambient_combination == super::AmbientCombination::Add {
+                    &[][..]
+                } else {
+                    configuration.ambient_indices()
+                }
+            }),
         )?)
     } else {
         None

@@ -415,3 +415,84 @@ fn hoa_media_stream_digest() {
     serde_json::to_writer_pretty(&mut output, &report).unwrap();
     output.write_all(b"\n").unwrap();
 }
+
+#[test]
+fn additive_history_transform_mapping_and_output_overlap_are_atomic() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-additive-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported());
+        assert_eq!(
+            context.ambient_combination(),
+            crate::frame::AmbientCombination::Add
+        );
+        assert_eq!(context.core_channels(), 9);
+        assert_eq!(
+            context.maximum_preroll_bytes(),
+            if context.channel_count() == 9 {
+                18432
+            } else {
+                32768
+            }
+        );
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        assert_eq!(decoder.backend(), "rust_hoa_additive_sq_drc_off_f64_fft_v1");
+        assert_eq!(decoder.state_profile(), "apac-hoa-additive-state-v1");
+        let first = bytes(&f["first"]);
+        assert_eq!(
+            decoder.decode_frame(&first).unwrap().len(),
+            1024 * context.channel_count() as usize
+        );
+        let before = snapshot(&decoder);
+        for (key, value) in f["errors"].as_object().unwrap() {
+            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert_eq!(snapshot(&decoder), before, "{key}");
+        }
+        for end in 0..first.len() {
+            assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+            assert_eq!(snapshot(&decoder), before);
+        }
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&first).unwrap();
+        for key in ["embedded_good", "next"] {
+            assert_eq!(
+                decoder.decode_frame(&bytes(&f[key])).unwrap(),
+                fresh.decode_frame(&bytes(&f[key])).unwrap()
+            );
+            assert_eq!(snapshot(&decoder), snapshot(&fresh));
+        }
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();
+        let value = serde_json::to_value(&report).unwrap();
+        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            restored.hoa().additive.as_ref().unwrap().combination,
+            crate::frame::AmbientCombination::Add
+        );
+        assert!(decoder.scan_frame(&first).is_err());
+    }
+}
+
+#[test]
+fn additive_last_output_synthesis_failure_preserves_all_packet_state() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-additive-state-v1.json")).unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let mut decoder = SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap();
+        decoder.decode_frame(&bytes(&f["first"])).unwrap();
+        // Fail after spatial/DRC parsing and the preceding ACN channels have rendered.
+        decoder.channels.last_mut().unwrap().overlap[0] = f64::MAX;
+        let before = snapshot(&decoder);
+        let error = decoder
+            .decode_frame(&bytes(&f["embedded_good"]))
+            .unwrap_err();
+        assert_eq!(error.operation, "SQ synthesis");
+        assert_eq!(snapshot(&decoder), before);
+    }
+}

@@ -58,7 +58,7 @@ class MixedHoaTests(unittest.TestCase):
     def test_configuration_restrictions_are_not_widened(self):
         raw=cookie(order=3); path=self.path(); path.write_bytes(raw)
         parsed=json.loads(self.run_tool('parse-cookie',path).stdout); wire=''.join(format(v,'08b') for v in raw)
-        variants=[('components[0].hoa.flag_d','1'),('components[0].hoa.ambient_components_encoded','0101'),
+        variants=[('components[0].hoa.flag_a','0'),('components[0].hoa.ambient_components_encoded','0101'),
                   ('components[0].hoa.salient[0].subbands_minus_one','0010'),('components[0].hoa.salient[4].order','10')]
         for name,encoded in variants:
             field=next(f for f in parsed['fields'] if f['name']==name); at=field['bit_offset']

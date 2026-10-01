@@ -73,10 +73,10 @@ def check(r,t,last_mode,last_sha,opts):
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
     orders=opts.get('component_orders',[order]*len(counts));dimensions=[(o+1)**2 for o in orders]
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
-    if len(counts)!=5 or list(orders)!=[order]*5:
+    if opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        recovery_profile='apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
-        require(side['component_orders']==component_information(orders) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
+        recovery_profile='apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
+        require(side['component_orders']==component_information(orders,opts.get('quantization_bits',6)) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
         if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==recovery_profile,'dynamic base recovery differs')
         if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
         else:require('order1_profile' not in side,'first-order marker leaked into old descriptors')
@@ -116,6 +116,7 @@ def fingerprints(rows,generated,opts):
             if opts.get('spatial_method',0):structure[-1]['partition']={k:side.get(k) for k in ('partition_method','partition_profile','format_sha256','subband_ends','lines_per_window')}
             if 'component_orders' in side:structure[-1]['component_orders']=side['component_orders']
             if 'order1_profile' in side:structure[-1]['order1_profile']=side['order1_profile']
+            if 'quantization_bits' in side:structure[-1]['quantization']={k:side[k] for k in ('quantization_bits','quantization_profile')}
             values=[v for desc in side['descriptors'] for v in desc['restored']];hashes['descriptors'].update(struct.pack('<'+str(len(values))+'d',*values))
             hashes['internal'].update(float_bytes([v for c in (d['before_selection'] if d else h['channels_after_hoa']) for v in c['scaled']]));hashes['hoa'].update(float_bytes([v for c in h['channels_after_hoa'] for v in c['scaled']]))
             if d:hashes['mapping'].update(bytes(v for row in d['mappings'] for v in row['target_acn_indices']))

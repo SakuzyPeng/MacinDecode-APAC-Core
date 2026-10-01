@@ -10,11 +10,12 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False,salient_counts=False,ambient_counts=False):
+def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
     if ambient_counts:p.add_argument('--counts-reference',type=Path,required=True)
+    if quantization:p.add_argument('--ambient-reference',type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
@@ -31,7 +32,12 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False):
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
         import hoa_salient_subbands_vectors as spatial
-        if ambient_counts:
+        if quantization:
+            import hoa_ambient_counts_vectors as ambient_counts_vectors
+            import hoa_salient_counts_vectors as counts
+            import hoa_order1_vectors as order1
+            references=((a.ambient_reference,ambient_counts_vectors,{'one','twelve','pure-second'}),(a.counts_reference,counts,{'first-four','dynamic-nine'}),(a.order1_reference,order1,{'pure2'}))
+        elif ambient_counts:
             import hoa_salient_counts_vectors as counts
             import hoa_order1_vectors as order1
             references=((a.counts_reference,counts,{'first-four','replace-twelve','dynamic-nine'}),(a.order1_reference,order1,{'pure2'}),(a.partition_reference,partition,{'pure2','dynamic-add'}))

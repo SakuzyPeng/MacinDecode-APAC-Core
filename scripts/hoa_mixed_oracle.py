@@ -11,13 +11,13 @@ from sq_math import round_f32
 
 def descriptor(spec, previous):
     with localcontext() as ctx:
-        ctx.prec=200; n=len(previous); order=isqrt(n)-1; mode=spec['mode']
+        ctx.prec=200; n=len(previous); order=isqrt(n)-1; mode=spec['mode'];precision=spec.get('quantization_bits',6)
         out=list(harmonics(spec['azimuth_degrees'],spec['elevation_offset_degrees'],order)) if mode==5 else [D(0)]*n
         for encoded,(k,q) in enumerate(zip(spec['coded_coefficient_indices'],spec['quantized'])):
-            value=D(q)/32
+            value=D(q)/(1<<(precision-1))
             out[k]=previous[k]+(value if spec['signs_positive'][encoded] else -value) if mode==3 else value-1
         if mode==4:
-            matrix=[D.from_float(struct.unpack('<f',struct.pack('<I',word))[0]) for word in format_for(order)['modes'][4]['matrices_f32'][spec['cluster']]]
+            matrix=[D.from_float(struct.unpack('<f',struct.pack('<I',word))[0]) for word in format_for(order,precision)['modes'][4]['matrices_f32'][spec['cluster']]]
             out=[sum((out[j]*matrix[n*j+k] for j in range(n)),D(0)) for k in range(n)]
         assert all(out[k]==0 for k in spec['ambient_omitted_coefficients'])
         return out

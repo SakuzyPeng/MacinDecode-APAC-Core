@@ -32,6 +32,7 @@ pub(super) struct HoaConfiguration {
     pub transport_channels: u8,
     pub core_channels: u8,
     pub salient_components: u8,
+    pub quantization_bits: u8,
     pub salient_subbands: Vec<u8>,
     pub salient_orders: Vec<u8>,
     pub salient_partition_method: u8,
@@ -142,6 +143,10 @@ impl HoaConfiguration {
             transport_channels: channels,
             core_channels: salient_components + ambient_components,
             salient_components,
+            quantization_bits: value("components[0].hoa.parameter_2_minus_six")
+                .unwrap_or(0)
+                .min(3) as u8
+                + 6,
             salient_subbands: (0..salient_components)
                 .map(|i| {
                     (value(&format!(
@@ -193,6 +198,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
+        if self.quantization_extended() {
+            return super::hoa_salient::QUANTIZATION_NUMERIC_PROFILE;
+        }
         if self.ambient_count_extended() {
             return super::hoa_ambient::COUNTS_NUMERIC_PROFILE;
         }
@@ -217,6 +225,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.quantization_extended() {
+            return super::hoa_salient::QUANTIZATION_STATE_PROFILE;
+        }
         if self.ambient_count_extended() {
             return super::hoa_ambient::COUNTS_STATE_PROFILE;
         }
@@ -255,8 +266,12 @@ impl HoaConfiguration {
     }
     pub fn component_orders_extended(&self) -> bool {
         self.salient_components != 0
-            && (self.component_count_extended()
+            && (self.quantization_extended()
+                || self.component_count_extended()
                 || self.salient_orders.iter().any(|&o| o != self.order))
+    }
+    pub fn quantization_extended(&self) -> bool {
+        self.salient_components != 0 && self.quantization_bits != 6
     }
     pub fn ambient_count_extended(&self) -> bool {
         (self.path == HoaPath::Mixed && self.ambient_components != 4)
@@ -273,6 +288,9 @@ impl HoaConfiguration {
             .collect()
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
+        if self.quantization_extended() {
+            return super::hoa_salient::QUANTIZATION_NUMERIC_PROFILE;
+        }
         if self.component_orders_extended() {
             super::hoa_salient::COMPONENT_ORDERS_NUMERIC_PROFILE
         } else {
@@ -280,8 +298,9 @@ impl HoaConfiguration {
         }
     }
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
-        self.component_orders_extended()
-            .then(|| super::hoa_salient::component_information(&self.salient_orders))
+        self.component_orders_extended().then(|| {
+            super::hoa_salient::component_information(&self.salient_orders, self.quantization_bits)
+        })
     }
 }
 
@@ -323,7 +342,10 @@ impl HoaFrameContext {
                 "components[0].hoa.parameter_1",
                 u64::from(shape.salient_partition_method),
             ),
-            ("components[0].hoa.parameter_2_minus_six", 0),
+            (
+                "components[0].hoa.parameter_2_minus_six",
+                u64::from(shape.quantization_bits - 6),
+            ),
             ("components[0].hoa.order", u64::from(shape.order)),
             (
                 "components[0].hoa.max_salient_components",
@@ -531,6 +553,12 @@ impl HoaFrameContext {
     }
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.transport.maximum_preroll_bytes()
+    }
+    pub fn quantization_bits(&self) -> u8 {
+        self.configuration.quantization_bits
+    }
+    pub(crate) fn quantization_extended(&self) -> bool {
+        self.configuration.quantization_extended()
     }
     pub fn salient_components(&self) -> usize {
         usize::from(self.configuration.salient_components)

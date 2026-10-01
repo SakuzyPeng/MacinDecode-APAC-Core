@@ -10,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
 
 COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,9 +43,9 @@ def reader(path):
     return read
 
 
-def extract(path, order=3):
-    if order not in (1,2,3):
-        raise ValueError('only verified first/second/third order spatial dictionaries')
+def extract(path, order=3, quantization_bits=6):
+    if order not in range(1,11) or quantization_bits not in range(6,10):
+        raise ValueError('spatial dictionary key outside order 1..10 / precision 6..9')
     coefficients=(order+1)**2
     read = reader(path)
     def pointer(address):
@@ -55,13 +56,13 @@ def extract(path, order=3):
         return [(pointer(p), pointer(p+8)) for p in range(begin, end, 16)]
     modes = []
     for mode in range(6):
-        address = {1:0xaa7510,2:0xaa7a50,3:0xaa7f90}[order] + mode*56
+        address = pointer(0xaaa990+(order-1)*32+(quantization_bits-6)*8) + mode*56
         groups = [list(struct.unpack('<'+'H'*((end-begin)//2), read(begin, end-begin)))
                   for begin, end in spans(address+16)]
         books = []
         for begin, end in spans(address):
-            assert end-begin == 64*9
-            book = [list(struct.unpack('<BQ', read(begin+value*9, 9))) for value in range(64)]
+            assert end-begin == (1<<quantization_bits)*9
+            book = [list(struct.unpack('<BQ', read(begin+value*9, 9))) for value in range(1<<quantization_bits)]
             assert all(1 <= length <= 32 and code < 1 << length for length, code in book)
             books.append(book)
         matrices = []
@@ -70,9 +71,9 @@ def extract(path, order=3):
             matrices.append(list(struct.unpack('<'+'I'*(coefficients*coefficients), read(begin, end-begin))))
         modes.append(dict(mode=mode, groups=groups, codebooks=books,
                           signs=bool(read(address+48, 1)[0]), matrices_f32=matrices))
-    values = dict(order=order, quantization_bits=6, modes=modes)
+    values = dict(order=order, quantization_bits=quantization_bits, modes=modes)
     digest = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    return dict(schema_version=1, format_profile=f'apac-hoa-salient-order{order}-format-v1' if order in (1,2) else 'apac-hoa-salient-format-v1',
+    return dict(schema_version=1, format_profile=(f'apac-hoa-salient-order{order}-q{quantization_bits}-format-v1' if quantization_bits!=6 else f'apac-hoa-salient-order{order}-format-v1' if order!=3 else 'apac-hoa-salient-format-v1'),
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
@@ -81,18 +82,29 @@ def extract(path, order=3):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--component', type=Path, default=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))
-    p.add_argument('--order', type=int, choices=(1,2,3), default=3)
+    p.add_argument('--order', type=int, choices=range(1,11), default=3)
+    p.add_argument('--quantization-bits',type=int,choices=range(6,10),default=6)
     p.add_argument('--table', type=Path)
     p.add_argument('--write', action='store_true')
-    a = p.parse_args(); result = extract(a.component,a.order)
+    a = p.parse_args(); result = extract(a.component,a.order,a.quantization_bits)
     if a.table is None:
-        a.table=ROOT/(f'data/hoa-salient-order{a.order}-format-v1.json' if a.order in (1,2) else 'data/hoa-salient-format-v1.json')
-    raw = (json.dumps(result, indent=2)+'\n').encode()
+        a.table=ROOT/'data'/format_name(a.order,a.quantization_bits)
     if a.write:
+        stored, shared = split_format(result)
+        shared_path = a.table.with_name(shared_name(a.order))
+        raw_shared = json_bytes(shared)
+        if a.table.exists():
+            raise FileExistsError(a.table)
+        if shared_path.exists():
+            if shared_path.read_bytes() != raw_shared:
+                raise ValueError('existing shared HOA dictionaries differ')
+        else:
+            with shared_path.open('xb') as f:
+                f.write(raw_shared)
         with a.table.open('xb') as f:
-            f.write(raw)
+            f.write(json_bytes(stored))
     else:
-        assert a.table.read_bytes() == raw, 'HOA dictionaries differ'
+        assert load_format(a.table) == result, 'HOA dictionaries differ'
     print(json.dumps(dict(tables_sha256=result['tables_sha256'], modes=6, codebooks=8, transforms=4)))
 
 

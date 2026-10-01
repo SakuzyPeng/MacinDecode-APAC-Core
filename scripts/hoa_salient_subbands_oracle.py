@@ -20,7 +20,7 @@ class Decoder:
         with localcontext() as ctx:
             ctx.prec=200;side=truth['spatial'];vectors=[];path=self.options.get('path','salient');mixed=path!='salient'
             for spec in side.get('salient',{}).get('descriptors',[]):
-                sc,b=spec['component_index'],spec['subband_index'];v=descriptor(spec,self.history[sc][b]);self.history[sc][b]=v;vectors.append(v)
+                sc,b=spec['component_index'],spec['subband_index'];v=descriptor(dict(spec,quantization_bits=self.options.get('quantization_bits',6)),self.history[sc][b]);self.history[sc][b]=v;vectors.append(v)
             sources=[spectra(e)['bwe2'][0] if e['present'] else [0.]*1024 for e in truth['elements']]
             selected=side['ambient_indices'];ambient_data=truth.get('dynamic_selection',{}).get('internal_ambient',{}) if truth.get('dynamic_selection') else side.get('ambient',{})
             index=ambient_data.get('effective_index',3);offset=self.options.get('ambient_count',4 if mixed else 0)

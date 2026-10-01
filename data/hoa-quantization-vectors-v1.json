@@ -1,0 +1,207 @@
+{
+  "profile": "apac-hoa-salient-quantization-v1",
+  "formats": {
+    "format_sha256": "f4fddd8e2a8b609c03d2f0f8dc3591564ed9b8634036071395341c617728286f",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+      "spatial_methods12": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+      "lower": "07a71bfc7a8ac09cf51669e31d25031118630425ae9446f2a0f96fb0dddfbb78",
+      "lower_counts": "5fdb73e5f1d0ae7bdfe06ae784b6213416ac13e00f94da2616d0e39914407960",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88",
+      "order1_q7": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+      "order1_q8": "9f8d01e8463d5bc551549424b4b6f5c40180aceb002200f006b0a90cd77981c8",
+      "order1_q9": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+      "order2_q7": "75ffddf990ba989457d57a21a16434acca390e1d45f80ff988f743e254790a69",
+      "order2_q8": "f6008a4398c01c163c4e8d36ac2a014cd71e7a30b66b0558e2a06471e4079beb",
+      "order2_q9": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+      "order3_q7": "e430204b6acf6a48a72558b22a7cef5a586e2428182aed76cfd0af3043f000da",
+      "order3_q8": "d799f383c754514ed7aa673ae06dfd0d3546b8ecf42dfcadd26b3e41b5e59227",
+      "order3_q9": "ef01235ef79dcff21d2535f34bf3b445fbb6fffd3c827d401c38975e7d39ee86"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "q7-first",
+      "configuration": {
+        "order": 1,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 7,
+        "selection": null,
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "packets": 8,
+      "input_sha256": "d81c55810931a0c45e91f701e69e71d86b6e617cdff8c8b8e3481b108c419c10",
+      "truth_sha256": "8b51882dd0442e0d16e0fb9aa5cc520a52e604f16e6daea7baf623870ecce542"
+    },
+    {
+      "index": 1,
+      "kind": "q8-mixed",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2
+        ],
+        "ambient_count": 5,
+        "quantization_bits": 8,
+        "selection": null,
+        "transform": 4,
+        "subbands": 3,
+        "scene": true
+      },
+      "packets": 8,
+      "input_sha256": "f48f8a48b7fa0a88716589763b344c8efaa33a8e750eb1d78e1585c5f7ded066",
+      "truth_sha256": "d5e532a887b6c3a4b90ffefbe8d3807c976335f14adb8246fc24dcaebdf0ca39"
+    },
+    {
+      "index": 2,
+      "kind": "q9-mixed-orders",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 9,
+        "selection": null,
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "packets": 8,
+      "input_sha256": "a9e1bd309f42c3fca38430b87853c1cb3303cd5c77b58c8b68750847be94ae1a",
+      "truth_sha256": "50e835e7b90eb980c7ac1bbde5dcd15790b1fd5c68489e4dec1a2e89b3d83615"
+    },
+    {
+      "index": 3,
+      "kind": "q9-dynamic",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "ambient_count": 3,
+        "quantization_bits": 9,
+        "selection": [
+          0,
+          4,
+          8
+        ],
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "packets": 8,
+      "input_sha256": "913f34b19d0810a03a8f28b6192d53cd2634073857f00e1b6885c82654e909ce",
+      "truth_sha256": "a18c49e4ad5e11930910ae0f7d7a0f76bda796f12e30b35a0788a3a16ca2a3f6"
+    },
+    {
+      "index": 4,
+      "kind": "q7-three-orders",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3
+        ],
+        "quantization_bits": 7,
+        "scene": false
+      },
+      "packets": 2,
+      "input_sha256": "11a3a27a5be11c813ec60608214205223030f00fbf3bef4730b0bc03f0110abf",
+      "truth_sha256": "67b75e54e1034ea1068474de5835ef9636e8a31651a8fe2f79b65e66d2f23e83"
+    },
+    {
+      "index": 5,
+      "kind": "q8-three-orders",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3
+        ],
+        "quantization_bits": 8,
+        "scene": false
+      },
+      "packets": 2,
+      "input_sha256": "e5967229cf356e145ab936d06df131d4bb561527edb08bf650ba94aa3f1aa727",
+      "truth_sha256": "92b979c0c9018d482cf0a1c1411cf51bdd114b99922275e9e973b1bb47c56d5c"
+    }
+  ],
+  "sha256": "c296d942bb33554a0ebd3002316318f56b857a3f62bba22015f107c6f8b61e21"
+}

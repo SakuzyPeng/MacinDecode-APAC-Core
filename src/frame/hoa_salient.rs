@@ -10,6 +10,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::OnceLock;
 
+#[path = "hoa_salient_format.rs"]
+mod format;
+use format::Format;
+
+pub const QUANTIZATION_PROFILE: &str = "apac-hoa-salient-quantization-v1";
+pub const QUANTIZATION_NUMERIC_PROFILE: &str = "apac-hoa-salient-quantization-math-v1";
+pub const QUANTIZATION_STATE_PROFILE: &str = "apac-hoa-salient-quantization-state-v1";
 pub const COUNTS_PROFILE: &str = "apac-hoa-salient-counts-v1";
 pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-salient-counts-math-v1";
 pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-salient-counts-state-v1";
@@ -32,6 +39,10 @@ mod order1_tests;
 #[cfg(test)]
 #[path = "hoa_counts_tests.rs"]
 mod counts_tests;
+
+#[cfg(test)]
+#[path = "hoa_quantization_tests.rs"]
+mod quantization_tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
@@ -74,7 +85,7 @@ pub struct SalientDescriptor {
     pub mode: u8,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
-    pub quantized: Vec<u8>,
+    pub quantized: Vec<u16>,
     pub signs_positive: Vec<bool>,
     pub cluster: Option<u8>,
     pub azimuth_degrees: Option<u16>,
@@ -115,6 +126,10 @@ pub struct SalientSpatialData {
     pub component_count: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub count_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quantization_bits: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quantization_profile: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
@@ -132,8 +147,13 @@ pub struct SalientComponentOrderInfo {
     pub coefficient_count: usize,
     pub numeric_profile: String,
     pub format_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quantization_bits: Option<u8>,
 }
-pub(super) fn component_information(orders: impl AsRef<[u8]>) -> Vec<SalientComponentOrderInfo> {
+pub(super) fn component_information(
+    orders: impl AsRef<[u8]>,
+    precision: u8,
+) -> Vec<SalientComponentOrderInfo> {
     orders
         .as_ref()
         .iter()
@@ -145,8 +165,17 @@ pub(super) fn component_information(orders: impl AsRef<[u8]>) -> Vec<SalientComp
                 component_index,
                 order,
                 coefficient_count,
-                numeric_profile: numeric_profile(coefficient_count).into(),
-                format_sha256: format_sha256(coefficient_count).into(),
+                numeric_profile: if precision == 6 {
+                    numeric_profile(coefficient_count)
+                } else {
+                    QUANTIZATION_NUMERIC_PROFILE
+                }
+                .into(),
+                format_sha256: constants_for_bits(coefficient_count, precision)
+                    .format
+                    .tables_sha256
+                    .clone(),
+                quantization_bits: (precision != 6).then_some(precision),
             }
         })
         .collect()
@@ -183,20 +212,6 @@ impl SalientSpatialData {
 }
 
 #[derive(Deserialize)]
-struct Mode {
-    mode: usize,
-    groups: Vec<Vec<usize>>,
-    codebooks: Vec<Vec<(usize, u32)>>,
-    signs: bool,
-    matrices_f32: Vec<Vec<u32>>,
-}
-#[derive(Deserialize)]
-struct Format {
-    format_profile: String,
-    tables_sha256: String,
-    modes: Vec<Mode>,
-}
-#[derive(Deserialize)]
 struct Math {
     numeric_profile: String,
     tables_sha256: String,
@@ -215,29 +230,75 @@ struct CommonMath {
     roots: [f64; 7],
 }
 fn constants(coefficients: usize) -> &'static Constants {
-    static ORDER1: OnceLock<Constants> = OnceLock::new();
-    static ORDER2: OnceLock<Constants> = OnceLock::new();
-    static ORDER3: OnceLock<Constants> = OnceLock::new();
-    let (cell, source, profile) = match coefficients {
-        4 => (
-            &ORDER1,
+    constants_for_bits(coefficients, 6)
+}
+fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants {
+    static DATA: [OnceLock<Constants>; 12] = [const { OnceLock::new() }; 12];
+    let (index, source, profile) = match (coefficients, precision) {
+        (4, 6) => (
+            0,
             include_str!("../../data/hoa-salient-order1-format-v1.json"),
             "apac-hoa-salient-order1-format-v1",
         ),
-        9 => (
-            &ORDER2,
+        (4, 7) => (
+            1,
+            include_str!("../../data/hoa-salient-order1-q7-format-v1.json"),
+            "apac-hoa-salient-order1-q7-format-v1",
+        ),
+        (4, 8) => (
+            2,
+            include_str!("../../data/hoa-salient-order1-q8-format-v1.json"),
+            "apac-hoa-salient-order1-q8-format-v1",
+        ),
+        (4, 9) => (
+            3,
+            include_str!("../../data/hoa-salient-order1-q9-format-v1.json"),
+            "apac-hoa-salient-order1-q9-format-v1",
+        ),
+        (9, 6) => (
+            4,
             include_str!("../../data/hoa-salient-order2-format-v1.json"),
             "apac-hoa-salient-order2-format-v1",
         ),
-        16 => (
-            &ORDER3,
+        (9, 7) => (
+            5,
+            include_str!("../../data/hoa-salient-order2-q7-format-v1.json"),
+            "apac-hoa-salient-order2-q7-format-v1",
+        ),
+        (9, 8) => (
+            6,
+            include_str!("../../data/hoa-salient-order2-q8-format-v1.json"),
+            "apac-hoa-salient-order2-q8-format-v1",
+        ),
+        (9, 9) => (
+            7,
+            include_str!("../../data/hoa-salient-order2-q9-format-v1.json"),
+            "apac-hoa-salient-order2-q9-format-v1",
+        ),
+        (16, 6) => (
+            8,
             include_str!("../../data/hoa-salient-format-v1.json"),
             "apac-hoa-salient-format-v1",
         ),
-        _ => unreachable!("qualified coefficient count"),
+        (16, 7) => (
+            9,
+            include_str!("../../data/hoa-salient-order3-q7-format-v1.json"),
+            "apac-hoa-salient-order3-q7-format-v1",
+        ),
+        (16, 8) => (
+            10,
+            include_str!("../../data/hoa-salient-order3-q8-format-v1.json"),
+            "apac-hoa-salient-order3-q8-format-v1",
+        ),
+        (16, 9) => (
+            11,
+            include_str!("../../data/hoa-salient-order3-q9-format-v1.json"),
+            "apac-hoa-salient-order3-q9-format-v1",
+        ),
+        _ => unreachable!("qualified HOA dictionary key"),
     };
-    cell.get_or_init(|| {
-        let format: Format = serde_json::from_str(source).expect("built-in HOA format tables");
+    DATA[index].get_or_init(|| {
+        let format = Format::load(source, coefficients, precision);
         assert_eq!(format.format_profile, profile);
         assert_eq!(format.modes.len(), 6);
         let tries = format
@@ -246,7 +307,12 @@ fn constants(coefficients: usize) -> &'static Constants {
             .enumerate()
             .map(|(index, m)| {
                 assert_eq!(m.mode, index);
-                assert!(m.groups.iter().flatten().all(|&i| i < coefficients));
+                assert!(
+                    m.groups
+                        .iter()
+                        .flat_map(|group| group.iter())
+                        .all(|&i| i < coefficients)
+                );
                 assert!(
                     m.matrices_f32
                         .iter()
@@ -255,7 +321,7 @@ fn constants(coefficients: usize) -> &'static Constants {
                 m.codebooks
                     .iter()
                     .map(|book| {
-                        assert_eq!(book.len(), 64);
+                        assert_eq!(book.len(), 1usize << precision);
                         Trie::new(&Codebook {
                             codes: book.iter().map(|v| v.1).collect(),
                             bits: book.iter().map(|v| v.0).collect(),
@@ -306,15 +372,17 @@ pub(crate) fn math_sha256() -> &'static str {
     &common_math().math_sha
 }
 
-fn huffman(
+fn huffman_for_bits(
     parser: &mut Parser<'_>,
     name: &str,
     mode: usize,
     book: usize,
     coefficients: usize,
-) -> Result<u8, ParseError> {
+    precision: u8,
+) -> Result<u16, ParseError> {
     let start = parser.bits.position();
-    let value = constants(coefficients).tries[mode][book].read(&mut parser.bits)? as u8;
+    let value = constants_for_bits(coefficients, precision).tries[mode][book]
+        .read(&mut parser.bits)? as u16;
     if parser.capture {
         parser.report.fields.push(ConfigField {
             name: name.into(),
@@ -340,6 +408,7 @@ pub(super) fn read(
             configuration.ambient_indices()
         }
     });
+    let precision = configuration.quantization_bits;
     let partition_method = configuration.salient_partition_method;
     let mixed = ambient_selection.is_some();
     let counts: Vec<usize> = state.history.iter().map(Vec::len).collect();
@@ -388,7 +457,9 @@ pub(super) fn read(
                         if omitted.contains(&(i as u8)) {
                             continue;
                         }
-                        d.quantized[i] = parser.take(&format!("{name}.quantized[{i}]"), 6)? as u8;
+                        d.quantized[i] = parser
+                            .take(&format!("{name}.quantized[{i}]"), usize::from(precision))?
+                            as u16;
                         *is_coded = true;
                     }
                 }
@@ -400,18 +471,20 @@ pub(super) fn read(
                     // The qualified configuration carries explicit first-order coefficients.
                     d.quantized.truncate(4);
                     for (i, is_coded) in coded.iter_mut().enumerate().take(4) {
-                        d.quantized[i] = huffman(
+                        d.quantized[i] = huffman_for_bits(
                             parser,
                             &format!("{name}.quantized[{i}]"),
                             1,
                             0,
                             coefficients,
+                            precision,
                         )?;
                         *is_coded = true;
                     }
                 }
                 _ => {
-                    let m = &constants(coefficients).format.modes[usize::from(mode)];
+                    let m = &constants_for_bits(coefficients, precision).format.modes
+                        [usize::from(mode)];
                     let selected = if mode == 4 {
                         let c = parser.take(&format!("{name}.cluster"), 2)? as u8;
                         d.cluster = Some(c);
@@ -426,16 +499,17 @@ pub(super) fn read(
                         if selected.is_some_and(|c| c != book) {
                             continue;
                         }
-                        for &i in group {
+                        for &i in *group {
                             if omitted.contains(&(i as u8)) {
                                 continue;
                             }
-                            d.quantized[i] = huffman(
+                            d.quantized[i] = huffman_for_bits(
                                 parser,
                                 &format!("{name}.quantized[{i}]"),
                                 usize::from(mode),
                                 book,
                                 coefficients,
+                                precision,
                             )?;
                             coded[i] = true;
                             if m.signs {
@@ -514,6 +588,8 @@ pub(super) fn read(
         count_profile: configuration
             .component_count_extended()
             .then(|| COUNTS_PROFILE.into()),
+        quantization_bits: (precision != 6).then_some(precision),
+        quantization_profile: (precision != 6).then(|| QUANTIZATION_PROFILE.into()),
         descriptors,
     })
 }
@@ -566,6 +642,7 @@ pub(super) fn restore_descriptors(
     data: &mut SalientSpatialData,
     state: &mut SalientState,
 ) -> Result<(), ParseError> {
+    let precision = data.quantization_bits.unwrap_or(6);
     for d in &mut data.descriptors {
         let coefficients = state.history[d.component_index][d.subband_index].len();
         let mut v = if d.mode == 5 {
@@ -582,7 +659,7 @@ pub(super) fn restore_descriptors(
                 .coded_coefficient_indices
                 .as_ref()
                 .map_or(encoded, |indices| indices[encoded]);
-            let magnitude = f64::from(q) / 32.;
+            let magnitude = f64::from(q) / f64::from(1u16 << (precision - 1));
             v[i] = if d.mode == 3 {
                 let delta = if d.signs_positive[encoded] {
                     magnitude
@@ -595,7 +672,7 @@ pub(super) fn restore_descriptors(
             };
         }
         if d.mode == 4 {
-            let matrix = &constants(coefficients).format.modes[4].matrices_f32
+            let matrix = &constants_for_bits(coefficients, precision).format.modes[4].matrices_f32
                 [usize::from(d.cluster.expect("cluster"))];
             let input = v.clone();
             for (k, result) in v.iter_mut().enumerate() {

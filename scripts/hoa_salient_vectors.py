@@ -2,18 +2,17 @@
 import copy
 import hashlib
 import json
-from pathlib import Path
 from spectrum_vectors import bits, pack
 from channel_vectors import single, scene_bits
 from hoa_vectors import config, bundle as ambient_bundle, excitation
 from drc_vectors import header as drc_header, payload as drc_payload
+from hoa_salient_format import format_for
 
 PROFILE='apac-hoa-salient-math-v1'
-FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-format-v1.json').read_text())
-ORDER2_FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-order2-format-v1.json').read_text())
-ORDER1_FORMAT=json.loads((Path(__file__).resolve().parents[1]/'data/hoa-salient-order1-format-v1.json').read_text())
+FORMAT=format_for(3)
+ORDER2_FORMAT=format_for(2)
+ORDER1_FORMAT=format_for(1)
 ENDS=[32,80,216,1024]
-def format_for(order):return ORDER1_FORMAT if order==1 else ORDER2_FORMAT if order==2 else FORMAT
 
 
 def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000):

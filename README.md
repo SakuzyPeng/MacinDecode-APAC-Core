@@ -342,7 +342,7 @@ HOA 验证只运行新增用例和受影响接口的精简回归，不要求重�
 
 `hoa.spatial.salient` 包含 20 份分量／子带描述：模式 0–5、量化值、符号、方向或变换索引、位范围及恢复后的 Float64 向量；`history_frame_sha256` 指向上一个已处理核心帧（可为内嵌帧），初始为 null。`SalientDescriptor.restored` 为有界 `Vec<f64>`，二／三阶分别为 9／16 项，不填充额外系数；历史三阶 JSON 保持兼容。两种采样率的 `subband_ends` 都是频率优先布局中的终点 `[32,80,216,1024]`，`lines_per_window` 为每窗终点，短窗是 `[4,10,27,128]`。上下文的 `order()`、`channel_count()`、`sample_rate_hz()`、`salient_components()`、`numeric_profile()` 和 `state_profile()` 可查询分支。单包解析从初始状态开始，不能用来随机恢复中间的差分帧。
 
-三阶规则保持 `apac-hoa-salient-math-v1`，二阶使用 `apac-hoa-salient-order2-math-v1`：固定 Float64 描述反量化、历史差分、方向恢复、矩阵变换与五分量求和，最后每条系数谱线一次舍入为 Float32。方向索引按度编码，方位角采用顺时针约定；二阶使用相应球谐向量除以 3，三阶保持除以 4，再由独立编码值覆盖前四项。这不改变最终 ACN/SN3D 输出标签。二阶不是截取已经按三阶归一化的向量，原生的百万分之一取整也不进入独立模型。二阶格式字典为 `apac-hoa-salient-order2-format-v1`；三阶数据文件与摘要不改动。两阶共用已有 Decimal 100／200 位生成的角度与根式常量，不复制常量表。
+三阶规则保持 `apac-hoa-salient-math-v1`，二阶使用 `apac-hoa-salient-order2-math-v1`：固定 Float64 描述反量化、历史差分、方向恢复、矩阵变换与五分量求和，最后每条系数谱线一次舍入为 Float32。方向索引按度编码，方位角采用顺时针约定；二阶使用相应球谐向量除以 3，三阶保持除以 4，再由独立编码值覆盖前四项。这不改变最终 ACN/SN3D 输出标签。二阶不是截取已经按三阶归一化的向量，原生的百万分之一取整也不进入独立模型。二阶格式字典为 `apac-hoa-salient-order2-format-v1`；三阶格式常量与摘要不改动。两阶共用已有 Decimal 100／200 位生成的角度与根式常量，不复制常量表。
 
 合成始终作用于恢复后的实际系数数组；单个传输 SCE 缺席不能清除同编号的系数 overlap。后端为 `rust_hoa_salient_sq_drc_off_f64_fft_v1`，状态为 `apac-hoa-salient-state-v1`，PCM 实现元数据另含 `hoa_format_sha256`、`hoa_tables_sha256`。原三阶及离散声道的报告、标识与数值保持兼容。
 
@@ -581,6 +581,28 @@ python3 -B scripts/generate_hoa_ambient_counts_manifest.py --check
 python3 -B scripts/validate_hoa_ambient_counts.py --binary target/debug/apac-tool --report reports/hoa-ambient-counts-math.json
 python3 -B scripts/validate_hoa_ambient_counts.py --binary target/release/apac-tool \
   --reference-report reports/hoa-ambient-counts-math.json --report reports/hoa-ambient-counts-release.json
+```
+
+**6–9 位 salient 描述量化**：上述一至三阶描述支持 cookie 声明的 6／7／8／9 位精度，适用于现有数量、阶数组合、覆盖／叠加和动态选择。码表及矩阵由描述维度、精度和模式共同选择；不截断大于 255 的符号。标量恢复为 `q / 2^(bits-1) - 1`，差分使用同一尺度的带符号增量，方向及矩阵沿用已定义的 Float64 运算顺序。
+
+Rust `SalientDescriptor.quantized` 改为 `Vec<u16>`，新增 `HoaFrameContext::quantization_bits()`。七至九位配置在空间报告中记录 `quantization_bits` 与 `quantization_profile=apac-hoa-salient-quantization-v1`，逐分量信息携带实际字典摘要；PCM 记录 `hoa_salient_quantization_bits`／`hoa_salient_quantization_profile`。新恢复／状态标识为 `apac-hoa-salient-quantization-math-v1`／`apac-hoa-salient-quantization-state-v1`，后端为 `rust_hoa_salient_quantization_sq_drc_off_f64_fft_v1`。六位配置的 JSON 整数含义、常量、规则和 PCM 保持不变。
+
+```sh
+python3 -B scripts/generate_hoa_quantization_manifest.py --check
+python3 -B scripts/validate_hoa_quantization.py --binary target/debug/apac-tool --report reports/hoa-quantization-math.json
+python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-quantization-math.json --report reports/hoa-quantization-release.json
+```
+
+**HOA 字典存储**：一至三阶的 12 份字典按阶数共用 `data/hoa-salient-orderN-shared-v1.json` 中的四个矩阵和三个唯一系数分组。字典文件使用存储 schema 3，`shared_file` 引用存储 schema 2 的共享文件。码表采用 `preorder-tree-msb-hex-v1`，矩阵采用 `micro21-msb-hex-v1`；两者均以小写十六进制存储。Python 的 `hoa_salient_format.format_for(order, quantization_bits)` 返回兼容旧 schema 的完整字典，仍可载入历史完整／共享字典；Rust 在初始化时展开并共享常量。`tables_sha256` 始终覆盖展开后的原始表内容，已有格式标识、报告和 PCM 摘要保持不变。
+
+码表按原二叉树先序存储：一位区分内部节点和叶子，叶子随后携带与量化位数等宽的符号索引，左右路径恢复原始码长和码字。矩阵每项使用一位符号和二十位整数幅值，幅值除以一百万后舍入至 Float32，再恢复符号位，包括负零。生成器逐项检查原始 Float32 位模式；不能精确表示的数值会报错。两种编码均按高位优先排列，末字节补零；加载器校验长度、填充位以及完整树的深度和符号唯一性。
+
+`pack_hoa_salient_formats.py --check` 校验全部表摘要、共享内容及规范存储；省略 `--check` 可从完整或共享字典重新生成去重存储。`verify_hoa_salient_format.py --write` 同时生成字典与所需共享文件，并拒绝覆盖或复用内容不同的共享文件。无需原生组件即可执行存储校验：
+
+```sh
+python3 -B scripts/pack_hoa_salient_formats.py --check
+PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format
 ```
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：

@@ -1,0 +1,872 @@
+{
+  "fixtures": [
+    {
+      "name": "q7-first",
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 7,
+        "selection": null,
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "cookie": "00000037646170610000000008001402000804200b32228042108800000be0004008018100008820405404000080080a80308800380000",
+      "first": "4103402140081020401020408020408100408103f800",
+      "good": "71034021403222266666c8889999ed4000",
+      "bad": "71034021403222266666c8889999ed4040",
+      "truth": {
+        "descriptors": [
+          {
+            "component_index": 0,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 41,
+            "end_bit_offset": 72,
+            "quantized": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 1,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 72,
+            "end_bit_offset": 103,
+            "quantized": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 2,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 103,
+            "end_bit_offset": 134,
+            "quantized": [
+              64,
+              64,
+              64,
+              64
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 3,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 134,
+            "end_bit_offset": 165,
+            "quantized": [
+              64,
+              64,
+              64,
+              127
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          }
+        ],
+        "subband_ends": [
+          1024
+        ],
+        "lines_per_window": [
+          1024
+        ],
+        "component_subbands": [
+          {
+            "component_index": 0,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 1,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 2,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 3,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          }
+        ],
+        "subband_profile": "apac-hoa-salient-subbands-v1",
+        "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+        "component_orders": [
+          {
+            "component_index": 0,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+            "quantization_bits": 7
+          },
+          {
+            "component_index": 1,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+            "quantization_bits": 7
+          },
+          {
+            "component_index": 2,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+            "quantization_bits": 7
+          },
+          {
+            "component_index": 3,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+            "quantization_bits": 7
+          }
+        ],
+        "order1_profile": "apac-hoa-salient-order1-v1",
+        "quantization_bits": 7,
+        "quantization_profile": "apac-hoa-salient-quantization-v1",
+        "component_count": 4,
+        "count_profile": "apac-hoa-salient-counts-v1"
+      }
+    },
+    {
+      "name": "q8-mixed",
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2
+        ],
+        "ambient_count": 5,
+        "quantization_bits": 8,
+        "selection": null,
+        "transform": 4,
+        "subbands": 3,
+        "scene": true
+      },
+      "cookie": "00000039646170610000000008001401801204200b32446a08413a4000000002f80024020060400022081015010000200202a00c22000e0000",
+      "first": "4081a010a010340214000202020200404040400000",
+      "good": "7081a010a010340214066c444580000000",
+      "bad": "7081a010a010340214066c444580000040",
+      "truth": {
+        "descriptors": [
+          {
+            "component_index": 0,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 80,
+            "end_bit_offset": 83,
+            "quantized": [],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [],
+            "ambient_omitted_coefficients": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "component_index": 1,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 83,
+            "end_bit_offset": 118,
+            "quantized": [
+              128,
+              128,
+              128,
+              128
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              5,
+              6,
+              7,
+              8
+            ],
+            "ambient_omitted_coefficients": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          {
+            "component_index": 2,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 118,
+            "end_bit_offset": 153,
+            "quantized": [
+              128,
+              128,
+              128,
+              128
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              5,
+              6,
+              7,
+              8
+            ],
+            "ambient_omitted_coefficients": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        ],
+        "subband_ends": [
+          1024
+        ],
+        "lines_per_window": [
+          1024
+        ],
+        "component_subbands": [
+          {
+            "component_index": 0,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 1,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 2,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          }
+        ],
+        "subband_profile": "apac-hoa-salient-subbands-v1",
+        "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+        "component_orders": [
+          {
+            "component_index": 0,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "9f8d01e8463d5bc551549424b4b6f5c40180aceb002200f006b0a90cd77981c8",
+            "quantization_bits": 8
+          },
+          {
+            "component_index": 1,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "f6008a4398c01c163c4e8d36ac2a014cd71e7a30b66b0558e2a06471e4079beb",
+            "quantization_bits": 8
+          },
+          {
+            "component_index": 2,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "f6008a4398c01c163c4e8d36ac2a014cd71e7a30b66b0558e2a06471e4079beb",
+            "quantization_bits": 8
+          }
+        ],
+        "order1_profile": "apac-hoa-salient-order1-v1",
+        "quantization_bits": 8,
+        "quantization_profile": "apac-hoa-salient-quantization-v1",
+        "component_count": 3,
+        "count_profile": "apac-hoa-salient-counts-v1"
+      }
+    },
+    {
+      "name": "q9-mixed-orders",
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2
+        ],
+        "ambient_count": 0,
+        "quantization_bits": 9,
+        "selection": null,
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "cookie": "0000003d646170610000000008001401802004200b3266a008418212000000000000000be0010008018100008820405404000080080a80308800380000",
+      "first": "4081a010a00000804020100100804020100804020100100804020100804020100804020100804020020100804004020100ffc0201008040000",
+      "good": "7081a010a00003cccc6aaaaaaaaaf3333333333333331eeeeb4447fe4111110000",
+      "bad": "7081a010a00003cccc6aaaaaaaaaf3333333333333331eeeeb4447fe4111110040",
+      "truth": {
+        "descriptors": [
+          {
+            "component_index": 0,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 53,
+            "end_bit_offset": 92,
+            "quantized": [
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 1,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 92,
+            "end_bit_offset": 176,
+            "quantized": [
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 2,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 176,
+            "end_bit_offset": 323,
+            "quantized": [
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 3,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 323,
+            "end_bit_offset": 362,
+            "quantized": [
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          },
+          {
+            "component_index": 4,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 362,
+            "end_bit_offset": 446,
+            "quantized": [
+              256,
+              256,
+              256,
+              511,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null
+          }
+        ],
+        "subband_ends": [
+          1024
+        ],
+        "lines_per_window": [
+          1024
+        ],
+        "component_subbands": [
+          {
+            "component_index": 0,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 1,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 2,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 3,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 4,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          }
+        ],
+        "subband_profile": "apac-hoa-salient-subbands-v1",
+        "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+        "component_orders": [
+          {
+            "component_index": 0,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 1,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 2,
+            "order": 3,
+            "coefficient_count": 16,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "ef01235ef79dcff21d2535f34bf3b445fbb6fffd3c827d401c38975e7d39ee86",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 3,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 4,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+            "quantization_bits": 9
+          }
+        ],
+        "order1_profile": "apac-hoa-salient-order1-v1",
+        "quantization_bits": 9,
+        "quantization_profile": "apac-hoa-salient-quantization-v1"
+      }
+    },
+    {
+      "name": "q9-dynamic",
+      "options": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1
+        ],
+        "ambient_count": 3,
+        "quantization_bits": 9,
+        "selection": [
+          0,
+          4,
+          8
+        ],
+        "transform": 0,
+        "subbands": 3,
+        "scene": true
+      },
+      "cookie": "0000003e646170610000000008001401802004200b7c49921821040e1040000000000000017c002001003020001104080a80800010010150061100070000",
+      "first": "420680428020680428000080402010010080402010080402010010080402010080402010010080403feff803fe00ff803fe80ffe03ff80ffe03000",
+      "good": "7206804280206804280003cccc6aaaaaaaaad111111111eee9737fc01ff007fc01ff407ff01ffc07ff018000",
+      "bad": "7206804280206804280003cccc6aaaaaaaaad111111111eee9737fc01ff007fc01ff407ff01ffc07ff018040",
+      "truth": {
+        "descriptors": [
+          {
+            "component_index": 0,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 85,
+            "end_bit_offset": 124,
+            "quantized": [
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "ambient_omitted_coefficients": []
+          },
+          {
+            "component_index": 1,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 124,
+            "end_bit_offset": 208,
+            "quantized": [
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "ambient_omitted_coefficients": []
+          },
+          {
+            "component_index": 2,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 208,
+            "end_bit_offset": 292,
+            "quantized": [
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256,
+              256
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
+            "ambient_omitted_coefficients": []
+          },
+          {
+            "component_index": 3,
+            "subband_index": 0,
+            "mode": 0,
+            "start_bit_offset": 292,
+            "end_bit_offset": 331,
+            "quantized": [
+              256,
+              256,
+              256,
+              511
+            ],
+            "signs_positive": [],
+            "cluster": null,
+            "azimuth_degrees": null,
+            "elevation_offset_degrees": null,
+            "coded_coefficient_indices": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "ambient_omitted_coefficients": []
+          }
+        ],
+        "subband_ends": [
+          1024
+        ],
+        "lines_per_window": [
+          1024
+        ],
+        "component_subbands": [
+          {
+            "component_index": 0,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 1,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 2,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          },
+          {
+            "component_index": 3,
+            "subband_count": 1,
+            "subband_ends": [
+              1024
+            ],
+            "lines_per_window": [
+              1024
+            ]
+          }
+        ],
+        "subband_profile": "apac-hoa-salient-subbands-v1",
+        "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+        "component_orders": [
+          {
+            "component_index": 0,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 1,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 2,
+            "order": 2,
+            "coefficient_count": 9,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+            "quantization_bits": 9
+          },
+          {
+            "component_index": 3,
+            "order": 1,
+            "coefficient_count": 4,
+            "numeric_profile": "apac-hoa-salient-quantization-math-v1",
+            "format_sha256": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+            "quantization_bits": 9
+          }
+        ],
+        "order1_profile": "apac-hoa-salient-order1-v1",
+        "quantization_bits": 9,
+        "quantization_profile": "apac-hoa-salient-quantization-v1",
+        "component_count": 4,
+        "count_profile": "apac-hoa-salient-counts-v1"
+      }
+    }
+  ]
+}

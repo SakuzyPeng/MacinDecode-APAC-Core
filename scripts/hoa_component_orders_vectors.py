@@ -12,10 +12,10 @@ STATE_PROFILE='apac-hoa-component-orders-state-v1'
 BACKEND='rust_hoa_component_orders_sq_drc_off_f64_fft_v1'
 
 
-def component_information(orders):
+def component_information(orders,quantization_bits=6):
     return [dict(component_index=s,order=o,coefficient_count=(o+1)**2,
-                 numeric_profile=f'apac-hoa-salient-order{o}-math-v1' if o in (1,2) else 'apac-hoa-salient-math-v1',
-                 format_sha256=format_for(o)['tables_sha256']) for s,o in enumerate(orders)]
+                 numeric_profile=('apac-hoa-salient-quantization-math-v1' if quantization_bits!=6 else f'apac-hoa-salient-order{o}-math-v1' if o in (1,2) else 'apac-hoa-salient-math-v1'),
+                 format_sha256=format_for(o,quantization_bits)['tables_sha256'],**({'quantization_bits':quantization_bits} if quantization_bits!=6 else {})) for s,o in enumerate(orders)]
 
 
 def control_cases(opts):

@@ -306,6 +306,10 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         let context = decoder.hoa_context.as_ref().unwrap();
+        if context.quantization_extended() {
+            value["hoa_salient_quantization_bits"] = json!(context.quantization_bits());
+            value["hoa_salient_quantization_profile"] = json!("apac-hoa-salient-quantization-v1");
+        }
         if context.component_orders_extended() {
             value["hoa_salient_component_orders"] = json!(context.salient_component_orders());
             if context.salient_components() != 5 {

@@ -2,6 +2,10 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_controls;
+pub use hoa_controls::PROFILE as HOA_SPATIAL_CONTROLS_PROFILE;
+pub use hoa_controls::format_sha256 as hoa_spatial_controls_format_sha256;
+pub use hoa_controls::{HoaFrameConfigurationReport, HoaSpatialControls};
 mod hoa_additive;
 mod hoa_ambient;
 pub use hoa_additive::{AmbientCombination, AmbientContribution, HoaAdditiveData};

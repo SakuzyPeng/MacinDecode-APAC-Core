@@ -807,14 +807,24 @@ fn parse_impl(
     }
     if let Some(shape) = &context.hoa {
         let state = next_hoa.as_mut().expect("HOA state");
+        let (effective, frame_configuration) =
+            super::hoa_controls::effective_configuration(&mut parser, state, shape, code)?;
+        let shape = &effective;
         let mut spatial = super::hoa::spatial(
             &mut parser,
             state,
             shape,
             common_window.expect("HOA window"),
         )?;
+        if let Some(report) = &frame_configuration {
+            spatial.start_bit_offset = report.start_bit_offset;
+        }
+        spatial.frame_configuration = frame_configuration;
         result.frame.packet_sha256 = parser.report.packet_sha256.clone();
-        let restored = if shape.ambient_combination == super::AmbientCombination::Add {
+        let restored = if shape.ambient_combination == super::AmbientCombination::Add
+            && shape.salient_components != 0
+            && shape.ambient_components != 0
+        {
             let (restored, additive) =
                 super::hoa_additive::restore(&result, &mut spatial, state, shape)?;
             result.hoa.as_mut().expect("HOA context").additive = Some(additive);
@@ -828,6 +838,7 @@ fn parse_impl(
                     usize::from(shape.recovery_slots),
                     (shape.salient_components != 0 && shape.ambient_components != 0)
                         .then(|| shape.ambient_indices()),
+                    !shape.controls.flag_a,
                 )?
             } else {
                 super::hoa::restore(&result, shape)?
@@ -837,6 +848,14 @@ fn parse_impl(
             }
             restored
         };
+        if shape.controls.flag_b
+            && let Some(history) = state.salient.as_mut()
+        {
+            history.finish_active_components(
+                usize::from(shape.salient_components),
+                &result.frame.packet_sha256,
+            );
+        }
         let (dynamic, restored) = if shape.dynamic_method.is_some() {
             let (data, spectra) = super::hoa_dynamic::read_and_apply(
                 &mut parser,
@@ -861,6 +880,10 @@ fn parse_impl(
             )
         };
         let hoa = result.hoa.as_mut().expect("HOA context");
+        if shape.controls.flag_b {
+            hoa.core_channels = usize::from(shape.core_channels);
+            hoa.mixed = shape.mixed_mapping();
+        }
         hoa.dynamic_selection = dynamic;
         hoa.spatial = Some(spatial);
         hoa.channels_after_hoa = restored;

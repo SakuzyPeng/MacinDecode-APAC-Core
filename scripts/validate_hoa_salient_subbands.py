@@ -3,7 +3,7 @@
 import argparse,hashlib,json,platform,struct,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
-from hoa_salient_subbands_vectors import PROFILE,manifest,sequences,cookie,packet,bundle,shape
+from hoa_salient_subbands_vectors import PROFILE,manifest,sequences,cookie,packet,bundle,shape,control_values,controls_extended,control_format_sha256
 from hoa_salient_subbands_oracle import Decoder
 from generate_hoa_salient_subbands_format import generate
 from validate_hoa import nodes
@@ -40,6 +40,7 @@ def measure(total,actual,expected,location,block,slots,n,wide=False,descriptor_r
 
 
 def check_pure_ambient(r,t,last_mode,last_sha,opts):
+    opts=t.get('frame_options',opts)
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete ambient packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
     h=r['hoa'];m=opts.get('coefficient_count',(opts['order']+1)**2);n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'));ambient=opts['ambient_count'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
@@ -61,6 +62,7 @@ def check_pure_ambient(r,t,last_mode,last_sha,opts):
 
 
 def check(r,t,last_mode,last_sha,opts):
+    opts=t.get('frame_options',opts)
     if opts.get('counts')==[]:return check_pure_ambient(r,t,last_mode,last_sha,opts)
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete HOA packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
@@ -73,12 +75,16 @@ def check(r,t,last_mode,last_sha,opts):
     same_fields(h['spatial'],t['spatial'],'spatial');require(h['spatial']['effective_global_coding_mode']==last_mode,'global mode differs')
     side=h['spatial']['salient'];require(side['history_frame_sha256']==last_sha,'history source differs')
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
+    control=control_values(opts.get('controls'),path);extended_controls=controls_extended(control,opts.get('ambient_count',0 if path=='salient' else 4),len(counts))
     orders=opts.get('component_orders',[order]*len(counts));dimensions=[opts.get('coefficient_count',(o+1)**2) for o in orders]
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
     if 'coefficient_count' in opts or order>3 or opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        recovery_profile='apac-hoa-partial-domain-math-v1' if 'coefficient_count' in opts else 'apac-hoa-expanded-orders-math-v1' if order>3 else 'apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
-        require(side['component_orders']==component_information(orders,opts.get('quantization_bits',6),dimensions=dimensions,partial='coefficient_count' in opts) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
+        recovery_profile='apac-hoa-spatial-controls-math-v1' if extended_controls else 'apac-hoa-partial-domain-math-v1' if 'coefficient_count' in opts else 'apac-hoa-expanded-orders-math-v1' if order>3 else 'apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
+        expected_information=component_information(orders,opts.get('quantization_bits',6),dimensions=dimensions,partial='coefficient_count' in opts)
+        if extended_controls:
+            for info in expected_information:info['numeric_profile']='apac-hoa-spatial-controls-math-v1'
+        require(side['component_orders']==expected_information and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
         if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==recovery_profile,'dynamic base recovery differs')
         if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
         else:require('order1_profile' not in side,'first-order marker leaked into old descriptors')
@@ -87,10 +93,10 @@ def check(r,t,last_mode,last_sha,opts):
     spatial_method=opts.get('spatial_method',0)
     if spatial_method:
         from generate_hoa_salient_partition_format import PROFILE as partition_profile,generate as partition_format
-        require(side['partition_method']==spatial_method and side['partition_profile']==partition_profile and side['format_sha256']==partition_format()['format_sha256'],'spatial partition differs')
+        require(side['partition_method']==spatial_method and side['partition_profile']==partition_profile and side['format_sha256']==(partition_format()['format_sha256'] if control['flag_f'] else control_format_sha256()),'spatial partition differs')
     else:
         require('partition_method' not in side and 'partition_profile' not in side,'legacy partition fields changed')
-        if list(counts)!=[4]*5:require(side['format_sha256']==generate()['format_sha256'],'spatial-grid format differs')
+        if list(counts)!=[4]*5:require(side['format_sha256']==(generate()['format_sha256'] if control['flag_f'] else control_format_sha256()),'spatial-grid format differs')
     if list(counts)!=[4]*5:require(side['subband_profile']==PROFILE,'spatial-grid profile differs')
     require(len(r['elements'])==len(types) and len(h['channels_after_hoa'])==n,'wrong channel count')
     if 'tce_types' in opts:require(h['transport_profile']=='apac-hoa-transports-v1' and h['transport_element_count']==len(types) and h['transport_format_sha256']==sha256_file(ROOT/'data/hoa-transports-format-v1.json') and r['packet_state_profile']=='apac-hoa-transports-state-v1','transport identity differs')
@@ -103,7 +109,7 @@ def check(r,t,last_mode,last_sha,opts):
         d=h['dynamic_selection'];same_fields(d,t['dynamic_selection'],'dynamic');require(len(d['before_selection'])==m and len(d['mappings'])==8,'dynamic layout differs')
         expected=[[0.]*1024 for _ in range(n)]
         for line in range(1024):
-            frequency=line%128 if t['common_window']==2 else line;band=next(b for b,end in enumerate(d['lines_per_window']) if frequency<end)
+            frequency=(line%128)*8+line//128 if t['common_window']==2 and not control['flag_f'] else line%128 if t['common_window']==2 else line;band=next(b for b,end in enumerate(d['lines_per_window'] if control['flag_f'] else d['subband_ends']) if frequency<end)
             for slot,acn in enumerate(d['mappings'][band]['target_acn_indices']):expected[acn][line]=d['before_selection'][slot]['scaled'][line]
         for c,v in zip(h['channels_after_hoa'],expected):require(float_bytes(c['scaled'])==float_bytes(v),'dynamic copy changed bytes')
     else:require('dynamic_selection' not in h,'fabricated dynamic stage')

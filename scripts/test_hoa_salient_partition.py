@@ -61,15 +61,19 @@ class PartitionTests(unittest.TestCase):
                 if previous is not None:self.assertEqual(identity,previous)
                 previous=identity
 
-    def test_method_three_and_new_pure_ambient_flags_are_rejected_before_output(self):
+    def test_reserved_salient_method_and_unused_ambient_partition_are_distinct(self):
         root=self.path();opts=dict(spatial_method=3);bundle(root,[packet({})[0]],**opts)
         out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('hoa.parameter_1',p.stderr)
         import hoa_vectors as ambient
         raw=ambient.cookie();cfg=self.path();cfg.write_bytes(raw)
         parsed=json.loads(self.run_tool('parse-cookie',cfg).stdout);f=next(f for f in parsed['fields'] if f['name']=='components[0].hoa.parameter_1');at=f['bit_offset'];wire=''.join(format(v,'08b') for v in raw)
-        for method in (1,2):
-            root=self.path();ambient.bundle(root,[ambient.packet({})[0]]);self.change_cookie(root,pack(wire[:at]+bits(method,2)+wire[at+2:]))
-            out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
+        payload=ambient.packet(ambient.excitation(15,gain=100))[0];reference=None
+        for method in (0,1,2,3):
+            root=self.path();ambient.bundle(root,[payload]);self.change_cookie(root,pack(wire[:at]+bits(method,2)+wire[at+2:]))
+            out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,0,p.stderr)
+            pcm=(out/'pcm.f32le').read_bytes();self.assertNotEqual(pcm,bytes(len(pcm)))
+            if reference is not None:self.assertEqual(pcm,reference)
+            reference=pcm
         for end in range(12,at//8+1):
             cfg=self.path();cfg.write_bytes(end.to_bytes(4,'big')+raw[4:end]);self.assertNotEqual(self.run_tool('parse-cookie',cfg).returncode,0)
 

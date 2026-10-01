@@ -55,7 +55,7 @@ fn component_dimensions_select_each_interval_and_zero_only_outside_their_domains
             .unwrap();
         let mut state =
             SalientState::with_dimensions(&dimensions, context.salient_subband_counts().unwrap());
-        let output = restore(&packet, &mut side, &mut state, 16, None).unwrap();
+        let output = restore(&packet, &mut side, &mut state, 16, None, false).unwrap();
         for d in &side.descriptors {
             assert_eq!(d.restored.len(), dimensions[d.component_index]);
             assert_eq!(

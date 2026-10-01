@@ -60,6 +60,14 @@ pub(crate) struct SalientState {
     previous_frame_sha256: Option<String>,
 }
 impl SalientState {
+    pub(super) fn finish_active_components(&mut self, active: usize, packet_sha256: &str) {
+        for component in self.history.iter_mut().skip(active) {
+            for band in component {
+                band.fill(0.);
+            }
+        }
+        self.previous_frame_sha256 = Some(packet_sha256.into());
+    }
     #[cfg(test)]
     pub(super) fn new(coefficients: usize) -> Self {
         Self::with_counts(coefficients, [4; 5])
@@ -111,6 +119,8 @@ pub struct SalientDescriptor {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SalientSpatialData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unrounded_subbands: Option<bool>,
     pub history_frame_sha256: Option<String>,
     /// Boundaries in the native frequency-major ordering, before short-window inverse transpose.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -193,15 +203,33 @@ pub(super) fn component_information(
         .collect()
 }
 impl SalientSpatialData {
+    pub(super) fn bands_for_line(&self, line: usize, short: bool) -> Vec<usize> {
+        let position = if self.unrounded_subbands == Some(true) && short {
+            (line % 128) * 8 + line / 128
+        } else if short {
+            line % 128
+        } else {
+            line
+        };
+        self.bands_for_frequency(position)
+    }
     pub(super) fn bands_for_frequency(&self, frequency: usize) -> Vec<usize> {
         (0..self.component_count.unwrap_or(5))
             .map(|sc| {
-                let ends = self
-                    .component_subbands
-                    .as_ref()
-                    .map_or(self.lines_per_window.as_slice(), |grids| {
-                        &grids[sc].lines_per_window
-                    });
+                let ends = self.component_subbands.as_ref().map_or(
+                    if self.unrounded_subbands == Some(true) {
+                        self.subband_ends.as_slice()
+                    } else {
+                        self.lines_per_window.as_slice()
+                    },
+                    |grids| {
+                        if self.unrounded_subbands == Some(true) {
+                            &grids[sc].subband_ends
+                        } else {
+                            &grids[sc].lines_per_window
+                        }
+                    },
+                );
                 ends.iter()
                     .position(|&end| frequency < end)
                     .expect("covered component frequency")
@@ -567,7 +595,11 @@ pub(super) fn read(
     let precision = configuration.quantization_bits;
     let partition_method = configuration.salient_partition_method;
     let mixed = ambient_selection.is_some();
-    let counts: Vec<usize> = state.history.iter().map(Vec::len).collect();
+    let counts: Vec<usize> = configuration
+        .salient_configurations
+        .iter()
+        .map(|c| c.subband_count)
+        .collect();
     let dimensions = configuration.salient_dimensions();
     let mut descriptors = Vec::with_capacity(counts.iter().sum());
     for (component, &count) in counts.iter().enumerate() {
@@ -632,8 +664,9 @@ pub(super) fn read(
                     d.elevation_offset_degrees =
                         Some(parser.take(&format!("{name}.elevation_offset_degrees"), 8)? as u8);
                     // The qualified configuration carries explicit first-order coefficients.
-                    d.quantized.truncate(4);
-                    for (i, is_coded) in coded.iter_mut().enumerate().take(4) {
+                    let explicit = if configuration.controls.flag_e { 4 } else { 0 };
+                    d.quantized.truncate(explicit);
+                    for (i, is_coded) in coded.iter_mut().enumerate().take(explicit) {
                         d.quantized[i] = huffman_for_bits(
                             parser,
                             &format!("{name}.quantized[{i}]"),
@@ -708,9 +741,17 @@ pub(super) fn read(
     }
     let extended = counts != [4; 5];
     let common = counts.iter().all(|&n| n == counts[0]);
-    let ends =
-        |n, short| super::hoa_salient_subbands::boundaries(n, partition_method, short).to_vec();
+    let ends = |n, short| {
+        if configuration.controls.flag_f {
+            super::hoa_salient_subbands::boundaries(n, partition_method, short).to_vec()
+        } else if short {
+            vec![]
+        } else {
+            super::hoa_controls::boundaries(n, usize::from(partition_method)).to_vec()
+        }
+    };
     Ok(SalientSpatialData {
+        unrounded_subbands: (!configuration.controls.flag_f).then_some(true),
         history_frame_sha256: state.previous_frame_sha256.clone(),
         subband_ends: if common {
             ends(counts[0], false)
@@ -735,8 +776,12 @@ pub(super) fn read(
                 .collect()
         }),
         subband_profile: extended.then(|| super::hoa_salient_subbands::SUBBAND_PROFILE.into()),
-        format_sha256: (extended || partition_method != 0)
-            .then(|| super::hoa_salient_subbands::format_sha256(partition_method).into()),
+        format_sha256: if !configuration.controls.flag_f {
+            Some(super::hoa_controls::format_sha256().into())
+        } else {
+            (extended || partition_method != 0)
+                .then(|| super::hoa_salient_subbands::format_sha256(partition_method).into())
+        },
         partition_method: (partition_method != 0).then_some(partition_method),
         partition_profile: (partition_method != 0)
             .then(|| super::hoa_salient_subbands::PARTITION_PROFILE.into()),
@@ -867,7 +912,7 @@ pub(super) fn restore_descriptors(
 ) -> Result<(), ParseError> {
     let precision = data.quantization_bits.unwrap_or(6);
     for d in &mut data.descriptors {
-        let coefficients = state.history[d.component_index][d.subband_index].len();
+        let coefficients = d.restored.len();
         let mut v = if d.mode == 5 {
             direction(
                 d.azimuth_degrees.expect("direction"),
@@ -923,7 +968,9 @@ pub(super) fn restore_descriptors(
             }
         }
         d.restored = v.clone();
-        state.history[d.component_index][d.subband_index] = v;
+        let history = &mut state.history[d.component_index][d.subband_index];
+        history.fill(0.);
+        history[..coefficients].copy_from_slice(&v);
     }
     state.previous_frame_sha256 = Some(packet.frame.packet_sha256.clone());
     Ok(())
@@ -935,6 +982,7 @@ pub(super) fn restore(
     state: &mut SalientState,
     coefficients: usize,
     ambient_selection: Option<&[u8]>,
+    add_mean: bool,
 ) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
     restore_descriptors(packet, data, state)?;
     let sources = super::hoa_transport::spectra(packet)?;
@@ -953,8 +1001,7 @@ pub(super) fn restore(
     // All validated carriers have 1024 lines; retaining this frequency-major
     // traversal preserves each component's interval and the numerical order.
     for (line, _) in sources[0].iter().enumerate() {
-        let frequency = if block == 2 { line % 128 } else { line };
-        let bands = data.bands_for_frequency(frequency);
+        let bands = data.bands_for_line(line, block == 2);
         for (k, out) in output.iter_mut().enumerate() {
             // flag_d=false: selected ambient coefficients replace the salient result.
             // Their transport samples already passed the SQ/TNS/BWE2 finite checks.
@@ -965,8 +1012,15 @@ pub(super) fn restore(
                 out.scaled[line] = if value == 0. { 0. } else { value };
                 continue;
             }
-            let mut sum = 0.;
+            let mut sum = if add_mean {
+                super::hoa_controls::mean(k)
+            } else {
+                0.
+            };
             let mut compensated = super::hoa_additive::Sum::default();
+            if add_mean {
+                compensated.add(sum);
+            }
             for (sc, &band) in bands.iter().enumerate() {
                 let sample =
                     f64::from(sources[sc + ambient_selection.map_or(0, <[u8]>::len)][line]);
@@ -1395,6 +1449,7 @@ mod tests {
                 &mut state,
                 ctx.recovery_slot_count(),
                 None,
+                false,
             )
             .unwrap();
             let short = row["block"] == 2;

@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if !context.full_order() {
+            return if context.controls_extended() {
+                hoa::CONTROLS_BACKEND
+            } else if !context.full_order() {
                 hoa::PARTIAL_BACKEND
             } else if context.transport_extended() {
                 hoa::TRANSPORT_BACKEND
@@ -350,6 +352,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.controls_extended() {
+                return "hoa_spatial_controls_sq_drc_off";
+            }
             if !context.full_order() {
                 return "hoa_partial_domain_sq_drc_off";
             }

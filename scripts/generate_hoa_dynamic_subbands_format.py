@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Exact rational generation of the new one-to-seven effective HOA subband tables."""
-import argparse,hashlib,json
-from fractions import Fraction as F
+"""Deterministic wire-defined integer subband boundaries, separate from audio math."""
+import argparse,hashlib,json,struct
 from pathlib import Path
 from generate_hoa_dynamic_format import ANCHORS,generate as legacy
 from spectrum_vectors import TABLES
@@ -10,17 +9,24 @@ PROFILE='apac-hoa-dynamic-subbands-v1'
 FORMAT_PROFILE='apac-hoa-dynamic-selection-format-v2'
 
 
-def boundaries(count,method):
+def boundaries(count,method,aligned=True):
     assert 1<=count<=16 and 0<=method<=2
-    anchors=[1]+([int(F(hz*1024,24000)+F(1,2)) for hz in ANCHORS] if method==0 else TABLES['long_offsets'][1:])
+    f32=lambda x:struct.unpack('<f',struct.pack('<f',x))[0]
+    anchors=[1]+([int(f32(f32(f32(hz/24000)*1024)+.5)) for hz in ANCHORS] if method==0 else TABLES['long_offsets'][1:])
+    # These operations select discrete coefficient intervals shared by the
+    # encoder and decoder; preserving the bound integer tables does not lower
+    # the precision of descriptor recovery or audio synthesis.
+    step=f32((len(anchors)-1)/count)
     ends=[]
     for b in range(1,count):
-        if method==2: line=int(F(1024*b,count)+F(1,2))
+        if method==2: line=int(f32(f32(b*f32(1024/count))+.5))
         else:
-            position=F((len(anchors)-1)*b,count); i=int(position); fraction=position-i
-            line=int(anchors[i]*(1-fraction)+anchors[i+1]*fraction)
+            position=f32(b*step);i=int(position);fraction=f32(position-i)
+            line=int(f32(f32(anchors[i+1]*fraction)+f32(anchors[i]*f32(1-fraction))))
         ends.append(max(line,ends[-1]+1 if ends else 0))
-    ends.append(1024); aligned=[]
+    ends.append(1024)
+    if not aligned:return ends
+    aligned=[]
     for line in ends: aligned.append(max(8*((line+4)//8),aligned[-1]+8 if aligned else 0))
     assert len(aligned)==count and aligned[-1]==1024 and all(a<b for a,b in zip([0]+aligned,aligned))
     return aligned

@@ -14,27 +14,28 @@ original_hit=channels.hit
 def spatial(frame,pointer):
     global SPATIAL
     info={name:hoa.u32(frame,pointer+offset) for name,offset in
-          [('frame_samples',0x28),('output_channels',0x2c),('coefficients',0x30),
+          [('parameter_0',0x24),('frame_samples',0x28),('output_channels',0x2c),('coefficients',0x30),
            ('salient',0x34),('ambient',0x38),('transform_count',0x50),('transform_index',0x54),('coding_mode',0x118)]}
-    n=info['coefficients']; s=info['salient']
+    n=info['coefficients']; s=info['salient'];allocated=hoa.u32(frame,pointer+0x40);info['allocated_salient']=allocated
     if not 1<=n<=121 or info['output_channels']!=COUNT or not 0<=s<=n or s+info['ambient']>COUNT or not 0<=info['ambient']<=n or info['transform_count']>4:
         raise RuntimeError('unqualified mixed HOA configuration')
     SPATIAL=pointer; info['flags']=list(base.memory(frame,pointer+0x10,0x12))
-    info['ambient_indices']=vector(frame,pointer+0x638,'I',info['ambient'])
+    info['ambient_indices']=vector(frame,pointer+0x638,'I',n)[:info['ambient']]
     info['quantization_bits']=hoa.u32(frame,pointer+0x3c)
     info['omitted_ambient_count']=hoa.u32(frame,pointer+0x618)
-    info['subbands']=vector(frame,pointer+0x58,'I',s)
-    info['coefficient_counts']=vector(frame,pointer+0x70,'I',s)
+    info['subbands']=vector(frame,pointer+0x58,'I',allocated)[:s]
+    info['coefficient_counts']=vector(frame,pointer+0x70,'I',allocated)[:s]
     if len(info['subbands'])!=s or any(not 1<=v<=16 for v in info['subbands']): raise RuntimeError('unqualified spatial subband counts')
     maximum=max(info['subbands'],default=0);info['maximum_subbands']=hoa.u32(frame,pointer+0x44)
-    if maximum!=info['maximum_subbands']: raise RuntimeError('maximum subband count differs')
+    if not maximum<=info['maximum_subbands']<=16:raise RuntimeError('maximum subband count differs')
+    maximum=info['maximum_subbands']
     for name,offset,kind in [('quantized',0xb8,'i'),('history',0xe8,'f'),('signs',0x100,'B')]:
-        info[name]=vector(frame,pointer+offset,kind,s*16*n)
+        info[name]=vector(frame,pointer+offset,kind,allocated*16*n)
     begin,end=struct.unpack('<QQ',base.memory(frame,pointer+0x88,16))
     if end-begin!=maximum*24: raise RuntimeError('unverified spatial boundary cache')
     info['subband_tables']=[vector(frame,begin+(i-1)*24,'I',i) for i in range(1,maximum+1)]
     for name,offset in [('modes',0x120),('clusters',0x138),('azimuth',0x150),('elevation',0x168),('omitted_counts',0x620)]:
-        info[name]=nested(frame,pointer+offset,'I',s,16)
+        info[name]=nested(frame,pointer+offset,'I',allocated,16)[:s]
     info['dynamic_subbands']=hoa.u32(frame,pointer+0x48)
     info['dynamic_ends']=vector(frame,pointer+0xa0,'I',info['dynamic_subbands']) if info['flags'][12] else []
     info['dynamic_maps']=[list(struct.unpack('<9I',base.memory(frame,pointer+0x198+b*0x90,36))) for b in range(8)] if info['flags'][12] else []

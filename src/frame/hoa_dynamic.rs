@@ -179,6 +179,8 @@ impl From<StaticAmbientData> for InternalAmbientData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DynamicSelectionData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unrounded_subbands: Option<bool>,
     pub encoding: DynamicSelectionEncoding,
     pub method: u8,
     pub subband_ends: Vec<usize>,
@@ -284,8 +286,20 @@ pub(super) fn read_and_apply(
             end_bit_offset: parser.bits.position(),
         });
     }
-    let ends = boundaries(count, usize::from(method), false).to_vec();
-    let per_window = boundaries(count, usize::from(method), block == 2).to_vec();
+    let rounded = configuration.controls.flag_f;
+    let ends = if rounded {
+        boundaries(count, usize::from(method), false)
+    } else {
+        super::hoa_controls::boundaries(count, usize::from(method))
+    }
+    .to_vec();
+    let per_window = if rounded {
+        boundaries(count, usize::from(method), block == 2).to_vec()
+    } else if block == 2 {
+        vec![]
+    } else {
+        ends.clone()
+    };
     let mut output: Vec<_> = (0..16)
         .map(|acn| HoaCoefficientSpectrum {
             acn_index: acn,
@@ -293,8 +307,14 @@ pub(super) fn read_and_apply(
         })
         .collect();
     for line in 0..1024 {
-        let frequency = if block == 2 { line % 128 } else { line };
-        let band = per_window
+        let frequency = if block == 2 && !rounded {
+            (line % 128) * 8 + line / 128
+        } else if block == 2 {
+            line % 128
+        } else {
+            line
+        };
+        let band = (if rounded { &per_window } else { &ends })
             .iter()
             .position(|&end| frequency < end)
             .expect("complete frequency coverage");
@@ -306,6 +326,7 @@ pub(super) fn read_and_apply(
     let ambient_count = configuration.ambient_components;
     Ok((
         DynamicSelectionData {
+            unrounded_subbands: (!rounded).then_some(true),
             encoding: if listed {
                 DynamicSelectionEncoding::IndexList
             } else {
@@ -316,7 +337,11 @@ pub(super) fn read_and_apply(
             lines_per_window: per_window,
             active_subband_count: (count < 8).then_some(count),
             subband_profile: (count < 8).then(|| SUBBAND_PROFILE.into()),
-            format_sha256: (count < 8).then(|| format_sha256(count).into()),
+            format_sha256: if !rounded {
+                Some(super::hoa_controls::format_sha256().into())
+            } else {
+                (count < 8).then(|| format_sha256(count).into())
+            },
             start_bit_offset: start,
             end_bit_offset: parser.bits.position(),
             internal_spatial_end_bit_offset: start,

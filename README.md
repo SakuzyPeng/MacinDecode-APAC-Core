@@ -321,7 +321,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
 | 输出与访问 | ACN/SN3D，包目录、CAF、受限 MP4／M4A；范围请求从包零顺序推进 |
 
-LRVQ、N3D、自定义布局／remapping、其他动态维度、帧内重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ、N3D、自定义布局／remapping、其他动态维度、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
@@ -631,6 +631,21 @@ python3 -B scripts/generate_hoa_partial_manifest.py --check
 python3 -B scripts/validate_hoa_partial.py --binary target/debug/apac-tool --report reports/hoa-partial-math.json
 python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
   --reference-report reports/hoa-partial-math.json --report reports/hoa-partial-release.json
+```
+
+**空间控制与帧内空间配置**：在既有 SQ 系数域内支持 `flag_a` 至 `flag_f` 的已核实组合；ACN/SN3D 的 `parameter_0` 可为 1 或 2，0／3 被绑定参考组件拒绝。未分配 salient 时，未使用的空间划分参数可保留 0–3；有 salient 时仍为方法 0–2。
+
+`flag_a=false` 在 ambient 覆盖／叠加之前加入格式定义的逐系数均值。`flag_e=false` 使方向描述只读取角度、不再读取四个显式系数。`flag_f=false` 保留未取整的频率边界；短窗按频率优先的实际谱线位置选取描述，不能将终点简单除以八。新边界来自经过读写两侧及原生缓存核验的固定整数表；表生成中的 Float32 运算用于确定码流分段，不降低音频恢复／合成的 Float64 精度。
+
+`flag_b=true` 在每个核心帧增加空间配置存在位。当前独立帧（类型 1／2）须重述，类型 0 可沿用 cookie 或前帧配置；更新只改变活动 salient／ambient 数量、选择及 `flag_c=true` 时的分量阶数／子带数。活动数量受 cookie 的最大 salient、恢复维度和传输容量约束，子带数量受 cookie 的最大子带数约束。暂时不用的子带历史保留；停用分量及已处理描述的高位填充清零。内嵌帧先推进，配置、历史、DRC 和 overlap 仍按外层包原子提交。这与尚未实现的外层 ASP 配置替换是不同载荷。
+
+`HoaFrameContext::spatial_controls()` 返回原始控制值；逐帧报告新增可选 `hoa.spatial.controls`／`frame_configuration`，记录活动配置和位范围。未取整短窗不提供虚构的公共 `lines_per_window`；报告标记 `unrounded_subbands` 并保留长窗终点，按实际频率优先位置解释。PCM 绑定 `apac-hoa-spatial-controls-v1`、格式摘要及控制值，数学／状态规则为 `apac-hoa-spatial-controls-math-v1`／`apac-hoa-spatial-controls-state-v1`。已有默认配置的字段、标识和 PCM 不变。
+
+```sh
+python3 -B scripts/generate_hoa_controls_manifest.py --check
+python3 -B scripts/validate_hoa_controls.py --binary target/debug/apac-tool --report reports/hoa-controls-math.json
+python3 -B scripts/validate_hoa_controls.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-controls-math.json --report reports/hoa-controls-release.json
 ```
 
 **HOA 传输组合**：CPE 两路各占一个连续载波，LFE 占一个，扩展元素占零个。所有音频载波仍完整读取并数值校验，包括未参与空间恢复的载波。公共两位窗型供全部 HOA ICS 使用，CPE 独立右头不重复读取窗型；SCE／CPE 复用现有 SQ、CAC、TNS、逐元素 BWE2，LFE 不携带 TNS／BWE2，不增加播放增益。

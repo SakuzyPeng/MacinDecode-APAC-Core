@@ -113,10 +113,12 @@ pub(super) fn restore(
     let short = packet.hoa.as_ref().expect("HOA packet").common_window == Some(2);
     let offsets = side.descriptor_offsets();
     for line in 0..1024 {
-        let frequency = if short { line % 128 } else { line };
-        let bands = side.bands_for_frequency(frequency);
+        let bands = side.bands_for_line(line, short);
         for (slot, out) in output.iter_mut().enumerate() {
             let mut sum = Sum::default();
+            if !configuration.controls.flag_a {
+                sum.add(super::hoa_controls::mean(slot));
+            }
             for sc in 0..usize::from(configuration.salient_components) {
                 let descriptor = side.descriptors[offsets[sc] + bands[sc]]
                     .restored
@@ -169,7 +171,12 @@ pub(super) fn restore(
         output,
         HoaAdditiveData {
             combination: AmbientCombination::Add,
-            numeric_profile: NUMERIC_PROFILE.into(),
+            numeric_profile: if configuration.controls_extended() {
+                super::hoa_controls::NUMERIC_PROFILE
+            } else {
+                NUMERIC_PROFILE
+            }
+            .into(),
             coordinate_space: if configuration.dynamic_method.is_some() {
                 "internal_slots"
             } else {

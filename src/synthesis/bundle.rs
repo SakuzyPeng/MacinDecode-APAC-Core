@@ -288,6 +288,13 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
+        if context.controls_extended() {
+            value["hoa_spatial_controls_profile"] =
+                json!(crate::frame::HOA_SPATIAL_CONTROLS_PROFILE);
+            value["hoa_spatial_controls_format_sha256"] =
+                json!(crate::frame::hoa_spatial_controls_format_sha256());
+            value["hoa_spatial_controls"] = json!(context.spatial_controls());
+        }
         if !context.full_order() {
             value["hoa_partial_domain_profile"] = json!(crate::frame::HOA_PARTIAL_PROFILE);
             value["hoa_full_order"] = json!(false);
@@ -403,9 +410,13 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
-        value["hoa_dynamic_format_sha256"] = json!(crate::frame::hoa_dynamic_format_sha256(
-            context.dynamic_subband_count().expect("dynamic bands")
-        ));
+        value["hoa_dynamic_format_sha256"] = json!(if context.spatial_controls().flag_f {
+            crate::frame::hoa_dynamic_format_sha256(
+                context.dynamic_subband_count().expect("dynamic bands"),
+            )
+        } else {
+            crate::frame::hoa_spatial_controls_format_sha256()
+        });
         value["hoa_internal_order"] = json!(context.order());
         value["hoa_output_order"] = json!(context.output_order());
         value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
@@ -439,7 +450,16 @@ fn decode_with_access(
                 c.salient_partition_method()?,
             ))
         })
-        .filter(|(counts, method)| *counts != [4; 5] || *method != 0)
+        .filter(|(counts, method)| {
+            *counts != [4; 5]
+                || *method != 0
+                || !decoder
+                    .hoa_context
+                    .as_ref()
+                    .unwrap()
+                    .spatial_controls()
+                    .flag_f
+        })
     {
         let value = pcm
             .decoder_settings
@@ -450,8 +470,17 @@ fn decode_with_access(
             .unwrap();
         value["hoa_salient_subband_counts"] = json!(counts);
         value["hoa_salient_subband_profile"] = json!(crate::frame::HOA_SALIENT_SUBBAND_PROFILE);
-        value["hoa_salient_subband_format_sha256"] =
-            json!(crate::frame::hoa_salient_subbands_format_sha256(method));
+        value["hoa_salient_subband_format_sha256"] = json!(if decoder
+            .hoa_context
+            .as_ref()
+            .unwrap()
+            .spatial_controls()
+            .flag_f
+        {
+            crate::frame::hoa_salient_subbands_format_sha256(method)
+        } else {
+            crate::frame::hoa_spatial_controls_format_sha256()
+        });
         if method != 0 {
             value["hoa_salient_partition_method"] = json!(method);
             value["hoa_salient_partition_profile"] =

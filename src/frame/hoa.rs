@@ -24,7 +24,7 @@ pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
 /// One salient component's actual descriptor shape, in cookie order.
 ///
 /// This does not describe the overall recovery domain or output layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SalientComponentConfiguration {
     pub order: u8,
     pub subband_count: usize,
@@ -40,6 +40,7 @@ pub(super) enum HoaPath {
 pub(super) struct HoaConfiguration {
     pub order: u8,
     pub full_order: bool,
+    pub controls: super::HoaSpatialControls,
     pub profile_id: u8,
     pub level_id: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
@@ -73,6 +74,7 @@ impl HoaConfiguration {
                 .find(|f| f.name == name)
                 .and_then(|f| f.value.as_u64())
         };
+        let controls = super::HoaSpatialControls::from_cookie(parsed);
         // Unsupported values select a bounded diagnostic shape, then fail the
         // exact field checks below. No untrusted dimension is used to allocate.
         let dynamic = parsed.fields.iter().any(|f| {
@@ -171,6 +173,7 @@ impl HoaConfiguration {
         Self {
             order,
             full_order,
+            controls,
             profile_id: value("global.profile_id").unwrap_or(5) as u8,
             level_id: value("global.level_id").unwrap_or(0) as u8,
             channels,
@@ -218,7 +221,7 @@ impl HoaConfiguration {
                 })
                 .collect(),
             salient_partition_method: match value("components[0].hoa.parameter_1") {
-                Some(method @ 1..=2) if salient => method as u8,
+                Some(method @ 1..=3) if !salient || method <= 2 => method as u8,
                 _ => 0,
             },
             ambient_components,
@@ -228,6 +231,7 @@ impl HoaConfiguration {
             ambient_transform,
             static_ambient: explicit_ambient_selection
                 || transform_present
+                || controls.flag_b
                 || (!salient && ambient_components != channels),
             ambient_combination: if flag("components[0].hoa.flag_d") {
                 super::AmbientCombination::Add
@@ -249,6 +253,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
+        if self.controls_extended() {
+            return super::hoa_controls::NUMERIC_PROFILE;
+        }
         if !self.full_order {
             return PARTIAL_NUMERIC_PROFILE;
         }
@@ -282,6 +289,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.controls_extended() {
+            return super::hoa_controls::STATE_PROFILE;
+        }
         if !self.full_order {
             return PARTIAL_STATE_PROFILE;
         }
@@ -344,6 +354,9 @@ impl HoaConfiguration {
     pub fn expanded_orders(&self) -> bool {
         self.order == 0 || self.order > 3
     }
+    pub fn controls_extended(&self) -> bool {
+        self.controls.extended(self.path == HoaPath::Mixed)
+    }
     pub fn quantization_extended(&self) -> bool {
         self.salient_components != 0 && self.quantization_bits != 6
     }
@@ -365,6 +378,9 @@ impl HoaConfiguration {
             .collect()
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
+        if self.controls_extended() {
+            return super::hoa_controls::NUMERIC_PROFILE;
+        }
         if !self.full_order {
             return PARTIAL_NUMERIC_PROFILE;
         }
@@ -393,6 +409,11 @@ impl HoaConfiguration {
                 for (info, component) in information.iter_mut().zip(&self.salient_configurations) {
                     info.coefficient_count = component.coefficient_count;
                     info.numeric_profile = PARTIAL_NUMERIC_PROFILE.into();
+                }
+            }
+            if self.controls_extended() {
+                for info in &mut information {
+                    info.numeric_profile = super::hoa_controls::NUMERIC_PROFILE.into();
                 }
             }
             information
@@ -437,6 +458,9 @@ impl HoaFrameContext {
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
+        if !matches!(shape.controls.parameter_0, 1 | 2) {
+            rejected.push("HOA ACN/SN3D requires parameter_0=1 or 2".into());
+        }
         if profile_channel_limit(shape.profile_id, shape.level_id)
             .is_none_or(|maximum| channels > maximum)
         {
@@ -472,7 +496,10 @@ impl HoaFrameContext {
             ("components[0].type", 2),
             ("components[0].parameter_0", 0),
             ("components[0].parameter_1", 0),
-            ("components[0].hoa.parameter_0", 1),
+            (
+                "components[0].hoa.parameter_0",
+                u64::from(shape.controls.parameter_0),
+            ),
             (
                 "components[0].hoa.parameter_1",
                 u64::from(shape.salient_partition_method),
@@ -529,7 +556,6 @@ impl HoaFrameContext {
             "ancillary.scene_graph_present",
             "ancillary.metadata_present",
             "ancillary.custom_data_present",
-            "components[0].hoa.flag_b",
             "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
@@ -538,10 +564,7 @@ impl HoaFrameContext {
         packet_config::check(
             &parsed.fields,
             "components[0].hoa.flag_d",
-            json!(
-                shape.path == HoaPath::Mixed
-                    && shape.ambient_combination == super::AmbientCombination::Add
-            ),
+            json!(shape.controls.flag_d),
             "cookie",
             &mut rejected,
         );
@@ -611,15 +634,6 @@ impl HoaFrameContext {
                 .find(|f| f.name == "components[0].hoa.ambient_selection_present")
                 .map_or(0, |f| f.bit_offset);
             rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.recovery_slots));
-        }
-        for name in ["flag_a", "flag_e", "flag_f"] {
-            packet_config::check(
-                &parsed.fields,
-                &format!("components[0].hoa.{name}"),
-                json!(true),
-                "cookie",
-                &mut rejected,
-            );
         }
         for (i, &kind) in shape.transport_types.iter().enumerate() {
             if !matches!(kind, 0 | 1 | 3 | 6) {
@@ -752,6 +766,12 @@ impl HoaFrameContext {
     pub fn full_order(&self) -> bool {
         self.configuration.full_order
     }
+    pub fn spatial_controls(&self) -> super::HoaSpatialControls {
+        self.configuration.controls
+    }
+    pub(crate) fn controls_extended(&self) -> bool {
+        self.configuration.controls_extended()
+    }
     pub fn output_order(&self) -> u8 {
         if self.dynamic_selection_enabled() {
             3
@@ -834,6 +854,8 @@ impl HoaFrameContext {
 /// Ambient keeps its global SD mode; salient also retains descriptor history.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub(crate) struct HoaState {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_configuration: Option<super::hoa_controls::HoaFrameConfiguration>,
     pub last_global_coding_mode: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub salient: Option<Box<super::hoa_salient::SalientState>>,
@@ -845,6 +867,10 @@ pub(crate) struct HoaState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaSpatialData {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub controls: Option<super::HoaSpatialControls>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_configuration: Option<super::HoaFrameConfigurationReport>,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub single_coding_mode: bool,
@@ -1040,6 +1066,10 @@ pub(super) fn spatial(
         None
     };
     Ok(HoaSpatialData {
+        controls: configuration
+            .controls_extended()
+            .then_some(configuration.controls),
+        frame_configuration: None,
         start_bit_offset: start,
         end_bit_offset: parser.bits.position(),
         single_coding_mode: single,
@@ -1068,7 +1098,14 @@ pub(super) fn restore(
                 .expect("qualified ambient carrier")
                 .to_vec()
         } else {
-            vec![0.; 1024]
+            vec![
+                if configuration.controls.flag_a {
+                    0.
+                } else {
+                    super::hoa_controls::mean(index) as f32
+                };
+                1024
+            ]
         };
         if scaled.len() != 1024 || scaled.iter().any(|v| !v.is_finite()) {
             return Err(ParseError::new(

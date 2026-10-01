@@ -10,7 +10,7 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False):
+def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False,spatial_controls=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
@@ -25,7 +25,7 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
            binary_sha256=sha256_file(a.binary),test_binary_sha256=sha256_file(a.test_binary),rust=[],python=None,legacy=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        for module in (('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
+        for module in (('frame::hoa_controls::tests::',) if spatial_controls else ())+(('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
             proc=subprocess.run([str(a.test_binary),module],capture_output=True,text=True)
             require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'test result: ok\. (\d+) passed;',proc.stdout)
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))

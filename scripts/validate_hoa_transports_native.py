@@ -27,7 +27,7 @@ def native_layout(truth,entry,output,synthesis,opts):
     common=truth['common_window'];transport=entry['transport']
     cursor=0
     for element in truth['elements']:
-        width=len(element['configuration']['transport_channels'])
+        width=len(element['configuration'].get('transport_channels',element['configuration']['output_channels']))
         for local,actual in enumerate(transport[cursor:cursor+width]):
             if element['present']:
                 wanted=element['channels'][local]['ics'];ics=actual['ics']

@@ -57,7 +57,7 @@ fn first_order_payloads_and_zero_width_descriptions_preserve_following_bits() {
             let result = crate::frame::hoa::spatial(
                 &mut p,
                 &mut HoaState::default(),
-                context.configuration,
+                &context.configuration,
                 0,
             );
             if limit < end {

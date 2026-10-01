@@ -206,7 +206,7 @@ pub struct DynamicSelectionData {
 
 pub(super) fn read_and_apply(
     parser: &mut Parser<'_>,
-    configuration: HoaConfiguration,
+    configuration: &HoaConfiguration,
     block: u8,
     input: Vec<RecoverySlotSpectrum>,
     ambient: Option<StaticAmbientData>,
@@ -324,7 +324,7 @@ pub(super) fn read_and_apply(
             recovery_numeric_profile: configuration.recovery_numeric_profile().into(),
             ambient_recovery_slots: configuration.ambient_indices().to_vec(),
             ambient_transport_channels: (0..ambient_count).collect(),
-            salient_transport_channels: (ambient_count..ambient_count + 5).collect(),
+            salient_transport_channels: (ambient_count..configuration.core_channels).collect(),
             unused_transport_channels: (configuration.core_channels
                 ..configuration.transport_channels)
                 .collect(),
@@ -382,7 +382,7 @@ mod tests {
                 let mut state = HoaState::default();
                 let result = read_and_apply(
                     &mut parser,
-                    context.configuration,
+                    &context.configuration,
                     2,
                     input,
                     None,
@@ -470,7 +470,7 @@ mod tests {
                 let mut state = HoaState::default();
                 let result = read_and_apply(
                     &mut parser,
-                    context.configuration,
+                    &context.configuration,
                     block,
                     input,
                     None,
@@ -545,7 +545,7 @@ mod tests {
         let mut state = HoaState::default();
         let error = read_and_apply(
             &mut parser,
-            context.configuration,
+            &context.configuration,
             0,
             input,
             None,

@@ -5,10 +5,15 @@ from channel_vectors import single,scene_bits
 from drc_vectors import header as drc_header,payload as drc_payload
 from hoa_vectors import bundle as base_bundle,excitation,canonical
 from hoa_salient_vectors import format_for
-from hoa_additive_vectors import shape
+
 from hoa_dynamic_vectors import dynamic as mapping_wire,maps
 from generate_hoa_dynamic_subbands_format import boundaries,generate as dynamic_format
 from generate_hoa_salient_subbands_format import PROFILE,generate
+
+
+def shape(order,dynamic):
+    assert order in (1,2,3) and (not dynamic or order==2)
+    return 16 if dynamic else (order+1)**2
 
 
 def esc(value):
@@ -22,18 +27,22 @@ def esc(value):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None):
-    assert len(counts)==5 and all(1<=n<=16 for n in counts);mixed=path!='salient';assert mixed or (selection is None and not transform)
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None):
+    assert 1<=len(counts)<=16 and all(1<=n<=16 for n in counts);mixed=path!='salient';assert mixed or (selection is None and not transform)
     n=shape(order,dynamic);m=(order+1)**2
+    assert component_orders is None or len(component_orders)==len(counts)
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(5,6),(0,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
     wire=''.join(bits(v,w) for v,w in fields)+'110'+bits(int(path=='add'),1)+'11'+bits(int(dynamic),1)
     if dynamic:wire+=bits(method,2)+bits(subbands-1,4)
-    wire+=bits(1,2)+bits(spatial_method,2)+bits(0,2)+bits(order,4)+bits(5,4)+bits(4 if mixed else 0,4)
+    wire+=bits(1,2)+bits(spatial_method,2)+bits(0,2)+bits(order,4)
+    at=len(wire);encoded=esc(len(counts));wire+=encoded
+    if _salient_field is not None:_salient_field.append(dict(name='components[0].hoa.max_salient_components',value=len(counts),bit_offset=at,bit_length=len(encoded)))
+    wire+=bits(4 if mixed else 0,(m-1).bit_length())
     for sc,count in enumerate(counts):
         at=len(wire);encoded=esc(count-1);wire+=encoded
         if _count_fields is not None:_count_fields.append(dict(name=f'components[0].hoa.salient[{sc}].subbands_minus_one',value=count-1,bit_offset=at,bit_length=len(encoded)))
-        at=len(wire);suborder=order if component_orders is None else component_orders[sc];wire+=bits(suborder,2)
-        if _order_fields is not None:_order_fields.append(dict(name=f'components[0].hoa.salient[{sc}].order',value=suborder,bit_offset=at,bit_length=2))
+        at=len(wire);suborder=order if component_orders is None else component_orders[sc];wire+=bits(suborder,order.bit_length())
+        if _order_fields is not None:_order_fields.append(dict(name=f'components[0].hoa.salient[{sc}].order',value=suborder,bit_offset=at,bit_length=order.bit_length()))
     wire+=bits(int(selection is not None),1)
     if selection is not None:
         assert len(selection)==4;limit=m
@@ -67,7 +76,7 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
     index=case.get('transform_index',3) if transform==4 else transform-1 if transform else 3
     wire=bits(index,2) if transform==4 else '';at=origin+len(wire);mode=case.get('global_mode');wire+=bits(int(mode is not None),1)
     if mode is not None:wire+=bits(mode,3)
-    rows=case.get('descriptors',descriptors(counts,order=order,component_orders=component_orders));assert len(rows)==5;result=[]
+    rows=case.get('descriptors',descriptors(counts,order=order,component_orders=component_orders));assert len(rows)==len(counts);result=[]
     for sc,row in enumerate(rows):
         suborder=order if component_orders is None else component_orders[sc];m=(suborder+1)**2;fmt=format_for(suborder)
         assert len(row)==counts[sc]
@@ -105,10 +114,12 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
     if spatial_method:
         from generate_hoa_salient_partition_format import PROFILE as partition_profile,generate as partition_format
         salient.update(partition_method=spatial_method,partition_profile=partition_profile,format_sha256=partition_format()['format_sha256'])
-    if component_orders is not None and list(component_orders)!=[order]*5:
+    if len(counts)!=5 or (component_orders is not None and list(component_orders)!=[order]*5):
         from hoa_component_orders_vectors import component_information
-        salient['component_orders']=component_information(component_orders)
-        if 1 in component_orders:salient['order1_profile']='apac-hoa-salient-order1-v1'
+        actual_orders=component_orders or [order]*len(counts)
+        salient['component_orders']=component_information(actual_orders)
+        if 1 in actual_orders:salient['order1_profile']='apac-hoa-salient-order1-v1'
+    if len(counts)!=5:salient.update(component_count=len(counts),count_profile='apac-hoa-salient-counts-v1')
     side=dict(start_bit_offset=origin,end_bit_offset=origin+len(wire),single_coding_mode=mode is not None,coding_mode=mode,ambient_indices=selected,salient=salient)
     if mixed and (selection is not None or transform):side['ambient']=dict(explicit_selection=selection is not None,selection=selected,transform_config=dict(mode='per_frame') if transform==4 else dict(mode='fixed',index=transform-1) if transform else dict(mode='disabled'),effective_index=index,index_source='frame' if transform==4 else 'cookie' if transform else 'disabled',index_start_bit_offset=origin if transform==4 else None,index_end_bit_offset=at if transform==4 else None)
     return wire,side
@@ -130,7 +141,7 @@ def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salie
         truth.update(configuration=dict(element_index=i,kind='sce',tce_type=0,output_channels=[],transport_channels=[i]),present=present,start_bit_offset=begin);elements.append(truth)
     encoded,side=spatial(case,len(wire),order=order,path=path,selection=selection,transform=transform,counts=counts,spatial_method=spatial_method,component_orders=component_orders);wire+=encoded;base_end=len(wire);dyn=None;selected=side['ambient_indices']
     if dynamic:
-        encoded,dyn=mapping_wire(case,len(wire),method);wire+=encoded;dyn.update(subband_ends=boundaries(subbands,method),lines_per_window=[v//8 if block==2 else v for v in boundaries(subbands,method)],internal_spatial_end_bit_offset=base_end,ambient_recovery_slots=selected,ambient_transport_channels=list(range(4)) if mixed else [],salient_transport_channels=list(range(4,9)) if mixed else list(range(5)),unused_transport_channels=list(range(9 if mixed else 5,n)))
+        encoded,dyn=mapping_wire(case,len(wire),method);wire+=encoded;dyn.update(subband_ends=boundaries(subbands,method),lines_per_window=[v//8 if block==2 else v for v in boundaries(subbands,method)],internal_spatial_end_bit_offset=base_end,ambient_recovery_slots=selected,ambient_transport_channels=list(range(4)) if mixed else [],salient_transport_channels=list(range(4,4+len(counts))) if mixed else list(range(len(counts))),unused_transport_channels=list(range((4 if mixed else 0)+len(counts),n)))
         if subbands<8:dyn.update(active_subband_count=subbands,subband_profile='apac-hoa-dynamic-subbands-v1',format_sha256=dynamic_format()['format_sha256'])
         if 'ambient' in side:dyn['internal_ambient']=side.pop('ambient')
         side['end_bit_offset']=len(wire)
@@ -151,7 +162,7 @@ def bundle(root,payloads,priming=0,remainder=0,**opts):
 
 
 def basis(counts,coefficient=0,component=0,mode=1,*,order=3,path='salient',dynamic=False,block=0,grouping=0,dense=False,q=1,gain=160,component_orders=None):
-    n=shape(order,dynamic);offset=0 if path=='salient' else 4;c=excitation(offset+component,block,grouping,gain,q,order=3 if n==16 else 2)
+    n=shape(order,dynamic);offset=0 if path=='salient' else 4;c=excitation(offset+component,block,grouping,gain,q,order=3 if n==16 else order)
     if dense:
         ends=TABLES['short_offsets' if block==2 else 'long_offsets'];c['elements'][offset+component]['bands']={i:(11,[q]*(ends[i+1]-ends[i]),gain) for i in range(len(ends)-1)}
     c['descriptors']=descriptors(counts,mode,coefficient,component,order=order,cluster=2,component_orders=component_orders);return c

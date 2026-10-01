@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.component_orders_extended() {
+            return if context.salient_components() != 0 && context.salient_components() != 5 {
+                hoa::COUNTS_BACKEND
+            } else if context.component_orders_extended() {
                 hoa::COMPONENT_ORDERS_BACKEND
             } else if context.ambient_combination() == crate::frame::AmbientCombination::Add {
                 hoa::ADDITIVE_BACKEND
@@ -338,6 +340,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.salient_components() != 0 && context.salient_components() != 5 {
+                return "hoa_variable_salient_counts_sq_drc_off";
+            }
             if context.ambient_combination() == crate::frame::AmbientCombination::Add {
                 return if context.dynamic_selection_enabled() {
                     "hoa_dynamic9_to16_additive_sq_drc_off"

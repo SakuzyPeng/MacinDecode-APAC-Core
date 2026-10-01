@@ -17,24 +17,24 @@ def spatial(frame,pointer):
           [('frame_samples',0x28),('output_channels',0x2c),('coefficients',0x30),
            ('salient',0x34),('ambient',0x38),('transform_count',0x50),('transform_index',0x54),('coding_mode',0x118)]}
     n=info['coefficients']; s=info['salient']
-    if n not in (9,16) or info['output_channels']!=COUNT or s!=5 or info['ambient'] not in (0,4) or info['transform_count']>4:
+    if n not in (4,9,16) or info['output_channels']!=COUNT or not 1<=s<=n or s+info['ambient']>COUNT or info['ambient'] not in (0,4) or info['transform_count']>4:
         raise RuntimeError('unqualified mixed HOA configuration')
     SPATIAL=pointer; info['flags']=list(base.memory(frame,pointer+0x10,0x12))
     info['ambient_indices']=vector(frame,pointer+0x638,'I',info['ambient'])
     info['quantization_bits']=hoa.u32(frame,pointer+0x3c)
     info['omitted_ambient_count']=hoa.u32(frame,pointer+0x618)
-    info['subbands']=vector(frame,pointer+0x58,'I',5)
-    info['coefficient_counts']=vector(frame,pointer+0x70,'I',5)
-    if len(info['subbands'])!=5 or any(not 1<=v<=16 for v in info['subbands']): raise RuntimeError('unqualified spatial subband counts')
+    info['subbands']=vector(frame,pointer+0x58,'I',s)
+    info['coefficient_counts']=vector(frame,pointer+0x70,'I',s)
+    if len(info['subbands'])!=s or any(not 1<=v<=16 for v in info['subbands']): raise RuntimeError('unqualified spatial subband counts')
     maximum=max(info['subbands']);info['maximum_subbands']=hoa.u32(frame,pointer+0x44)
     if maximum!=info['maximum_subbands']: raise RuntimeError('maximum subband count differs')
     for name,offset,kind in [('quantized',0xb8,'i'),('history',0xe8,'f'),('signs',0x100,'B')]:
-        info[name]=vector(frame,pointer+offset,kind,5*16*16)
+        info[name]=vector(frame,pointer+offset,kind,s*16*16)
     begin,end=struct.unpack('<QQ',base.memory(frame,pointer+0x88,16))
     if end-begin!=maximum*24: raise RuntimeError('unverified spatial boundary cache')
     info['subband_tables']=[vector(frame,begin+(i-1)*24,'I',i) for i in range(1,maximum+1)]
     for name,offset in [('modes',0x120),('clusters',0x138),('azimuth',0x150),('elevation',0x168),('omitted_counts',0x620)]:
-        info[name]=nested(frame,pointer+offset,'I',5,16)
+        info[name]=nested(frame,pointer+offset,'I',s,16)
     info['dynamic_subbands']=hoa.u32(frame,pointer+0x48)
     info['dynamic_ends']=vector(frame,pointer+0xa0,'I',info['dynamic_subbands']) if info['flags'][12] else []
     info['dynamic_maps']=[list(struct.unpack('<9I',base.memory(frame,pointer+0x198+b*0x90,36))) for b in range(8)] if info['flags'][12] else []
@@ -53,7 +53,7 @@ def channel_hit(frame,location,data):
 def __lldb_init_module(debugger,state):
     global COUNT
     COUNT=int(os.environ['APAC_CHANNEL_COUNT'])
-    if COUNT not in (9,16): raise RuntimeError('unverified coefficient count')
+    if COUNT not in (4,9,16): raise RuntimeError('unverified coefficient count')
     debugger.HandleCommand('script import native_hoa_trace')
     channels.LAYOUT_TYPES[COUNT]=[0]*COUNT; hoa.spatial=spatial; channels.hit=channel_hit
     hoa.__lldb_init_module(debugger,state)

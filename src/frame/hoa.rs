@@ -21,7 +21,7 @@ pub(super) enum HoaPath {
     Salient,
     Mixed,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub(super) struct HoaConfiguration {
     pub order: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
@@ -32,8 +32,8 @@ pub(super) struct HoaConfiguration {
     pub transport_channels: u8,
     pub core_channels: u8,
     pub salient_components: u8,
-    pub salient_subbands: [u8; 5],
-    pub salient_orders: [u8; 5],
+    pub salient_subbands: Vec<u8>,
+    pub salient_orders: Vec<u8>,
     pub salient_partition_method: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
@@ -68,8 +68,8 @@ impl HoaConfiguration {
                 _ => 3,
             }
         };
-        let salient = order == 2
-            || (order == 3 && value("components[0].hoa.max_salient_components") == Some(5));
+        let declared_salient = value("components[0].hoa.max_salient_components").unwrap_or(0);
+        let salient = declared_salient != 0;
         let path = if salient && value("components[0].hoa.ambient_components_encoded") == Some(4) {
             HoaPath::Mixed
         } else if salient {
@@ -90,7 +90,8 @@ impl HoaConfiguration {
         // The pure, replacement-mixed and additive-mixed reduced-slot instances
         // were each measured at 32768 bytes.
         let preroll_bytes = if dynamic { 32768 } else { preroll_bytes };
-        let salient_components = if salient { 5 } else { 0 };
+        // Keep the diagnostic shape bounded; exact cookie checks reject excess counts.
+        let salient_components = declared_salient.min(u64::from(recovery_slots)) as u8;
         let ambient_components = match path {
             HoaPath::Ambient => channels,
             HoaPath::Salient => 0,
@@ -135,26 +136,33 @@ impl HoaConfiguration {
             dynamic_method: dynamic
                 .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
             dynamic_subbands: dynamic.then(|| {
-                (value("components[0].hoa.dynamic_selection.subbands_minus_one").unwrap_or(7) + 1)
-                    as u8
+                (value("components[0].hoa.dynamic_selection.subbands_minus_one")
+                    .unwrap_or(7)
+                    .min(7)
+                    + 1) as u8
             }),
             transport_channels: channels,
             core_channels: salient_components + ambient_components,
             salient_components,
-            salient_subbands: std::array::from_fn(|i| {
-                (value(&format!(
-                    "components[0].hoa.salient[{i}].subbands_minus_one"
-                ))
-                .unwrap_or(3)
-                    + 1) as u8
-            }),
-            salient_orders: std::array::from_fn(|i| {
-                match value(&format!("components[0].hoa.salient[{i}].order")) {
-                    Some(1) if salient => 1,
-                    Some(2) if salient && order == 3 && !dynamic => 2,
-                    _ => order,
-                }
-            }),
+            salient_subbands: (0..salient_components)
+                .map(|i| {
+                    (value(&format!(
+                        "components[0].hoa.salient[{i}].subbands_minus_one"
+                    ))
+                    .unwrap_or(3)
+                    .min(15)
+                        + 1) as u8
+                })
+                .collect(),
+            salient_orders: (0..salient_components)
+                .map(
+                    |i| match value(&format!("components[0].hoa.salient[{i}].order")) {
+                        Some(1) if salient => 1,
+                        Some(2) if salient && order == 3 && !dynamic => 2,
+                        _ => order,
+                    },
+                )
+                .collect(),
             salient_partition_method: match value("components[0].hoa.parameter_1") {
                 Some(method @ 1..=2) if salient => method as u8,
                 _ => 0,
@@ -178,13 +186,16 @@ impl HoaConfiguration {
             preroll_bytes,
         }
     }
-    pub fn numeric_profile(self) -> &'static str {
+    pub fn numeric_profile(&self) -> &'static str {
         if self.dynamic_method.is_some() {
             return super::hoa_dynamic::NUMERIC_PROFILE;
         }
         self.recovery_numeric_profile()
     }
-    pub fn recovery_numeric_profile(self) -> &'static str {
+    pub fn recovery_numeric_profile(&self) -> &'static str {
+        if self.component_count_extended() {
+            return super::hoa_salient::COUNTS_NUMERIC_PROFILE;
+        }
         if self.component_orders_extended() {
             return super::hoa_salient::COMPONENT_ORDERS_NUMERIC_PROFILE;
         }
@@ -202,7 +213,10 @@ impl HoaConfiguration {
             HoaPath::Mixed => MIXED_NUMERIC_PROFILE,
         }
     }
-    pub fn state_profile(self) -> &'static str {
+    pub fn state_profile(&self) -> &'static str {
+        if self.component_count_extended() {
+            return super::hoa_salient::COUNTS_STATE_PROFILE;
+        }
         if self.component_orders_extended() {
             return super::hoa_salient::COMPONENT_ORDERS_STATE_PROFILE;
         }
@@ -221,34 +235,42 @@ impl HoaConfiguration {
             HoaPath::Mixed => MIXED_STATE_PROFILE,
         }
     }
-    pub fn mixed_mapping(self) -> Option<HoaMixedMapping> {
+    pub fn mixed_mapping(&self) -> Option<HoaMixedMapping> {
         (self.path == HoaPath::Mixed && self.dynamic_method.is_none()).then(|| HoaMixedMapping {
-            ambient_transport_channels: (0..4).collect(),
-            salient_transport_channels: (4..9).collect(),
+            ambient_transport_channels: (0..self.ambient_components).collect(),
+            salient_transport_channels: (self.ambient_components..self.core_channels).collect(),
             ambient_output_coefficients: self.ambient_indices().to_vec(),
-            unused_transport_channels: (9..self.transport_channels).collect(),
+            unused_transport_channels: (self.core_channels..self.transport_channels).collect(),
             descriptor_numeric_profile: self.descriptor_numeric_profile().into(),
         })
     }
     pub fn ambient_indices(&self) -> &[u8] {
         &self.ambient_selection[..usize::from(self.ambient_components)]
     }
-    pub fn component_orders_extended(self) -> bool {
-        self.salient_components != 0 && self.salient_orders != [self.order; 5]
+    pub fn component_orders_extended(&self) -> bool {
+        self.salient_components != 0
+            && (self.component_count_extended()
+                || self.salient_orders.iter().any(|&o| o != self.order))
     }
-    pub fn salient_dimensions(self) -> [usize; 5] {
-        self.salient_orders.map(|o| (usize::from(o) + 1).pow(2))
+    pub fn component_count_extended(&self) -> bool {
+        self.salient_components != 0 && self.salient_components != 5
     }
-    pub fn descriptor_numeric_profile(self) -> &'static str {
+    pub fn salient_dimensions(&self) -> Vec<usize> {
+        self.salient_orders
+            .iter()
+            .map(|&o| (usize::from(o) + 1).pow(2))
+            .collect()
+    }
+    pub fn descriptor_numeric_profile(&self) -> &'static str {
         if self.component_orders_extended() {
             super::hoa_salient::COMPONENT_ORDERS_NUMERIC_PROFILE
         } else {
             super::hoa_salient::numeric_profile(usize::from(self.recovery_slots))
         }
     }
-    pub fn component_order_info(self) -> Option<Vec<super::SalientComponentOrderInfo>> {
+    pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
         self.component_orders_extended()
-            .then(|| super::hoa_salient::component_information(self.salient_orders))
+            .then(|| super::hoa_salient::component_information(&self.salient_orders))
     }
 }
 
@@ -265,6 +287,13 @@ impl HoaFrameContext {
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
+        if shape.core_channels > shape.transport_channels {
+            rejected.push("HOA core channels exceed available transport channels".into());
+        }
+        // Stage M extends salient counts; pure second-order ambient is not yet qualified.
+        if shape.path == HoaPath::Ambient && shape.order == 2 {
+            rejected.push("second-order pure ambient is not yet qualified".into());
+        }
         for (name, value) in [
             ("box.version_flags", 0),
             ("bitstream_version", 0x800),
@@ -360,7 +389,7 @@ impl HoaFrameContext {
             );
         }
         if salient {
-            for i in 0..5 {
+            for i in 0..usize::from(shape.salient_components) {
                 for (field, value) in [
                     ("subbands_minus_one", shape.salient_subbands[i] - 1),
                     ("order", shape.salient_orders[i]),
@@ -464,8 +493,12 @@ impl HoaFrameContext {
             rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
             syntax_rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
         };
-        let transport =
-            ChannelFrameContext::hoa_transport(parsed.cookie_sha256, configuration, drc, shape);
+        let transport = ChannelFrameContext::hoa_transport(
+            parsed.cookie_sha256,
+            configuration,
+            drc,
+            shape.clone(),
+        );
         Ok(Self {
             transport,
             configuration: shape,
@@ -542,9 +575,14 @@ impl HoaFrameContext {
     pub fn ambient_transform(&self) -> AmbientTransform {
         self.configuration.ambient_transform
     }
-    pub fn salient_subband_counts(&self) -> Option<[usize; 5]> {
-        (self.configuration.salient_components != 0)
-            .then(|| self.configuration.salient_subbands.map(usize::from))
+    pub fn salient_subband_counts(&self) -> Option<Vec<usize>> {
+        (self.configuration.salient_components != 0).then(|| {
+            self.configuration
+                .salient_subbands
+                .iter()
+                .map(|&n| usize::from(n))
+                .collect()
+        })
     }
     /// Cookie spatial partition, independent of the dynamic selection partition.
     pub fn salient_partition_method(&self) -> Option<u8> {
@@ -552,8 +590,9 @@ impl HoaFrameContext {
             .then_some(self.configuration.salient_partition_method)
     }
     /// Per-component descriptor orders, distinct from the overall/output order.
-    pub fn salient_component_orders(&self) -> Option<[u8; 5]> {
-        (self.configuration.salient_components != 0).then_some(self.configuration.salient_orders)
+    pub fn salient_component_orders(&self) -> Option<Vec<u8>> {
+        (self.configuration.salient_components != 0)
+            .then(|| self.configuration.salient_orders.clone())
     }
     pub(crate) fn component_orders_extended(&self) -> bool {
         self.configuration.component_orders_extended()
@@ -703,7 +742,7 @@ pub(crate) fn parse_hoa_packet_with_state(
 pub(super) fn spatial(
     parser: &mut Parser<'_>,
     state: &mut HoaState,
-    configuration: HoaConfiguration,
+    configuration: &HoaConfiguration,
     block: u8,
 ) -> Result<HoaSpatialData, ParseError> {
     let start = parser.bits.position();
@@ -757,7 +796,11 @@ pub(super) fn spatial(
             state.salient.get_or_insert_with(|| {
                 Box::new(super::hoa_salient::SalientState::with_dimensions(
                     configuration.salient_dimensions(),
-                    configuration.salient_subbands.map(usize::from),
+                    configuration
+                        .salient_subbands
+                        .iter()
+                        .map(|&n| usize::from(n))
+                        .collect::<Vec<_>>(),
                 ))
             }),
             configuration,

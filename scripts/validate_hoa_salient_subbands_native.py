@@ -21,10 +21,10 @@ def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 
 def verify(truth,trace,opts):
     counts=opts['counts'];maximum=max(counts);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=0 if path=='salient' else 4
-    dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*5)]
-    caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity=18432 if n==9 else 32768
+    dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*len(counts))]
+    caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity={4:8192,9:18432,16:32768}[n]
     require(caps and all(c['status']==0 and c['capacity_bytes']==capacity for c in caps),'native capacity differs')
-    expected=[[[D(0)]*dimensions[s] for _ in range(c)] for s,c in enumerate(counts)];previous=[0.]*(5*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0
+    expected=[[[D(0)]*dimensions[s] for _ in range(c)] for s,c in enumerate(counts)];previous=[0.]*(len(counts)*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0
     for seq,role,t in frames(truth):
         events=[e for e in trace['hoa_events'] if (e['sequence'],e['role'])==(seq,role)]
         def one(kind):
@@ -35,9 +35,9 @@ def verify(truth,trace,opts):
         require(entry['window']==t['common_window'] and entry['end']['relative_bit_offset']==t['core_end_bit_offset'],'window/core endpoint differs')
         require(history['subbands']==counts and history['coefficient_counts']==dimensions and history['maximum_subbands']==maximum,'component dimensions differ')
         require(history['subband_tables']==[boundaries(i,opts.get('spatial_method',0)) for i in range(1,maximum+1)],'cached perceptual grids differ')
-        require((history['coefficients'],history['output_channels'],history['salient'],history['ambient'])==(m,n,5,ambient),'dimensions differ')
+        require((history['coefficients'],history['output_channels'],history['salient'],history['ambient'])==(m,n,len(counts),ambient),'dimensions differ')
         require(bool(history['flags'][3])==(path=='add'),'combination flag differs')
-        require(len(history['history'])==5*maximum*m and float_bytes(read['before']['history'])==float_bytes(previous),'padded history transition differs')
+        require(len(history['history'])==len(counts)*maximum*m and float_bytes(read['before']['history'])==float_bytes(previous),'padded history transition differs')
         wanted=[];actual=[]
         for spec in t['spatial']['salient']['descriptors']:
             sc,b,mode=spec['component_index'],spec['subband_index'],spec['mode'];compact=sum(counts[i]*dimensions[i] for i in range(sc))+b*dimensions[sc];padded=(sc*maximum+b)*m
@@ -62,7 +62,7 @@ def verify(truth,trace,opts):
             for k in range(m):
                 # Native unequal-grid recovery accumulates band-major, then component.
                 value=0.
-                for sc in sorted(range(5),key=lambda sc:(bands[sc],sc)):
+                for sc in sorted(range(len(counts)),key=lambda sc:(bands[sc],sc)):
                     product=f32(sources[ambient+sc][line]*history['history'][(sc*maximum+bands[sc])*m+k]);value=f32(value+product)
                 if k in selected:value=f32(value+transformed[selected.index(k)][line]) if path=='add' else transformed[selected.index(k)][line]
                 internal[k][line]=value

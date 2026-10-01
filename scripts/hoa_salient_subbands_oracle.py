@@ -12,7 +12,7 @@ from sq_math import round_f32
 class Decoder:
     def __init__(self,options):
         self.options=options;self.counts=options.get('counts',[1,3,4,9,16]);self.slots=(options.get('order',3)+1)**2
-        self.dimensions=[(o+1)**2 for o in options.get('component_orders',[options.get('order',3)]*5)]
+        self.dimensions=[(o+1)**2 for o in options.get('component_orders',[options.get('order',3)]*len(self.counts))]
         self.history=[[[D(0)]*self.dimensions[s] for _ in range(n)] for s,n in enumerate(self.counts)]
         self.channels=[Channel(strict_transitions=False) for _ in range(16 if options.get('dynamic') else self.slots)];self.records=[]
     def decode(self,truth):
@@ -32,7 +32,7 @@ class Decoder:
                 frequency=line%128 if short else line;bands=[next(b for b,end in enumerate(grid) if frequency<end) for grid in grids]
                 for k in range(self.slots):
                     if path=='replace' and k in selected:internal[k][line]=ambient[selected.index(k)][line];continue
-                    value=sum((D.from_float(sources[offset+s][line])*self.history[s][bands[s]][k] for s in range(5) if k<self.dimensions[s]),D(0))
+                    value=sum((D.from_float(sources[offset+s][line])*self.history[s][bands[s]][k] for s in range(len(self.counts)) if k<self.dimensions[s]),D(0))
                     if path=='add' and k in selected:value+=exact_ambient[selected.index(k)][line]
                     internal[k][line]=round_f32(value)
             dyn=truth.get('dynamic_selection');scaled=internal

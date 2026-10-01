@@ -295,6 +295,10 @@ fn decode_with_access(
         let context = decoder.hoa_context.as_ref().unwrap();
         if context.component_orders_extended() {
             value["hoa_salient_component_orders"] = json!(context.salient_component_orders());
+            if context.salient_components() != 5 {
+                value["hoa_salient_component_count"] = json!(context.salient_components());
+                value["hoa_salient_count_profile"] = json!("apac-hoa-salient-counts-v1");
+            }
             value["hoa_salient_components"] = json!(context.component_order_info());
             value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
             if context

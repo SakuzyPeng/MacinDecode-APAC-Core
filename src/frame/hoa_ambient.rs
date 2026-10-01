@@ -220,7 +220,7 @@ mod tests {
                 let result = super::super::hoa::spatial(
                     &mut parser,
                     &mut super::super::HoaState::default(),
-                    context.configuration,
+                    &context.configuration,
                     0,
                 );
                 if cut < end {

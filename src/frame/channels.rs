@@ -603,9 +603,13 @@ fn parse_impl(
         packet_complete: false,
         packet_state_profile: context
             .hoa
+            .as_ref()
             .map_or(STATE_PROFILE, |h| h.state_profile())
             .into(),
-        hoa: context.hoa.map(|_| super::hoa::HoaFrameInfo::default()),
+        hoa: context
+            .hoa
+            .as_ref()
+            .map(|_| super::hoa::HoaFrameInfo::default()),
         channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
             .map(str::to_owned),
         channel_count: context.channel_count,
@@ -622,7 +626,7 @@ fn parse_impl(
         drc_history_sufficient: None,
         drc_processing_applied: false,
     };
-    if let Some(shape) = context.hoa {
+    if let Some(shape) = &context.hoa {
         let hoa = result.hoa.as_mut().expect("HOA context");
         hoa.numeric_profile = shape.numeric_profile().into();
         hoa.order = shape.order;
@@ -762,7 +766,7 @@ fn parse_impl(
             element.channels_after_tns.clear();
         }
     }
-    if let Some(shape) = context.hoa {
+    if let Some(shape) = &context.hoa {
         let state = next_hoa.as_mut().expect("HOA state");
         let mut spatial = super::hoa::spatial(
             &mut parser,

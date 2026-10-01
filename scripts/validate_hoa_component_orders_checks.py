@@ -10,9 +10,10 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False):
+def main(*,first_order=False,salient_counts=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
+    if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
@@ -29,7 +30,11 @@ def main(*,first_order=False):
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
         import hoa_salient_subbands_vectors as spatial
-        if first_order:
+        if salient_counts:
+            import hoa_order1_vectors as order1
+            import hoa_component_orders_vectors as components
+            references=((a.order1_reference,order1,{'pure2','replace3','dynamic-add'}),(a.component_reference,components,{'all-order2'}),(a.partition_reference,partition,{'pure2','dynamic-add'}))
+        elif first_order:
             import hoa_component_orders_vectors as components
             references=((a.component_reference,components,{'pure','replace','add','all-order2'}),(a.partition_reference,partition,{'pure2','dynamic-add'}))
         else:references=((a.partition_reference,partition,{'pure2','replace3','fixed-add','dynamic-add'}),(a.spatial_reference,spatial,{'minimum-one'}))

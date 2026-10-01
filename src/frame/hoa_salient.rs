@@ -1,4 +1,4 @@
-//! Restricted order-1/2/3, five-component spatial descriptors with bounded local grids.
+//! Order-1/2/3 spatial descriptors with bounded component counts and local grids.
 //! Format tables and independent mathematical constants have separate identities.
 use super::{
     ChannelPacketReport, Parser,
@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::OnceLock;
 
+pub const COUNTS_PROFILE: &str = "apac-hoa-salient-counts-v1";
+pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-salient-counts-math-v1";
+pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-salient-counts-state-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
 pub const ORDER1_NUMERIC_PROFILE: &str = "apac-hoa-salient-order1-math-v1";
 pub const ORDER1_PROFILE: &str = "apac-hoa-salient-order1-v1";
@@ -26,6 +29,10 @@ mod component_orders_tests;
 #[path = "hoa_order1_tests.rs"]
 mod order1_tests;
 
+#[cfg(test)]
+#[path = "hoa_counts_tests.rs"]
+mod counts_tests;
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
     history: Vec<Vec<Vec<f64>>>,
@@ -37,17 +44,23 @@ impl SalientState {
         Self::with_counts(coefficients, [4; 5])
     }
     #[cfg(test)]
-    pub(super) fn with_counts(coefficients: usize, counts: [usize; 5]) -> Self {
-        Self::with_dimensions([coefficients; 5], counts)
+    pub(super) fn with_counts(coefficients: usize, counts: impl AsRef<[usize]>) -> Self {
+        Self::with_dimensions(vec![coefficients; counts.as_ref().len()], counts)
     }
-    pub(super) fn with_dimensions(coefficients: [usize; 5], counts: [usize; 5]) -> Self {
+    pub(super) fn with_dimensions(
+        coefficients: impl AsRef<[usize]>,
+        counts: impl AsRef<[usize]>,
+    ) -> Self {
+        let coefficients = coefficients.as_ref();
+        let counts = counts.as_ref();
+        assert!(!counts.is_empty() && counts.len() <= 16 && counts.len() == coefficients.len());
         assert!(counts.iter().all(|n| (1..=16).contains(n)));
         assert!(coefficients.iter().all(|n| matches!(n, 4 | 9 | 16)));
         Self {
             history: counts
                 .iter()
                 .zip(coefficients)
-                .map(|(&n, c)| vec![vec![0.; c]; n])
+                .map(|(&n, &c)| vec![vec![0.; c]; n])
                 .collect(),
             previous_frame_sha256: None,
         }
@@ -98,6 +111,10 @@ pub struct SalientSpatialData {
     pub component_orders: Option<Vec<SalientComponentOrderInfo>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order1_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub count_profile: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
@@ -116,9 +133,11 @@ pub struct SalientComponentOrderInfo {
     pub numeric_profile: String,
     pub format_sha256: String,
 }
-pub(super) fn component_information(orders: [u8; 5]) -> Vec<SalientComponentOrderInfo> {
+pub(super) fn component_information(orders: impl AsRef<[u8]>) -> Vec<SalientComponentOrderInfo> {
     orders
-        .into_iter()
+        .as_ref()
+        .iter()
+        .copied()
         .enumerate()
         .map(|(component_index, order)| {
             let coefficient_count = (usize::from(order) + 1).pow(2);
@@ -133,29 +152,33 @@ pub(super) fn component_information(orders: [u8; 5]) -> Vec<SalientComponentOrde
         .collect()
 }
 impl SalientSpatialData {
-    pub(super) fn bands_for_frequency(&self, frequency: usize) -> [usize; 5] {
-        std::array::from_fn(|sc| {
-            let ends = self
-                .component_subbands
-                .as_ref()
-                .map_or(self.lines_per_window.as_slice(), |grids| {
-                    &grids[sc].lines_per_window
-                });
-            ends.iter()
-                .position(|&end| frequency < end)
-                .expect("covered component frequency")
-        })
+    pub(super) fn bands_for_frequency(&self, frequency: usize) -> Vec<usize> {
+        (0..self.component_count.unwrap_or(5))
+            .map(|sc| {
+                let ends = self
+                    .component_subbands
+                    .as_ref()
+                    .map_or(self.lines_per_window.as_slice(), |grids| {
+                        &grids[sc].lines_per_window
+                    });
+                ends.iter()
+                    .position(|&end| frequency < end)
+                    .expect("covered component frequency")
+            })
+            .collect()
     }
-    pub(super) fn descriptor_offsets(&self) -> [usize; 5] {
+    pub(super) fn descriptor_offsets(&self) -> Vec<usize> {
         let mut offset = 0;
-        std::array::from_fn(|sc| {
-            let start = offset;
-            offset += self
-                .component_subbands
-                .as_ref()
-                .map_or(self.subband_ends.len(), |grids| grids[sc].subband_count);
-            start
-        })
+        (0..self.component_count.unwrap_or(5))
+            .map(|sc| {
+                let start = offset;
+                offset += self
+                    .component_subbands
+                    .as_ref()
+                    .map_or(self.subband_ends.len(), |grids| grids[sc].subband_count);
+                start
+            })
+            .collect()
     }
 }
 
@@ -308,7 +331,7 @@ pub(super) fn read(
     global_mode: Option<u8>,
     block: u8,
     state: &SalientState,
-    configuration: super::hoa::HoaConfiguration,
+    configuration: &super::hoa::HoaConfiguration,
 ) -> Result<SalientSpatialData, ParseError> {
     let ambient_selection = (configuration.path == super::hoa::HoaPath::Mixed).then(|| {
         if configuration.ambient_combination == super::AmbientCombination::Add {
@@ -319,10 +342,11 @@ pub(super) fn read(
     });
     let partition_method = configuration.salient_partition_method;
     let mixed = ambient_selection.is_some();
-    let counts: [usize; 5] = std::array::from_fn(|sc| state.history[sc].len());
+    let counts: Vec<usize> = state.history.iter().map(Vec::len).collect();
+    let dimensions = configuration.salient_dimensions();
     let mut descriptors = Vec::with_capacity(counts.iter().sum());
     for (component, &count) in counts.iter().enumerate() {
-        let coefficients = configuration.salient_dimensions()[component];
+        let coefficients = dimensions[component];
         for band in 0..count {
             let name = format!("hoa.salient[{component}].subbands[{band}]");
             let start = parser.bits.position();
@@ -484,6 +508,12 @@ pub(super) fn read(
             .salient_orders
             .contains(&1)
             .then(|| ORDER1_PROFILE.into()),
+        component_count: configuration
+            .component_count_extended()
+            .then_some(counts.len()),
+        count_profile: configuration
+            .component_count_extended()
+            .then(|| COUNTS_PROFILE.into()),
         descriptors,
     })
 }
@@ -986,7 +1016,7 @@ mod tests {
                 let result = super::super::hoa::spatial(
                     &mut parser,
                     &mut super::super::hoa::HoaState::default(),
-                    configuration,
+                    &configuration,
                     0,
                 );
                 if limit < end {
@@ -1137,7 +1167,7 @@ mod tests {
                 let result = super::super::hoa::spatial(
                     &mut parser,
                     &mut super::super::HoaState::default(),
-                    ctx.configuration,
+                    &ctx.configuration,
                     0,
                 );
                 if cut < end {

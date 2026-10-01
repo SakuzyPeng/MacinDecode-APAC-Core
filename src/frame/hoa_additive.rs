@@ -64,7 +64,7 @@ pub(super) fn restore(
     packet: &ChannelPacketReport,
     spatial: &mut HoaSpatialData,
     state: &mut HoaState,
-    configuration: HoaConfiguration,
+    configuration: &HoaConfiguration,
 ) -> Result<(Vec<RecoverySlotSpectrum>, HoaAdditiveData), ParseError> {
     let count = usize::from(configuration.recovery_slots);
     let side = spatial.salient.as_mut().expect("mixed descriptors");
@@ -81,7 +81,7 @@ pub(super) fn restore(
     let sources: Vec<_> = packet
         .elements
         .iter()
-        .take(9)
+        .take(usize::from(configuration.core_channels))
         .map(|e| {
             if e.present {
                 e.channels_after_bwe2[0].scaled.clone()
@@ -98,7 +98,7 @@ pub(super) fn restore(
         )
     };
     if index > 3
-        || sources.len() != 9
+        || sources.len() != usize::from(configuration.core_channels)
         || sources
             .iter()
             .any(|s| s.len() != 1024 || s.iter().any(|v| !v.is_finite()))
@@ -127,7 +127,7 @@ pub(super) fn restore(
         let bands = side.bands_for_frequency(frequency);
         for (slot, out) in output.iter_mut().enumerate() {
             let mut sum = Sum::default();
-            for sc in 0..5 {
+            for sc in 0..usize::from(configuration.salient_components) {
                 let descriptor = side.descriptors[offsets[sc] + bands[sc]]
                     .restored
                     .get(slot)
@@ -175,7 +175,9 @@ pub(super) fn restore(
             }
             .into(),
             selection: selected.to_vec(),
-            salient_transport_channels: (4..9).collect(),
+            salient_transport_channels: (configuration.ambient_components
+                ..configuration.core_channels)
+                .collect(),
             ambient_transport_channels: (0..4).collect(),
             effective_transform_index: index,
             spectral_stage: if configuration.dynamic_method.is_some() {
@@ -247,7 +249,7 @@ mod tests {
                 let result = super::super::hoa::spatial(
                     &mut parser,
                     &mut HoaState::default(),
-                    context.configuration,
+                    &context.configuration,
                     0,
                 );
                 if cut < end {

@@ -44,19 +44,20 @@ def check(r,t,last_mode,last_sha,opts):
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
     else:require(r['embedded_preroll'] is None,'fabricated inner frame')
     order=opts.get('order',3);dynamic=opts.get('dynamic',False);m=(order+1)**2;n=shape(order,dynamic);counts=opts.get('counts',[1,3,4,9,16]);path=opts.get('path','salient');h=r['hoa']
-    require(h['hoa_complete'] and h['common_window']==t['common_window'] and (h['order'],h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(order,m,5 if path=='salient' else 9,n,n),'dimensions differ')
+    require(h['hoa_complete'] and h['common_window']==t['common_window'] and (h['order'],h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(order,m,len(counts)+(0 if path=='salient' else 4),n,n),'dimensions differ')
     require(r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset'],'core/tail boundary differs')
     same_fields(r['packet_tail'],t['tail'],'tail');same_fields(r['drc'],t['drc'],'DRC')
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
     same_fields(h['spatial'],t['spatial'],'spatial');require(h['spatial']['effective_global_coding_mode']==last_mode,'global mode differs')
     side=h['spatial']['salient'];require(side['history_frame_sha256']==last_sha,'history source differs')
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
-    orders=opts.get('component_orders',[order]*5);dimensions=[(o+1)**2 for o in orders]
+    orders=opts.get('component_orders',[order]*len(counts));dimensions=[(o+1)**2 for o in orders]
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
-    if list(orders)!=[order]*5:
+    if len(counts)!=5 or list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        require(side['component_orders']==component_information(orders) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else component_profile),'component order/profile differs')
-        if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==component_profile,'dynamic base recovery differs')
+        recovery_profile='apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
+        require(side['component_orders']==component_information(orders) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
+        if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==recovery_profile,'dynamic base recovery differs')
         if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
         else:require('order1_profile' not in side,'first-order marker leaked into old descriptors')
     else:require('component_orders' not in side,'component metadata leaked into old configuration')

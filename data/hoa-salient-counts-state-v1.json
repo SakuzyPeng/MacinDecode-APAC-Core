@@ -1,0 +1,6556 @@
+{
+  "fixtures": [
+    {
+      "name": "first-four",
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "spatial_method": 0,
+        "scene": true,
+        "drc": true,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "00000044646170610000000008001402000804200b32028042108800000be000400c018100008820405404000080080a803088003803ca85c008220082483f1000000000",
+      "first": "41034021408820820820820820820820828072a17002088020920fc4000000008180",
+      "good": "7103402140392476dae491db4c0000",
+      "errors": {
+        "last_descriptor": "7103402140392476dae493db4c0000",
+        "tail": "7103402140392476dae491db4c0004",
+        "embedded": "880078481a010a001b6fe6db4db6fb6d0000040d008500e491db6b92476d300000"
+      }
+    },
+    {
+      "name": "second-nine",
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1,
+          2,
+          2,
+          1,
+          2,
+          2
+        ],
+        "spatial_method": 1,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "0000003d646170610000000008001401801204200b3285200841021040841120000000017c001201003020001104080a80800010010150061100070000",
+      "first": "40081a010a04410410410410410410410410410410410410410410410410410410410410410410410410410410410410410410510410410000",
+      "good": "70081a010a01c9236db6db6d2492493b6d69249249b6db6db7248db6db6db490249200",
+      "errors": {
+        "last_descriptor": "70081a010a01c9236db6db6d2492493b6d69249249b6db6db7248db6db6df490249200",
+        "tail": "70081a010a01c9236db6db6d2492493b6d69249249b6db6db7248db6db6db490249240",
+        "embedded": "8800e8481a010a0000db7f3ffff9ffffcdb69ffffcffffe6db4ffffffffff000002068042807248db6db6db4924924edb5a4924926db6db6dc9236db6db6d240924800"
+      }
+    },
+    {
+      "name": "third-sixteen",
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1
+        ],
+        "spatial_method": 2,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "00000046646170610000000008001402002004200b3307e08021060841821060841821060a000000000000000be0010008018100008820405404000080080a80308800380000",
+      "first": "40001034021408820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820a000",
+      "good": "700010340214039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b69800",
+      "errors": {
+        "last_descriptor": "700010340214039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492497b69800",
+        "tail": "700010340214039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b69840",
+        "embedded": "8801b8481a010a000001b6fe7ffff3fffffffe6db4ffffe7fffffffcdb69ffffcffffffff9b6d3ffff9ffffffff36da7ffff3ffffffffedb4000000040d008500e491b6db6db6924924924924edb5a4924926db6db6db6db6e491b6db6db6924924924924edb5a4924926db6db6db6db6e491b6db6db6924924924924eda6000"
+      }
+    },
+    {
+      "name": "replace-twelve",
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "spatial_method": 0,
+        "scene": true,
+        "drc": false,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "00000043646170610000000008001401802004200b3207880841821060841821073f0000000000000005f000800400c080004410202a020000400405401844001c0000",
+      "first": "481a010a000010340214022082082082082082082082082082082082082082082082082082082082082082082082082082082082082082082082082082080000",
+      "good": "781a010a0000103402140cdb6db6924924924da4926db6db6db6db6db6924924924da4926db6db6db600",
+      "errors": {
+        "last_descriptor": "781a010a0000103402140cdb6db6924924924da4926db6db6db6db6db6924924924da492edb6db6db600",
+        "tail": "781a010a0000103402140cdb6db6924924924da4926db6db6db6db6db6924924924da4926db6db6db640",
+        "embedded": "8800f04081a010a0000c4ffe7fffffc9ffcffffff93ff9ffffff27ffffffffe000000040d00850336db6da49249249369249b6db6db6db6db6da49249249369249b6db6db6d800"
+      }
+    },
+    {
+      "name": "dynamic-nine",
+      "options": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1,
+          2,
+          2,
+          1,
+          2,
+          2
+        ],
+        "spatial_method": 1,
+        "scene": true,
+        "drc": false,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "00000041646170610000000008001402002004200b7c4a14a021040841021053f0000000000000005f000800400c080004410202a020000400405401844001c000",
+      "first": "481a010a000081a010a00220820820820820820820820820820820820820820820820820820820820820820820820820820820820820820828820820830eca86421530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca8642000",
+      "good": "781a010a000081a010a00ce491b6db6db69249249db6b4924924db6db6db9246db6db6da4812496ea61d950f72ea61d97fb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c84000",
+      "errors": {
+        "last_descriptor": "781a010a000081a010a00ce491b6db6db69249249db6b4924924db6db6db9246db6db6fa4812496ea61d950f72ea61d97fb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c84000",
+        "tail": "781a010a000081a010a00ce491b6db6db69249249db6b4924924db6db6db9246db6db6da4812496ea61d950f72ea61d97fb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c84040",
+        "embedded": "8801704081a010a0000c6dbf9ffffcffffe6db4ffffe7ffff36da7fffffffffbfe00ff803fe00ffa03ff80ffe03ff80c00000206804280339246db6db6da49249276dad24924936db6db6e491b6db6db69204924ff803fe00ff803fe80ffe03ff80ffe0300"
+      }
+    },
+    {
+      "name": "escape-fifteen",
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "spatial_method": 2,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "cookie": "00000045646170610000000008001401802004200b3307e00021060841821060841821068000000000000002f80040020060400022081015010000200202a00c22000e0000",
+      "first": "40002068042808820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820820a208208208208208208000",
+      "good": "700020680428039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da48124924924800",
+      "errors": {
+        "last_descriptor": "700020680428039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6fa48124924924800",
+        "tail": "700020680428039246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da492492492493b6d69249249b6db6db6db6db9246db6db6da48124924924840",
+        "embedded": "8801a8481a010a000001b6fe7ffff3fffffffe6db4ffffe7fffffffcdb69ffffcffffffff9b6d3ffff9ffffffff36da7ffffffffffffe000000081a010a00e491b6db6db6924924924924edb5a4924926db6db6db6db6e491b6db6db6924924924924edb5a4924926db6db6db6db6e491b6db6db6920492492492000"
+      }
+    }
+  ],
+  "spatial_cases": [
+    {
+      "cookie": "00000044646170610000000008001402000804200b32028042108800000be000400c018100008820405404000080080a803088003803ca85c008220082483f1000000000",
+      "block": 2,
+      "bytes": "49084224842112421089210876a0",
+      "bits": 102,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 102,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 1,
+              "end_bit_offset": 26,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 26,
+              "end_bit_offset": 51,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 51,
+              "end_bit_offset": 76,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 76,
+              "end_bit_offset": 102,
+              "quantized": [
+                32,
+                32,
+                32,
+                40
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 2,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 4,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        }
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401801204200b3285200841021040841120000000017c001201003020001104080a80800010010150061100070000",
+      "block": 2,
+      "bytes": "49084224aaaaaaaab2555555555921084495555555564aaaaaaaab24210892aaaaaaaac9555155555a80",
+      "bits": 324,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 324,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 1,
+              "end_bit_offset": 26,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 26,
+              "end_bit_offset": 67,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 67,
+              "end_bit_offset": 108,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 108,
+              "end_bit_offset": 133,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 4,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 133,
+              "end_bit_offset": 174,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 5,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 174,
+              "end_bit_offset": 215,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 6,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 215,
+              "end_bit_offset": 240,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 7,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 240,
+              "end_bit_offset": 281,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 8,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 281,
+              "end_bit_offset": 324,
+              "quantized": [
+                32,
+                32,
+                32,
+                40,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 4,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 5,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 6,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 7,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 8,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+          "partition_method": 1,
+          "partition_profile": "apac-hoa-salient-partition-v1",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 2,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 4,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 5,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 6,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 7,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 8,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 9,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        }
+      }
+    },
+    {
+      "cookie": "00000046646170610000000008001402002004200b3307e08021060841821060841821060a000000000000000be0010008018100008820405404000080080a80308800380000",
+      "block": 2,
+      "bytes": "49084224aaaaaaaab21111111111111111921084495555555564222222222222222324210892aaaaaaaac84444444444444446484211255555555590888888888888888c9084224aaaaaaaab211111111111111119210876a0",
+      "bits": 702,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 702,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 1,
+              "end_bit_offset": 26,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 26,
+              "end_bit_offset": 67,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 67,
+              "end_bit_offset": 136,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 136,
+              "end_bit_offset": 161,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 4,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 161,
+              "end_bit_offset": 202,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 5,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 202,
+              "end_bit_offset": 271,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 6,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 271,
+              "end_bit_offset": 296,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 7,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 296,
+              "end_bit_offset": 337,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 8,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 337,
+              "end_bit_offset": 406,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 9,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 406,
+              "end_bit_offset": 431,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 10,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 431,
+              "end_bit_offset": 472,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 11,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 472,
+              "end_bit_offset": 541,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 12,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 541,
+              "end_bit_offset": 566,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 13,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 566,
+              "end_bit_offset": 607,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 14,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 607,
+              "end_bit_offset": 676,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 15,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 676,
+              "end_bit_offset": 702,
+              "quantized": [
+                32,
+                32,
+                32,
+                40
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 4,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 5,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 6,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 7,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 8,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 9,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 10,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 11,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 12,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 13,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 14,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 15,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+          "partition_method": 2,
+          "partition_profile": "apac-hoa-salient-partition-v1",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 2,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 4,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 5,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 6,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 7,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 8,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 9,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 10,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 11,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 12,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 13,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 14,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 15,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 16,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        }
+      }
+    },
+    {
+      "cookie": "00000043646170610000000008001401802004200b3207880841821060841821073f0000000000000005f000800400c080004410202a020000400405401844001c0000",
+      "block": 2,
+      "bytes": "124210892aaaaaaaac84444444444444446484211255555555590888888888888888c9084224aaaaaaaab211111111111111119210844955555555642228088888888888d4",
+      "bits": 545,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 545,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 3,
+              "end_bit_offset": 28,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 28,
+              "end_bit_offset": 69,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 69,
+              "end_bit_offset": 138,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 138,
+              "end_bit_offset": 163,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 4,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 163,
+              "end_bit_offset": 204,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 5,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 204,
+              "end_bit_offset": 273,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 6,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 273,
+              "end_bit_offset": 298,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 7,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 298,
+              "end_bit_offset": 339,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 8,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 339,
+              "end_bit_offset": 408,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 9,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 408,
+              "end_bit_offset": 433,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 10,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 433,
+              "end_bit_offset": 474,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 11,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 474,
+              "end_bit_offset": 545,
+              "quantized": [
+                32,
+                32,
+                32,
+                40,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+                15
+              ],
+              "ambient_omitted_coefficients": []
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 4,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 5,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 6,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 7,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 8,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 9,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 10,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 11,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 2,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 4,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 5,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 6,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 7,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 8,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 9,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 10,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 11,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 12,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        },
+        "ambient": {
+          "explicit_selection": true,
+          "selection": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "transform_config": {
+            "mode": "per_frame"
+          },
+          "effective_index": 0,
+          "index_source": "frame",
+          "index_start_bit_offset": 0,
+          "index_end_bit_offset": 2
+        }
+      }
+    },
+    {
+      "cookie": "00000041646170610000000008001402002004200b7c4a14a021040841021053f0000000000000005f000800400c080004410202a020000400405401844001c000",
+      "block": 2,
+      "bytes": "124210892aaaaaaaac9555555556484211255555555592aaaaaaaac9084224aaaaaaaab25554555556a0",
+      "bits": 326,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 326,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 3,
+              "end_bit_offset": 28,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 28,
+              "end_bit_offset": 69,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 69,
+              "end_bit_offset": 110,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 110,
+              "end_bit_offset": 135,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 4,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 135,
+              "end_bit_offset": 176,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 5,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 176,
+              "end_bit_offset": 217,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 6,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 217,
+              "end_bit_offset": 242,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 7,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 242,
+              "end_bit_offset": 283,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            },
+            {
+              "component_index": 8,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 283,
+              "end_bit_offset": 326,
+              "quantized": [
+                32,
+                32,
+                32,
+                40,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null,
+              "coded_coefficient_indices": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "ambient_omitted_coefficients": []
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 4,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 5,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 6,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 7,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 8,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+          "partition_method": 1,
+          "partition_profile": "apac-hoa-salient-partition-v1",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 2,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 4,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 5,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 6,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 7,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 8,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 9,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        },
+        "ambient": {
+          "explicit_selection": true,
+          "selection": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "transform_config": {
+            "mode": "per_frame"
+          },
+          "effective_index": 0,
+          "index_source": "frame",
+          "index_start_bit_offset": 0,
+          "index_end_bit_offset": 2
+        }
+      }
+    },
+    {
+      "cookie": "00000045646170610000000008001401802004200b3307e00021060841821060841821068000000000000002f80040020060400022081015010000200202a00c22000e0000",
+      "block": 2,
+      "bytes": "49084224aaaaaaaab21111111111111111921084495555555564222222222222222324210892aaaaaaaac84444444444444446484211255555555590888888888888888c9084224aaaaaaaab211140444444444446a0",
+      "bits": 678,
+      "truth": {
+        "start_bit_offset": 0,
+        "end_bit_offset": 678,
+        "single_coding_mode": false,
+        "coding_mode": null,
+        "ambient_indices": [],
+        "salient": {
+          "descriptors": [
+            {
+              "component_index": 0,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 1,
+              "end_bit_offset": 26,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 1,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 26,
+              "end_bit_offset": 67,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 2,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 67,
+              "end_bit_offset": 136,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 3,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 136,
+              "end_bit_offset": 161,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 4,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 161,
+              "end_bit_offset": 202,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 5,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 202,
+              "end_bit_offset": 271,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 6,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 271,
+              "end_bit_offset": 296,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 7,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 296,
+              "end_bit_offset": 337,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 8,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 337,
+              "end_bit_offset": 406,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 9,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 406,
+              "end_bit_offset": 431,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 10,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 431,
+              "end_bit_offset": 472,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 11,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 472,
+              "end_bit_offset": 541,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 12,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 541,
+              "end_bit_offset": 566,
+              "quantized": [
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 13,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 566,
+              "end_bit_offset": 607,
+              "quantized": [
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            },
+            {
+              "component_index": 14,
+              "subband_index": 0,
+              "mode": 4,
+              "start_bit_offset": 607,
+              "end_bit_offset": 678,
+              "quantized": [
+                32,
+                32,
+                32,
+                40,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32,
+                32
+              ],
+              "signs_positive": [],
+              "cluster": 2,
+              "azimuth_degrees": null,
+              "elevation_offset_degrees": null
+            }
+          ],
+          "subband_ends": [
+            1024
+          ],
+          "lines_per_window": [
+            128
+          ],
+          "component_subbands": [
+            {
+              "component_index": 0,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 1,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 2,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 3,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 4,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 5,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 6,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 7,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 8,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 9,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 10,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 11,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 12,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 13,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            },
+            {
+              "component_index": 14,
+              "subband_count": 1,
+              "subband_ends": [
+                1024
+              ],
+              "lines_per_window": [
+                128
+              ]
+            }
+          ],
+          "subband_profile": "apac-hoa-salient-subbands-v1",
+          "format_sha256": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+          "partition_method": 2,
+          "partition_profile": "apac-hoa-salient-partition-v1",
+          "component_orders": [
+            {
+              "component_index": 0,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 1,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 2,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 3,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 4,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 5,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 6,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 7,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 8,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 9,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 10,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 11,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            },
+            {
+              "component_index": 12,
+              "order": 1,
+              "coefficient_count": 4,
+              "numeric_profile": "apac-hoa-salient-order1-math-v1",
+              "format_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+            },
+            {
+              "component_index": 13,
+              "order": 2,
+              "coefficient_count": 9,
+              "numeric_profile": "apac-hoa-salient-order2-math-v1",
+              "format_sha256": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b"
+            },
+            {
+              "component_index": 14,
+              "order": 3,
+              "coefficient_count": 16,
+              "numeric_profile": "apac-hoa-salient-math-v1",
+              "format_sha256": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15"
+            }
+          ],
+          "order1_profile": "apac-hoa-salient-order1-v1",
+          "component_count": 15,
+          "count_profile": "apac-hoa-salient-counts-v1"
+        }
+      }
+    }
+  ],
+  "counts": [
+    {
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000021646170610000000008001401800804200b32022044000005f000200000",
+      "packet": "481a010a000820828000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 41,
+        "end_bit_offset": 68,
+        "quantized": [
+          32,
+          32,
+          32,
+          40
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000021646170610000000008001401800804200b320240422000002f80010000",
+      "packet": "440d0085000820820104105000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 68,
+        "end_bit_offset": 95,
+        "quantized": [
+          32,
+          32,
+          32,
+          40
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000022646170610000000008001401800804200b32026042110000017c00080000",
+      "packet": "42068042800820820104104020820a0000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 95,
+        "end_bit_offset": 122,
+        "quantized": [
+          32,
+          32,
+          32,
+          40
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 1,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000023646170610000000008001401800804200b32028042108800000be000400000",
+      "packet": "4103402140082082010410402082080410414000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 122,
+        "end_bit_offset": 149,
+        "quantized": [
+          32,
+          32,
+          32,
+          40
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000023646170610000000008001401801204200b3204201120000000017c00120000",
+      "packet": "481a010a00004104144104104000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 46,
+        "end_bit_offset": 103,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000024646170610000000008001401801204200b32044010448000000005f000480000",
+      "packet": "440d008500004104104104104020820a2082082000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 103,
+        "end_bit_offset": 160,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000024646170610000000008001401801204200b3204601041120000000017c0012000",
+      "packet": "4206804280004104104104104020820820820820104105104104100000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 160,
+        "end_bit_offset": 217,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000025646170610000000008001401801204200b32048010410448000000005f00048000",
+      "packet": "410340214000410410410410402082082082082010410410410410082082882082080000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 217,
+        "end_bit_offset": 274,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401801204200b3204a01041041120000000017c00120000",
+      "packet": "4081a010a00041041041041040208208208208201041041041041008208208208208041041441041040000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 274,
+        "end_bit_offset": 331,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000027646170610000000008001401801204200b3204c010410410448000000005f000480000",
+      "packet": "4040d00850004104104104104020820820820820104104104104100820820820820804104104104104020820a20820820000",
+      "last_descriptor": {
+        "component_index": 5,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 331,
+        "end_bit_offset": 388,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000027646170610000000008001401801204200b3204e01041041041120000000017c0012000",
+      "packet": "402068042800410410410410402082082082082010410410410410082082082082080410410410410402082082082082010410510410410000",
+      "last_descriptor": {
+        "component_index": 6,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 388,
+        "end_bit_offset": 445,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000028646170610000000008001401801204200b32050010410410410448000000005f00048000",
+      "packet": "40103402140041041041041040208208208208201041041041041008208208208208041041041041040208208208208201041041041041008208288208208000",
+      "last_descriptor": {
+        "component_index": 7,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 445,
+        "end_bit_offset": 502,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401801204200b3205201041041041041120000000017c00120000",
+      "packet": "40081a010a004104104104104020820820820820104104104104100820820820820804104104104104020820820820820104104104104100820820820820804104144104104000",
+      "last_descriptor": {
+        "component_index": 8,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 502,
+        "end_bit_offset": 559,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000023646170610000000008001401801204200b320428109000000000be00090000",
+      "packet": "4081a010a0005104104000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 46,
+        "end_bit_offset": 79,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000024646170610000000008001401801204200b32044810424000000002f800240000",
+      "packet": "4040d0085000410410402882082000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 79,
+        "end_bit_offset": 112,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000025646170610000000008001401801204200b320468104109000000000be000900000",
+      "packet": "4020680428004104104020820820144104100000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 112,
+        "end_bit_offset": 145,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000025646170610000000008001401801204200b32048810410424000000002f80024000",
+      "packet": "4010340214004104104020820820104104100a2082080000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 145,
+        "end_bit_offset": 178,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401801204200b3204a8104104109000000000be00090000",
+      "packet": "40081a010a0041041040208208201041041008208208051041040000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 178,
+        "end_bit_offset": 211,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "add",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000023646170610000000008001401801204200b720428109000000000be00090000",
+      "packet": "4081a010a0004104144104104000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 46,
+        "end_bit_offset": 103,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "add",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000024646170610000000008001401801204200b72044810424000000002f800240000",
+      "packet": "4040d00850004104104104104020820a2082082000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 103,
+        "end_bit_offset": 160,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000025646170610000000008001401801204200b720468104109000000000be000900000",
+      "packet": "4020680428004104104104104020820820820820104105104104100000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 160,
+        "end_bit_offset": 217,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000025646170610000000008001401801204200b72048810410424000000002f80024000",
+      "packet": "401034021400410410410410402082082082082010410410410410082082882082080000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 217,
+        "end_bit_offset": 274,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 2,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401801204200b7204a8104104109000000000be00090000",
+      "packet": "40081a010a0041041041041040208208208208201041041041041008208208208208041041441041040000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 274,
+        "end_bit_offset": 331,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b3206201a000000000000000be001000000",
+      "packet": "481a010a00000082082882082082082082082000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 53,
+        "end_bit_offset": 152,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b3206401868000000000000002f80040000",
+      "packet": "440d00850000008208208208208208208208201041051041041041041041040000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 152,
+        "end_bit_offset": 251,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000027646170610000000008001401802004200b3206601861a000000000000000be00100000",
+      "packet": "42068042800000820820820820820820820820104104104104104104104104020820a208208208208208208000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 251,
+        "end_bit_offset": 350,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000028646170610000000008001401802004200b3206801861868000000000000002f800400000",
+      "packet": "41034021400000820820820820820820820820104104104104104104104104020820820820820820820820804104144104104104104104100000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 350,
+        "end_bit_offset": 449,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b3206a01861861a000000000000000be001000000",
+      "packet": "4081a010a00000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820828820820820820820820000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 449,
+        "end_bit_offset": 548,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b3206c01861861868000000000000002f80040000",
+      "packet": "4040d008500000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104105104104104104104104000",
+      "last_descriptor": {
+        "component_index": 5,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 548,
+        "end_bit_offset": 647,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002a646170610000000008001401802004200b3206e01861861861a000000000000000be00100000",
+      "packet": "40206804280000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820a2082082082082082080000",
+      "last_descriptor": {
+        "component_index": 6,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 647,
+        "end_bit_offset": 746,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002b646170610000000008001401802004200b3207001861861861868000000000000002f800400000",
+      "packet": "4010340214000082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410414410410410410410410000",
+      "last_descriptor": {
+        "component_index": 7,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 746,
+        "end_bit_offset": 845,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b3207201861861861861a000000000000000be001000000",
+      "packet": "40081a010a000082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082882082082082082082000",
+      "last_descriptor": {
+        "component_index": 8,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 845,
+        "end_bit_offset": 944,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b3207401861861861861868000000000000002f80040000",
+      "packet": "40040d008500008208208208208208208208201041041041041041041041040208208208208208208208208041041041041041041041041008208208208208208208208201041041041041041041041040208208208208208208208208041041041041041041041041008208208208208208208208201041051041041041041041040000",
+      "last_descriptor": {
+        "component_index": 9,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 944,
+        "end_bit_offset": 1043,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002d646170610000000008001401802004200b3207601861861861861861a000000000000000be00100000",
+      "packet": "40020680428000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820a208208208208208208000",
+      "last_descriptor": {
+        "component_index": 10,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1043,
+        "end_bit_offset": 1142,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002e646170610000000008001401802004200b3207801861861861861861868000000000000002f800400000",
+      "packet": "40010340214000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104144104104104104104100000",
+      "last_descriptor": {
+        "component_index": 11,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1142,
+        "end_bit_offset": 1241,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002f646170610000000008001401802004200b3207a01861861861861861861a000000000000000be001000000",
+      "packet": "400081a010a000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820828820820820820820820000",
+      "last_descriptor": {
+        "component_index": 12,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1241,
+        "end_bit_offset": 1340,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002f646170610000000008001401802004200b3207c01861861861861861861868000000000000002f80040000",
+      "packet": "400040d0085000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104105104104104104104104000",
+      "last_descriptor": {
+        "component_index": 13,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1340,
+        "end_bit_offset": 1439,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000031646170610000000008001401802004200b3207e00061861861861861861861868000000000000002f800400000",
+      "packet": "40002068042800820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820a2082082082082082080000",
+      "last_descriptor": {
+        "component_index": 14,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1439,
+        "end_bit_offset": 1538,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000032646170610000000008001401802004200b3207e08061861861861861861861861a000000000000000be001000000",
+      "packet": "4000103402140082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410414410410410410410410000",
+      "last_descriptor": {
+        "component_index": 15,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1538,
+        "end_bit_offset": 1637,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b320628190000000000000005f000800000",
+      "packet": "4081a010a00000a2082082082082082000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 53,
+        "end_bit_offset": 128,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b32064818640000000000000017c0020000",
+      "packet": "4040d0085000008208208208208208201441041041041041040000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 128,
+        "end_bit_offset": 203,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000027646170610000000008001401802004200b320668186190000000000000005f00080000",
+      "packet": "402068042800008208208208208208201041041041041041040288208208208208208000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 203,
+        "end_bit_offset": 278,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000028646170610000000008001401802004200b32068818618640000000000000017c00200000",
+      "packet": "40103402140000820820820820820820104104104104104104020820820820820820805104104104104104100000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 278,
+        "end_bit_offset": 353,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b3206a8186186190000000000000005f000800000",
+      "packet": "40081a010a0000820820820820820820104104104104104104020820820820820820804104104104104104100a20820820820820820000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 353,
+        "end_bit_offset": 428,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b3206c818618618640000000000000017c0020000",
+      "packet": "40040d00850000820820820820820820104104104104104104020820820820820820804104104104104104100820820820820820820144104104104104104000",
+      "last_descriptor": {
+        "component_index": 5,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 428,
+        "end_bit_offset": 503,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002a646170610000000008001401802004200b3206e8186186186190000000000000005f00080000",
+      "packet": "4002068042800082082082082082082010410410410410410402082082082082082080410410410410410410082082082082082082010410410410410410402882082082082082080000",
+      "last_descriptor": {
+        "component_index": 6,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 503,
+        "end_bit_offset": 578,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002b646170610000000008001401802004200b32070818618618618640000000000000017c00200000",
+      "packet": "4001034021400082082082082082082010410410410410410402082082082082082080410410410410410410082082082082082082010410410410410410402082082082082082080510410410410410410000",
+      "last_descriptor": {
+        "component_index": 7,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 578,
+        "end_bit_offset": 653,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b320728186186186186190000000000000005f000800000",
+      "packet": "400081a010a000820820820820820820104104104104104104020820820820820820804104104104104104100820820820820820820104104104104104104020820820820820820804104104104104104100a2082082082082082000",
+      "last_descriptor": {
+        "component_index": 8,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 653,
+        "end_bit_offset": 728,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b32074818618618618618640000000000000017c0020000",
+      "packet": "400040d00850008208208208208208201041041041041041040208208208208208208041041041041041041008208208208208208201041041041041041040208208208208208208041041041041041041008208208208208208201441041041041041040000",
+      "last_descriptor": {
+        "component_index": 9,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 728,
+        "end_bit_offset": 803,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002d646170610000000008001401802004200b320768186186186186186190000000000000005f00080000",
+      "packet": "400020680428008208208208208208201041041041041041040208208208208208208041041041041041041008208208208208208201041041041041041040208208208208208208041041041041041041008208208208208208201041041041041041040288208208208208208000",
+      "last_descriptor": {
+        "component_index": 10,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 803,
+        "end_bit_offset": 878,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "replace",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002e646170610000000008001401802004200b32078818618618618618618640000000000000017c00200000",
+      "packet": "40001034021400820820820820820820104104104104104104020820820820820820804104104104104104100820820820820820820104104104104104104020820820820820820804104104104104104100820820820820820820104104104104104104020820820820820820805104104104104104100000",
+      "last_descriptor": {
+        "component_index": 11,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 878,
+        "end_bit_offset": 953,
+        "quantized": [
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": [
+          0,
+          1,
+          2,
+          3
+        ]
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b720628190000000000000005f000800000",
+      "packet": "4081a010a0000082082882082082082082082000",
+      "last_descriptor": {
+        "component_index": 0,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 53,
+        "end_bit_offset": 152,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000026646170610000000008001401802004200b72064818640000000000000017c0020000",
+      "packet": "4040d0085000008208208208208208208208201041051041041041041041040000",
+      "last_descriptor": {
+        "component_index": 1,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 152,
+        "end_bit_offset": 251,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000027646170610000000008001401802004200b720668186190000000000000005f00080000",
+      "packet": "40206804280000820820820820820820820820104104104104104104104104020820a208208208208208208000",
+      "last_descriptor": {
+        "component_index": 2,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 251,
+        "end_bit_offset": 350,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000028646170610000000008001401802004200b72068818618640000000000000017c00200000",
+      "packet": "40103402140000820820820820820820820820104104104104104104104104020820820820820820820820804104144104104104104104100000",
+      "last_descriptor": {
+        "component_index": 3,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 350,
+        "end_bit_offset": 449,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b7206a8186186190000000000000005f000800000",
+      "packet": "40081a010a0000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820828820820820820820820000",
+      "last_descriptor": {
+        "component_index": 4,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 449,
+        "end_bit_offset": 548,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "00000029646170610000000008001401802004200b7206c818618618640000000000000017c0020000",
+      "packet": "40040d00850000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104105104104104104104104000",
+      "last_descriptor": {
+        "component_index": 5,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 548,
+        "end_bit_offset": 647,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002a646170610000000008001401802004200b7206e8186186186190000000000000005f00080000",
+      "packet": "40020680428000820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820a2082082082082082080000",
+      "last_descriptor": {
+        "component_index": 6,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 647,
+        "end_bit_offset": 746,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002b646170610000000008001401802004200b72070818618618618640000000000000017c00200000",
+      "packet": "4001034021400082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410414410410410410410410000",
+      "last_descriptor": {
+        "component_index": 7,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 746,
+        "end_bit_offset": 845,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b720728186186186186190000000000000005f000800000",
+      "packet": "400081a010a00082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082082082082082082082010410410410410410410410402082082082082082082082080410410410410410410410410082082882082082082082082000",
+      "last_descriptor": {
+        "component_index": 8,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 845,
+        "end_bit_offset": 944,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002c646170610000000008001401802004200b72074818618618618618640000000000000017c0020000",
+      "packet": "400040d00850008208208208208208208208201041041041041041041041040208208208208208208208208041041041041041041041041008208208208208208208208201041041041041041041041040208208208208208208208208041041041041041041041041008208208208208208208208201041051041041041041041040000",
+      "last_descriptor": {
+        "component_index": 9,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 944,
+        "end_bit_offset": 1043,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002d646170610000000008001401802004200b720768186186186186186190000000000000005f00080000",
+      "packet": "40002068042800820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820a208208208208208208000",
+      "last_descriptor": {
+        "component_index": 10,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1043,
+        "end_bit_offset": 1142,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    },
+    {
+      "options": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "scene": false
+      },
+      "cookie": "0000002e646170610000000008001401802004200b72078818618618618618618640000000000000017c00200000",
+      "packet": "40001034021400820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104104104104104104104100820820820820820820820820104104104104104104104104020820820820820820820820804104144104104104104104100000",
+      "last_descriptor": {
+        "component_index": 11,
+        "subband_index": 0,
+        "mode": 0,
+        "start_bit_offset": 1142,
+        "end_bit_offset": 1241,
+        "quantized": [
+          32,
+          32,
+          32,
+          40,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32,
+          32
+        ],
+        "signs_positive": [],
+        "cluster": null,
+        "azimuth_degrees": null,
+        "elevation_offset_degrees": null,
+        "coded_coefficient_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ],
+        "ambient_omitted_coefficients": []
+      }
+    }
+  ],
+  "invalid": [
+    "00000027646170610000000008001401801204200b3204c810410410424000000002f800240000",
+    "0000002f646170610000000008001401802004200b3207a8186186186186186186190000000000000005f000800000"
+  ]
+}

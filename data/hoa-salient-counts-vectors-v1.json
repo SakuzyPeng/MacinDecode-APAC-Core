@@ -1,0 +1,381 @@
+{
+  "profile": "apac-hoa-salient-counts-v1",
+  "formats": {
+    "format_sha256": "421205445cc50d5b8119f20f8f9956c51c432dc457012907457478410cb0c040",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+      "spatial_methods12": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+      "lower": "07a71bfc7a8ac09cf51669e31d25031118630425ae9446f2a0f96fb0dddfbb78",
+      "lower_counts": "5fdb73e5f1d0ae7bdfe06ae784b6213416ac13e00f94da2616d0e39914407960",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "first-four",
+      "configuration": {
+        "order": 1,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "spatial_method": 0,
+        "scene": true,
+        "drc": true,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 4,
+          "bit_offset": 183,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "98fdc1f019b184757df0b0309a91610ad564976a5d34a081997b26a339b765f2",
+      "truth_sha256": "9f3712cd933b645c74cd8e4038066af84ffb7f8de4418fab0d33e8902f7f58ae"
+    },
+    {
+      "index": 1,
+      "kind": "second-nine",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1,
+          2,
+          2,
+          1,
+          2,
+          2
+        ],
+        "spatial_method": 1,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 9,
+          "bit_offset": 183,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "d93e74e70bc51360e73ec79cb565d22db0235901e5955c582ef40f4c67060049",
+      "truth_sha256": "a775368cabb500bcad0e7422cbc2c2e45e8662a3a5aaef5ce4040338b840a420"
+    },
+    {
+      "index": 2,
+      "kind": "third-sixteen",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1
+        ],
+        "spatial_method": 2,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 16,
+          "bit_offset": 183,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "5f20bace48a781c1fc301a148b60b04bcf4d7c4bce6695162b92cd697ea8150c",
+      "truth_sha256": "5537b942d7586ca209b74d17f67d0d13ad47c99cdbd55cbbc12c732999f445bf"
+    },
+    {
+      "index": 3,
+      "kind": "replace-twelve",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "spatial_method": 0,
+        "scene": true,
+        "drc": false,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 12,
+          "bit_offset": 183,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "58ea9a604ada17e89bb517bc4e91fb65dd6d6a530f025b4b3c4de03717454816",
+      "truth_sha256": "91808d4138db491dd0dc1d67bf103adb9bdddacff99bf01c9477f0e3e2f2ac24"
+    },
+    {
+      "index": 4,
+      "kind": "dynamic-nine",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 44100,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          2,
+          1,
+          2,
+          2,
+          1,
+          2,
+          2
+        ],
+        "spatial_method": 1,
+        "scene": true,
+        "drc": false,
+        "selection": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 9,
+          "bit_offset": 189,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "2f474e96609d2688ae58dcb444b67ed9c6a66ab981519f6d947ccd4f1047e679",
+      "truth_sha256": "a643e31dd66ddb458834364116fb773f67c5f3bb46a74af1e9974bb6627400a1"
+    },
+    {
+      "index": 5,
+      "kind": "escape-fifteen",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "component_orders": [
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "spatial_method": 2,
+        "scene": true,
+        "drc": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "subbands": 3
+      },
+      "packets": 6,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 15,
+          "bit_offset": 183,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "dfbb49441f75b709838f8534188c48001299c91c55681b2271604662c69bd27f",
+      "truth_sha256": "f7c68fe2b76d9f5d7594142fb461f409e34b7bc98566531c5762cd6ff9e15e2c"
+    },
+    {
+      "index": 6,
+      "kind": "single-sixteen-bands",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          16
+        ],
+        "component_orders": [
+          2
+        ],
+        "spatial_method": 0,
+        "scene": true
+      },
+      "packets": 3,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.max_salient_components",
+          "value": 1,
+          "bit_offset": 183,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "c157abcc8bc7d7594f7cef9ff68b2dcd8fa4d8d59447c030fe0fa9ee35f59159",
+      "truth_sha256": "71493d23b0bdc1036fa12e995e2b96a757ec1523c0cce4ddfbb11f15a94b3154"
+    }
+  ],
+  "sha256": "1db15b54577cc2e7f1a62ca64eb0c580d3d72d5624a31c9a7a90da8f46a91fc0"
+}

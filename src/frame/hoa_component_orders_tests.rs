@@ -54,7 +54,7 @@ fn component_dimensions_select_each_interval_and_zero_only_outside_their_domains
             .clone()
             .unwrap();
         let mut state =
-            SalientState::with_dimensions(dimensions, context.salient_subband_counts().unwrap());
+            SalientState::with_dimensions(&dimensions, context.salient_subband_counts().unwrap());
         let output = restore(&packet, &mut side, &mut state, 16, None).unwrap();
         for d in &side.descriptors {
             assert_eq!(d.restored.len(), dimensions[d.component_index]);
@@ -118,7 +118,7 @@ fn variable_width_descriptors_reject_every_bit_truncation_and_preserve_following
             let result = crate::frame::hoa::spatial(
                 &mut parser,
                 &mut HoaState::default(),
-                context.configuration,
+                &context.configuration,
                 0,
             );
             if limit < end {
@@ -157,7 +157,7 @@ fn lower_order_numeric_failure_precedes_tail_and_rolls_back_actual_history() {
         let mut drc = context.initial_drc_state();
         let mut state = HoaState {
             salient: Some(Box::new(SalientState::with_dimensions(
-                dimensions,
+                &dimensions,
                 context.salient_subband_counts().unwrap(),
             ))),
             ..Default::default()

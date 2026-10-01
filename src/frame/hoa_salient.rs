@@ -1,4 +1,4 @@
-//! Restricted order-2/3, five-component/four-subband spatial descriptors.
+//! Restricted order-2/3, five-component spatial descriptors with bounded local grids.
 //! Format tables and independent mathematical constants have separate identities.
 use super::{
     ChannelPacketReport, Parser,
@@ -13,7 +13,6 @@ use std::sync::OnceLock;
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
 pub const ORDER2_NUMERIC_PROFILE: &str = "apac-hoa-salient-order2-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-salient-state-v1";
-const ENDS: [usize; 4] = [32, 80, 216, 1024];
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
@@ -21,10 +20,18 @@ pub(crate) struct SalientState {
     previous_frame_sha256: Option<String>,
 }
 impl SalientState {
+    #[cfg(test)]
     pub(super) fn new(coefficients: usize) -> Self {
+        Self::with_counts(coefficients, [4; 5])
+    }
+    pub(super) fn with_counts(coefficients: usize, counts: [usize; 5]) -> Self {
+        assert!(counts.iter().all(|n| (1..=16).contains(n)));
         assert!(matches!(coefficients, 9 | 16));
         Self {
-            history: vec![vec![vec![0.; coefficients]; 4]; 5],
+            history: counts
+                .iter()
+                .map(|&n| vec![vec![0.; coefficients]; n])
+                .collect(),
             previous_frame_sha256: None,
         }
     }
@@ -55,10 +62,52 @@ pub struct SalientDescriptor {
 pub struct SalientSpatialData {
     pub history_frame_sha256: Option<String>,
     /// Boundaries in the native frequency-major ordering, before short-window inverse transpose.
-    pub subband_ends: [usize; 4],
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subband_ends: Vec<usize>,
     /// Exclusive frequency-line ends in one window, not band widths.
-    pub lines_per_window: [usize; 4],
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lines_per_window: Vec<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component_subbands: Option<Vec<SalientSubbandInfo>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subband_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format_sha256: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SalientSubbandInfo {
+    pub component_index: usize,
+    pub subband_count: usize,
+    pub subband_ends: Vec<usize>,
+    pub lines_per_window: Vec<usize>,
+}
+impl SalientSpatialData {
+    pub(super) fn bands_for_frequency(&self, frequency: usize) -> [usize; 5] {
+        std::array::from_fn(|sc| {
+            let ends = self
+                .component_subbands
+                .as_ref()
+                .map_or(self.lines_per_window.as_slice(), |grids| {
+                    &grids[sc].lines_per_window
+                });
+            ends.iter()
+                .position(|&end| frequency < end)
+                .expect("covered component frequency")
+        })
+    }
+    pub(super) fn descriptor_offsets(&self) -> [usize; 5] {
+        let mut offset = 0;
+        std::array::from_fn(|sc| {
+            let start = offset;
+            offset += self
+                .component_subbands
+                .as_ref()
+                .map_or(self.subband_ends.len(), |grids| grids[sc].subband_count);
+            start
+        })
+    }
 }
 
 #[derive(Deserialize)]
@@ -207,9 +256,10 @@ pub(super) fn read(
     ambient_selection: Option<&[u8]>,
 ) -> Result<SalientSpatialData, ParseError> {
     let mixed = ambient_selection.is_some();
-    let mut descriptors = Vec::with_capacity(20);
-    for component in 0..5 {
-        for band in 0..4 {
+    let counts: [usize; 5] = std::array::from_fn(|sc| state.history[sc].len());
+    let mut descriptors = Vec::with_capacity(counts.iter().sum());
+    for (component, &count) in counts.iter().enumerate() {
+        for band in 0..count {
             let name = format!("hoa.salient[{component}].subbands[{band}]");
             let start = parser.bits.position();
             let mode = match global_mode {
@@ -326,10 +376,35 @@ pub(super) fn read(
             descriptors.push(d);
         }
     }
+    let extended = counts != [4; 5];
+    let common = counts.iter().all(|&n| n == counts[0]);
+    let ends = |n, short| super::hoa_salient_subbands::boundaries(n, short).to_vec();
     Ok(SalientSpatialData {
         history_frame_sha256: state.previous_frame_sha256.clone(),
-        subband_ends: ENDS,
-        lines_per_window: ENDS.map(|n| if block == 2 { n / 8 } else { n }),
+        subband_ends: if common {
+            ends(counts[0], false)
+        } else {
+            vec![]
+        },
+        lines_per_window: if common {
+            ends(counts[0], block == 2)
+        } else {
+            vec![]
+        },
+        component_subbands: extended.then(|| {
+            counts
+                .iter()
+                .enumerate()
+                .map(|(sc, &n)| SalientSubbandInfo {
+                    component_index: sc,
+                    subband_count: n,
+                    subband_ends: ends(n, false),
+                    lines_per_window: ends(n, block == 2),
+                })
+                .collect()
+        }),
+        subband_profile: extended.then(|| super::hoa_salient_subbands::SUBBAND_PROFILE.into()),
+        format_sha256: extended.then(|| super::hoa_salient_subbands::format_sha256().into()),
         descriptors,
     })
 }
@@ -462,11 +537,7 @@ pub(super) fn restore(
         .expect("common window");
     for line in 0..1024 {
         let frequency = if block == 2 { line % 128 } else { line };
-        let band = data
-            .lines_per_window
-            .iter()
-            .position(|&end| frequency < end)
-            .expect("covered line");
+        let bands = data.bands_for_frequency(frequency);
         for (k, out) in output.iter_mut().enumerate() {
             // flag_d=false: selected ambient coefficients replace the salient result.
             // Their transport samples already passed the SQ/TNS/BWE2 finite checks.
@@ -483,7 +554,7 @@ pub(super) fn restore(
                 continue;
             }
             let mut sum = 0.;
-            for sc in 0..5 {
+            for (sc, &band) in bands.iter().enumerate() {
                 let e = &packet.elements[sc + if ambient_selection.is_some() { 4 } else { 0 }];
                 let sample = if e.present {
                     f64::from(e.channels_after_bwe2[0].scaled[line])
@@ -651,6 +722,71 @@ mod tests {
         }
     }
 
+    #[test]
+    fn spatial_grid_numeric_failure_precedes_mapping_and_tail() {
+        let fixtures: serde_json::Value = serde_json::from_str(include_str!(
+            "../../data/hoa-spatial-subbands-state-v1.json"
+        ))
+        .unwrap();
+        for f in fixtures["fixtures"].as_array().unwrap() {
+            let bytes = |v: &serde_json::Value| -> Vec<u8> {
+                v.as_str()
+                    .unwrap()
+                    .as_bytes()
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                    .collect()
+            };
+            let context = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+            for key in ["dynamic_error", "tail_error"] {
+                if f["errors"][key].is_null() {
+                    continue;
+                }
+                let mut drc = context.initial_drc_state();
+                let mut state = super::super::HoaState {
+                    salient: Some(Box::new(SalientState::with_counts(
+                        context.recovery_slot_count(),
+                        context.salient_subband_counts().unwrap(),
+                    ))),
+                    ..Default::default()
+                };
+                state.salient.as_mut().unwrap().history[0][0][context.recovery_slot_count() - 2] =
+                    f64::MAX;
+                let before = state.clone();
+                let before_drc =
+                    serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                        .unwrap();
+                let error = crate::frame::parse_hoa_packet_with_state(
+                    &context,
+                    &bytes(&f["errors"][key]),
+                    &mut drc,
+                    &mut state,
+                )
+                .unwrap_err();
+                assert_eq!(
+                    error.kind,
+                    if context.ambient_combination() == crate::frame::AmbientCombination::Add {
+                        "hoa-additive-numeric"
+                    } else {
+                        "hoa-numeric"
+                    }
+                );
+                assert_eq!(
+                    error.bit_offset,
+                    f["internal_end_bit"].as_u64().unwrap() as usize
+                );
+                assert_eq!(state, before);
+                assert_eq!(
+                    serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes))
+                        .unwrap(),
+                    before_drc
+                );
+            }
+        }
+    }
+
     fn packed(bits: &[bool]) -> Vec<u8> {
         let mut bytes = vec![0; bits.len().div_ceil(8)];
         for (i, &value) in bits.iter().enumerate() {
@@ -773,6 +909,145 @@ mod tests {
                         let actual = serde_json::to_value(d).unwrap();
                         for (key, value) in expected.as_object().unwrap() {
                             assert_eq!(&actual[key], value, "{key}");
+                        }
+                    }
+                    parser.bits.set_end(raw.len() * 8).unwrap();
+                    assert_eq!(parser.bits.read(5).unwrap(), 0b10101);
+                }
+            }
+        }
+    }
+    #[test]
+    fn per_component_grids_cover_every_line_without_native_history_padding() {
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../data/hoa-spatial-subbands-state-v1.json"
+        ))
+        .unwrap();
+        let bytes = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_str()
+                .unwrap()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                .collect()
+        };
+        for row in data["restoration_cases"].as_array().unwrap() {
+            let ctx = crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
+            let mut packet = crate::frame::parse_hoa_packet(&ctx, &bytes(&row["packet"]))
+                .unwrap()
+                .packet;
+            for (sc, e) in packet.elements.iter_mut().take(5).enumerate() {
+                e.channels_after_bwe2[0].scaled.fill(32.0 * (sc + 1) as f32);
+            }
+            let mut side = packet
+                .hoa
+                .as_ref()
+                .unwrap()
+                .spatial
+                .as_ref()
+                .unwrap()
+                .salient
+                .clone()
+                .unwrap();
+            let mut state = SalientState::with_counts(
+                ctx.recovery_slot_count(),
+                ctx.salient_subband_counts().unwrap(),
+            );
+            let output = restore(
+                &packet,
+                &mut side,
+                &mut state,
+                ctx.recovery_slot_count(),
+                None,
+            )
+            .unwrap();
+            let short = row["block"] == 2;
+            for line in 0..1024 {
+                let frequency = if short { line % 128 } else { line };
+                let mut expected = 0usize;
+                for (sc, grid) in row["grids"].as_array().unwrap().iter().enumerate() {
+                    let b = grid
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .position(|v| {
+                            frequency < (v.as_u64().unwrap() as usize) / if short { 8 } else { 1 }
+                        })
+                        .unwrap();
+                    expected += (sc + b) * (sc + 1);
+                }
+                assert_eq!(
+                    output[0].scaled[line].to_bits(),
+                    (expected as f32).to_bits()
+                );
+                for coefficient in output.iter().skip(1) {
+                    assert_eq!(coefficient.scaled[line].to_bits(), 0);
+                }
+            }
+            assert_eq!(
+                state.history.iter().map(Vec::len).collect::<Vec<_>>(),
+                ctx.salient_subband_counts().unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn variable_descriptor_lists_reject_every_bit_truncation_and_preserve_marker() {
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../data/hoa-spatial-subbands-state-v1.json"
+        ))
+        .unwrap();
+        let bytes = |v: &serde_json::Value| -> Vec<u8> {
+            v.as_str()
+                .unwrap()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|s| u8::from_str_radix(std::str::from_utf8(s).unwrap(), 16).unwrap())
+                .collect()
+        };
+        let f = &data["fixtures"][0];
+        let ctx = crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        let template = crate::frame::parse_hoa_packet(&ctx, &bytes(&f["first"]))
+            .unwrap()
+            .packet
+            .frame;
+        for row in data["spatial_cases"].as_array().unwrap() {
+            let ctx = crate::frame::HoaFrameContext::from_cookie(&bytes(&row["cookie"])).unwrap();
+            let raw = bytes(&row["bytes"]);
+            let end = row["bits"].as_u64().unwrap() as usize;
+            for cut in 0..=end {
+                let mut parser = super::super::Parser {
+                    capture: true,
+                    bits: BitReader::new(&raw),
+                    report: template.clone(),
+                };
+                parser.bits.set_end(cut).unwrap();
+                let result = super::super::hoa::spatial(
+                    &mut parser,
+                    &mut super::super::HoaState::default(),
+                    ctx.configuration,
+                    0,
+                );
+                if cut < end {
+                    let e = result.unwrap_err();
+                    assert_eq!(e.kind, "truncated");
+                    assert!(e.bit_offset <= cut);
+                } else {
+                    let result = result.unwrap();
+                    assert_eq!(result.end_bit_offset, end);
+                    let actual = serde_json::to_value(result.salient.unwrap()).unwrap();
+                    for (a, b) in actual["descriptors"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .zip(row["truth"]["salient"]["descriptors"].as_array().unwrap())
+                    {
+                        for (key, value) in b.as_object().unwrap() {
+                            assert_eq!(&a[key], value, "{key}");
                         }
                     }
                     parser.bits.set_end(raw.len() * 8).unwrap();

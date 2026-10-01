@@ -338,7 +338,7 @@ python3 -B scripts/validate_hoa.py --binary target/release/apac-tool \
 
 HOA 验证只运行新增用例和受影响接口的精简回归，不要求重跑旧完整矩阵。真实媒体在开发和发布时都只取有 DRC、无 DRC各一份代表。先用 `cargo +1.98.0 test --offline --release --lib --no-run --message-format=json` 构建，再将输出中的库测试 `executable` 路径传给 `scripts/validate_hoa_media.py --test-binary PATH --with-drc INPUT --without-drc INPUT --report REPORT`。该工具逐包完整解码、核验输入并仅保留 PCM 摘要，不落盘整曲 PCM；报告绑定代码、源码、测试二进制、工具链和输入摘要。`scripts/validate_hoa_native.py` 可复核已有的哈希约束只读 HOA 跟踪，无需重复跟踪已确认的 SQ 工具。
 
-**默认 salient HOA**：接受二／三阶、5 个声明 salient 槽位、零 ambient，每个分量固定 4 个空间子带、与输出相同的阶数、6 位描述量化。完整读取 9／16 个传输 SCE；空间恢复只使用前 5 个核心分量，输出为 9／16 个 ACN 系数。`elements[].configuration.transport_channels` 记录载波槽位，`output_channels` 为空，避免误认为传输槽位与输出系数一一对应。未使用的传输槽位也必须通过语法与数值检查。
+**默认 salient HOA**：接受二／三阶、5 个声明 salient 槽位、零 ambient，每个分量默认 4 个空间子带（1–16 扩展见下文）、与输出相同的阶数、6 位描述量化。完整读取 9／16 个传输 SCE；空间恢复只使用前 5 个核心分量，输出为 9／16 个 ACN 系数。`elements[].configuration.transport_channels` 记录载波槽位，`output_channels` 为空，避免误认为传输槽位与输出系数一一对应。未使用的传输槽位也必须通过语法与数值检查。
 
 `hoa.spatial.salient` 包含 20 份分量／子带描述：模式 0–5、量化值、符号、方向或变换索引、位范围及恢复后的 Float64 向量；`history_frame_sha256` 指向上一个已处理核心帧（可为内嵌帧），初始为 null。`SalientDescriptor.restored` 为有界 `Vec<f64>`，二／三阶分别为 9／16 项，不填充额外系数；历史三阶 JSON 保持兼容。两种采样率的 `subband_ends` 都是频率优先布局中的终点 `[32,80,216,1024]`，`lines_per_window` 为每窗终点，短窗是 `[4,10,27,128]`。上下文的 `order()`、`channel_count()`、`sample_rate_hz()`、`salient_components()`、`numeric_profile()` 和 `state_profile()` 可查询分支。单包解析从初始状态开始，不能用来随机恢复中间的差分帧。
 
@@ -377,7 +377,7 @@ python3 -B scripts/validate_hoa_orders_media.py --binary target/release/apac-too
 
 `validate_hoa_orders_native.py` 复核已保存的新增原生边界和恢复证据；无需重新跟踪原有 SQ 工具。正式构建及便携向量不依赖苹果文件、研究目录或网络。
 
-**固定混合 HOA**：二／三阶均接受 5 salient＋4 ambient，每个 salient 分量仍为四个空间子带、六位描述量化和与输出相同的阶数。传输槽位 `0..3` 是 ambient，`4..8` 是 salient；三阶 `9..15` 仍完整读取和数值校验，但不参与恢复。核心通道数均为 9，输出系数分别为 9／16。默认映射中 ACN0..3 由 ambient 精确覆盖，其他系数由五个 salient 分量恢复；DRC 基准声道数使用输出数。
+**固定混合 HOA**：二／三阶均接受 5 salient＋4 ambient，原四带混合配置采用四个空间子带、六位描述量化和与输出相同的阶数；每分量数量扩展见下文。传输槽位 `0..3` 是 ambient，`4..8` 是 salient；三阶 `9..15` 仍完整读取和数值校验，但不参与恢复。核心通道数均为 9，输出系数分别为 9／16。默认映射中 ACN0..3 由 ambient 精确覆盖，其他系数由五个 salient 分量恢复；DRC 基准声道数使用输出数。
 
 `hoa.mixed` 记录两类传输映射、ambient 输出位置、未使用槽位和描述数学标识。混合描述新增可选的 `coded_coefficient_indices` 与 `ambient_omitted_coefficients`：`quantized`／`signs_positive` 只保存实际编码项，按前者所列 ACN 索引递增排列；`restored` 始终为完整的 9／16 项。模式 0–3 省略前四项并将对应恢复历史置零，模式 4／5 保留完整变换或方向描述。纯 ambient／salient 报告不新增这些可选字段，旧数组含义保持不变。
 
@@ -414,7 +414,7 @@ python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-t
 
 `validate_hoa_static_native.py` 复核两份主序列、两个单分支探针及一个独立相消控制的已有捕获，不重复旧 SQ 工具跟踪。`validate_hoa_static_checks.py` 执行精简接口和旧代表回归。所有验收入口显式接收二进制与报告路径；Windows 使用对应 `.exe`，缺少必需二进制会失败。
 
-**受限动态 HOA 选择**：接受内部阶数 2、九个恢复槽位、输出三阶 16 系数的两种固定配置：5 salient／0 ambient 或 5 salient／4 ambient。两者都完整读取 16 个 SCE，核心通道分别为 5／9；每个 salient 分量仍为四个空间子带、九项系数、六位量化。`order()` 与报告的 `hoa.order`／`coefficient_count` 继续表示 cookie 中内部阶数与维度；`output_order()`、`channel_count()` 以及 PCM 布局表示输出阶数 3、16 个 ACN 系数。`recovery_slot_count()` 和 `dynamic_selection_enabled()` 可查询新分支。
+**受限动态 HOA 选择**：接受内部阶数 2、九个恢复槽位、输出三阶 16 系数的两种固定配置：5 salient／0 ambient 或 5 salient／4 ambient。两者都完整读取 16 个 SCE，核心通道分别为 5／9；每个 salient 描述保持九项系数、六位量化；空间子带数扩展见下文。`order()` 与报告的 `hoa.order`／`coefficient_count` 继续表示 cookie 中内部阶数与维度；`output_order()`、`channel_count()` 以及 PCM 布局表示输出阶数 3、16 个 ACN 系数。`recovery_slot_count()` 和 `dynamic_selection_enabled()` 可查询新分支。
 
 原八带动态配置支持参数 0 的感知锚点划分、参数 1 的 AAC 频带插值及参数 2 的等宽划分；参数 3 仍拒绝；1–7 个有效子带见下文扩展。短窗每窗使用相应长窗终点除以八，选择行不等于短窗编号，也不受短窗分组控制。每个核心帧在空间描述之后读取八组映射：索引列表保留九个目标的线上顺序，位图按 ACN 升序形成九个目标。重复列表目标及位图数量不符均报错，不使用旧映射补足损坏载荷。
 
@@ -454,7 +454,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 `validate_hoa_additive_native.py` 复核三份指定原生捕获；`validate_hoa_additive_checks.py` 运行新增／受影响接口检查及旧代表摘要核对。人工控制不代表真实叠加媒体覆盖，日常和发布均不重跑旧全量矩阵或媒体库。
 
-**动态 HOA 的 1–8 子带**：在内部二阶九槽、输出三阶十六系数的纯 salient、覆盖式 mixed 和叠加式 mixed 路径中，接受 cookie 声明的 1–8 个有效频率子带，支持既有方法 0／1／2。salient 的四个描述子带不变，动态子带也与八个短窗及短窗分组独立。`HoaFrameContext::dynamic_subband_count() -> Option<usize>` 返回有效数量；非动态配置返回 `None`。
+**动态 HOA 的 1–8 子带**：在内部二阶九槽、输出三阶十六系数的纯 salient、覆盖式 mixed 和叠加式 mixed 路径中，接受 cookie 声明的 1–8 个有效频率子带，支持既有方法 0／1／2。动态选择子带与下述每分量空间子带、八个短窗及短窗分组独立。`HoaFrameContext::dynamic_subband_count() -> Option<usize>` 返回有效数量；非动态配置返回 `None`。
 
 线上载荷始终包含 **八组映射**：列表模式为一个模式位加八组九个四位索引，位图模式为一个模式位加八组十六位位图。只使用前 N 组进行恢复，后续组仍完整读取、校验和报告；损坏或截断未使用组同样失败。合法修改未使用组不会改变 PCM。数量来自 cookie，不提供帧内修改或额外 CLI 开关。
 
@@ -472,6 +472,27 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 新增验收把轻量边界／复制检查与代表 PCM 序列分开；`validate_hoa_dynamic_subbands_native.py` 复核指定的原生捕获，`validate_hoa_dynamic_subbands_checks.py` 执行相关接口及旧代表回归。原八带生成器和清单保持不变。
+
+**每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；保持感知划分 `parameter_1=0`、六位量化，以及分量阶数等于内部阶数。原纯 ambient 路径不变，不开放其他空间划分方法、分量数、分量阶数组合或帧内重配置。
+
+`HoaFrameContext::salient_subband_counts() -> Option<[usize; 5]>` 返回五个实际数量；无 salient 时返回 `None`。载荷按分量、该分量的局部子带读取，描述总数为五个数量之和，最多 80 条。每条频率线分别查找各分量自己的描述区间；描述历史也按实际数量保存，不采用原生历史缓冲中的填充步长。普通／覆盖恢复仍按分量 0..4 求和，叠加仍使用原补偿规则。动态选择随后按自身有效子带恢复，完整八组线上映射规则不变。
+
+`SalientSpatialData.subband_ends`／`lines_per_window` 改为有界 `Vec<usize>`。五个数量相同时保存真实公共端点；不同时这两个向量为空且 JSON 省略对应字段。新增可选 `component_subbands` 保存五份 `SalientSubbandInfo`（分量序号、数量和长／短窗端点），`descriptors` 只保存实际编码的描述。不要用固定四带或最大数量计算紧凑描述偏移。
+
+新配置的报告记录 `subband_profile=apac-hoa-salient-subbands-v1` 和格式摘要；PCM 元数据增加 `hoa_salient_subband_counts`、`hoa_salient_subband_profile`、`hoa_salient_subband_format_sha256`。原 `[4,4,4,4,4]` 不新增字段，保留旧 JSON、数学、状态和后端标识及输出。正式构建只使用验证过的整数边界，复用现有字典、角度和矩阵常量。
+
+包目录、CAF、受限 MP4／M4A 接口和范围规则不变。缺席或未使用载波仍完整校验；内嵌帧先处理，所有描述历史、overlap、映射和 DRC 按外层包原子提交。HOA fast 继续在创建输出前拒绝。
+
+```sh
+python3 -B scripts/generate_hoa_salient_subbands_format.py --check
+python3 -B scripts/generate_hoa_salient_subbands_manifest.py --check
+python3 -B scripts/validate_hoa_salient_subbands.py --binary target/debug/apac-tool --report reports/hoa-spatial-subbands-math.json
+python3 -B scripts/validate_hoa_salient_subbands.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-spatial-subbands-math.json --report reports/hoa-spatial-subbands-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_subbands
+```
+
+`validate_hoa_salient_subbands_native.py` 复核四份短原生捕获；`validate_hoa_salient_subbands_checks.py` 运行相关接口与旧四带代表摘要检查。边界按缓存整组核对，完整数学只使用语义代表序列，不枚举五个数量的全部组合或重跑旧全量矩阵。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

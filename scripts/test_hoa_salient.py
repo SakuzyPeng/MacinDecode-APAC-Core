@@ -27,9 +27,9 @@ class SalientTests(unittest.TestCase):
             root=self.path();bundle(root,[bytes.fromhex(f['first']),bytes.fromhex(f[key])],drc=True,rich=True);out=self.path()
             p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1,key);error=json.loads(p.stderr)['error'];self.assertEqual(error['packet_index'],1);self.assertIn('bit_offset',error)
             self.assertTrue((out/'.incomplete.json').is_file());self.assertFalse((out/'decode-sq.json').exists())
-    def test_fixed_configuration_rejects_other_subband_or_component_counts(self):
+    def test_fixed_configuration_rejects_other_split_method_order_and_rate(self):
         raw=cookie();cfg=self.path();cfg.write_bytes(raw);parsed=json.loads(self.run_tool('parse-cookie',cfg).stdout)
-        for name,value in [('components[0].hoa.salient[0].subbands_minus_one',2),('components[0].hoa.salient[4].order',2),('global.sample_rate_index',5)]:
+        for name,value in [('components[0].hoa.parameter_1',1),('components[0].hoa.salient[4].order',2),('global.sample_rate_index',5)]:
             field=next(f for f in parsed['fields'] if f['name']==name);wire=''.join(format(v,'08b') for v in raw);start=field['bit_offset'];changed=pack(wire[:start]+bits(value,field['bit_length'])+wire[start+field['bit_length']:])
             root=self.path();bundle(root,[packet({})[0]]);(root/'cookie.bin').write_bytes(changed);m=json.loads((root/'manifest.json').read_text());m['file']['cookie']['value']=dict(bytes=len(changed),sha256=hashlib.sha256(changed).hexdigest())
             if name=='global.sample_rate_index':m['file']['format']['sample_rate']=32000

@@ -11,7 +11,7 @@ FORMAT_PROFILE='apac-hoa-dynamic-selection-format-v2'
 
 
 def boundaries(count,method):
-    assert 1<=count<=8 and 0<=method<=2
+    assert 1<=count<=16 and 0<=method<=2
     anchors=[1]+([int(F(hz*1024,24000)+F(1,2)) for hz in ANCHORS] if method==0 else TABLES['long_offsets'][1:])
     ends=[]
     for b in range(1,count):

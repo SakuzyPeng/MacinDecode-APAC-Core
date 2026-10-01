@@ -122,17 +122,14 @@ pub(super) fn restore(
         })
         .collect();
     let short = packet.hoa.as_ref().expect("HOA packet").common_window == Some(2);
+    let offsets = side.descriptor_offsets();
     for line in 0..1024 {
         let frequency = if short { line % 128 } else { line };
-        let band = side
-            .lines_per_window
-            .iter()
-            .position(|&end| frequency < end)
-            .expect("covered line");
+        let bands = side.bands_for_frequency(frequency);
         for (slot, out) in output.iter_mut().enumerate() {
             let mut sum = Sum::default();
             for sc in 0..5 {
-                let product = side.descriptors[sc * 4 + band].restored[slot]
+                let product = side.descriptors[offsets[sc] + bands[sc]].restored[slot]
                     * f64::from(sources[4 + sc][line]);
                 if !sum.add(product) {
                     return Err(error(slot, line));

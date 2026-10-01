@@ -32,6 +32,7 @@ pub(super) struct HoaConfiguration {
     pub transport_channels: u8,
     pub core_channels: u8,
     pub salient_components: u8,
+    pub salient_subbands: [u8; 5],
     pub ambient_components: u8,
     pub path: HoaPath,
     pub ambient_selection: [u8; 16],
@@ -138,6 +139,13 @@ impl HoaConfiguration {
             transport_channels: channels,
             core_channels: salient_components + ambient_components,
             salient_components,
+            salient_subbands: std::array::from_fn(|i| {
+                (value(&format!(
+                    "components[0].hoa.salient[{i}].subbands_minus_one"
+                ))
+                .unwrap_or(3)
+                    + 1) as u8
+            }),
             ambient_components,
             path,
             ambient_selection,
@@ -317,7 +325,10 @@ impl HoaFrameContext {
         }
         if salient {
             for i in 0..5 {
-                for (field, value) in [("subbands_minus_one", 3), ("order", shape.order)] {
+                for (field, value) in [
+                    ("subbands_minus_one", shape.salient_subbands[i] - 1),
+                    ("order", shape.order),
+                ] {
                     packet_config::check(
                         &parsed.fields,
                         &format!("components[0].hoa.salient[{i}].{field}"),
@@ -494,6 +505,10 @@ impl HoaFrameContext {
     }
     pub fn ambient_transform(&self) -> AmbientTransform {
         self.configuration.ambient_transform
+    }
+    pub fn salient_subband_counts(&self) -> Option<[usize; 5]> {
+        (self.configuration.salient_components != 0)
+            .then(|| self.configuration.salient_subbands.map(usize::from))
     }
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
@@ -689,9 +704,12 @@ pub(super) fn spatial(
             parser,
             mode,
             block,
-            state
-                .salient
-                .get_or_insert_with(|| Box::new(super::hoa_salient::SalientState::new(channels))),
+            state.salient.get_or_insert_with(|| {
+                Box::new(super::hoa_salient::SalientState::with_counts(
+                    channels,
+                    configuration.salient_subbands.map(usize::from),
+                ))
+            }),
             channels,
             (configuration.path == HoaPath::Mixed).then(|| {
                 if configuration.ambient_combination == super::AmbientCombination::Add {

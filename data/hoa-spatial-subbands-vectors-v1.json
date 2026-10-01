@@ -1,0 +1,850 @@
+{
+  "profile": "apac-hoa-salient-subbands-v1",
+  "cases": [
+    {
+      "index": 0,
+      "kind": "pure2",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          3,
+          4,
+          9,
+          16
+        ],
+        "selection": null,
+        "transform": 0,
+        "method": 1,
+        "subbands": 3,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 9,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 215,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "61df933ea61cb46db0f735d828f3462f84c4853fd84c77cdd46d5cb9b2f982a8",
+      "truth_sha256": "ac29d8044d23368315367f4f4c56bee41e30825a54164098d69f8ed44e198695"
+    },
+    {
+      "index": 1,
+      "kind": "replace3",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          16,
+          9,
+          4,
+          3,
+          1
+        ],
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4,
+        "method": 1,
+        "subbands": 3,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 9,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 191,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "9cfbda3bdd532ff1c681723eaa126182d98b55809e00d12fd40f6e6d4ed465fe",
+      "truth_sha256": "65fdd85ed51d5c4f32c3c72f7f29d55a5bb63ee9edf09fc0b99e75cbe4ba8135"
+    },
+    {
+      "index": 2,
+      "kind": "dynamic-add",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "rate": 48000,
+        "counts": [
+          1,
+          3,
+          4,
+          9,
+          16
+        ],
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4,
+        "method": 1,
+        "subbands": 3,
+        "scene": true,
+        "drc": false,
+        "rich": false
+      },
+      "packets": 9,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 221,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "3f9bb8719c210de3614f606d9b0bd0a1f3b81eb6f3d0a16a6705d284cd513be6",
+      "truth_sha256": "28a23ef04e499357398ed7e8ed24a6af892aaea311fb9d80dadb43cc012572ea"
+    },
+    {
+      "index": 3,
+      "kind": "uniform16",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          16,
+          16,
+          16,
+          16,
+          16
+        ],
+        "scene": true,
+        "drc": false
+      },
+      "packets": 2,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 191,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 203,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 215,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 227,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 239,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "7d69d1da8efe2c6a740205689346c2d04601a021fd16a014b829b3910419609f",
+      "truth_sha256": "df01d8768f2fa7c54f66229c00f6abf680633ad3c1572f6ba194435112ae803e"
+    },
+    {
+      "index": 4,
+      "kind": "path-2-replace-False",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          16,
+          9,
+          4,
+          3,
+          1
+        ],
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4,
+        "method": 1,
+        "subbands": 5,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 191,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "5205f69b3d5a675f9df9e437f8df6bc1a749cbfcd615414a1459e51dca83c238",
+      "truth_sha256": "d1226e023158ffb529b38783b1a2a652e5dbe038c750029ad7754e7ee516b826"
+    },
+    {
+      "index": 5,
+      "kind": "path-2-add-False",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": false,
+        "rate": 48000,
+        "counts": [
+          1,
+          6,
+          8,
+          10,
+          14
+        ],
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 7,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 5,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 7,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 9,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 13,
+          "bit_offset": 215,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "8254e94e44c28d691b527487c2a5d7e321020bf4a5cb0f8475bae3b36fa507eb",
+      "truth_sha256": "a216ca1ea565d5ddb5ff1ed03012075e2afe551913e31dcd9ead9fd1f98855fc"
+    },
+    {
+      "index": 6,
+      "kind": "path-3-salient-False",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          2,
+          5,
+          7,
+          11,
+          15
+        ],
+        "selection": null,
+        "transform": 0,
+        "method": 0,
+        "subbands": 1,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 1,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 4,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 6,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 10,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 14,
+          "bit_offset": 215,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "8b0df011488c917cd098d64369b4bb06802e25e766f551088baf1c0ed279582a",
+      "truth_sha256": "b592cb100cbd5372439404631b3d4ffba07a80ada536d49400c22fec9abeca82"
+    },
+    {
+      "index": 7,
+      "kind": "path-3-add-False",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "dynamic": false,
+        "rate": 44100,
+        "counts": [
+          1,
+          6,
+          8,
+          10,
+          14
+        ],
+        "selection": [
+          1,
+          5,
+          10,
+          15
+        ],
+        "transform": 4,
+        "method": 2,
+        "subbands": 7,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 5,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 7,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 9,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 13,
+          "bit_offset": 215,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "312eb9e330a601387c211bd2a70f3a5bc4cd0abb451d2deabe6c5fe584f5cff4",
+      "truth_sha256": "c03bb3ff1affbbadfa53724f17baff55ded9ed4d6b16bcdd58a5f131660f5a4e"
+    },
+    {
+      "index": 8,
+      "kind": "path-2-salient-True",
+      "configuration": {
+        "order": 2,
+        "path": "salient",
+        "dynamic": true,
+        "rate": 48000,
+        "counts": [
+          2,
+          5,
+          7,
+          11,
+          15
+        ],
+        "selection": null,
+        "transform": 0,
+        "method": 0,
+        "subbands": 1,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 1,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 4,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 6,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 10,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 14,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "6205df110cd7206ce12e4a9d1724a960bf574c86cb56a97b72eff539d0029c37",
+      "truth_sha256": "88df01b947f9bca0ec4d67c2997d15eb776f53ef20fb04255c753dbd943ddb6c"
+    },
+    {
+      "index": 9,
+      "kind": "path-2-replace-True",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": true,
+        "rate": 44100,
+        "counts": [
+          16,
+          9,
+          4,
+          3,
+          1
+        ],
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 4,
+        "method": 1,
+        "subbands": 5,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 197,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 221,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 227,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "ce5d1c289c01bed9d4ba71503ed3b20a72f00fd288736eaf35afd0bdac9902b9",
+      "truth_sha256": "96472f01d3754193e3819deb06ca3400d393a0c4ee67ce0d970bf7eda6787064"
+    },
+    {
+      "index": 10,
+      "kind": "minimum-one",
+      "configuration": {
+        "order": 3,
+        "path": "salient",
+        "counts": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "rate": 48000,
+        "scene": false
+      },
+      "packets": 3,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 215,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "186efc55eab1be9ab610fcd72995d2f497bb03f908b3c734a2cc4c9b704196a9",
+      "truth_sha256": "06140e4f6c6833c77c95d2e302d0143d565e09965ab67ad69734d1cd85f9be12"
+    },
+    {
+      "index": 11,
+      "kind": "mixed-modes-groups-unused",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "counts": [
+          16,
+          5,
+          3,
+          1,
+          9
+        ],
+        "rate": 44100,
+        "selection": [
+          0,
+          3,
+          8,
+          15
+        ],
+        "transform": 4
+      },
+      "packets": 2,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 191,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 4,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "00eb987fefeb6103c3965f34c3fd33c416a649947c7bfb6c0a005cad8ffbd19d",
+      "truth_sha256": "95316ed8b8570b868366ed27437f042825f37674a8484f12891a89629b3b56ec"
+    },
+    {
+      "index": 12,
+      "kind": "cross-contribution-residual",
+      "configuration": {
+        "order": 2,
+        "path": "add",
+        "dynamic": true,
+        "counts": [
+          1,
+          3,
+          4,
+          9,
+          16
+        ],
+        "rate": 48000,
+        "selection": [
+          0,
+          2,
+          4,
+          8
+        ],
+        "transform": 4,
+        "method": 0,
+        "subbands": 5
+      },
+      "packets": 2,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 197,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 203,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 3,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 221,
+          "bit_length": 10
+        }
+      ],
+      "input_sha256": "6aba805f7545f59c00d9a79acacaf6f42e32837960b2f82497b096981121c241",
+      "truth_sha256": "50b0e2ebc20603fdd69ff17b44b60d14f48cd0384e6cdd001471a25ab1d9d707"
+    },
+    {
+      "index": 13,
+      "kind": "joint-tools-zero-bands",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "counts": [
+          3,
+          16,
+          1,
+          7,
+          9
+        ],
+        "rate": 48000,
+        "selection": [
+          0,
+          1,
+          3,
+          8
+        ],
+        "transform": 2
+      },
+      "packets": 3,
+      "cookie_counts": [
+        {
+          "name": "components[0].hoa.salient[0].subbands_minus_one",
+          "value": 2,
+          "bit_offset": 191,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[1].subbands_minus_one",
+          "value": 15,
+          "bit_offset": 197,
+          "bit_length": 10
+        },
+        {
+          "name": "components[0].hoa.salient[2].subbands_minus_one",
+          "value": 0,
+          "bit_offset": 209,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[3].subbands_minus_one",
+          "value": 6,
+          "bit_offset": 215,
+          "bit_length": 4
+        },
+        {
+          "name": "components[0].hoa.salient[4].subbands_minus_one",
+          "value": 8,
+          "bit_offset": 221,
+          "bit_length": 4
+        }
+      ],
+      "input_sha256": "07d41dd1d8093e6860ac66f27c31c5b1fa9f15ae9ca057c9bca0fa90df45202c",
+      "truth_sha256": "10675299bcf7c795690d24cfaa586c842d2c0fbc3afcde8afdce404df5ffa604"
+    }
+  ],
+  "sha256": "ecc6d0b9a197c2eff864a9331f64df8629caf75448c580085734be19dc2fc3b2"
+}

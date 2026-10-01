@@ -105,7 +105,7 @@ pub(crate) fn format_sha256(count: usize) -> &'static str {
         &extended_format().format_sha256
     }
 }
-fn boundaries(count: usize, method: usize, short: bool) -> &'static [usize] {
+pub(super) fn boundaries(count: usize, method: usize, short: bool) -> &'static [usize] {
     if count == 8 {
         if short {
             &format().short_ends[method]

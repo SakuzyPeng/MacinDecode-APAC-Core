@@ -564,3 +564,79 @@ fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
         None
     );
 }
+
+#[test]
+fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
+    let data: Value = serde_json::from_str(include_str!(
+        "../../data/hoa-spatial-subbands-state-v1.json"
+    ))
+    .unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let ctx = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(ctx.is_supported());
+        let counts: Vec<_> = f["options"]["counts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_u64().unwrap() as usize)
+            .collect();
+        assert_eq!(ctx.salient_subband_counts().unwrap().as_slice(), counts);
+        let bad =
+            crate::frame::HoaFrameContext::from_cookie(&bytes(&f["bad_count_cookie"])).unwrap_err();
+        assert_eq!(bad.kind, "hoa-subband-count");
+        let mut d = SqDecoder::from_cookie(&cookie).unwrap();
+        let first = bytes(&f["first"]);
+        d.decode_frame(&first).unwrap();
+        let before = snapshot(&d);
+        for (key, value) in f["errors"].as_object().unwrap() {
+            assert!(d.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert_eq!(snapshot(&d), before, "{key}");
+        }
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&first).unwrap();
+        for key in ["embedded_good", "next"] {
+            assert_eq!(
+                d.decode_frame(&bytes(&f[key])).unwrap(),
+                fresh.decode_frame(&bytes(&f[key])).unwrap()
+            );
+            assert_eq!(snapshot(&d), snapshot(&fresh));
+        }
+        d.channels.last_mut().unwrap().overlap[0] = f64::MAX;
+        let before = snapshot(&d);
+        assert_eq!(
+            d.decode_frame(&first).unwrap_err().operation,
+            "SQ synthesis"
+        );
+        assert_eq!(snapshot(&d), before);
+        d.reset();
+        assert_eq!(
+            snapshot(&d),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        assert!(d.scan_frame(&first).is_err());
+        let parsed = crate::frame::parse_hoa_packet(&ctx, &first).unwrap();
+        let value = serde_json::to_value(parsed).unwrap();
+        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        assert_eq!(
+            restored
+                .hoa()
+                .spatial
+                .as_ref()
+                .unwrap()
+                .salient
+                .as_ref()
+                .unwrap()
+                .descriptors
+                .len(),
+            counts.iter().sum::<usize>()
+        );
+    }
+    let f = fixture();
+    assert_eq!(
+        crate::frame::HoaFrameContext::from_cookie(&bytes(&f["cookie"]))
+            .unwrap()
+            .salient_subband_counts(),
+        None
+    );
+}

@@ -7,16 +7,19 @@ mod hoa_ambient;
 pub use hoa_additive::{AmbientCombination, AmbientContribution, HoaAdditiveData};
 mod hoa_dynamic;
 mod hoa_salient;
+mod hoa_salient_subbands;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
     ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
     parse_channel_packet,
 };
 pub(crate) use channels::{ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet};
-pub use hoa_salient::{SalientDescriptor, SalientSpatialData};
+pub use hoa_salient::{SalientDescriptor, SalientSpatialData, SalientSubbandInfo};
 pub(crate) use hoa_salient::{
     format_sha256 as hoa_salient_format_sha256, math_sha256 as hoa_salient_math_sha256,
 };
+pub use hoa_salient_subbands::SUBBAND_PROFILE as HOA_SALIENT_SUBBAND_PROFILE;
+pub(crate) use hoa_salient_subbands::format_sha256 as hoa_salient_subbands_format_sha256;
 mod bwe2;
 mod cac;
 mod drc;

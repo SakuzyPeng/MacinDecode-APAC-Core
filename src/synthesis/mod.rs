@@ -197,7 +197,7 @@ impl SqDecoder {
                 crate::frame::DecodedFrameContext::Channels(c) => (c, None),
                 crate::frame::DecodedFrameContext::Hoa(h) => (h.transport.clone(), Some(h)),
             };
-        let multichannel = channel_context.channel_count != 2;
+        let multichannel = hoa_context.is_some() || channel_context.channel_count != 2;
         if let Some(reason) = if multichannel {
             channel_context.rejection.as_deref()
         } else {
@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.transport_extended() {
+            return if !context.full_order() {
+                hoa::PARTIAL_BACKEND
+            } else if context.transport_extended() {
                 hoa::TRANSPORT_BACKEND
             } else if context.expanded_orders() {
                 hoa::EXPANDED_BACKEND
@@ -348,6 +350,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if !context.full_order() {
+                return "hoa_partial_domain_sq_drc_off";
+            }
             if context.transport_extended() {
                 return "hoa_sq_transport_compositions_drc_off";
             }

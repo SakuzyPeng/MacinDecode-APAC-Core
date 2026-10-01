@@ -11,8 +11,8 @@ from sq_math import round_f32
 
 class Decoder:
     def __init__(self,options):
-        self.options=options;self.counts=options.get('counts',[1,3,4,9,16]);self.slots=(options.get('order',3)+1)**2
-        self.dimensions=[(o+1)**2 for o in options.get('component_orders',[options.get('order',3)]*len(self.counts))]
+        self.options=options;self.counts=options.get('counts',[1,3,4,9,16]);self.slots=options.get('coefficient_count',(options.get('order',3)+1)**2)
+        self.dimensions=[options.get('coefficient_count',(o+1)**2) for o in options.get('component_orders',[options.get('order',3)]*len(self.counts))]
         self.history=[[[D(0)]*self.dimensions[s] for _ in range(n)] for s,n in enumerate(self.counts)]
         self.channels=[Channel(strict_transitions=False) for _ in range(16 if options.get('dynamic') else self.slots)];self.records=[]
     def decode(self,truth):

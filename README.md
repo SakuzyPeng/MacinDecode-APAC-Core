@@ -313,7 +313,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 
 | 能力 | 当前支持范围 |
 |---|---|
-| 固定恢复域 | 零至十阶完整系数域，1／4／9／16／25／36／49／64／81／100／121 系数；零阶仅纯 ambient |
+| 固定恢复域 | 零至十阶完整系数域，以及显式 1–121 系数域；单系数仅纯 ambient，显式维度的 salient 描述使用模式 0–3 |
 | 分量与描述 | 可变 salient／ambient 数量；salient 一至整体阶数、6–9 位量化、每分量 1–16 带、空间方法 0–2 |
 | 传输元素 | HOA SCE、CPE、LFE及零通道扩展元素；核心数量 ≤ 传输通道 ≤ 输出数量，元素数量独立计算 |
 | 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及九槽→十六系数动态选择的已验证配置 |
@@ -321,7 +321,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
 | 输出与访问 | ACN/SN3D，包目录、CAF、受限 MP4／M4A；范围请求从包零顺序推进 |
 
-LRVQ、非完整阶、N3D、自定义布局／remapping、其他动态维度、帧内重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ、N3D、自定义布局／remapping、其他动态维度、帧内重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
@@ -601,7 +601,7 @@ python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-too
 
 高阶方向采用独立关联勒让德递推、既有角度常量及 100／200 位一致舍入的归一化常量；一至三阶保留原运算顺序。高阶恢复使用 Float64 补偿求和，最后一次舍入为 Float32，保留强相消的小残差。内嵌容量按已核实的 ASP 规则取实际输出通道数乘 2048 字节，另受线上长度编码和普通包限额约束。
 
-新增配置使用 `apac-hoa-expanded-orders-v1`、`apac-hoa-expanded-orders-math-v1`／`apac-hoa-expanded-orders-state-v1` 及 `rust_hoa_expanded_orders_sq_drc_off_f64_fft_v1`；PCM 记录 `hoa_expanded_orders_profile`、`hoa_expanded_math_sha256`，非默认 profile／level 另记录实际值。上下文新增 `profile_id()`、`level_id()`。包目录、CAF、MP4 均按 cookie 的实际 HOA 布局核对，零阶不冒充普通单声道。非完整阶及零阶 salient 仍未开放，动态维度范围保持前述限制。
+新增配置使用 `apac-hoa-expanded-orders-v1`、`apac-hoa-expanded-orders-math-v1`／`apac-hoa-expanded-orders-state-v1` 及 `rust_hoa_expanded_orders_sq_drc_off_f64_fft_v1`；PCM 记录 `hoa_expanded_orders_profile`、`hoa_expanded_math_sha256`，非默认 profile／level 另记录实际值。上下文新增 `profile_id()`、`level_id()`。包目录、CAF、MP4 均按 cookie 的实际 HOA 布局核对，零阶不冒充普通单声道。显式维度扩展见下文；零阶 salient 仍未开放，动态维度范围保持前述限制。
 
 ```sh
 python3 -B scripts/generate_hoa_higher_order_math.py --check
@@ -620,6 +620,17 @@ python3 -B scripts/validate_hoa_expanded_orders.py --binary target/release/apac-
 ```sh
 python3 -B scripts/pack_hoa_salient_formats.py --check
 PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format
+```
+
+**显式 HOA 系数域**：`full_order=false` 接受固定的 1–121 个实际系数，包括非平方数及显式编码的平方数。纯 ambient 可为单系数；salient 每项至少两个系数，所有分量使用实际恢复维度，支持模式 0–3、6–9 位量化、每分量 1–16 子带及已有选择、变换、覆盖／叠加规则。字典取容纳阶数，系数组按实际范围过滤；矩阵和方向描述在参考组件的此配置下被拒绝，不能用完整阶矩阵截取来补齐。此批保持固定内部／输出同维，动态显式域另行扩展。
+
+`HoaFrameContext::full_order()` 返回线上完整阶标志；`order()` 是容纳实际系数所需的阶数，`recovery_slot_count()`、`channel_count()` 和分量配置分别返回实际维度。非完整平方输出不标注完整 `ambisonic_order`，两系数 HOA 仍按 ASC 类型走 HOA 入口。报告仅为新配置增加 `hoa.full_order=false`，PCM 记录 `hoa_full_order`、实际维度及 `hoa_partial_domain_profile=apac-hoa-partial-domain-v1`；数学／状态为 `apac-hoa-partial-domain-math-v1`／`apac-hoa-partial-domain-state-v1`，后端为 `rust_hoa_partial_domain_sq_drc_off_f64_fft_v1`。已有完整阶的标识与 PCM 保持不变。
+
+```sh
+python3 -B scripts/generate_hoa_partial_manifest.py --check
+python3 -B scripts/validate_hoa_partial.py --binary target/debug/apac-tool --report reports/hoa-partial-math.json
+python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-partial-math.json --report reports/hoa-partial-release.json
 ```
 
 **HOA 传输组合**：CPE 两路各占一个连续载波，LFE 占一个，扩展元素占零个。所有音频载波仍完整读取并数值校验，包括未参与空间恢复的载波。公共两位窗型供全部 HOA ICS 使用，CPE 独立右头不重复读取窗型；SCE／CPE 复用现有 SQ、CAC、TNS、逐元素 BWE2，LFE 不携带 TNS／BWE2，不增加播放增益。

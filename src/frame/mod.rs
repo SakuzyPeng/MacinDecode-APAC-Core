@@ -55,6 +55,7 @@ pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
 pub use drc::{
     DrcConfiguration, DrcNode, DrcParameters, DrcPayload, DrcReport, DrcTimeDelta, parse_drc,
 };
+pub use hoa::PARTIAL_PROFILE as HOA_PARTIAL_PROFILE;
 pub use hoa::TRANSPORT_PROFILE as HOA_TRANSPORT_PROFILE;
 pub(crate) use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{

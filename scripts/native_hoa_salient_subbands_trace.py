@@ -17,7 +17,7 @@ def spatial(frame,pointer):
           [('frame_samples',0x28),('output_channels',0x2c),('coefficients',0x30),
            ('salient',0x34),('ambient',0x38),('transform_count',0x50),('transform_index',0x54),('coding_mode',0x118)]}
     n=info['coefficients']; s=info['salient']
-    if n not in tuple((o+1)**2 for o in range(11)) or info['output_channels']!=COUNT or not 0<=s<=n or s+info['ambient']>COUNT or not 0<=info['ambient']<=n or info['transform_count']>4:
+    if not 1<=n<=121 or info['output_channels']!=COUNT or not 0<=s<=n or s+info['ambient']>COUNT or not 0<=info['ambient']<=n or info['transform_count']>4:
         raise RuntimeError('unqualified mixed HOA configuration')
     SPATIAL=pointer; info['flags']=list(base.memory(frame,pointer+0x10,0x12))
     info['ambient_indices']=vector(frame,pointer+0x638,'I',info['ambient'])
@@ -53,7 +53,7 @@ def channel_hit(frame,location,data):
 def __lldb_init_module(debugger,state):
     global COUNT
     COUNT=int(os.environ['APAC_CHANNEL_COUNT'])
-    if COUNT not in tuple((o+1)**2 for o in range(11)): raise RuntimeError('unverified coefficient count')
+    if not 1<=COUNT<=121: raise RuntimeError('unverified coefficient count')
     debugger.HandleCommand('script import native_hoa_trace')
     channels.LAYOUT_TYPES[COUNT]=[0]*COUNT; hoa.spatial=spatial; channels.hit=channel_hit
     hoa.__lldb_init_module(debugger,state)

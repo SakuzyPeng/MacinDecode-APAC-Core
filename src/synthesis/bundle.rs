@@ -288,6 +288,12 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
+        if !context.full_order() {
+            value["hoa_partial_domain_profile"] = json!(crate::frame::HOA_PARTIAL_PROFILE);
+            value["hoa_full_order"] = json!(false);
+            value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
+            value["hoa_output_coefficient_count"] = json!(context.channel_count());
+        }
         if context.expanded_orders() {
             value["hoa_expanded_orders_profile"] = json!(crate::frame::HOA_EXPANDED_ORDERS_PROFILE);
             value["hoa_expanded_math_sha256"] = json!(crate::frame::hoa_expanded_math_sha256());

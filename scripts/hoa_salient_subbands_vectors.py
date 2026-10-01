@@ -11,9 +11,9 @@ from generate_hoa_dynamic_subbands_format import boundaries,generate as dynamic_
 from generate_hoa_salient_subbands_format import PROFILE,generate
 
 
-def shape(order,dynamic):
+def shape(order,dynamic,coefficient_count=None):
     assert order in range(11) and (not dynamic or order==2)
-    return 16 if dynamic else (order+1)**2
+    return 16 if dynamic else (order+1)**2 if coefficient_count is None else coefficient_count
 
 
 def esc(value,widths=(4,6,8)):
@@ -27,22 +27,23 @@ def esc(value,widths=(4,6,8)):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None):
     assert 0<=len(counts)<=121 and all(1<=n<=16 for n in counts);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;assert mixed or (selection is None and not transform)
-    n=shape(order,dynamic);m=(order+1)**2
+    n=shape(order,dynamic,coefficient_count);m=(order+1)**2 if coefficient_count is None else coefficient_count
     assert component_orders is None or len(component_orders)==len(counts)
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(profile,6),(level,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
-    wire=''.join(bits(v,w) for v,w in fields)+'110'+bits(int(path=='add'),1)+'11'+bits(int(dynamic),1)
+    wire=''.join(bits(v,w) for v,w in fields)+bits(int(coefficient_count is None),1)+'10'+bits(int(path=='add'),1)+'11'+bits(int(dynamic),1)
     if dynamic:wire+=bits(method,2)+bits(subbands-1,4)
-    wire+=bits(1,2)+bits(spatial_method,2)+bits(quantization_bits-6,2)+bits(order,4)
+    wire+=bits(1,2)+bits(spatial_method,2)+bits(quantization_bits-6,2)+(esc(order) if coefficient_count is None else esc(coefficient_count-1,(7,12,17)))
     at=len(wire);encoded=esc(len(counts));wire+=encoded
     if _salient_field is not None:_salient_field.append(dict(name='components[0].hoa.max_salient_components',value=len(counts),bit_offset=at,bit_length=len(encoded)))
     wire+=bits(ambient-int(not counts),(m-1).bit_length())
     for sc,count in enumerate(counts):
         at=len(wire);encoded=esc(count-1);wire+=encoded
         if _count_fields is not None:_count_fields.append(dict(name=f'components[0].hoa.salient[{sc}].subbands_minus_one',value=count-1,bit_offset=at,bit_length=len(encoded)))
-        at=len(wire);suborder=order if component_orders is None else component_orders[sc];wire+=bits(suborder,order.bit_length())
-        if _order_fields is not None:_order_fields.append(dict(name=f'components[0].hoa.salient[{sc}].order',value=suborder,bit_offset=at,bit_length=order.bit_length()))
+        at=len(wire);suborder=order if component_orders is None else component_orders[sc]
+        if coefficient_count is None:wire+=bits(suborder,order.bit_length())
+        if _order_fields is not None and coefficient_count is None:_order_fields.append(dict(name=f'components[0].hoa.salient[{sc}].order',value=suborder,bit_offset=at,bit_length=order.bit_length()))
     wire+=bits(int(selection is not None),1)
     if selection is not None:
         assert len(selection)==ambient;limit=m
@@ -60,10 +61,10 @@ def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',d
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]
 
 
-def descriptors(counts,mode=0,coefficient=None,component=0,*,order=3,cluster=0,angles=(37,121),component_orders=None,quantization_bits=6):
+def descriptors(counts,mode=0,coefficient=None,component=0,*,order=3,cluster=0,angles=(37,121),component_orders=None,quantization_bits=6,coefficient_count=None):
     result=[]
     for sc,count in enumerate(counts):
-        m=((order if component_orders is None else component_orders[sc])+1)**2;row=[]
+        m=((order if component_orders is None else component_orders[sc])+1)**2 if coefficient_count is None else coefficient_count;row=[]
         for b in range(count):
             q=[0 if mode==3 else (1<<(quantization_bits-1))]*m
             if coefficient is not None and sc==component:q[coefficient]=(b%5)+1 if mode==3 else (40+(b%5)*4)<<(quantization_bits-6)
@@ -72,14 +73,14 @@ def descriptors(counts,mode=0,coefficient=None,component=0,*,order=3,cluster=0,a
     return result
 
 
-def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,ambient_count=None,quantization_bits=6,profile=5,level=0):
-    m=(order+1)**2;ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;selected=(list(range(ambient)) if selection is None else list(selection)) if mixed else []
+def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,ambient_count=None,quantization_bits=6,profile=5,level=0,coefficient_count=None):
+    m=(order+1)**2 if coefficient_count is None else coefficient_count;ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;selected=(list(range(ambient)) if selection is None else list(selection)) if mixed else []
     index=case.get('transform_index',3) if transform==4 else transform-1 if transform else 3
     wire=bits(index,2) if transform==4 else '';at=origin+len(wire);mode=case.get('global_mode');wire+=bits(int(mode is not None),1)
     if mode is not None:wire+=bits(mode,3)
-    rows=case.get('descriptors',descriptors(counts,order=order,component_orders=component_orders,quantization_bits=quantization_bits));assert len(rows)==len(counts);result=[]
+    rows=case.get('descriptors',descriptors(counts,order=order,component_orders=component_orders,quantization_bits=quantization_bits,coefficient_count=coefficient_count));assert len(rows)==len(counts);result=[]
     for sc,row in enumerate(rows):
-        suborder=order if component_orders is None else component_orders[sc];m=(suborder+1)**2;fmt=format_for(suborder,quantization_bits)
+        suborder=order if component_orders is None else component_orders[sc];m=(suborder+1)**2 if coefficient_count is None else coefficient_count;fmt=format_for(suborder,quantization_bits)
         assert len(row)==counts[sc]
         for band,spec in enumerate(row):
             begin=origin+len(wire);coding=spec.get('mode',0)
@@ -99,7 +100,7 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
                 for book,group in enumerate(table['groups']):
                     if cluster is not None and cluster!=book:continue
                     for i in group:
-                        if i in omitted:continue
+                        if i>=m or i in omitted:continue
                         wire+=huff(table['codebooks'][book],q[i]);coded.add(i)
                         if table['signs']:wire+=bits(int(signs[i]),1)
             indices=sorted(coded)
@@ -115,10 +116,10 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
     if spatial_method:
         from generate_hoa_salient_partition_format import PROFILE as partition_profile,generate as partition_format
         salient.update(partition_method=spatial_method,partition_profile=partition_profile,format_sha256=partition_format()['format_sha256'])
-    if counts and (order>3 or quantization_bits!=6 or len(counts)!=5 or (component_orders is not None and list(component_orders)!=[order]*5)):
+    if counts and (coefficient_count is not None or order>3 or quantization_bits!=6 or len(counts)!=5 or (component_orders is not None and list(component_orders)!=[order]*5)):
         from hoa_component_orders_vectors import component_information
         actual_orders=component_orders or [order]*len(counts)
-        salient['component_orders']=component_information(actual_orders,quantization_bits)
+        salient['component_orders']=component_information(actual_orders,quantization_bits,dimensions=[coefficient_count]*len(counts) if coefficient_count is not None else None,partial=coefficient_count is not None)
         if 1 in actual_orders:salient['order1_profile']='apac-hoa-salient-order1-v1'
     if counts and quantization_bits!=6:salient.update(quantization_bits=quantization_bits,quantization_profile='apac-hoa-salient-quantization-v1')
     if counts and len(counts)!=5:salient.update(component_count=len(counts),count_profile='apac-hoa-salient-counts-v1')
@@ -128,8 +129,8 @@ def spatial(case,origin,*,order=3,path='salient',selection=None,transform=0,coun
     return wire,side
 
 
-def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,ambient_count=None,quantization_bits=6,profile=5,level=0):
-    n=shape(order,dynamic);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;opts=dict(scene=scene,drc=drc,rich=rich,order=order,rate=rate,path=path,dynamic=dynamic,selection=selection,transform=transform,method=method,subbands=subbands,counts=counts,spatial_method=spatial_method,component_orders=component_orders,ambient_count=ambient_count,quantization_bits=quantization_bits,profile=profile,level=level)
+def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,ambient_count=None,quantization_bits=6,profile=5,level=0,coefficient_count=None):
+    n=shape(order,dynamic,coefficient_count);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;opts=dict(scene=scene,drc=drc,rich=rich,order=order,rate=rate,path=path,dynamic=dynamic,selection=selection,transform=transform,method=method,subbands=subbands,counts=counts,spatial_method=spatial_method,component_orders=component_orders,ambient_count=ambient_count,quantization_bits=quantization_bits,profile=profile,level=level,coefficient_count=coefficient_count)
     typ=case.get('frame_type',1);wire=bits(typ,2);inner=None;inner_range=None
     if typ==2:
         wire+='0'+bits(int('preroll' in case),2)
@@ -141,11 +142,11 @@ def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salie
         if spec is None:wire+='0';truth=dict(channels=[],shared_ics=None,cac=None,tns=[],bwe2=None,end_bit_offset=len(wire));present=False
         else:
             encoded,truth=single(dict(spec,block=block),0,rate,begin-2);wire+=encoded[:2]+encoded[4:];truth['end_bit_offset']=truth.pop('tns_end_bit_offset');present=True
-        direct=not counts and ambient==(order+1)**2 and selection is None and not transform
+        direct=not counts and ambient==n and selection is None and not transform
         configuration=dict(element_index=i,kind='sce',tce_type=0,output_channels=[i] if direct else [])
         if not direct:configuration['transport_channels']=[i]
         truth.update(configuration=configuration,present=present,start_bit_offset=begin);elements.append(truth)
-    encoded,side=spatial(case,len(wire),order=order,path=path,selection=selection,transform=transform,counts=counts,spatial_method=spatial_method,component_orders=component_orders,ambient_count=ambient_count,quantization_bits=quantization_bits,profile=profile,level=level);wire+=encoded;base_end=len(wire);dyn=None;selected=side['ambient_indices']
+    encoded,side=spatial(case,len(wire),order=order,path=path,selection=selection,transform=transform,counts=counts,spatial_method=spatial_method,component_orders=component_orders,ambient_count=ambient_count,quantization_bits=quantization_bits,profile=profile,level=level,coefficient_count=coefficient_count);wire+=encoded;base_end=len(wire);dyn=None;selected=side['ambient_indices']
     if dynamic:
         encoded,dyn=mapping_wire(case,len(wire),method);wire+=encoded;dyn.update(subband_ends=boundaries(subbands,method),lines_per_window=[v//8 if block==2 else v for v in boundaries(subbands,method)],internal_spatial_end_bit_offset=base_end,ambient_recovery_slots=selected,ambient_transport_channels=list(range(ambient)),salient_transport_channels=list(range(ambient,ambient+len(counts))),unused_transport_channels=list(range(ambient+len(counts),n)))
         if subbands<8:dyn.update(active_subband_count=subbands,subband_profile='apac-hoa-dynamic-subbands-v1',format_sha256=dynamic_format()['format_sha256'])
@@ -164,7 +165,12 @@ def packet(case,scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salie
 
 def bundle(root,payloads,priming=0,remainder=0,**opts):
     base_bundle(root,payloads,opts.get('scene',True),opts.get('drc',False),opts.get('rich',False),priming,remainder,order=3 if opts.get('dynamic') else opts.get('order',3),rate=opts.get('rate',48000))
-    cfg=cookie(**opts);(root/'cookie.bin').write_bytes(cfg);p=root/'manifest.json';m=json.loads(p.read_text());m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=hashlib.sha256(cfg).hexdigest());p.write_text(json.dumps(m))
+    cfg=cookie(**opts);(root/'cookie.bin').write_bytes(cfg);p=root/'manifest.json';m=json.loads(p.read_text());m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=hashlib.sha256(cfg).hexdigest())
+    if opts.get('coefficient_count') is not None:
+        n=shape(opts['order'],opts.get('dynamic',False),opts['coefficient_count']);m['file']['format']['channels']=n
+        layout=m['file']['layout']['value'];layout['tag']=(190<<16)|n;layout.pop('ambisonic_order',None)
+        if int(n**.5)**2==n:layout['ambisonic_order']=int(n**.5)-1
+    p.write_text(json.dumps(m))
 
 
 def basis(counts,coefficient=0,component=0,mode=1,*,order=3,path='salient',dynamic=False,block=0,grouping=0,dense=False,q=1,gain=160,component_orders=None):

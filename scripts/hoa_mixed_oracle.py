@@ -11,7 +11,7 @@ from sq_math import round_f32
 
 def descriptor(spec, previous):
     with localcontext() as ctx:
-        ctx.prec=200; n=len(previous); order=isqrt(n)-1; mode=spec['mode'];precision=spec.get('quantization_bits',6)
+        ctx.prec=200; n=len(previous); order=isqrt(n-1); mode=spec['mode'];precision=spec.get('quantization_bits',6)
         out=list(harmonics(spec['azimuth_degrees'],spec['elevation_offset_degrees'],order)) if mode==5 else [D(0)]*n
         for encoded,(k,q) in enumerate(zip(spec['coded_coefficient_indices'],spec['quantized'])):
             value=D(q)/(1<<(precision-1))

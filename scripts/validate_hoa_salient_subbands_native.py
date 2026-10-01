@@ -20,8 +20,8 @@ def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 
 
 def verify(truth,trace,opts,*,isolated_exact=True,layout_adapter=None):
-    counts=opts['counts'];maximum=max(counts,default=0);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=opts.get('ambient_count',0 if path=='salient' else 4)
-    dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*len(counts))]
+    counts=opts['counts'];maximum=max(counts,default=0);m=opts.get('coefficient_count',(opts['order']+1)**2);n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'));path=opts['path'];ambient=opts.get('ambient_count',0 if path=='salient' else 4)
+    dimensions=[opts.get('coefficient_count',(o+1)**2) for o in opts.get('component_orders',[opts['order']]*len(counts))]
     caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity=2048*n
     require(caps and all(c['status']==0 and c['capacity_bytes']==capacity for c in caps),'native capacity differs')
     expected=[[[D(0)]*dimensions[s] for _ in range(c)] for s,c in enumerate(counts)];previous=[0.]*(len(counts)*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0

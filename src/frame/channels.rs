@@ -662,6 +662,7 @@ fn parse_impl(
         let hoa = result.hoa.as_mut().expect("HOA context");
         hoa.numeric_profile = shape.numeric_profile().into();
         hoa.order = shape.order;
+        hoa.full_order = (!shape.full_order).then_some(false);
         hoa.coefficient_count = usize::from(shape.recovery_slots);
         hoa.transport_channels = usize::from(shape.transport_channels);
         if shape.transport_extended() {

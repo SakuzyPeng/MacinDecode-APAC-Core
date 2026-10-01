@@ -50,6 +50,9 @@ mod quantization_tests;
 #[cfg(test)]
 #[path = "hoa_expanded_orders_tests.rs"]
 mod expanded_orders_tests;
+#[cfg(test)]
+#[path = "hoa_partial_tests.rs"]
+mod partial_tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
@@ -73,11 +76,7 @@ impl SalientState {
         let counts = counts.as_ref();
         assert!(!counts.is_empty() && counts.len() <= 121 && counts.len() == coefficients.len());
         assert!(counts.iter().all(|n| (1..=16).contains(n)));
-        assert!(
-            coefficients
-                .iter()
-                .all(|&n| (4..=121).contains(&n) && n.isqrt().pow(2) == n)
-        );
+        assert!(coefficients.iter().all(|&n| (2..=121).contains(&n)));
         Self {
             history: counts
                 .iter()
@@ -246,6 +245,9 @@ fn constants(coefficients: usize) -> &'static Constants {
     constants_for_bits(coefficients, 6)
 }
 fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants {
+    // Select the containing order's dictionary; callers filter groups to the
+    // actual dimension. The shared dictionary data is not duplicated.
+    let coefficients = ((coefficients - 1).isqrt() + 1).pow(2);
     static DATA: [OnceLock<Constants>; 40] = [const { OnceLock::new() }; 40];
     let (index, source, profile) = match (coefficients, precision) {
         (4, 6) => (
@@ -584,6 +586,13 @@ pub(super) fn read(
                     "spatial descriptor mode must be 0..5",
                 ));
             }
+            if !configuration.full_order && mode >= 4 {
+                return Err(ParseError::new(
+                    start,
+                    "hoa-coding-mode",
+                    "matrix and directional descriptions require full_order=true in the bound format",
+                ));
+            }
             let mut d = SalientDescriptor {
                 component_index: component,
                 subband_index: band,
@@ -654,7 +663,7 @@ pub(super) fn read(
                             continue;
                         }
                         for &i in *group {
-                            if omitted.contains(&(i as u8)) {
+                            if i >= coefficients || omitted.contains(&(i as u8)) {
                                 continue;
                             }
                             d.quantized[i] = huffman_for_bits(

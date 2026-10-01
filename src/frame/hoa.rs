@@ -17,6 +17,9 @@ pub const MIXED_NUMERIC_PROFILE: &str = "apac-hoa-mixed-math-v1";
 pub const MIXED_STATE_PROFILE: &str = "apac-hoa-mixed-state-v1";
 pub const TRANSPORT_PROFILE: &str = "apac-hoa-transports-v1";
 pub const TRANSPORT_STATE_PROFILE: &str = "apac-hoa-transports-state-v1";
+pub const PARTIAL_PROFILE: &str = "apac-hoa-partial-domain-v1";
+pub const PARTIAL_NUMERIC_PROFILE: &str = "apac-hoa-partial-domain-math-v1";
+pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
 
 /// One salient component's actual descriptor shape, in cookie order.
 ///
@@ -36,6 +39,7 @@ pub(super) enum HoaPath {
 #[derive(Debug, Clone)]
 pub(super) struct HoaConfiguration {
     pub order: u8,
+    pub full_order: bool,
     pub profile_id: u8,
     pub level_id: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
@@ -74,7 +78,19 @@ impl HoaConfiguration {
         let dynamic = parsed.fields.iter().any(|f| {
             f.name == "components[0].hoa.dynamic_selection_config_present" && f.value == json!(true)
         });
-        let order = if dynamic {
+        let full_order = parsed
+            .fields
+            .iter()
+            .any(|f| f.name == "components[0].hoa.full_order" && f.value == json!(true));
+        let partial_count = parsed
+            .derived
+            .get("components[0].hoa.coefficient_count")
+            .and_then(|v| v.as_u64())
+            .filter(|&n| (1..=121).contains(&n))
+            .unwrap_or(16) as u8;
+        let order = if !full_order {
+            (partial_count - 1).isqrt()
+        } else if dynamic {
             2
         } else {
             match value("components[0].hoa.order") {
@@ -93,7 +109,11 @@ impl HoaConfiguration {
         } else {
             HoaPath::Ambient
         };
-        let recovery_slots = (order + 1).pow(2);
+        let recovery_slots = if full_order {
+            (order + 1).pow(2)
+        } else {
+            partial_count
+        };
         let channels = if dynamic { 16 } else { recovery_slots };
         let transport_types: Vec<u8> = parsed
             .fields
@@ -150,6 +170,7 @@ impl HoaConfiguration {
         };
         Self {
             order,
+            full_order,
             profile_id: value("global.profile_id").unwrap_or(5) as u8,
             level_id: value("global.level_id").unwrap_or(0) as u8,
             channels,
@@ -182,7 +203,11 @@ impl HoaConfiguration {
                     };
                     SalientComponentConfiguration {
                         order,
-                        coefficient_count: (usize::from(order) + 1).pow(2),
+                        coefficient_count: if full_order {
+                            (usize::from(order) + 1).pow(2)
+                        } else {
+                            usize::from(recovery_slots)
+                        },
                         subband_count: (value(&format!(
                             "components[0].hoa.salient[{i}].subbands_minus_one"
                         ))
@@ -224,6 +249,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
+        if !self.full_order {
+            return PARTIAL_NUMERIC_PROFILE;
+        }
         if self.expanded_orders() {
             return super::hoa_salient::EXPANDED_NUMERIC_PROFILE;
         }
@@ -254,6 +282,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if !self.full_order {
+            return PARTIAL_STATE_PROFILE;
+        }
         if self.transport_extended() {
             return TRANSPORT_STATE_PROFILE;
         }
@@ -301,7 +332,8 @@ impl HoaConfiguration {
     }
     pub fn component_orders_extended(&self) -> bool {
         self.salient_components != 0
-            && (self.expanded_orders()
+            && (!self.full_order
+                || self.expanded_orders()
                 || self.quantization_extended()
                 || self.component_count_extended()
                 || self
@@ -333,6 +365,9 @@ impl HoaConfiguration {
             .collect()
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
+        if !self.full_order {
+            return PARTIAL_NUMERIC_PROFILE;
+        }
         if self.salient_configurations.iter().any(|c| c.order > 3) {
             return super::hoa_salient::EXPANDED_NUMERIC_PROFILE;
         }
@@ -352,7 +387,15 @@ impl HoaConfiguration {
                 .iter()
                 .map(|c| c.order)
                 .collect();
-            super::hoa_salient::component_information(&orders, self.quantization_bits)
+            let mut information =
+                super::hoa_salient::component_information(&orders, self.quantization_bits);
+            if !self.full_order {
+                for (info, component) in information.iter_mut().zip(&self.salient_configurations) {
+                    info.coefficient_count = component.coefficient_count;
+                    info.numeric_profile = PARTIAL_NUMERIC_PROFILE.into();
+                }
+            }
+            information
         })
     }
 }
@@ -438,7 +481,6 @@ impl HoaFrameContext {
                 "components[0].hoa.parameter_2_minus_six",
                 u64::from(shape.quantization_bits - 6),
             ),
-            ("components[0].hoa.order", u64::from(shape.order)),
             (
                 "components[0].hoa.max_salient_components",
                 u64::from(shape.salient_components),
@@ -459,6 +501,26 @@ impl HoaFrameContext {
             ("components[0].hoa.layout_channels", channels),
         ] {
             packet_config::check(&parsed.fields, name, json!(value), "cookie", &mut rejected);
+        }
+        if shape.full_order {
+            packet_config::check(
+                &parsed.fields,
+                "components[0].hoa.order",
+                json!(shape.order),
+                "cookie",
+                &mut rejected,
+            );
+        } else {
+            packet_config::check(
+                &parsed.fields,
+                "components[0].hoa.coefficient_count_minus_one",
+                json!(shape.recovery_slots - 1),
+                "cookie",
+                &mut rejected,
+            );
+            if shape.dynamic_method.is_some() {
+                rejected.push("partial-domain dynamic selection is not yet qualified".into());
+            }
         }
         for name in [
             "global.flag_a",
@@ -509,7 +571,7 @@ impl HoaFrameContext {
                 &mut rejected,
             );
         }
-        if salient {
+        if salient && shape.full_order {
             for (i, component) in shape.salient_configurations.iter().enumerate() {
                 for (field, value) in [
                     ("subbands_minus_one", component.subband_count - 1),
@@ -550,7 +612,7 @@ impl HoaFrameContext {
                 .map_or(0, |f| f.bit_offset);
             rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.recovery_slots));
         }
-        for name in ["full_order", "flag_a", "flag_e", "flag_f"] {
+        for name in ["flag_a", "flag_e", "flag_f"] {
             packet_config::check(
                 &parsed.fields,
                 &format!("components[0].hoa.{name}"),
@@ -686,6 +748,10 @@ impl HoaFrameContext {
     pub fn order(&self) -> u8 {
         self.configuration.order
     }
+    /// Whether the cookie declares a complete order, rather than an explicit dimension.
+    pub fn full_order(&self) -> bool {
+        self.configuration.full_order
+    }
     pub fn output_order(&self) -> u8 {
         if self.dynamic_selection_enabled() {
             3
@@ -812,6 +878,8 @@ pub struct HoaMixedMapping {
 pub struct HoaFrameInfo {
     pub numeric_profile: String,
     pub order: u8,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_order: Option<bool>,
     pub channel_order: String,
     pub normalization: String,
     pub coefficient_count: usize,
@@ -844,6 +912,7 @@ impl Default for HoaFrameInfo {
         Self {
             numeric_profile: NUMERIC_PROFILE.into(),
             order: 3,
+            full_order: None,
             channel_order: "ACN".into(),
             normalization: "SN3D".into(),
             coefficient_count: 16,

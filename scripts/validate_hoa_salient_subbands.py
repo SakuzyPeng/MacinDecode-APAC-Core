@@ -42,7 +42,7 @@ def measure(total,actual,expected,location,block,slots,n,wide=False,descriptor_r
 def check_pure_ambient(r,t,last_mode,last_sha,opts):
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete ambient packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
-    h=r['hoa'];m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));ambient=opts['ambient_count'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
+    h=r['hoa'];m=opts.get('coefficient_count',(opts['order']+1)**2);n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'));ambient=opts['ambient_count'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
     require(h['hoa_complete'] and (h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(m,ambient,transport,n),'ambient dimensions differ')
     same_fields(h['spatial'],t['spatial'],'ambient spatial');require(h['spatial'].get('salient') is None,'fabricated salient data')
     if t['spatial']['coding_mode'] is not None:last_mode=t['spatial']['coding_mode']
@@ -65,7 +65,7 @@ def check(r,t,last_mode,last_sha,opts):
     require(r['packet_complete'] and r['status']=='complete' and not r['unknown_ranges'],'incomplete HOA packet');coverage(r)
     if t['inner']:last_mode,last_sha=check(r['embedded_preroll']['report'],t['inner'],last_mode,last_sha,opts)
     else:require(r['embedded_preroll'] is None,'fabricated inner frame')
-    order=opts.get('order',3);dynamic=opts.get('dynamic',False);m=(order+1)**2;n=shape(order,dynamic);counts=opts.get('counts',[1,3,4,9,16]);path=opts.get('path','salient');h=r['hoa'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
+    order=opts.get('order',3);dynamic=opts.get('dynamic',False);m=opts.get('coefficient_count',(order+1)**2);n=shape(order,dynamic,opts.get('coefficient_count'));counts=opts.get('counts',[1,3,4,9,16]);path=opts.get('path','salient');h=r['hoa'];types=opts.get('tce_types',[0]*n);transport=sum(2 if t==1 else 0 if t==6 else 1 for t in types)
     require(h['hoa_complete'] and h['common_window']==t['common_window'] and (h['order'],h['coefficient_count'],h['core_channels'],h['transport_channels'],r['channel_count'])==(order,m,len(counts)+opts.get('ambient_count',0 if path=='salient' else 4),transport,n),'dimensions differ')
     require(r['component_end_bit_offset']==t['core_end_bit_offset'] and r['stop_bit_offset']==t['tail']['packet_end_bit_offset'],'core/tail boundary differs')
     same_fields(r['packet_tail'],t['tail'],'tail');same_fields(r['drc'],t['drc'],'DRC')
@@ -73,12 +73,12 @@ def check(r,t,last_mode,last_sha,opts):
     same_fields(h['spatial'],t['spatial'],'spatial');require(h['spatial']['effective_global_coding_mode']==last_mode,'global mode differs')
     side=h['spatial']['salient'];require(side['history_frame_sha256']==last_sha,'history source differs')
     require([(d['component_index'],d['subband_index']) for d in side['descriptors']]==[(sc,b) for sc,c in enumerate(counts) for b in range(c)],'descriptors padded/misordered')
-    orders=opts.get('component_orders',[order]*len(counts));dimensions=[(o+1)**2 for o in orders]
+    orders=opts.get('component_orders',[order]*len(counts));dimensions=[opts.get('coefficient_count',(o+1)**2) for o in orders]
     require(all(len(d['restored'])==dimensions[d['component_index']] for d in side['descriptors']),'descriptor dimension differs')
-    if order>3 or opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
+    if 'coefficient_count' in opts or order>3 or opts.get('quantization_bits',6)!=6 or len(counts)!=5 or list(orders)!=[order]*5:
         from hoa_component_orders_vectors import PROFILE as component_profile,component_information
-        recovery_profile='apac-hoa-expanded-orders-math-v1' if order>3 else 'apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
-        require(side['component_orders']==component_information(orders,opts.get('quantization_bits',6)) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
+        recovery_profile='apac-hoa-partial-domain-math-v1' if 'coefficient_count' in opts else 'apac-hoa-expanded-orders-math-v1' if order>3 else 'apac-hoa-salient-quantization-math-v1' if opts.get('quantization_bits',6)!=6 else 'apac-hoa-ambient-counts-math-v1' if opts.get('ambient_count',0 if path=='salient' else 4) not in (0,4) else 'apac-hoa-salient-counts-math-v1' if len(counts)!=5 else component_profile
+        require(side['component_orders']==component_information(orders,opts.get('quantization_bits',6),dimensions=dimensions,partial='coefficient_count' in opts) and h['numeric_profile']==('apac-hoa-dynamic-selection-math-v1' if dynamic else recovery_profile),'component order/profile differs')
         if dynamic:require(h['dynamic_selection']['recovery_numeric_profile']==recovery_profile,'dynamic base recovery differs')
         if 1 in orders:require(side['order1_profile']=='apac-hoa-salient-order1-v1','first-order support marker differs')
         else:require('order1_profile' not in side,'first-order marker leaked into old descriptors')
@@ -135,7 +135,7 @@ def fingerprints(rows,generated,opts):
 
 def ranges(binary,root,kind,opts,payloads,full,index,range_kinds=None):
     if kind not in (('pure2','replace3','dynamic-add') if range_kinds is None else range_kinds):return []
-    n=shape(opts['order'],opts.get('dynamic',False));stride=n*4;prime=31;remainder=17;valid=len(payloads)*1024-prime-remainder;expected=full[prime*stride:(prime+valid)*stride];middle=len(payloads)//2*1024-prime
+    n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'));stride=n*4;prime=31;remainder=17;valid=len(payloads)*1024-prime-remainder;expected=full[prime*stride:(prime+valid)*stride];middle=len(payloads)//2*1024-prime
     requests=[(0,valid),(0,1031),(middle,1031),((len(payloads)-2)*1024-prime,1024),(valid-9,100),(valid,1)];records=[]
     for name,encode in [('caf',caf_encode),('mp4',mp4_encode)]:
         source=root/name;source.write_bytes(encode(cookie(**opts),payloads,rate=opts['rate'],channels=n,priming=prime,remainder=remainder,variant=index,**({'layout_tag':(190<<16)|n} if name=='caf' else {}))[0])
@@ -155,7 +155,7 @@ def validate(binary,r,reference,*,vectors=None,format_generator=generate,frozen_
         require(reference['passed'] and reference['mode']=='independent_math' and not reference['errors'],'invalid reference')
         for k in ('code_commit','source_sha256','vector_manifest_sha256','format_sha256','profile','atol','rtol'):require(reference[k]==r[k],k+' differs')
     for identity,(kind,opts,cases) in zip(frozen['cases'],vectors.sequences()):
-        index=identity['index'];m=(opts.get('order',3)+1)**2;n=shape(opts.get('order',3),opts.get('dynamic',False))
+        index=identity['index'];m=opts.get('coefficient_count',(opts.get('order',3)+1)**2);n=shape(opts.get('order',3),opts.get('dynamic',False),opts.get('coefficient_count'))
         with workspace(r,kind) as root:
             generated=[vectors.packet(c,**opts) for c in cases];payloads=[raw for raw,_ in generated];cfg=cookie(**opts);bundle(root/'bundle',payloads,**opts)
             summary=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed');require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'incomplete parse');rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]

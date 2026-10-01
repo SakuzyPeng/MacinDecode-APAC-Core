@@ -733,8 +733,9 @@ pub(super) fn read(
             .then(|| super::hoa_salient_subbands::PARTITION_PROFILE.into()),
         component_orders: configuration.component_order_info(),
         order1_profile: configuration
-            .salient_orders
-            .contains(&1)
+            .salient_configurations
+            .iter()
+            .any(|c| c.order == 1)
             .then(|| ORDER1_PROFILE.into()),
         component_count: configuration
             .component_count_extended()

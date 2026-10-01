@@ -1,4 +1,4 @@
-//! Qualified first/second/third-order ACN/SN3D configurations.
+//! Qualified HOA configurations with distinct transport, recovery and output domains.
 use super::{
     AmbientTransform, ChannelFrameContext, ChannelPacketReport, Parser, StaticAmbientData,
     drc::{DrcContext, DrcState},
@@ -15,6 +15,16 @@ pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
 pub const MIXED_NUMERIC_PROFILE: &str = "apac-hoa-mixed-math-v1";
 pub const MIXED_STATE_PROFILE: &str = "apac-hoa-mixed-state-v1";
+
+/// One salient component's actual descriptor shape, in cookie order.
+///
+/// This does not describe the overall recovery domain or output layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct SalientComponentConfiguration {
+    pub order: u8,
+    pub subband_count: usize,
+    pub coefficient_count: usize,
+}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum HoaPath {
     Ambient,
@@ -35,8 +45,7 @@ pub(super) struct HoaConfiguration {
     pub core_channels: u8,
     pub salient_components: u8,
     pub quantization_bits: u8,
-    pub salient_subbands: Vec<u8>,
-    pub salient_orders: Vec<u8>,
+    pub salient_configurations: Vec<SalientComponentConfiguration>,
     pub salient_partition_method: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
@@ -142,27 +151,27 @@ impl HoaConfiguration {
                 .unwrap_or(0)
                 .min(3) as u8
                 + 6,
-            salient_subbands: (0..salient_components)
+            salient_configurations: (0..salient_components)
                 .map(|i| {
-                    (value(&format!(
-                        "components[0].hoa.salient[{i}].subbands_minus_one"
-                    ))
-                    .unwrap_or(3)
-                    .min(15)
-                        + 1) as u8
-                })
-                .collect(),
-            salient_orders: (0..salient_components)
-                .map(
-                    |i| match value(&format!("components[0].hoa.salient[{i}].order")) {
+                    let order = match value(&format!("components[0].hoa.salient[{i}].order")) {
                         Some(component_order)
                             if salient && (1..=u64::from(order)).contains(&component_order) =>
                         {
                             component_order as u8
                         }
                         _ => order,
-                    },
-                )
+                    };
+                    SalientComponentConfiguration {
+                        order,
+                        coefficient_count: (usize::from(order) + 1).pow(2),
+                        subband_count: (value(&format!(
+                            "components[0].hoa.salient[{i}].subbands_minus_one"
+                        ))
+                        .unwrap_or(3)
+                        .min(15)
+                            + 1) as usize,
+                    }
+                })
                 .collect(),
             salient_partition_method: match value("components[0].hoa.parameter_1") {
                 Some(method @ 1..=2) if salient => method as u8,
@@ -273,7 +282,10 @@ impl HoaConfiguration {
             && (self.expanded_orders()
                 || self.quantization_extended()
                 || self.component_count_extended()
-                || self.salient_orders.iter().any(|&o| o != self.order))
+                || self
+                    .salient_configurations
+                    .iter()
+                    .any(|c| c.order != self.order))
     }
     pub fn expanded_orders(&self) -> bool {
         self.order == 0 || self.order > 3
@@ -290,13 +302,13 @@ impl HoaConfiguration {
         self.salient_components != 0 && self.salient_components != 5
     }
     pub fn salient_dimensions(&self) -> Vec<usize> {
-        self.salient_orders
+        self.salient_configurations
             .iter()
-            .map(|&o| (usize::from(o) + 1).pow(2))
+            .map(|c| c.coefficient_count)
             .collect()
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
-        if self.salient_orders.iter().any(|&o| o > 3) {
+        if self.salient_configurations.iter().any(|c| c.order > 3) {
             return super::hoa_salient::EXPANDED_NUMERIC_PROFILE;
         }
         if self.quantization_extended() {
@@ -310,7 +322,12 @@ impl HoaConfiguration {
     }
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
         self.component_orders_extended().then(|| {
-            super::hoa_salient::component_information(&self.salient_orders, self.quantization_bits)
+            let orders: Vec<_> = self
+                .salient_configurations
+                .iter()
+                .map(|c| c.order)
+                .collect();
+            super::hoa_salient::component_information(&orders, self.quantization_bits)
         })
     }
 }
@@ -360,7 +377,7 @@ impl HoaFrameContext {
                 shape.profile_id, shape.level_id
             ));
         }
-        if salient && shape.salient_orders.contains(&0) {
+        if salient && shape.salient_configurations.iter().any(|c| c.order == 0) {
             rejected.push("zero-order salient dictionaries are not qualified".into());
         }
 
@@ -465,10 +482,10 @@ impl HoaFrameContext {
             );
         }
         if salient {
-            for i in 0..usize::from(shape.salient_components) {
+            for (i, component) in shape.salient_configurations.iter().enumerate() {
                 for (field, value) in [
-                    ("subbands_minus_one", shape.salient_subbands[i] - 1),
-                    ("order", shape.salient_orders[i]),
+                    ("subbands_minus_one", component.subband_count - 1),
+                    ("order", usize::from(component.order)),
                 ] {
                     packet_config::check(
                         &parsed.fields,
@@ -669,24 +686,28 @@ impl HoaFrameContext {
     pub fn ambient_transform(&self) -> AmbientTransform {
         self.configuration.ambient_transform
     }
-    pub fn salient_subband_counts(&self) -> Option<Vec<usize>> {
-        (self.configuration.salient_components != 0).then(|| {
-            self.configuration
-                .salient_subbands
-                .iter()
-                .map(|&n| usize::from(n))
-                .collect()
-        })
+    /// Actual-length component configurations; empty only when there is no salient.
+    pub fn salient_component_configurations(&self) -> &[SalientComponentConfiguration] {
+        &self.configuration.salient_configurations
+    }
+    /// Legacy five-component view. `None` also means a different component count;
+    /// use `salient_component_configurations` to distinguish it from no salient.
+    pub fn salient_subband_counts(&self) -> Option<[usize; 5]> {
+        let components: &[SalientComponentConfiguration; 5] =
+            self.salient_component_configurations().try_into().ok()?;
+        Some(components.map(|c| c.subband_count))
     }
     /// Cookie spatial partition, independent of the dynamic selection partition.
     pub fn salient_partition_method(&self) -> Option<u8> {
         (self.configuration.salient_components != 0)
             .then_some(self.configuration.salient_partition_method)
     }
-    /// Per-component descriptor orders, distinct from the overall/output order.
-    pub fn salient_component_orders(&self) -> Option<Vec<u8>> {
-        (self.configuration.salient_components != 0)
-            .then(|| self.configuration.salient_orders.clone())
+    /// Legacy five-component orders, distinct from the overall/output order.
+    /// For other counts use `salient_component_configurations`.
+    pub fn salient_component_orders(&self) -> Option<[u8; 5]> {
+        let components: &[SalientComponentConfiguration; 5] =
+            self.salient_component_configurations().try_into().ok()?;
+        Some(components.map(|c| c.order))
     }
     pub(crate) fn component_orders_extended(&self) -> bool {
         self.configuration.component_orders_extended()
@@ -891,9 +912,9 @@ pub(super) fn spatial(
                 Box::new(super::hoa_salient::SalientState::with_dimensions(
                     configuration.salient_dimensions(),
                     configuration
-                        .salient_subbands
+                        .salient_configurations
                         .iter()
-                        .map(|&n| usize::from(n))
+                        .map(|c| c.subband_count)
                         .collect::<Vec<_>>(),
                 ))
             }),

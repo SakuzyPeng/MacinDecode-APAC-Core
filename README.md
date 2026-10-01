@@ -475,7 +475,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 **每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；默认感知划分为 `parameter_1=0`，方法 1／2 的扩展见下文；保持六位量化；原配置的分量阶数等于内部阶数，固定三阶的二／三阶分量混合见下文。原纯 ambient 路径不变，不开放其他分量数、超出下述范围的阶数组合或帧内重配置。
 
-`HoaFrameContext::salient_subband_counts() -> Option<[usize; 5]>` 返回五个实际数量；无 salient 时返回 `None`。载荷按分量、该分量的局部子带读取，描述总数为五个数量之和，最多 80 条。每条频率线分别查找各分量自己的描述区间；描述历史也按实际数量保存，不采用原生历史缓冲中的填充步长。普通／覆盖恢复仍按分量 0..4 求和，叠加仍使用原补偿规则。动态选择随后按自身有效子带恢复，完整八组线上映射规则不变。
+`HoaFrameContext::salient_subband_counts() -> Option<[usize; 5]>` 返回五个实际数量；无 salient 或数量不为五时返回 `None`，通用配置使用下文实际长度查询。载荷按分量、该分量的局部子带读取，描述总数为五个数量之和，最多 80 条。每条频率线分别查找各分量自己的描述区间；描述历史也按实际数量保存，不采用原生历史缓冲中的填充步长。普通／覆盖恢复仍按分量 0..4 求和，叠加仍使用原补偿规则。动态选择随后按自身有效子带恢复，完整八组线上映射规则不变。
 
 `SalientSpatialData.subband_ends`／`lines_per_window` 改为有界 `Vec<usize>`。五个数量相同时保存真实公共端点；不同时这两个向量为空且 JSON 省略对应字段。新增可选 `component_subbands` 保存五份 `SalientSubbandInfo`（分量序号、数量和长／短窗端点），`descriptors` 只保存实际编码的描述。不要用固定四带或最大数量计算紧凑描述偏移。
 
@@ -521,7 +521,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 **固定三阶中的二／三阶 salient 分量混合**：整体三阶、16 个 SCE 和 16 通道 ACN/SN3D 输出保持不变，五个分量可以各自声明二阶或三阶，例如 `[2,3,2,3,3]`。纯 salient、覆盖 mixed、叠加 mixed 均支持；也允许全部为二阶。保持两采样率、每分量 1–16 带、空间方法 0／1／2、静态 ambient 选择和四路变换。一阶描述的扩展见下文；零阶描述、超出下述范围的动态阶数组合及帧内阶数更新仍拒绝。
 
-`HoaFrameContext::salient_component_orders() -> Option<[u8; 5]>` 返回五个实际阶数；无 salient 返回 `None`。`order()`、`recovery_slot_count()`、`output_order()`、`channel_count()` 仍表示整体配置。本扩展中分别为 3、16、3、16，不能用第一份描述的九项维度决定 PCM 步长。
+`HoaFrameContext::salient_component_orders() -> Option<[u8; 5]>` 返回五个实际阶数；无 salient 或数量不为五时返回 `None`，通用配置使用下文实际长度查询。`order()`、`recovery_slot_count()`、`output_order()`、`channel_count()` 仍表示整体配置。本扩展中分别为 3、16、3、16，不能用第一份描述的九项维度决定 PCM 步长。
 
 每份描述及其差分历史只保存实际九项或十六项。二阶使用既有二阶字典、9×9 矩阵及方向除以 3 的规则，三阶使用原十六维规则；较低阶分量对 ACN9..15 没有贡献，合成仍处理全部十六路输出 overlap。覆盖 mixed 的模式 0–3 仅省略 ambient 选择与该分量范围的交集，模式 4／5 完整恢复；叠加完整读取并沿用原补偿求和及一次 Float32 舍入。
 
@@ -563,7 +563,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 **可变 salient 数量**：既有一至三阶 SQ 恢复域允许实际数量 S 的 salient 分量；固定一／二／三阶分别最多 4／9／16 个，混合路径仍有四个 ambient，要求核心数量不超过实际传输通道。动态九槽→十六系数最多九个 salient，既有纯 salient、覆盖／叠加 mixed、分量阶数、空间划分及子带组合适用。ambient 数量和纯二阶路径见下文扩展。
 
-`salient_subband_counts()` 与 `salient_component_orders()` 返回实际长度的 `Option<Vec<usize>>`／`Option<Vec<u8>>`。数量不同于五时，空间报告新增 `component_count`、`count_profile=apac-hoa-salient-counts-v1`，记录全部分量的实际阶数；历史、描述和传输映射不补成五项。PCM 元数据新增 `hoa_salient_component_count`、`hoa_salient_count_profile`；恢复／状态规则为 `apac-hoa-salient-counts-math-v1`／`apac-hoa-salient-counts-state-v1`，后端为 `rust_hoa_salient_counts_sq_drc_off_f64_fft_v1`。动态路径保留动态顶层数学标识，记录新的基础恢复规则。原五分量配置的报告、标识和 PCM 保持兼容。
+`HoaFrameContext::salient_component_configurations() -> &[SalientComponentConfiguration]` 返回实际长度的只读配置；每项包含描述 `order`、`coefficient_count` 和 `subband_count`，与整体恢复／输出维度分开，无 salient 时为空切片。旧 `salient_subband_counts()` 和 `salient_component_orders()` 保留 `Option<[usize; 5]>`／`Option<[u8; 5]>`；仅五分量时返回数组，其他数量返回 `None`，不能据此判断是否含 salient。内部恢复及 PCM 元数据始终使用实际长度配置。数量不同于五时，空间报告新增 `component_count`、`count_profile=apac-hoa-salient-counts-v1`，记录全部分量的实际阶数；历史、描述和传输映射不补成五项。PCM 元数据新增 `hoa_salient_component_count`、`hoa_salient_count_profile`；恢复／状态规则为 `apac-hoa-salient-counts-math-v1`／`apac-hoa-salient-counts-state-v1`，后端为 `rust_hoa_salient_counts_sq_drc_off_f64_fft_v1`。动态路径保留动态顶层数学标识，记录新的基础恢复规则。原五分量配置的报告、标识和 PCM 保持兼容。
 
 ```sh
 python3 -B scripts/generate_hoa_salient_counts_manifest.py --check

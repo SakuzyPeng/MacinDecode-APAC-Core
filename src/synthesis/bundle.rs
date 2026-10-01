@@ -328,7 +328,13 @@ fn decode_with_access(
             value["hoa_salient_quantization_profile"] = json!("apac-hoa-salient-quantization-v1");
         }
         if context.component_orders_extended() {
-            value["hoa_salient_component_orders"] = json!(context.salient_component_orders());
+            value["hoa_salient_component_orders"] = json!(
+                context
+                    .salient_component_configurations()
+                    .iter()
+                    .map(|c| c.order)
+                    .collect::<Vec<_>>()
+            );
             if context.salient_components() != 5 {
                 value["hoa_salient_component_count"] = json!(context.salient_components());
                 value["hoa_salient_count_profile"] = json!("apac-hoa-salient-counts-v1");
@@ -336,8 +342,9 @@ fn decode_with_access(
             value["hoa_salient_components"] = json!(context.component_order_info());
             value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
             if context
-                .salient_component_orders()
-                .is_some_and(|orders| orders.contains(&1))
+                .salient_component_configurations()
+                .iter()
+                .any(|c| c.order == 1)
             {
                 value["hoa_salient_order1_profile"] =
                     json!(crate::frame::HOA_SALIENT_ORDER1_PROFILE);
@@ -407,7 +414,15 @@ fn decode_with_access(
     if let Some((counts, method)) = decoder
         .hoa_context
         .as_ref()
-        .and_then(|c| Some((c.salient_subband_counts()?, c.salient_partition_method()?)))
+        .and_then(|c| {
+            Some((
+                c.salient_component_configurations()
+                    .iter()
+                    .map(|s| s.subband_count)
+                    .collect::<Vec<_>>(),
+                c.salient_partition_method()?,
+            ))
+        })
         .filter(|(counts, method)| *counts != [4; 5] || *method != 0)
     {
         let value = pcm

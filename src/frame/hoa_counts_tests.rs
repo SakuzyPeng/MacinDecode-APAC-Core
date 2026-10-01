@@ -28,8 +28,31 @@ fn every_qualified_count_recovers_the_last_carrier_and_rejects_excess_core() {
         assert!(ctx.is_supported(), "{:?}", ctx.rejection());
         let count = f["options"]["counts"].as_array().unwrap().len();
         assert_eq!(ctx.salient_components(), count);
-        assert_eq!(ctx.salient_subband_counts().unwrap().len(), count);
-        assert_eq!(ctx.salient_component_orders().unwrap().len(), count);
+        let configurations = ctx.salient_component_configurations();
+        assert_eq!(configurations.len(), count);
+        assert!(configurations.iter().all(|c| c.subband_count == 1));
+        assert!(
+            configurations
+                .iter()
+                .all(|c| c.coefficient_count == (usize::from(c.order) + 1).pow(2))
+        );
+        let legacy_counts: Option<[usize; 5]> = ctx.salient_subband_counts();
+        let legacy_orders: Option<[u8; 5]> = ctx.salient_component_orders();
+        assert_eq!(legacy_counts.is_some(), count == 5);
+        assert_eq!(legacy_orders.is_some(), count == 5);
+        if count == 5 {
+            assert_eq!(
+                legacy_counts.unwrap().as_slice(),
+                configurations
+                    .iter()
+                    .map(|c| c.subband_count)
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                legacy_orders.unwrap().as_slice(),
+                configurations.iter().map(|c| c.order).collect::<Vec<_>>()
+            );
+        }
         let report = parse_hoa_packet(&ctx, &bytes(&f["packet"])).unwrap();
         assert!(report.packet.packet_complete && report.hoa().hoa_complete);
         let side = report
@@ -57,6 +80,55 @@ fn every_qualified_count_recovers_the_last_carrier_and_rejects_excess_core() {
     for raw in data["invalid"].as_array().unwrap() {
         if let Ok(ctx) = HoaFrameContext::from_cookie(&bytes(raw)) {
             assert!(!ctx.is_supported());
+        }
+    }
+}
+
+#[test]
+fn actual_component_query_preserves_cookie_shapes_and_legacy_five_item_views() {
+    for f in data()["fixtures"].as_array().unwrap() {
+        let context = HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        let components = context.salient_component_configurations();
+        assert_eq!(components.len(), context.salient_components());
+        let parsed = crate::config::parse_cookie(&bytes(&f["cookie"])).unwrap();
+        for (index, component) in components.iter().enumerate() {
+            let field = |suffix: &str| {
+                parsed
+                    .fields
+                    .iter()
+                    .find(|f| f.name == format!("components[0].hoa.salient[{index}].{suffix}"))
+                    .unwrap()
+                    .value
+                    .as_u64()
+                    .unwrap()
+            };
+            assert_eq!(u64::from(component.order), field("order"));
+            assert_eq!(
+                component.subband_count as u64,
+                field("subbands_minus_one") + 1
+            );
+            assert_eq!(
+                component.coefficient_count,
+                (usize::from(component.order) + 1).pow(2)
+            );
+        }
+        assert_eq!(
+            context.salient_component_orders().is_some(),
+            components.len() == 5
+        );
+        assert_eq!(
+            context.salient_subband_counts().is_some(),
+            components.len() == 5
+        );
+    }
+    let ambient: Value =
+        serde_json::from_str(include_str!("../../data/hoa-ambient-counts-state-v1.json")).unwrap();
+    for f in ambient["fixtures"].as_array().unwrap() {
+        let context = HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+        if context.salient_components() == 0 {
+            assert!(context.salient_component_configurations().is_empty());
+            assert_eq!(context.salient_subband_counts(), None);
+            assert_eq!(context.salient_component_orders(), None);
         }
     }
 }

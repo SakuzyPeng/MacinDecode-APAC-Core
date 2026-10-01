@@ -14,7 +14,9 @@ pub use channels::{
     parse_channel_packet,
 };
 pub(crate) use channels::{ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet};
-pub use hoa_salient::{SalientDescriptor, SalientSpatialData, SalientSubbandInfo};
+pub use hoa_salient::{
+    SalientComponentOrderInfo, SalientDescriptor, SalientSpatialData, SalientSubbandInfo,
+};
 pub(crate) use hoa_salient::{
     format_sha256 as hoa_salient_format_sha256, math_sha256 as hoa_salient_math_sha256,
 };

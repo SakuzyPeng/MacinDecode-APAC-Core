@@ -651,3 +651,103 @@ fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
         None
     );
 }
+
+#[test]
+fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
+    let data: Value = serde_json::from_str(include_str!(
+        "../../data/hoa-component-orders-state-v1.json"
+    ))
+    .unwrap();
+    for f in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&f["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(context.is_supported());
+        assert_eq!(
+            (
+                context.order(),
+                context.output_order(),
+                context.channel_count(),
+                context.recovery_slot_count()
+            ),
+            (3, 3, 16, 16)
+        );
+        assert_eq!(
+            serde_json::to_value(context.salient_component_orders()).unwrap(),
+            f["options"]["component_orders"]
+        );
+        assert_eq!(
+            context.descriptor_numeric_profile(),
+            Some("apac-hoa-component-orders-math-v1")
+        );
+        assert!(
+            !crate::frame::HoaFrameContext::from_cookie(&bytes(&f["bad_order_cookie"]))
+                .unwrap()
+                .is_supported()
+        );
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        assert_eq!(
+            decoder.backend(),
+            "rust_hoa_component_orders_sq_drc_off_f64_fft_v1"
+        );
+        assert_eq!(
+            decoder.state_profile(),
+            "apac-hoa-component-orders-state-v1"
+        );
+        assert_eq!(decoder.channel_layout().ambisonic_order, Some(3));
+        let first = bytes(&f["first"]);
+        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 16 * 1024);
+        let before = snapshot(&decoder);
+        for (key, value) in f["errors"].as_object().unwrap() {
+            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert_eq!(snapshot(&decoder), before, "{key}");
+        }
+        for end in 0..first.len() {
+            assert!(decoder.decode_frame(&first[..end]).is_err());
+            assert_eq!(snapshot(&decoder), before);
+        }
+        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        fresh.decode_frame(&first).unwrap();
+        for key in ["embedded_good", "next"] {
+            assert_eq!(
+                decoder.decode_frame(&bytes(&f[key])).unwrap(),
+                fresh.decode_frame(&bytes(&f[key])).unwrap()
+            );
+            assert_eq!(snapshot(&decoder), snapshot(&fresh));
+        }
+        decoder.channels.last_mut().unwrap().overlap[0] = f64::MAX;
+        let before = snapshot(&decoder);
+        assert_eq!(
+            decoder.decode_frame(&first).unwrap_err().operation,
+            "SQ synthesis"
+        );
+        assert_eq!(snapshot(&decoder), before);
+        decoder.reset();
+        assert_eq!(
+            snapshot(&decoder),
+            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        );
+        assert!(decoder.scan_frame(&first).is_err());
+        let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();
+        let json = serde_json::to_value(report).unwrap();
+        let restored: crate::frame::HoaPacketReport = serde_json::from_value(json).unwrap();
+        assert!(
+            restored
+                .hoa()
+                .spatial
+                .as_ref()
+                .unwrap()
+                .salient
+                .as_ref()
+                .unwrap()
+                .component_orders
+                .is_some()
+        );
+    }
+    let ambient = fixture();
+    assert_eq!(
+        crate::frame::HoaFrameContext::from_cookie(&bytes(&ambient["cookie"]))
+            .unwrap()
+            .salient_component_orders(),
+        None
+    );
+}

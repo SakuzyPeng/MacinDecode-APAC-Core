@@ -4,6 +4,7 @@ use crate::{
     error::{Error, Result},
     frame::{DrcState, HoaFrameContext, HoaState, parse_hoa_packet_with_state},
 };
+pub(super) const COMPONENT_ORDERS_BACKEND: &str = "rust_hoa_component_orders_sq_drc_off_f64_fft_v1";
 pub(super) const BACKEND: &str = "rust_hoa_ambient_sq_drc_off_f64_fft_v1";
 pub(super) const SALIENT_BACKEND: &str = "rust_hoa_salient_sq_drc_off_f64_fft_v1";
 pub(super) const MIXED_BACKEND: &str = "rust_hoa_mixed_sq_drc_off_f64_fft_v1";

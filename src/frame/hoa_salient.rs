@@ -13,6 +13,12 @@ use std::sync::OnceLock;
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
 pub const ORDER2_NUMERIC_PROFILE: &str = "apac-hoa-salient-order2-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-salient-state-v1";
+pub const COMPONENT_ORDERS_NUMERIC_PROFILE: &str = "apac-hoa-component-orders-math-v1";
+pub const COMPONENT_ORDERS_STATE_PROFILE: &str = "apac-hoa-component-orders-state-v1";
+
+#[cfg(test)]
+#[path = "hoa_component_orders_tests.rs"]
+mod component_orders_tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub(crate) struct SalientState {
@@ -24,13 +30,18 @@ impl SalientState {
     pub(super) fn new(coefficients: usize) -> Self {
         Self::with_counts(coefficients, [4; 5])
     }
+    #[cfg(test)]
     pub(super) fn with_counts(coefficients: usize, counts: [usize; 5]) -> Self {
+        Self::with_dimensions([coefficients; 5], counts)
+    }
+    pub(super) fn with_dimensions(coefficients: [usize; 5], counts: [usize; 5]) -> Self {
         assert!(counts.iter().all(|n| (1..=16).contains(n)));
-        assert!(matches!(coefficients, 9 | 16));
+        assert!(coefficients.iter().all(|n| matches!(n, 9 | 16)));
         Self {
             history: counts
                 .iter()
-                .map(|&n| vec![vec![0.; coefficients]; n])
+                .zip(coefficients)
+                .map(|(&n, c)| vec![vec![0.; c]; n])
                 .collect(),
             previous_frame_sha256: None,
         }
@@ -77,6 +88,8 @@ pub struct SalientSpatialData {
     pub partition_method: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partition_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component_orders: Option<Vec<SalientComponentOrderInfo>>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
@@ -86,6 +99,30 @@ pub struct SalientSubbandInfo {
     pub subband_count: usize,
     pub subband_ends: Vec<usize>,
     pub lines_per_window: Vec<usize>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SalientComponentOrderInfo {
+    pub component_index: usize,
+    pub order: u8,
+    pub coefficient_count: usize,
+    pub numeric_profile: String,
+    pub format_sha256: String,
+}
+pub(super) fn component_information(orders: [u8; 5]) -> Vec<SalientComponentOrderInfo> {
+    orders
+        .into_iter()
+        .enumerate()
+        .map(|(component_index, order)| {
+            let coefficient_count = (usize::from(order) + 1).pow(2);
+            SalientComponentOrderInfo {
+                component_index,
+                order,
+                coefficient_count,
+                numeric_profile: numeric_profile(coefficient_count).into(),
+                format_sha256: format_sha256(coefficient_count).into(),
+            }
+        })
+        .collect()
 }
 impl SalientSpatialData {
     pub(super) fn bands_for_frequency(&self, frequency: usize) -> [usize; 5] {
@@ -256,14 +293,21 @@ pub(super) fn read(
     global_mode: Option<u8>,
     block: u8,
     state: &SalientState,
-    coefficients: usize,
-    ambient_selection: Option<&[u8]>,
-    partition_method: u8,
+    configuration: super::hoa::HoaConfiguration,
 ) -> Result<SalientSpatialData, ParseError> {
+    let ambient_selection = (configuration.path == super::hoa::HoaPath::Mixed).then(|| {
+        if configuration.ambient_combination == super::AmbientCombination::Add {
+            &[][..]
+        } else {
+            configuration.ambient_indices()
+        }
+    });
+    let partition_method = configuration.salient_partition_method;
     let mixed = ambient_selection.is_some();
     let counts: [usize; 5] = std::array::from_fn(|sc| state.history[sc].len());
     let mut descriptors = Vec::with_capacity(counts.iter().sum());
     for (component, &count) in counts.iter().enumerate() {
+        let coefficients = configuration.salient_dimensions()[component];
         for band in 0..count {
             let name = format!("hoa.salient[{component}].subbands[{band}]");
             let start = parser.bits.position();
@@ -374,8 +418,13 @@ pub(super) fn read(
                     d.signs_positive = indices.iter().map(|&i| d.signs_positive[i]).collect();
                 }
                 d.coded_coefficient_indices = Some(indices);
-                d.ambient_omitted_coefficients =
-                    Some(omitted.iter().map(|&v| usize::from(v)).collect());
+                d.ambient_omitted_coefficients = Some(
+                    omitted
+                        .iter()
+                        .map(|&v| usize::from(v))
+                        .filter(|&v| v < coefficients)
+                        .collect(),
+                );
             }
             d.end_bit_offset = parser.bits.position();
             descriptors.push(d);
@@ -415,6 +464,7 @@ pub(super) fn read(
         partition_method: (partition_method != 0).then_some(partition_method),
         partition_profile: (partition_method != 0)
             .then(|| super::hoa_salient_subbands::PARTITION_PROFILE.into()),
+        component_orders: configuration.component_order_info(),
         descriptors,
     })
 }
@@ -461,9 +511,9 @@ pub(super) fn restore_descriptors(
     packet: &ChannelPacketReport,
     data: &mut SalientSpatialData,
     state: &mut SalientState,
-    coefficients: usize,
 ) -> Result<(), ParseError> {
     for d in &mut data.descriptors {
+        let coefficients = state.history[d.component_index][d.subband_index].len();
         let mut v = if d.mode == 5 {
             direction(
                 d.azimuth_degrees.expect("direction"),
@@ -532,7 +582,7 @@ pub(super) fn restore(
     coefficients: usize,
     ambient_selection: Option<&[u8]>,
 ) -> Result<Vec<RecoverySlotSpectrum>, ParseError> {
-    restore_descriptors(packet, data, state, coefficients)?;
+    restore_descriptors(packet, data, state)?;
     let mut output: Vec<_> = (0..coefficients)
         .map(|k| RecoverySlotSpectrum {
             slot_index: k as u8,
@@ -571,7 +621,10 @@ pub(super) fn restore(
                 } else {
                     0.
                 };
-                let product = state.history[sc][band][k] * sample;
+                // Qualified lower-order descriptors have no higher ACN entries.
+                // This is structural zero extension, not recovery from a missing payload.
+                let descriptor = state.history[sc][band].get(k).copied().unwrap_or(0.);
+                let product = descriptor * sample;
                 sum += product;
             }
             let value = sum as f32;

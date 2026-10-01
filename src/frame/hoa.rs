@@ -33,6 +33,7 @@ pub(super) struct HoaConfiguration {
     pub core_channels: u8,
     pub salient_components: u8,
     pub salient_subbands: [u8; 5],
+    pub salient_orders: [u8; 5],
     pub salient_partition_method: u8,
     pub ambient_components: u8,
     pub path: HoaPath,
@@ -147,6 +148,12 @@ impl HoaConfiguration {
                 .unwrap_or(3)
                     + 1) as u8
             }),
+            salient_orders: std::array::from_fn(|i| {
+                match value(&format!("components[0].hoa.salient[{i}].order")) {
+                    Some(2) if salient && order == 3 && !dynamic => 2,
+                    _ => order,
+                }
+            }),
             salient_partition_method: match value("components[0].hoa.parameter_1") {
                 Some(method @ 1..=2) if salient => method as u8,
                 _ => 0,
@@ -177,6 +184,9 @@ impl HoaConfiguration {
         self.recovery_numeric_profile()
     }
     pub fn recovery_numeric_profile(self) -> &'static str {
+        if self.component_orders_extended() {
+            return super::hoa_salient::COMPONENT_ORDERS_NUMERIC_PROFILE;
+        }
         if self.ambient_combination == super::AmbientCombination::Add {
             return super::hoa_additive::NUMERIC_PROFILE;
         }
@@ -192,6 +202,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(self) -> &'static str {
+        if self.component_orders_extended() {
+            return super::hoa_salient::COMPONENT_ORDERS_STATE_PROFILE;
+        }
         if self.ambient_combination == super::AmbientCombination::Add {
             return super::hoa_additive::STATE_PROFILE;
         }
@@ -213,14 +226,28 @@ impl HoaConfiguration {
             salient_transport_channels: (4..9).collect(),
             ambient_output_coefficients: self.ambient_indices().to_vec(),
             unused_transport_channels: (9..self.transport_channels).collect(),
-            descriptor_numeric_profile: super::hoa_salient::numeric_profile(usize::from(
-                self.recovery_slots,
-            ))
-            .into(),
+            descriptor_numeric_profile: self.descriptor_numeric_profile().into(),
         })
     }
     pub fn ambient_indices(&self) -> &[u8] {
         &self.ambient_selection[..usize::from(self.ambient_components)]
+    }
+    pub fn component_orders_extended(self) -> bool {
+        self.salient_components != 0 && self.salient_orders != [self.order; 5]
+    }
+    pub fn salient_dimensions(self) -> [usize; 5] {
+        self.salient_orders.map(|o| (usize::from(o) + 1).pow(2))
+    }
+    pub fn descriptor_numeric_profile(self) -> &'static str {
+        if self.component_orders_extended() {
+            super::hoa_salient::COMPONENT_ORDERS_NUMERIC_PROFILE
+        } else {
+            super::hoa_salient::numeric_profile(usize::from(self.recovery_slots))
+        }
+    }
+    pub fn component_order_info(self) -> Option<Vec<super::SalientComponentOrderInfo>> {
+        self.component_orders_extended()
+            .then(|| super::hoa_salient::component_information(self.salient_orders))
     }
 }
 
@@ -335,7 +362,7 @@ impl HoaFrameContext {
             for i in 0..5 {
                 for (field, value) in [
                     ("subbands_minus_one", shape.salient_subbands[i] - 1),
-                    ("order", shape.order),
+                    ("order", shape.salient_orders[i]),
                 ] {
                     packet_config::check(
                         &parsed.fields,
@@ -523,9 +550,19 @@ impl HoaFrameContext {
         (self.configuration.salient_components != 0)
             .then_some(self.configuration.salient_partition_method)
     }
+    /// Per-component descriptor orders, distinct from the overall/output order.
+    pub fn salient_component_orders(&self) -> Option<[u8; 5]> {
+        (self.configuration.salient_components != 0).then_some(self.configuration.salient_orders)
+    }
+    pub(crate) fn component_orders_extended(&self) -> bool {
+        self.configuration.component_orders_extended()
+    }
+    pub(crate) fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
+        self.configuration.component_order_info()
+    }
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
-            .then(|| super::hoa_salient::numeric_profile(self.recovery_slot_count()))
+            .then(|| self.configuration.descriptor_numeric_profile())
     }
     pub fn state_profile(&self) -> &'static str {
         self.configuration.state_profile()
@@ -712,26 +749,17 @@ pub(super) fn spatial(
         None
     };
     let descriptors = if configuration.salient_components != 0 {
-        let channels = usize::from(configuration.recovery_slots);
         Some(super::hoa_salient::read(
             parser,
             mode,
             block,
             state.salient.get_or_insert_with(|| {
-                Box::new(super::hoa_salient::SalientState::with_counts(
-                    channels,
+                Box::new(super::hoa_salient::SalientState::with_dimensions(
+                    configuration.salient_dimensions(),
                     configuration.salient_subbands.map(usize::from),
                 ))
             }),
-            channels,
-            (configuration.path == HoaPath::Mixed).then(|| {
-                if configuration.ambient_combination == super::AmbientCombination::Add {
-                    &[][..]
-                } else {
-                    configuration.ambient_indices()
-                }
-            }),
-            configuration.salient_partition_method,
+            configuration,
         )?)
     } else {
         None

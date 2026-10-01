@@ -21,9 +21,10 @@ def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
 
 def verify(truth,trace,opts):
     counts=opts['counts'];maximum=max(counts);m=(opts['order']+1)**2;n=shape(opts['order'],opts.get('dynamic',False));path=opts['path'];ambient=0 if path=='salient' else 4
+    dimensions=[(o+1)**2 for o in opts.get('component_orders',[opts['order']]*5)]
     caps=[e for e in trace['events'] if e['kind']=='capacity'];capacity=18432 if n==9 else 32768
     require(caps and all(c['status']==0 and c['capacity_bytes']==capacity for c in caps),'native capacity differs')
-    expected=[[[D(0)]*m for _ in range(c)] for c in counts];previous=[0.]*(5*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0
+    expected=[[[D(0)]*dimensions[s] for _ in range(c)] for s,c in enumerate(counts)];previous=[0.]*(5*maximum*m);metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None);total=0
     for seq,role,t in frames(truth):
         events=[e for e in trace['hoa_events'] if (e['sequence'],e['role'])==(seq,role)]
         def one(kind):
@@ -32,21 +33,22 @@ def verify(truth,trace,opts):
         require(read['status']==entry['status']==0,'native parse failed')
         require((read['start']['relative_bit_offset'],read['end']['relative_bit_offset'])==(t['spatial']['start_bit_offset'],t['spatial']['end_bit_offset']),'spatial endpoints differ')
         require(entry['window']==t['common_window'] and entry['end']['relative_bit_offset']==t['core_end_bit_offset'],'window/core endpoint differs')
-        require(history['subbands']==counts and history['coefficient_counts']==[m]*5 and history['maximum_subbands']==maximum,'component dimensions differ')
+        require(history['subbands']==counts and history['coefficient_counts']==dimensions and history['maximum_subbands']==maximum,'component dimensions differ')
         require(history['subband_tables']==[boundaries(i,opts.get('spatial_method',0)) for i in range(1,maximum+1)],'cached perceptual grids differ')
         require((history['coefficients'],history['output_channels'],history['salient'],history['ambient'])==(m,n,5,ambient),'dimensions differ')
         require(bool(history['flags'][3])==(path=='add'),'combination flag differs')
         require(len(history['history'])==5*maximum*m and float_bytes(read['before']['history'])==float_bytes(previous),'padded history transition differs')
         wanted=[];actual=[]
         for spec in t['spatial']['salient']['descriptors']:
-            sc,b,mode=spec['component_index'],spec['subband_index'],spec['mode'];compact=(sum(counts[:sc])+b)*m;padded=(sc*maximum+b)*m
+            sc,b,mode=spec['component_index'],spec['subband_index'],spec['mode'];compact=sum(counts[i]*dimensions[i] for i in range(sc))+b*dimensions[sc];padded=(sc*maximum+b)*m
             indices=spec.get('coded_coefficient_indices',list(range(len(spec['quantized']))))
             require(raw['modes'][sc][b]==mode and raw['omitted_counts'][sc][b]==(4 if path=='replace' and mode<4 else 0),'mode/omission differs')
             require([raw['quantized'][compact+i] for i in indices]==spec['quantized'],'compact payload offset differs')
             if mode==3:require([bool(raw['signs'][compact+i]) for i in indices]==spec['signs_positive'],'signs differ')
             if mode==4:require(raw['clusters'][sc][b]==spec['cluster'],'cluster differs')
             if mode==5:require((raw['azimuth'][sc][b],raw['elevation'][sc][b])==(spec['azimuth_degrees'],spec['elevation_offset_degrees']),'angles differ')
-            v=descriptor(spec,expected[sc][b]);expected[sc][b]=v;wanted.extend(map(float,v));actual.extend(history['history'][padded:padded+m])
+            v=descriptor(spec,expected[sc][b]);expected[sc][b]=v;wanted.extend(map(float,v));actual.extend(history['history'][padded:padded+dimensions[sc]])
+            require(float_bytes(history['history'][padded+dimensions[sc]:padded+m])==bytes(4*(m-dimensions[sc])),'nonzero higher-order native history padding')
         measurement=compare(actual,wanted,dict(sequence=seq,role=role));merge_metrics(metrics,measurement);require(measurement['passed'],'descriptor diagnostics exceed tolerance')
         previous=history['history'];sources=[c['scaled'] for c in entry['transport']];require(len(sources)==n,'missing carriers')
         selected=t['spatial']['ambient_indices'];require(history['ambient_indices']==selected,'ambient selection differs')
@@ -74,7 +76,7 @@ def verify(truth,trace,opts):
         synth=[e for e in trace['events'] if e['kind']=='synthesis' and (e['sequence'],e['role'])==(seq,role)];require(len(synth)==n,'missing outputs')
         for acn,e in enumerate(synth):require(e['channel_index']==acn and float_bytes(e['input'])==float_bytes(output[acn]),f'isolated recovery differs at {seq}/{role}/ACN{acn}')
         total+=1
-    return dict(passed=True,core_frames=total,counts=counts,capacity_bytes=capacity,cached_grid_count=maximum,compact_parameter_stride='sum of preceding component counts times coefficients',native_history_stride=maximum*m,logical_history_values=sum(counts)*m,parameters_boundaries_history_exact=True,isolated_recovery_bytes_exact=True,internal_reference='reconstructed from native descriptor history and known transport inputs',descriptor_float_diagnostics=metrics)
+    return dict(passed=True,core_frames=total,counts=counts,capacity_bytes=capacity,cached_grid_count=maximum,compact_parameter_stride='sum of preceding component counts times coefficients',native_history_stride=maximum*m,logical_history_values=sum(n*c for n,c in zip(counts,dimensions)),parameters_boundaries_history_exact=True,isolated_recovery_bytes_exact=True,internal_reference='reconstructed from native descriptor history and known transport inputs',descriptor_float_diagnostics=metrics)
 
 
 def main(*,vectors=None):

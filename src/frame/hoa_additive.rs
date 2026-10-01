@@ -72,7 +72,6 @@ pub(super) fn restore(
         packet,
         side,
         state.salient.as_mut().expect("mixed history"),
-        count,
     )?;
     let index = spatial
         .ambient
@@ -129,8 +128,12 @@ pub(super) fn restore(
         for (slot, out) in output.iter_mut().enumerate() {
             let mut sum = Sum::default();
             for sc in 0..5 {
-                let product = side.descriptors[offsets[sc] + bands[sc]].restored[slot]
-                    * f64::from(sources[4 + sc][line]);
+                let descriptor = side.descriptors[offsets[sc] + bands[sc]]
+                    .restored
+                    .get(slot)
+                    .copied()
+                    .unwrap_or(0.);
+                let product = descriptor * f64::from(sources[4 + sc][line]);
                 if !sum.add(product) {
                     return Err(error(slot, line));
                 }

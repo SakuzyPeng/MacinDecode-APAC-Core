@@ -292,9 +292,16 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        value["hoa_format_sha256"] = json!(crate::frame::hoa_salient_format_sha256(
-            decoder.hoa_context.as_ref().unwrap().recovery_slot_count()
-        ));
+        let context = decoder.hoa_context.as_ref().unwrap();
+        if context.component_orders_extended() {
+            value["hoa_salient_component_orders"] = json!(context.salient_component_orders());
+            value["hoa_salient_components"] = json!(context.component_order_info());
+            value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
+        } else {
+            value["hoa_format_sha256"] = json!(crate::frame::hoa_salient_format_sha256(
+                context.recovery_slot_count()
+            ));
+        }
         value["hoa_tables_sha256"] = json!(crate::frame::hoa_salient_math_sha256());
         if let Some(context) = &decoder.hoa_context
             && (context.ambient_components() != 0 || context.dynamic_selection_enabled())

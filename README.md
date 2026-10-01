@@ -473,7 +473,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 新增验收把轻量边界／复制检查与代表 PCM 序列分开；`validate_hoa_dynamic_subbands_native.py` 复核指定的原生捕获，`validate_hoa_dynamic_subbands_checks.py` 执行相关接口及旧代表回归。原八带生成器和清单保持不变。
 
-**每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；默认感知划分为 `parameter_1=0`，方法 1／2 的扩展见下文；保持六位量化，以及分量阶数等于内部阶数。原纯 ambient 路径不变，不开放其他分量数、分量阶数组合或帧内重配置。
+**每分量 1–16 个 salient 空间子带**：五个 salient 分量可以各自声明不同数量，例如 `[1,3,4,9,16]`。支持既有固定二／三阶和动态九槽→十六系数的纯 salient、覆盖式 mixed、叠加式 mixed；默认感知划分为 `parameter_1=0`，方法 1／2 的扩展见下文；保持六位量化；原配置的分量阶数等于内部阶数，固定三阶的二／三阶分量混合见下文。原纯 ambient 路径不变，不开放其他分量数、超出下述范围的阶数组合或帧内重配置。
 
 `HoaFrameContext::salient_subband_counts() -> Option<[usize; 5]>` 返回五个实际数量；无 salient 时返回 `None`。载荷按分量、该分量的局部子带读取，描述总数为五个数量之和，最多 80 条。每条频率线分别查找各分量自己的描述区间；描述历史也按实际数量保存，不采用原生历史缓冲中的填充步长。普通／覆盖恢复仍按分量 0..4 求和，叠加仍使用原补偿规则。动态选择随后按自身有效子带恢复，完整八组线上映射规则不变。
 
@@ -518,6 +518,28 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```
 
 `validate_hoa_salient_partition_native.py` 复核四份短原生捕获与整组 1–16 带缓存；`validate_hoa_salient_partition_checks.py` 检查受影响接口及五个旧代表。独立数学使用六组短序列，逐线边界测试不执行额外 IMDCT；不重跑旧完整矩阵或媒体库。
+
+**固定三阶中的二／三阶 salient 分量混合**：整体三阶、16 个 SCE 和 16 通道 ACN/SN3D 输出保持不变，五个分量可以各自声明二阶或三阶，例如 `[2,3,2,3,3]`。纯 salient、覆盖 mixed、叠加 mixed 均支持；也允许全部为二阶。保持两采样率、每分量 1–16 带、空间方法 0／1／2、静态 ambient 选择和四路变换。零／一阶描述、动态配置的新阶数组合及帧内阶数更新仍拒绝。
+
+`HoaFrameContext::salient_component_orders() -> Option<[u8; 5]>` 返回五个实际阶数；无 salient 返回 `None`。`order()`、`recovery_slot_count()`、`output_order()`、`channel_count()` 仍表示整体配置。本扩展中分别为 3、16、3、16，不能用第一份描述的九项维度决定 PCM 步长。
+
+每份描述及其差分历史只保存实际九项或十六项。二阶使用既有二阶字典、9×9 矩阵及方向除以 3 的规则，三阶使用原十六维规则；较低阶分量对 ACN9..15 没有贡献，合成仍处理全部十六路输出 overlap。覆盖 mixed 的模式 0–3 仅省略 ambient 选择与该分量范围的交集，模式 4／5 完整恢复；叠加完整读取并沿用原补偿求和及一次 Float32 舍入。
+
+新配置的 `hoa.spatial.salient.component_orders` 保存五份 `SalientComponentOrderInfo`，记录分量序号、阶数、实际系数数、所用数学规则和字典摘要。描述数组不补成十六项。组合规则为 `apac-hoa-component-orders-math-v1`，状态为 `apac-hoa-component-orders-state-v1`，后端为 `rust_hoa_component_orders_sq_drc_off_f64_fft_v1`。`descriptor_numeric_profile()` 在新配置返回组合规则，逐分量字段记录实际复用的二／三阶规则。
+
+PCM 实现元数据增加 `hoa_salient_component_orders`、`hoa_salient_components`，并记录组合描述规则；新配置以逐分量字典摘要取代单个 `hoa_format_sha256`。整体三阶且分量全部为三阶，以及固定二阶、原动态和纯 ambient 配置的 JSON、标识与输出均不改变。
+
+四个新实例的内嵌 preroll 容量均实测为 32,768 字节。全部传输载波仍须完整校验；描述数值检查先于整体恢复及尾部，内嵌优先、整包回滚、reset、三个输入入口及范围规则不变。HOA fast 仍在创建输出前拒绝。
+
+```sh
+python3 -B scripts/generate_hoa_component_orders_manifest.py --check
+python3 -B scripts/validate_hoa_component_orders.py --binary target/debug/apac-tool --report reports/hoa-component-orders-math.json
+python3 -B scripts/validate_hoa_component_orders.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-component-orders-math.json --report reports/hoa-component-orders-release.json
+APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_component_orders
+```
+
+`validate_hoa_component_orders_native.py` 复核三份主控制及全二阶短探针；`validate_hoa_component_orders_checks.py` 执行相关检查与六个旧代表，元数据必须使用对应平台的旧报告。独立数学只运行新增短序列，不重跑旧完整矩阵或媒体库。
 
 **实验性 `decode-sq INPUT`**：从自包含包目录或上述布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 

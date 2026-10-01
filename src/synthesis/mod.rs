@@ -304,7 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.ambient_combination() == crate::frame::AmbientCombination::Add {
+            return if context.component_orders_extended() {
+                hoa::COMPONENT_ORDERS_BACKEND
+            } else if context.ambient_combination() == crate::frame::AmbientCombination::Add {
                 hoa::ADDITIVE_BACKEND
             } else if context.dynamic_selection_enabled() {
                 hoa::DYNAMIC_BACKEND

@@ -294,6 +294,15 @@ fn decode_with_access(
             value["hoa_spatial_controls_format_sha256"] =
                 json!(crate::frame::hoa_spatial_controls_format_sha256());
             value["hoa_spatial_controls"] = json!(context.spatial_controls());
+            if context.spatial_controls().flag_b {
+                value["hoa_frame_configuration_state_sha256"] =
+                    json!(crate::frame::hoa_frame_configuration_state_sha256());
+            }
+        }
+        if context.dynamic_domains_extended() {
+            value["hoa_dynamic_domains_profile"] = json!(crate::frame::HOA_DYNAMIC_DOMAINS_PROFILE);
+            value["hoa_dynamic_domains_format_sha256"] =
+                json!(crate::frame::hoa_dynamic_domains_format_sha256());
         }
         if !context.full_order() {
             value["hoa_partial_domain_profile"] = json!(crate::frame::HOA_PARTIAL_PROFILE);
@@ -410,7 +419,9 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
-        value["hoa_dynamic_format_sha256"] = json!(if context.spatial_controls().flag_f {
+        value["hoa_dynamic_format_sha256"] = json!(if context.dynamic_domains_extended() {
+            crate::frame::hoa_dynamic_domains_format_sha256()
+        } else if context.spatial_controls().flag_f {
             crate::frame::hoa_dynamic_format_sha256(
                 context.dynamic_subband_count().expect("dynamic bands"),
             )
@@ -418,7 +429,14 @@ fn decode_with_access(
             crate::frame::hoa_spatial_controls_format_sha256()
         });
         value["hoa_internal_order"] = json!(context.order());
-        value["hoa_output_order"] = json!(context.output_order());
+        if let Some(order) = context.channel_layout().ambisonic_order {
+            value["hoa_output_order"] = json!(order);
+        } else {
+            value["hoa_output_containing_order"] = json!(context.output_order());
+        }
+        if context.dynamic_domains_extended() {
+            value["hoa_output_coefficient_count"] = json!(context.channel_count());
+        }
         value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
         if let Some(count) = context.dynamic_subband_count().filter(|&n| n < 8) {
             value["hoa_dynamic_subband_count"] = json!(count);

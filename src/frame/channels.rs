@@ -673,7 +673,8 @@ fn parse_impl(
         hoa.core_channels = usize::from(shape.core_channels);
         hoa.mixed = shape.mixed_mapping();
         if shape.dynamic_method.is_some() {
-            hoa.output_order = Some(3);
+            hoa.output_order = (shape.channels.isqrt().pow(2) == shape.channels)
+                .then(|| shape.channels.isqrt() - 1);
             hoa.output_coefficient_count = Some(usize::from(shape.channels));
         }
     }
@@ -852,7 +853,7 @@ fn parse_impl(
             && let Some(history) = state.salient.as_mut()
         {
             history.finish_active_components(
-                usize::from(shape.salient_components),
+                &shape.salient_configurations,
                 &result.frame.packet_sha256,
             );
         }

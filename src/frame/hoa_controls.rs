@@ -10,6 +10,22 @@ use std::sync::OnceLock;
 pub const PROFILE: &str = "apac-hoa-spatial-controls-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-spatial-controls-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-spatial-controls-state-v1";
+pub const FRAME_NUMERIC_PROFILE: &str = "apac-hoa-spatial-controls-math-v2";
+pub const FRAME_STATE_PROFILE: &str = "apac-hoa-spatial-controls-state-v2";
+pub(super) fn numeric_profile(controls: HoaSpatialControls) -> &'static str {
+    if controls.flag_b {
+        FRAME_NUMERIC_PROFILE
+    } else {
+        NUMERIC_PROFILE
+    }
+}
+pub(super) fn state_profile(controls: HoaSpatialControls) -> &'static str {
+    if controls.flag_b {
+        FRAME_STATE_PROFILE
+    } else {
+        STATE_PROFILE
+    }
+}
 #[cfg(test)]
 #[path = "hoa_controls_tests.rs"]
 mod tests;
@@ -105,6 +121,14 @@ fn format() -> &'static Format {
 }
 pub fn format_sha256() -> &'static str {
     &format().format_sha256
+}
+pub fn frame_state_sha256() -> &'static str {
+    static HASH: OnceLock<String> = OnceLock::new();
+    HASH.get_or_init(|| {
+        crate::model::sha256(include_bytes!(
+            "../../data/hoa-frame-configuration-state-v2.json"
+        ))
+    })
 }
 pub(super) fn mean(index: usize) -> f64 {
     f64::from(f32::from_bits(format().mean_coefficients_f32[index]))

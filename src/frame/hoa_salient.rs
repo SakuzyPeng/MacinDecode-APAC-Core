@@ -60,9 +60,16 @@ pub(crate) struct SalientState {
     previous_frame_sha256: Option<String>,
 }
 impl SalientState {
-    pub(super) fn finish_active_components(&mut self, active: usize, packet_sha256: &str) {
-        for component in self.history.iter_mut().skip(active) {
-            for band in component {
+    pub(super) fn finish_active_components(
+        &mut self,
+        active: &[super::SalientComponentConfiguration],
+        packet_sha256: &str,
+    ) {
+        for (sc, component) in self.history.iter_mut().enumerate() {
+            for band in component
+                .iter_mut()
+                .skip(active.get(sc).map_or(0, |c| c.subband_count))
+            {
                 band.fill(0.);
             }
         }

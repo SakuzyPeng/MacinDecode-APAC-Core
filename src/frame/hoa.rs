@@ -92,8 +92,6 @@ impl HoaConfiguration {
             .unwrap_or(16) as u8;
         let order = if !full_order {
             (partial_count - 1).isqrt()
-        } else if dynamic {
-            2
         } else {
             match value("components[0].hoa.order") {
                 Some(order @ 0..=10) => order as u8,
@@ -116,7 +114,13 @@ impl HoaConfiguration {
         } else {
             partial_count
         };
-        let channels = if dynamic { 16 } else { recovery_slots };
+        let channels = if dynamic {
+            value("components[0].hoa.layout_channels")
+                .filter(|&n| (1..=121).contains(&n))
+                .unwrap_or(16) as u8
+        } else {
+            recovery_slots
+        };
         let transport_types: Vec<u8> = parsed
             .fields
             .iter()
@@ -247,6 +251,9 @@ impl HoaConfiguration {
         }
     }
     pub fn numeric_profile(&self) -> &'static str {
+        if self.dynamic_domains_extended() {
+            return super::hoa_dynamic::DOMAINS_NUMERIC_PROFILE;
+        }
         if self.dynamic_method.is_some() {
             return super::hoa_dynamic::NUMERIC_PROFILE;
         }
@@ -254,7 +261,7 @@ impl HoaConfiguration {
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
         if self.controls_extended() {
-            return super::hoa_controls::NUMERIC_PROFILE;
+            return super::hoa_controls::numeric_profile(self.controls);
         }
         if !self.full_order {
             return PARTIAL_NUMERIC_PROFILE;
@@ -289,8 +296,11 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.dynamic_domains_extended() {
+            return super::hoa_dynamic::DOMAINS_STATE_PROFILE;
+        }
         if self.controls_extended() {
-            return super::hoa_controls::STATE_PROFILE;
+            return super::hoa_controls::state_profile(self.controls);
         }
         if !self.full_order {
             return PARTIAL_STATE_PROFILE;
@@ -357,6 +367,10 @@ impl HoaConfiguration {
     pub fn controls_extended(&self) -> bool {
         self.controls.extended(self.path == HoaPath::Mixed)
     }
+    pub fn dynamic_domains_extended(&self) -> bool {
+        self.dynamic_method.is_some()
+            && (!self.full_order || self.recovery_slots != 9 || self.channels != 16)
+    }
     pub fn quantization_extended(&self) -> bool {
         self.salient_components != 0 && self.quantization_bits != 6
     }
@@ -379,7 +393,7 @@ impl HoaConfiguration {
     }
     pub fn descriptor_numeric_profile(&self) -> &'static str {
         if self.controls_extended() {
-            return super::hoa_controls::NUMERIC_PROFILE;
+            return super::hoa_controls::numeric_profile(self.controls);
         }
         if !self.full_order {
             return PARTIAL_NUMERIC_PROFILE;
@@ -413,7 +427,8 @@ impl HoaConfiguration {
             }
             if self.controls_extended() {
                 for info in &mut information {
-                    info.numeric_profile = super::hoa_controls::NUMERIC_PROFILE.into();
+                    info.numeric_profile =
+                        super::hoa_controls::numeric_profile(self.controls).into();
                 }
             }
             information
@@ -545,9 +560,6 @@ impl HoaFrameContext {
                 "cookie",
                 &mut rejected,
             );
-            if shape.dynamic_method.is_some() {
-                rejected.push("partial-domain dynamic selection is not yet qualified".into());
-            }
         }
         for name in [
             "global.flag_a",
@@ -773,11 +785,7 @@ impl HoaFrameContext {
         self.configuration.controls_extended()
     }
     pub fn output_order(&self) -> u8 {
-        if self.dynamic_selection_enabled() {
-            3
-        } else {
-            self.order()
-        }
+        (self.configuration.channels - 1).isqrt()
     }
     pub fn recovery_slot_count(&self) -> usize {
         usize::from(self.configuration.recovery_slots)
@@ -788,6 +796,9 @@ impl HoaFrameContext {
     }
     pub fn dynamic_selection_enabled(&self) -> bool {
         self.configuration.dynamic_method.is_some()
+    }
+    pub(crate) fn dynamic_domains_extended(&self) -> bool {
+        self.configuration.dynamic_domains_extended()
     }
     pub fn recovery_numeric_profile(&self) -> &'static str {
         self.configuration.recovery_numeric_profile()
@@ -862,7 +873,7 @@ pub(crate) struct HoaState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_ambient_transform: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub last_dynamic_mapping: Option<[[u8; 9]; 8]>,
+    pub last_dynamic_mapping: Option<Vec<Vec<u8>>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

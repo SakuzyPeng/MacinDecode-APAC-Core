@@ -32,22 +32,23 @@ def cookie(scene=True,drc=False,rich=False,*,rate=48000,mixed=False,selection=No
     raw=pack(wire+'000'); return len(raw).to_bytes(4,'big')+raw[4:]
 
 
-def maps(rotation=0,reverse=False):
+def maps(rotation=0,reverse=False,slots=9,outputs=16):
     rows=[]
     for b in range(8):
-        row=sorted((rotation+2*b+i)%16 for i in range(9))
+        row=sorted((rotation+2*b+i)%outputs for i in range(slots))
         rows.append(list(reversed(row)) if reverse else row)
     return rows
 
 
-def dynamic(case,origin,method):
-    listed=case.get('list_mode',False); rows=case.get('mappings',maps()); assert len(rows)==8
+def dynamic(case,origin,method,slots=9,outputs=16):
+    if slots>=outputs:return '',dict(encoding='identity' if slots==outputs else 'prefix',method=method,subband_ends=[],lines_per_window=[],start_bit_offset=origin,end_bit_offset=origin,mappings=[],active_subband_count=0)
+    listed=case.get('list_mode',False); rows=case.get('mappings',maps(slots=slots,outputs=outputs)); assert len(rows)==8
     wire=bits(int(listed),1); entries=[]
     for b,row in enumerate(rows):
-        assert len(row)==9; start=origin+len(wire)
-        if listed: wire+=''.join(bits(i,4) for i in row); targets=list(row)
+        assert len(row)==slots; start=origin+len(wire)
+        if listed: wire+=''.join(bits(i,(outputs-1).bit_length()) for i in row); targets=list(row)
         else:
-            assert len(set(row))==9; wire+=''.join(bits(int(i in row),1) for i in range(16)); targets=sorted(row)
+            assert len(set(row))==slots; wire+=''.join(bits(int(i in row),1) for i in range(outputs)); targets=sorted(row)
         entries.append(dict(subband_index=b,target_acn_indices=targets,start_bit_offset=start,end_bit_offset=origin+len(wire)))
     tables=generate(); block=case.get('block',0)
     return wire,dict(encoding='index_list' if listed else 'bitmap',method=method,subband_ends=tables['long_ends'][method],

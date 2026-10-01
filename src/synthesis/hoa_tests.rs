@@ -524,8 +524,8 @@ fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
             alternate.decode_frame(&bytes(&f["alternate"])).unwrap()
         );
         assert_ne!(
-            decoder.hoa_state.last_dynamic_mapping.unwrap()[7],
-            alternate.hoa_state.last_dynamic_mapping.unwrap()[7]
+            decoder.hoa_state.last_dynamic_mapping.as_ref().unwrap()[7],
+            alternate.hoa_state.last_dynamic_mapping.as_ref().unwrap()[7]
         );
         let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
         fresh.decode_frame(&bytes(&f["first"])).unwrap();

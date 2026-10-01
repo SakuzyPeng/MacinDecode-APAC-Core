@@ -7,7 +7,7 @@ use crate::{
 use serde_json::Value;
 
 fn data() -> Value {
-    serde_json::from_str(include_str!("../../data/hoa-controls-state-v1.json")).unwrap()
+    serde_json::from_str(include_str!("../../data/hoa-controls-state-v2.json")).unwrap()
 }
 fn bytes(v: &Value) -> Vec<u8> {
     v.as_str()
@@ -49,7 +49,7 @@ fn control_histories_overlaps_and_failed_packets_commit_atomically() {
 }
 
 #[test]
-fn inactive_subbands_survive_but_inactive_components_are_cleared() {
+fn inactive_subbands_and_components_are_cleared_using_the_encoder_stride() {
     let d = data();
     let f = d["fixtures"]
         .as_array()
@@ -73,11 +73,7 @@ fn inactive_subbands_survive_but_inactive_components_are_cleared() {
                 .as_ref()
                 .unwrap()
                 .descriptors;
-            let expected = if i == 2 {
-                [-0.03125, 0.4375, 0.40625]
-            } else {
-                [-0.03125, 0.0625, -0.09375]
-            };
+            let expected = [-0.03125, 0.0625, -0.09375];
             for (d, v) in descriptors.iter().take(3).zip(expected) {
                 assert_eq!(d.restored[3], v);
             }
@@ -120,7 +116,7 @@ fn frame_configuration_rejects_every_bit_truncation_without_partial_state() {
 }
 
 #[test]
-fn reducing_an_active_descriptor_clears_its_higher_coefficients_only_in_used_bands() {
+fn shrinking_shapes_clear_inactive_history_without_reviving_higher_coefficients() {
     let d = data();
     let f = &d["coefficient_history"];
     let context = HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
@@ -147,11 +143,7 @@ fn reducing_an_active_descriptor_clears_its_higher_coefficients_only_in_used_ban
                 .as_ref()
                 .unwrap()
                 .descriptors;
-            let expected = if i == 2 {
-                [-0.03125, 0.4375, 0.40625]
-            } else {
-                [-0.03125, 0.0625, -0.09375]
-            };
+            let expected = [-0.03125, 0.0625, -0.09375];
             for (row, value) in values.iter().take(3).zip(expected) {
                 assert_eq!(row.restored[8], value);
             }
@@ -199,5 +191,39 @@ fn direction_without_explicit_coefficients_retains_the_whole_unit_vector() {
                 .kind,
             "hoa-frame-configuration"
         );
+    }
+}
+
+#[test]
+fn encoder_history_stride_does_not_alias_components_when_the_active_maximum_changes() {
+    let d = data();
+    let f = &d["stride_history"];
+    let context = HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
+    let mut state = HoaState::default();
+    let mut drc = context.initial_drc_state();
+    for (i, p) in f["packets"].as_array().unwrap().iter().enumerate() {
+        let r = parse_hoa_packet_with_state(&context, &bytes(p), &mut drc, &mut state).unwrap();
+        assert!(r.packet.packet_complete);
+        let values = &r
+            .hoa()
+            .spatial
+            .as_ref()
+            .unwrap()
+            .salient
+            .as_ref()
+            .unwrap()
+            .descriptors;
+        let expected: &[f64] = match i {
+            0 => &[0.25, 0.375, 0.5],
+            1 => &[0.28125, 0.3125],
+            _ => &[0.3125, 0.25, 0.09375],
+        };
+        for (row, &value) in values
+            .iter()
+            .filter(|v| v.component_index == 1)
+            .zip(expected)
+        {
+            assert_eq!(row.restored[8], value);
+        }
     }
 }

@@ -64,6 +64,7 @@ def sequences():
 
 def format_binding():
     result=previous_formats();result['dependencies']['spatial_controls']=control_format_sha256()
+    result['dependencies']['frame_state_v2']=hashlib.sha256((Path(__file__).resolve().parents[1]/'data/hoa-frame-configuration-state-v2.json').read_bytes()).hexdigest()
     result['format_sha256']=hashlib.sha256(json.dumps(result['dependencies'],sort_keys=True,separators=(',',':')).encode()).hexdigest();return result
 
 def manifest():
@@ -92,4 +93,9 @@ def state_fixtures():
     cases=[basis(opts,0,coefficient=8),basis(opts,3,active=changed,coefficient=8),basis(opts,3,active=back,coefficient=8),
            basis(opts,0,active=inactive,coefficient=8),basis(opts,3,active=back,coefficient=8)]
     history=dict(cookie=cookie(**opts).hex(),packets=[packet(c,**opts)[0].hex() for c in cases])
-    return dict(fixtures=fixtures,invalid=invalid,invalid_frames=invalid_frames,coefficient_history=history)
+    opts=options(counts=[2,3],controls=dict(flag_b=True,flag_c=True));stride_cases=[]
+    for i,counts in enumerate(([2,3],[1,2],[2,3])):
+        c=basis(opts,0 if i==0 else 3,active=dict(counts=counts,ambient_count=0,path='salient'),coefficient=8)
+        c['descriptors']=descriptors(counts,0 if i==0 else 3,8,1,order=2);c['frame_type']=1 if i==0 else 0;stride_cases.append(c)
+    stride=dict(cookie=cookie(**opts).hex(),packets=[packet(c,**opts)[0].hex() for c in stride_cases])
+    return dict(fixtures=fixtures,invalid=invalid,invalid_frames=invalid_frames,coefficient_history=history,stride_history=stride)

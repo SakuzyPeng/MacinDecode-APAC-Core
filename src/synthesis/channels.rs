@@ -54,13 +54,20 @@ pub(super) fn render(
     counts.drc_payload_frames += u64::from(packet.drc_complete == Some(true));
     counts.drc_missing_history_frames += u64::from(packet.drc_history_sufficient == Some(false));
     if let Some(hoa) = &packet.hoa
-        && hoa
-            .spatial
-            .as_ref()
-            .is_some_and(|s| s.salient.is_some() || s.ambient.is_some())
+        && (hoa.dynamic_selection.is_some()
+            || hoa
+                .spatial
+                .as_ref()
+                .is_some_and(|s| s.salient.is_some() || s.ambient.is_some()))
     {
         counts.absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
         let channels = states.len();
+        if hoa.channels_after_hoa.len() != channels {
+            return Err(Error::new(
+                "HOA synthesis",
+                "restored coefficients do not match the output dimension",
+            ));
+        }
         let mut output = vec![0.; 1024 * channels];
         for (index, state) in states.iter_mut().enumerate() {
             let samples = state.render(

@@ -31,7 +31,7 @@ class SubbandHoaTests(unittest.TestCase):
                 self.assertTrue((out/'.incomplete.json').is_file());self.assertFalse((out/'decode-sq.json').exists())
     def test_unsupported_configuration_rejected_before_output(self):
         original=cookie(subbands=1,path='replace');cfg=self.path();cfg.write_bytes(original);r=json.loads(self.run_tool('parse-cookie',cfg).stdout);wire=''.join(format(v,'08b') for v in original)
-        for name,value in [('components[0].hoa.dynamic_selection.parameter',3),('components[0].hoa.dynamic_selection.subbands_minus_one',8),('components[0].hoa.order',3)]:
+        for name,value in [('components[0].hoa.dynamic_selection.parameter',3),('components[0].hoa.dynamic_selection.subbands_minus_one',8)]:
             f=next(f for f in r['fields'] if f['name']==name);at=f['bit_offset'];changed=pack(wire[:at]+bits(value,f['bit_length'])+wire[at+f['bit_length']:])
             root=self.path();bundle(root,[packet({},subbands=1,path='replace')[0]],subbands=1,path='replace');self.change_cookie(root,changed);out=self.path()
             p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('hoa-subband-count' if name.endswith('subbands_minus_one') else name,p.stderr)

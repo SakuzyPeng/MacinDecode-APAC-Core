@@ -7,7 +7,7 @@ from spectrum_vectors import bits, pack
 from channel_vectors import single, scene_bits
 from bwe2_vectors import packet as cpe_packet
 from drc_vectors import payload as drc_payload
-from hoa_salient_subbands_vectors import cookie, bundle, shape, spatial, esc, descriptors
+from hoa_salient_subbands_vectors import cookie, bundle, shape, spatial, esc, descriptors, control_values, control_format_sha256, dynamic_domain_format_sha256
 from hoa_dynamic_vectors import dynamic as mapping_wire
 from generate_hoa_dynamic_subbands_format import boundaries
 
@@ -64,7 +64,11 @@ def cpe(spec, rate, origin):
 
 
 def packet(case, **opts):
-    n = shape(opts.get('order', 3), opts.get('dynamic', False))
+    n = shape(opts.get('order', 3), opts.get('dynamic', False),opts.get('coefficient_count'),opts.get('output_coefficients'))
+    if opts.get('controls') is not None:opts=dict(opts,controls=control_values(opts['controls'],opts.get('path','salient')))
+    declared=opts
+    if (opts.get('controls') or {}).get('flag_b'):
+        opts=dict(opts,**case.get('active',{}));opts['path']='add' if opts['controls']['flag_d'] and opts['counts'] and opts['ambient_count'] else 'replace' if opts['ambient_count'] else 'salient'
     types = opts.get('tce_types', [0] * n)
     specs = case.get('elements', [None] * len(types))
     assert len(specs) == len(types)
@@ -75,7 +79,7 @@ def packet(case, **opts):
     if typ == 2:
         wire += '0' + bits(int('preroll' in case), 2)
         if 'preroll' in case:
-            raw, inner = packet(case['preroll'], **opts)
+            raw, inner = packet(case['preroll'], **declared)
             wire += esc(len(raw), (16, 16))
             wire += '0' * (-len(wire) % 8)
             at = len(wire)
@@ -107,33 +111,32 @@ def packet(case, **opts):
             encoded, truth = single(dict(spec, block=block), kind, rate, begin - 2)
             encoded = encoded[:2] + encoded[4:]
         wire += encoded
-        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform')
+        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform') and not (opts.get('controls') or {}).get('flag_b')
         truth.update(configuration=dict(element_index=index, kind={0:'sce',1:'cpe',3:'lfe',6:'extension'}[kind],
                                         tce_type=kind, output_channels=channels if direct else [], transport_channels=channels),
                      present=present, start_bit_offset=begin,
                      end_bit_offset=truth.pop('tns_end_bit_offset'))
         elements.append(truth)
-    spatial_opts = {k:v for k,v in opts.items() if k in ('order','path','selection','transform','counts','spatial_method','component_orders','ambient_count','quantization_bits','profile','level')}
+    spatial_opts = {k:v for k,v in opts.items() if k in ('order','path','selection','transform','counts','spatial_method','component_orders','ambient_count','quantization_bits','profile','level','coefficient_count','controls','output_coefficients')}
     encoded, side = spatial(case, len(wire), **spatial_opts)
     wire += encoded
     spatial_end = len(wire)
     dynamic = None
     if opts.get('dynamic'):
-        encoded, dynamic = mapping_wire(case, len(wire), opts.get('method', 2))
-        wire += encoded
-        dynamic['subband_ends'] = boundaries(opts.get('subbands', 8), opts.get('method', 2))
-        dynamic['lines_per_window'] = [v // 8 if block == 2 else v for v in dynamic['subband_ends']]
-        ambient = opts.get('ambient_count', 0 if opts.get('path','salient') == 'salient' else 4)
-        core = ambient + len(opts['counts'])
-        dynamic.update(internal_spatial_end_bit_offset=spatial_end, ambient_recovery_slots=side['ambient_indices'],
-            ambient_transport_channels=list(range(ambient)), salient_transport_channels=list(range(ambient,core)),
-            unused_transport_channels=list(range(core,channel)))
-        if opts.get('subbands',8)<8:
+        slots=opts.get('coefficient_count',(opts.get('order',3)+1)**2);active=slots<n;extended='coefficient_count' in opts or slots!=9 or n!=16
+        rounded=control_values(opts.get('controls'),opts.get('path','salient'))['flag_f'];subbands=opts.get('subbands',8);method=opts.get('method',2)
+        encoded,dynamic=mapping_wire(case,len(wire),method,slots,n);wire+=encoded
+        dynamic['subband_ends']=boundaries(subbands,method,rounded) if active else []
+        dynamic['lines_per_window']=[] if not active or block==2 and not rounded else [v//8 if block==2 else v for v in dynamic['subband_ends']]
+        ambient=opts.get('ambient_count',0 if opts.get('path','salient')=='salient' else 4);core=ambient+len(opts['counts'])
+        dynamic.update(internal_spatial_end_bit_offset=spatial_end,ambient_recovery_slots=side['ambient_indices'],ambient_transport_channels=list(range(ambient)),salient_transport_channels=list(range(ambient,core)),unused_transport_channels=list(range(core,channel)))
+        if active and subbands<8:
             from generate_hoa_dynamic_subbands_format import generate
-            dynamic.update(active_subband_count=opts['subbands'],subband_profile='apac-hoa-dynamic-subbands-v1',format_sha256=generate()['format_sha256'])
-        if 'ambient' in side:
-            dynamic['internal_ambient']=side.pop('ambient')
-        side['end_bit_offset'] = len(wire)
+            dynamic.update(active_subband_count=subbands,subband_profile='apac-hoa-dynamic-subbands-v1',format_sha256=generate()['format_sha256'])
+        if active and not rounded:dynamic.update(unrounded_subbands=True,format_sha256=control_format_sha256())
+        if extended:dynamic.update(domain_profile='apac-hoa-dynamic-domains-v1',configured_subband_count=subbands,wire_mapping_groups=8 if active else 0,format_sha256=dynamic_domain_format_sha256())
+        if 'ambient' in side:dynamic['internal_ambient']=side.pop('ambient')
+        side['end_bit_offset']=len(wire)
     payload_end = len(wire)
     wire += '0' * (-len(wire) % 8)
     core_end = len(wire)
@@ -151,7 +154,7 @@ def packet(case, **opts):
     ancillary_end = len(wire)
     if drc:
         wire += '0'
-    return pack(wire), dict(frame_type=typ, common_window=block, elements=elements, spatial=side,
+    return pack(wire), dict(**({'frame_options':{k:v for k,v in opts.items() if v is not None}} if opts.get('controls') is not None else {}),frame_type=typ, common_window=block, elements=elements, spatial=side,
         dynamic_selection=dynamic, inner=inner, inner_range=inner_range, drc=drc_truth,
         internal_spatial_end_bit_offset=spatial_end, core_start_bit_offset=core_start,
         core_payload_end_bit_offset=payload_end, core_end_bit_offset=core_end,

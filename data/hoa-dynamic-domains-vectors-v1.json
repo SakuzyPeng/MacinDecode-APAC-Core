@@ -1,0 +1,416 @@
+{
+  "profile": "apac-hoa-dynamic-domains-v1",
+  "formats": {
+    "format_sha256": "55928516190ad5aed9ffedc5fc550d85831802057338eea9943d02f2647dba83",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "4dd52a05751a429948affc9358f2d3c14c53ef5758de54f09b4fa4b8c458871d",
+      "spatial_methods12": "8046c66846d311b1617f77a10454f6a7225735fd44e1bd6111b4cacec9fbb780",
+      "lower": "07a71bfc7a8ac09cf51669e31d25031118630425ae9446f2a0f96fb0dddfbb78",
+      "lower_counts": "5fdb73e5f1d0ae7bdfe06ae784b6213416ac13e00f94da2616d0e39914407960",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88",
+      "order1_q7": "70c1cde5abfdee638c333f57dbac5232283e4f4e18b9a1aa9daac092d8b481bb",
+      "order1_q8": "9f8d01e8463d5bc551549424b4b6f5c40180aceb002200f006b0a90cd77981c8",
+      "order1_q9": "0b634122d3a077d60c1714d1d442f9a84ffbb51d2735a55969fddf7ce8e5687c",
+      "order2_q7": "75ffddf990ba989457d57a21a16434acca390e1d45f80ff988f743e254790a69",
+      "order2_q8": "f6008a4398c01c163c4e8d36ac2a014cd71e7a30b66b0558e2a06471e4079beb",
+      "order2_q9": "0fb0cdf70151c533b3e97dbd2aee9578bed40bcbfa9c3eb926e54baadddc0846",
+      "order3_q7": "e430204b6acf6a48a72558b22a7cef5a586e2428182aed76cfd0af3043f000da",
+      "order3_q8": "d799f383c754514ed7aa673ae06dfd0d3546b8ecf42dfcadd26b3e41b5e59227",
+      "order3_q9": "ef01235ef79dcff21d2535f34bf3b445fbb6fffd3c827d401c38975e7d39ee86",
+      "order4_q6": "67ef3ba90337f8191928fe4adc7834fd3b5475f8ac7dbbb9f289a963dcec3550",
+      "order4_q7": "18352f604e9e799380a29a98c1737d07d198489967839e65499865c9b5ddadbb",
+      "order4_q8": "5967e184b8f3b4ebe71fe7add1085eef34398f3331251f9af58610f739303ac8",
+      "order4_q9": "82dad6dc8686459a4ae15ef2bef1ce3c55a81d0782744a686303033fb2b7034d",
+      "order5_q6": "26418199b6cdda2c579381efa16bf7948c637982d24fc270f3176c2a27bb7eac",
+      "order5_q7": "4ab3cb5f93702b0835b458fcd2a000ba9c0df662c51831f47870d1a38c428cc3",
+      "order5_q8": "59e3d3f75abe3e91791cfa323797526843f3e66c75085b1c318a49c8f384b514",
+      "order5_q9": "aaf5af4e4d5f99b8fdd27557b2812ca49c1429e4eea225f1de458fa81e037c52",
+      "order6_q6": "7ff3fa31099affd5eb67090d9fcdea9c037226b238180e1efaf79a987c895271",
+      "order6_q7": "7e8ef668018db2715ff67d62fbcc0782a24f255b2efb21370c110f1199a47927",
+      "order6_q8": "3dd597320235adde4ca2e1d4004acebe0bba6531f78faac36d38bb68f3a69fcf",
+      "order6_q9": "5860f655e42b0c4667bdb82f3fbc2580f3cf9b794a26408b8e3ee71d5591a4ba",
+      "order7_q6": "d455dd174c6a9b6cf4a6abb33d986b31a7a9da1f28d08c7ce1ccc30e3474d970",
+      "order7_q7": "34d848c0adabb9fcf08f2c14814a4d9dd440b90aebe229fafc51e25464bda23a",
+      "order7_q8": "44a87c0a85cb74be89709253a85189d448ff0cbb927167cc5a244bf3cc722a3b",
+      "order7_q9": "b4626080bc78401d8fe7ce6ba8c402318e2dd43dc231ceb86f7cf7831fe4d8be",
+      "order8_q6": "bb005496376edd3808e449bf62499959ccf810bf44a453fa4fdf703d65869833",
+      "order8_q7": "ade541c04d70a60156dada8cfbddf3aa9db16e7876de678e43924d24cd76848f",
+      "order8_q8": "cb8ff30e7a03edb3fd71ce2ad0d7031ad3a87b492c7d7062f5622439153ce707",
+      "order8_q9": "824fde5816ec4a37e1f309a269b18e29299c3db132a366c4a6d6975d20bc22b5",
+      "order9_q6": "e1b0f46362b62af91fe3661f74ee10cf08f41a2b5aacc42d241cbca5266f5c69",
+      "order9_q7": "daa0a552c9f03105e02716560234f55d54ded3de0711066a04708283827be1f1",
+      "order9_q8": "db9e69a627dce5f09788584dcdabeed4f9ddd927e2f450838bdfc7a88f9ea984",
+      "order9_q9": "5ce7269d5b254a8231314ef61fbc13890243b3919ba5d795951d1a3b68d76021",
+      "order10_q6": "d909e16a61c54e3c5c03769d50d92fe36fa7c46d414d51ca2048fa41b34db5f1",
+      "order10_q7": "c2b5a50e173e3c6bcc9480db8f003d9e72d7532e03dcc9a812d035d1f859180a",
+      "order10_q8": "6da565e372aaee6ef9d512af46aa740988d5477585cba6504046ce1945911634",
+      "order10_q9": "26c9cea68850587856cd2a6e101061041771a90c77434f25cf9d436c03dc4a71",
+      "expanded_math": "c14a03e48b0167bfa97639982df4c6353cedae7504962811193f7c788ad9ada7",
+      "profile_limits": "12a757d6723028b2a345bba53b2f227a1c59c928335d20283673bb4086f9cfed",
+      "spatial_controls": "cb37551eff7b36157be4ad6aeedeca7a33245782b9704c9db8a81379cfea8d01",
+      "frame_state_v2": "62abfc59fede7c8a31ef7affa3fdbb8d68616bfba20166c294e972a44002ae21",
+      "dynamic_domains": "7cf30ebe6453bf6bfcc5d8bf3d353dc53c58e7adf8fd7b530b31ea0997be760a",
+      "transport": "acf87582080a3b32ad51babe5cbe4bdadae2a925f2e463b4213dbe0f2e8a715f"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "first-second",
+      "configuration": {
+        "order": 1,
+        "dynamic": true,
+        "output_coefficients": 9,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "43f3621ebb37a42a12726fd28fc28c69d2a1c0c3d4d04af84580a220ce38ab5f",
+      "truth_sha256": "ad950707214066fcdb4ef64a51811350a1ee89b1101c7be8ecf7ee479ee4da06"
+    },
+    {
+      "index": 1,
+      "kind": "third-fourth",
+      "configuration": {
+        "order": 3,
+        "dynamic": true,
+        "output_coefficients": 25,
+        "profile": 5,
+        "level": 1,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "d381ae0596bed4257b0d7880ad169e575c9a081a399251fbf0317032193728c0",
+      "truth_sha256": "431e7b2dcce0232574d9782b300b3aa78d02d9e8a1eb101affa5e82c9fde3adb"
+    },
+    {
+      "index": 2,
+      "kind": "fifth-sixth",
+      "configuration": {
+        "order": 5,
+        "dynamic": true,
+        "output_coefficients": 49,
+        "profile": 5,
+        "level": 2,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "4c815e0b0867e0c42aa59c51145e40ef88ac54c4e5c1953fea9820e469a7e07d",
+      "truth_sha256": "414e5f0416288a97edd63e122c1c44ceb2a7dfec9c7a3fa86e6947a80bef8732"
+    },
+    {
+      "index": 3,
+      "kind": "partial-output",
+      "configuration": {
+        "order": 1,
+        "dynamic": true,
+        "output_coefficients": 3,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false,
+        "coefficient_count": 2
+      },
+      "packets": 5,
+      "input_sha256": "f6fcf107e95de7e7d1b362bfdd233b48553b83c1c35fea5ac70447d14cd0d7cd",
+      "truth_sha256": "41d8de893e8925a65e2b8b9943f7c9655cd2a59fa416f0d1cb7b2e680a6bc486"
+    },
+    {
+      "index": 4,
+      "kind": "partial-square",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 9,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false,
+        "coefficient_count": 5
+      },
+      "packets": 5,
+      "input_sha256": "4b09448b8af860609b66cd9330edf0edf067fa6faa40f21ed9787ad8d2a81b0e",
+      "truth_sha256": "b962bef8925eb56d6d5b2102d99eb4cac37ae5aa40460a838ccc470b396e22d3"
+    },
+    {
+      "index": 5,
+      "kind": "identity",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 9,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "cf50f18b2d85069b57d29516bfb149488764d3f26048cad2454fc0e07246fec1",
+      "truth_sha256": "42636876dfb81032908dc597755f0bcb1efd58a707b3cc3768bd14bb92393867"
+    },
+    {
+      "index": 6,
+      "kind": "prefix",
+      "configuration": {
+        "order": 6,
+        "dynamic": true,
+        "output_coefficients": 16,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "425f4c3f4aa017d5ac8daa49884f5fcd1d767367642ad02f9180c13827681518",
+      "truth_sha256": "b4c9c7ea8d5e20d18014c612fc931f3f90fb5ccf5f1c4c3a3a430d16bbde8c05"
+    },
+    {
+      "index": 7,
+      "kind": "zero-first",
+      "configuration": {
+        "order": 0,
+        "dynamic": true,
+        "output_coefficients": 4,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [],
+        "ambient_count": 1,
+        "path": "replace",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "866b653d78a557d1e217acc865de4082459a60a0ba92f5f0a5567c1006ceca6c",
+      "truth_sha256": "3d480728eb2596da7913b0871081d3002888320930b5d26a9831a577b8e9e86d"
+    },
+    {
+      "index": 8,
+      "kind": "nonsquare-output",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 12,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "be4f6db99bc6ff7f85d65e22297cd79f19fe1aeefe41bd22e545de20be4a9ccc",
+      "truth_sha256": "cb8b2af02e3116e2d71971cfcaac5e5777746caaa38dc5ff58887f8588a393f0"
+    },
+    {
+      "index": 9,
+      "kind": "wide-output",
+      "configuration": {
+        "order": 3,
+        "dynamic": true,
+        "output_coefficients": 121,
+        "profile": 0,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 5,
+      "input_sha256": "f5088eda4e0710b2500d5ef296a4b02894bca591a6e27bcff5105d96f51fd8f5",
+      "truth_sha256": "37691768f5c06c14e5ef24f6f655c60f69d57aace8d0f32251a5452582428020"
+    },
+    {
+      "index": 10,
+      "kind": "mixed-interactions",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 12,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          2,
+          3
+        ],
+        "ambient_count": 0,
+        "path": "add",
+        "method": 1,
+        "subbands": 3,
+        "scene": true,
+        "coefficient_count": 5,
+        "tce_types": [
+          6,
+          1,
+          3,
+          0
+        ],
+        "controls": {
+          "flag_a": false,
+          "flag_b": true,
+          "flag_c": true,
+          "flag_f": false,
+          "parameter_0": 2
+        },
+        "drc": true,
+        "rich": true
+      },
+      "packets": 4,
+      "input_sha256": "85e44bd88adae1080b33bbefc8f382eb88082aa24d73bf79ef0a3047b977243d",
+      "truth_sha256": "32160bf95a5af6825841e01875f91161accb385607902c33c68f9aabc5aa4880"
+    },
+    {
+      "index": 11,
+      "kind": "large-independent-mapping",
+      "configuration": {
+        "order": 10,
+        "dynamic": true,
+        "output_coefficients": 121,
+        "profile": 0,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 1,
+        "subbands": 3,
+        "scene": false,
+        "coefficient_count": 120,
+        "controls": {
+          "flag_f": false
+        },
+        "quantization_bits": 9
+      },
+      "packets": 3,
+      "input_sha256": "b01982172f3c1520580f2346a5419951aac52ae6dbde0339161c12e94888f140",
+      "truth_sha256": "6891f708357d1e22439fecb7c2aa938c36759aee14c603684c1580f697484e46"
+    },
+    {
+      "index": 12,
+      "kind": "prefix-two",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 2,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "method": 2,
+        "subbands": 8,
+        "scene": false
+      },
+      "packets": 3,
+      "input_sha256": "461030a826ba5d1497814aa8d14666489e09884ff76c631ad9aa6dd65fa95d49",
+      "truth_sha256": "57e97d85ba881ae47fe12aad28efd710ad7f2e4a95c068f71fb3b2a3add7d9de"
+    },
+    {
+      "index": 13,
+      "kind": "explicit-square-controls",
+      "configuration": {
+        "order": 2,
+        "dynamic": true,
+        "output_coefficients": 16,
+        "profile": 5,
+        "level": 0,
+        "rate": 48000,
+        "counts": [
+          2,
+          3
+        ],
+        "ambient_count": 4,
+        "path": "add",
+        "method": 0,
+        "subbands": 3,
+        "scene": false,
+        "coefficient_count": 9,
+        "transform": 4,
+        "controls": {
+          "flag_a": false,
+          "flag_b": true,
+          "flag_c": true,
+          "flag_f": false
+        }
+      },
+      "packets": 3,
+      "input_sha256": "b1294c4e13041e1d49ccd04f0575f2d5842bbb7fd7185a1771e952ed100decf3",
+      "truth_sha256": "de1dbd2b665516ec721b67861f2c70ab260ebe50cd7deca60781b16e4c1c44cd"
+    }
+  ],
+  "sha256": "290a444412c67d2152497385c257c26fe7766f77d4e2a4737bca888c628a8802"
+}

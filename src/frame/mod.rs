@@ -5,7 +5,12 @@ mod hoa;
 mod hoa_controls;
 pub use hoa_controls::PROFILE as HOA_SPATIAL_CONTROLS_PROFILE;
 pub use hoa_controls::format_sha256 as hoa_spatial_controls_format_sha256;
+pub use hoa_controls::frame_state_sha256 as hoa_frame_configuration_state_sha256;
 pub use hoa_controls::{HoaFrameConfigurationReport, HoaSpatialControls};
+pub use hoa_dynamic::{
+    DOMAINS_PROFILE as HOA_DYNAMIC_DOMAINS_PROFILE,
+    domains_format_sha256 as hoa_dynamic_domains_format_sha256,
+};
 mod hoa_additive;
 mod hoa_ambient;
 pub use hoa_additive::{AmbientCombination, AmbientContribution, HoaAdditiveData};

@@ -172,7 +172,7 @@ pub(super) fn restore(
         HoaAdditiveData {
             combination: AmbientCombination::Add,
             numeric_profile: if configuration.controls_extended() {
-                super::hoa_controls::NUMERIC_PROFILE
+                super::hoa_controls::numeric_profile(configuration.controls)
             } else {
                 NUMERIC_PROFILE
             }

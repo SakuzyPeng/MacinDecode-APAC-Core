@@ -304,8 +304,14 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
-            return if context.controls_extended() {
-                hoa::CONTROLS_BACKEND
+            return if context.dynamic_domains_extended() {
+                hoa::DYNAMIC_DOMAINS_BACKEND
+            } else if context.controls_extended() {
+                if context.spatial_controls().flag_b {
+                    hoa::FRAME_CONTROLS_BACKEND
+                } else {
+                    hoa::CONTROLS_BACKEND
+                }
             } else if !context.full_order() {
                 hoa::PARTIAL_BACKEND
             } else if context.transport_extended() {
@@ -352,6 +358,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.dynamic_domains_extended() {
+                return "hoa_dynamic_actual_domains_sq_drc_off";
+            }
             if context.controls_extended() {
                 return "hoa_spatial_controls_sq_drc_off";
             }

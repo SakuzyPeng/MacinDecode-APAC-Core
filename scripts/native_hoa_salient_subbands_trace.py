@@ -38,7 +38,8 @@ def spatial(frame,pointer):
         info[name]=nested(frame,pointer+offset,'I',allocated,16)[:s]
     info['dynamic_subbands']=hoa.u32(frame,pointer+0x48)
     info['dynamic_ends']=vector(frame,pointer+0xa0,'I',info['dynamic_subbands']) if info['flags'][12] else []
-    info['dynamic_maps']=[list(struct.unpack('<9I',base.memory(frame,pointer+0x198+b*0x90,36))) for b in range(8)] if info['flags'][12] else []
+    if info['flags'][12] and n<COUNT and n>36:raise RuntimeError('bound native mapping rows are limited to 36 slots; use independent format verification')
+    info['dynamic_maps']=[list(struct.unpack('<'+str(n)+'I',base.memory(frame,pointer+0x198+b*0x90,n*4))) for b in range(8)] if info['flags'][12] and n<COUNT else []
     return info
 
 

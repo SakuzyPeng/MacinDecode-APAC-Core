@@ -15,7 +15,7 @@ def check_format():
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--check',action='store_true');args=parser.parse_args();check_format()
-    for name,generate in [('hoa-controls-vectors-v1.json',manifest),('hoa-controls-state-v1.json',state_fixtures)]:
+    for name,generate in [('hoa-controls-vectors-v2.json',manifest),('hoa-controls-state-v2.json',state_fixtures)]:
         p=Path(__file__).resolve().parents[1]/'data'/name;value=generate()
         if args.check:assert json.loads(p.read_text())==value,name+' changed'
         else:p.write_text(json.dumps(value,indent=2)+'\n')

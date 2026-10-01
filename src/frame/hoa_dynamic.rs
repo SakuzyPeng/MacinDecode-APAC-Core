@@ -11,6 +11,20 @@ use std::sync::OnceLock;
 pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
 pub const SUBBAND_PROFILE: &str = "apac-hoa-dynamic-subbands-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-dynamic-selection-state-v1";
+pub const DOMAINS_PROFILE: &str = "apac-hoa-dynamic-domains-v1";
+pub const DOMAINS_NUMERIC_PROFILE: &str = "apac-hoa-dynamic-domains-math-v1";
+pub const DOMAINS_STATE_PROFILE: &str = "apac-hoa-dynamic-domains-state-v1";
+#[cfg(test)]
+#[path = "hoa_dynamic_domains_tests.rs"]
+mod domains_tests;
+pub fn domains_format_sha256() -> &'static str {
+    static HASH: OnceLock<String> = OnceLock::new();
+    HASH.get_or_init(|| {
+        crate::model::sha256(include_bytes!(
+            "../../data/hoa-dynamic-domains-format-v1.json"
+        ))
+    })
+}
 
 #[derive(Deserialize)]
 struct Format {
@@ -127,12 +141,14 @@ pub(super) fn boundaries(count: usize, method: usize, short: bool) -> &'static [
 pub enum DynamicSelectionEncoding {
     IndexList,
     Bitmap,
+    Identity,
+    Prefix,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DynamicBandMapping {
     pub subband_index: usize,
-    pub target_acn_indices: [u8; 9],
+    pub target_acn_indices: Vec<u8>,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
@@ -180,6 +196,12 @@ impl From<StaticAmbientData> for InternalAmbientData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DynamicSelectionData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub domain_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configured_subband_count: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub wire_mapping_groups: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unrounded_subbands: Option<bool>,
     pub encoding: DynamicSelectionEncoding,
     pub method: u8,
@@ -217,127 +239,162 @@ pub(super) fn read_and_apply(
     let start = parser.bits.position();
     let method = configuration.dynamic_method.expect("dynamic context");
     let count = usize::from(configuration.dynamic_subbands.unwrap_or(0));
+    let slots = usize::from(configuration.recovery_slots);
+    let outputs = usize::from(configuration.channels);
+    let active = slots < outputs;
+    let extended = configuration.dynamic_domains_extended();
     if !(1..=8).contains(&count)
         || method > 2
-        || input.len() != 9
+        || !(1..=121).contains(&slots)
+        || !(1..=121).contains(&outputs)
+        || input.len() != slots
         || input.iter().enumerate().any(|(i, v)| {
             usize::from(v.slot_index) != i
                 || v.scaled.len() != 1024
-                || v.scaled.iter().any(|x| !x.is_finite())
+                || v.scaled.iter().any(|v| !v.is_finite())
         })
     {
         return Err(ParseError::new(
             start,
             "hoa-dynamic-input",
-            "requires nine finite restored slots and a supported subdivision",
+            "requires finite restored slots matching the actual domain and a supported subdivision",
         ));
     }
-    let listed = parser.flag("hoa.dynamic_selection.index_list")?;
-    let mut mappings = Vec::with_capacity(8);
-    let mut saved = [[0u8; 9]; 8];
-    for (band, targets) in saved.iter_mut().enumerate() {
-        let begin = parser.bits.position();
-        if listed {
-            let mut seen = 0u16;
-            for (slot, target) in targets.iter_mut().enumerate() {
-                let position = parser.bits.position();
-                *target = parser.take(
-                    &format!("hoa.dynamic_selection.bands[{band}].target[{slot}]"),
-                    4,
-                )? as u8;
-                let bit = 1u16 << *target;
-                if seen & bit != 0 {
+    let mut encoding = if slots == outputs {
+        DynamicSelectionEncoding::Identity
+    } else {
+        DynamicSelectionEncoding::Prefix
+    };
+    let mut mappings = Vec::new();
+    let mut saved = vec![vec![0u8; slots]; if active { 8 } else { 0 }];
+    if active {
+        let listed = parser.flag("hoa.dynamic_selection.index_list")?;
+        encoding = if listed {
+            DynamicSelectionEncoding::IndexList
+        } else {
+            DynamicSelectionEncoding::Bitmap
+        };
+        let width = usize::BITS as usize - (outputs - 1).leading_zeros() as usize;
+        for (band, targets) in saved.iter_mut().enumerate() {
+            let begin = parser.bits.position();
+            if listed {
+                let mut seen = vec![false; outputs];
+                for (slot, target) in targets.iter_mut().enumerate() {
+                    let position = parser.bits.position();
+                    let value = parser.take(
+                        &format!("hoa.dynamic_selection.bands[{band}].target[{slot}]"),
+                        width,
+                    )? as usize;
+                    if value >= outputs {
+                        return Err(ParseError::new(
+                            position,
+                            "hoa-dynamic-selection",
+                            format!("target ACN {value} exceeds output dimension {outputs}"),
+                        ));
+                    }
+                    if seen[value] {
+                        return Err(ParseError::new(
+                            position,
+                            "hoa-dynamic-selection",
+                            format!("duplicate target ACN {value} in band {band}"),
+                        ));
+                    }
+                    seen[value] = true;
+                    *target = value as u8;
+                }
+            } else {
+                let mut selected = Vec::with_capacity(slots);
+                for acn in 0..outputs {
+                    if parser.flag(&format!(
+                        "hoa.dynamic_selection.bands[{band}].selected[{acn}]"
+                    ))? {
+                        selected.push(acn as u8);
+                    }
+                }
+                if selected.len() != slots {
                     return Err(ParseError::new(
-                        position,
+                        begin,
                         "hoa-dynamic-selection",
-                        format!("duplicate target ACN {} in band {band}", *target),
+                        format!(
+                            "band {band} selects {} coefficients; expected {slots}",
+                            selected.len()
+                        ),
                     ));
                 }
-                seen |= bit;
+                *targets = selected;
             }
-        } else {
-            let mut selected = [false; 16];
-            for (acn, value) in selected.iter_mut().enumerate() {
-                *value = parser.flag(&format!(
-                    "hoa.dynamic_selection.bands[{band}].selected[{acn}]"
-                ))?;
-            }
-            let count = selected.iter().filter(|&&v| v).count();
-            if count != 9 {
-                return Err(ParseError::new(
-                    begin,
-                    "hoa-dynamic-selection",
-                    format!("band {band} selects {count} coefficients; expected nine"),
-                ));
-            }
-            for (target, acn) in targets.iter_mut().zip(
-                selected
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, &value)| value.then_some(i)),
-            ) {
-                *target = acn as u8;
-            }
+            mappings.push(DynamicBandMapping {
+                subband_index: band,
+                target_acn_indices: targets.clone(),
+                start_bit_offset: begin,
+                end_bit_offset: parser.bits.position(),
+            });
         }
-        mappings.push(DynamicBandMapping {
-            subband_index: band,
-            target_acn_indices: *targets,
-            start_bit_offset: begin,
-            end_bit_offset: parser.bits.position(),
-        });
     }
     let rounded = configuration.controls.flag_f;
-    let ends = if rounded {
-        boundaries(count, usize::from(method), false)
-    } else {
-        super::hoa_controls::boundaries(count, usize::from(method))
-    }
-    .to_vec();
-    let per_window = if rounded {
-        boundaries(count, usize::from(method), block == 2).to_vec()
-    } else if block == 2 {
+    let ends = if !active {
         vec![]
+    } else if rounded {
+        boundaries(count, usize::from(method), false).to_vec()
+    } else {
+        super::hoa_controls::boundaries(count, usize::from(method)).to_vec()
+    };
+    let per_window = if !active || (!rounded && block == 2) {
+        vec![]
+    } else if rounded {
+        boundaries(count, usize::from(method), block == 2).to_vec()
     } else {
         ends.clone()
     };
-    let mut output: Vec<_> = (0..16)
+    let mut output: Vec<_> = (0..outputs)
         .map(|acn| HoaCoefficientSpectrum {
-            acn_index: acn,
-            scaled: vec![0.; 1024],
+            acn_index: acn as u8,
+            scaled: if active {
+                vec![0.; 1024]
+            } else {
+                input[acn].scaled.clone()
+            },
         })
         .collect();
-    for line in 0..1024 {
-        let frequency = if block == 2 && !rounded {
-            (line % 128) * 8 + line / 128
-        } else if block == 2 {
-            line % 128
-        } else {
-            line
-        };
-        let band = (if rounded { &per_window } else { &ends })
-            .iter()
-            .position(|&end| frequency < end)
-            .expect("complete frequency coverage");
-        for (slot, source) in input.iter().enumerate() {
-            output[usize::from(saved[band][slot])].scaled[line] = source.scaled[line];
+    if active {
+        for line in 0..1024 {
+            let position = if block == 2 && !rounded {
+                (line % 128) * 8 + line / 128
+            } else if block == 2 {
+                line % 128
+            } else {
+                line
+            };
+            let band = (if rounded { &per_window } else { &ends })
+                .iter()
+                .position(|&end| position < end)
+                .expect("complete frequency coverage");
+            for (slot, source) in input.iter().enumerate() {
+                output[usize::from(saved[band][slot])].scaled[line] = source.scaled[line];
+            }
         }
     }
-    state.last_dynamic_mapping = Some(saved);
+    state.last_dynamic_mapping = active.then_some(saved);
     let ambient_count = configuration.ambient_components;
     Ok((
         DynamicSelectionData {
-            unrounded_subbands: (!rounded).then_some(true),
-            encoding: if listed {
-                DynamicSelectionEncoding::IndexList
-            } else {
-                DynamicSelectionEncoding::Bitmap
-            },
+            domain_profile: extended.then(|| DOMAINS_PROFILE.into()),
+            configured_subband_count: extended.then_some(count),
+            wire_mapping_groups: extended.then_some(if active { 8 } else { 0 }),
+            unrounded_subbands: (active && !rounded).then_some(true),
+            encoding,
             method,
             subband_ends: ends,
             lines_per_window: per_window,
-            active_subband_count: (count < 8).then_some(count),
-            subband_profile: (count < 8).then(|| SUBBAND_PROFILE.into()),
-            format_sha256: if !rounded {
+            active_subband_count: if !active {
+                Some(0)
+            } else {
+                (count < 8).then_some(count)
+            },
+            subband_profile: (active && count < 8).then(|| SUBBAND_PROFILE.into()),
+            format_sha256: if extended {
+                Some(domains_format_sha256().into())
+            } else if !rounded {
                 Some(super::hoa_controls::format_sha256().into())
             } else {
                 (count < 8).then(|| format_sha256(count).into())

@@ -316,12 +316,12 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 固定恢复域 | 零至十阶完整系数域，以及显式 1–121 系数域；单系数仅纯 ambient，显式维度的 salient 描述使用模式 0–3 |
 | 分量与描述 | 可变 salient／ambient 数量；salient 一至整体阶数、6–9 位量化、每分量 1–16 带、空间方法 0–2 |
 | 传输元素 | HOA SCE、CPE、LFE及零通道扩展元素；核心数量 ≤ 传输通道 ≤ 输出数量，元素数量独立计算 |
-| 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及九槽→十六系数动态选择的已验证配置 |
-| 动态分带 | 方法 0–2、1–8 有效带；每帧完整读取八组九槽列表／位图 |
+| 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及按实际内部／输出维度的动态选择 |
+| 动态分带 | 方法 0–2、1–8 有效带；内部维度小于输出时读取八组实际长度列表／位图，否则不读取映射载荷 |
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
 | 输出与访问 | ACN/SN3D，包目录、CAF、受限 MP4／M4A；范围请求从包零顺序推进 |
 
-LRVQ、N3D、自定义布局／remapping、其他动态维度、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ、N3D、自定义布局／remapping、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
@@ -622,7 +622,7 @@ python3 -B scripts/pack_hoa_salient_formats.py --check
 PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format
 ```
 
-**显式 HOA 系数域**：`full_order=false` 接受固定的 1–121 个实际系数，包括非平方数及显式编码的平方数。纯 ambient 可为单系数；salient 每项至少两个系数，所有分量使用实际恢复维度，支持模式 0–3、6–9 位量化、每分量 1–16 子带及已有选择、变换、覆盖／叠加规则。字典取容纳阶数，系数组按实际范围过滤；矩阵和方向描述在参考组件的此配置下被拒绝，不能用完整阶矩阵截取来补齐。此批保持固定内部／输出同维，动态显式域另行扩展。
+**显式 HOA 系数域**：`full_order=false` 接受固定的 1–121 个实际系数，包括非平方数及显式编码的平方数。纯 ambient 可为单系数；salient 每项至少两个系数，所有分量使用实际恢复维度，支持模式 0–3、6–9 位量化、每分量 1–16 子带及已有选择、变换、覆盖／叠加规则。字典取容纳阶数，系数组按实际范围过滤；矩阵和方向描述在参考组件的此配置下被拒绝，不能用完整阶矩阵截取来补齐。固定路径保持内部／输出同维；动态显式域见下文通用动态选择。
 
 `HoaFrameContext::full_order()` 返回线上完整阶标志；`order()` 是容纳实际系数所需的阶数，`recovery_slot_count()`、`channel_count()` 和分量配置分别返回实际维度。非完整平方输出不标注完整 `ambisonic_order`，两系数 HOA 仍按 ASC 类型走 HOA 入口。报告仅为新配置增加 `hoa.full_order=false`，PCM 记录 `hoa_full_order`、实际维度及 `hoa_partial_domain_profile=apac-hoa-partial-domain-v1`；数学／状态为 `apac-hoa-partial-domain-math-v1`／`apac-hoa-partial-domain-state-v1`，后端为 `rust_hoa_partial_domain_sq_drc_off_f64_fft_v1`。已有完整阶的标识与 PCM 保持不变。
 
@@ -637,15 +637,30 @@ python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
 
 `flag_a=false` 在 ambient 覆盖／叠加之前加入格式定义的逐系数均值。`flag_e=false` 使方向描述只读取角度、不再读取四个显式系数。`flag_f=false` 保留未取整的频率边界；短窗按频率优先的实际谱线位置选取描述，不能将终点简单除以八。新边界来自经过读写两侧及原生缓存核验的固定整数表；表生成中的 Float32 运算用于确定码流分段，不降低音频恢复／合成的 Float64 精度。
 
-`flag_b=true` 在每个核心帧增加空间配置存在位。当前独立帧（类型 1／2）须重述，类型 0 可沿用 cookie 或前帧配置；更新只改变活动 salient／ambient 数量、选择及 `flag_c=true` 时的分量阶数／子带数。活动数量受 cookie 的最大 salient、恢复维度和传输容量约束，子带数量受 cookie 的最大子带数约束。暂时不用的子带历史保留；停用分量及已处理描述的高位填充清零。内嵌帧先推进，配置、历史、DRC 和 overlap 仍按外层包原子提交。这与尚未实现的外层 ASP 配置替换是不同载荷。
+`flag_b=true` 在每个核心帧增加空间配置存在位。当前独立帧（类型 1／2）须重述，类型 0 可沿用 cookie 或前帧配置；更新只改变活动 salient／ambient 数量、选择及 `flag_c=true` 时的分量阶数／子带数。活动数量受 cookie 的最大 salient、恢复维度和传输容量约束，子带数量受 cookie 的最大子带数约束。历史按 cookie 分配的固定分量／子带步长保存；未使用子带、停用分量及已处理描述的高位填充清零。内嵌帧先推进，配置、历史、DRC 和 overlap 仍按外层包原子提交。这与尚未实现的外层 ASP 配置替换是不同载荷。
 
-`HoaFrameContext::spatial_controls()` 返回原始控制值；逐帧报告新增可选 `hoa.spatial.controls`／`frame_configuration`，记录活动配置和位范围。未取整短窗不提供虚构的公共 `lines_per_window`；报告标记 `unrounded_subbands` 并保留长窗终点，按实际频率优先位置解释。PCM 绑定 `apac-hoa-spatial-controls-v1`、格式摘要及控制值，数学／状态规则为 `apac-hoa-spatial-controls-math-v1`／`apac-hoa-spatial-controls-state-v1`。已有默认配置的字段、标识和 PCM 不变。
+`HoaFrameContext::spatial_controls()` 返回原始控制值；逐帧报告新增可选 `hoa.spatial.controls`／`frame_configuration`，记录活动配置和位范围。未取整短窗不提供虚构的公共 `lines_per_window`；报告标记 `unrounded_subbands` 并保留长窗终点，按实际频率优先位置解释。PCM 绑定 `apac-hoa-spatial-controls-v1`、格式摘要及控制值，普通控制使用 `apac-hoa-spatial-controls-math-v1`／`apac-hoa-spatial-controls-state-v1`；帧内配置使用 v2 数学／状态及 `rust_hoa_spatial_controls_sq_drc_off_f64_fft_v2` 后端，以遵循编码侧固定历史布局并避免原生读取侧的可变步长与残留历史缺陷。已有默认配置的字段、标识和 PCM 不变。
 
 ```sh
 python3 -B scripts/generate_hoa_controls_manifest.py --check
 python3 -B scripts/validate_hoa_controls.py --binary target/debug/apac-tool --report reports/hoa-controls-math.json
 python3 -B scripts/validate_hoa_controls.py --binary target/release/apac-tool \
   --reference-report reports/hoa-controls-math.json --report reports/hoa-controls-release.json
+```
+
+**实际维度的动态选择**：内部恢复域 M 与输出域 N 分别使用实际数量，范围为 1–121，继续受 profile／level、描述及传输容量约束。内部可为完整阶或显式维度，输出可为非平方数；允许既有空间控制、帧内活动配置及 SCE／CPE／LFE／扩展元素组合。
+
+当 M < N 时，每帧读取一个编码方式位和八组映射。列表每组有 M 个 `ceil(log2(N))` 位索引，位图每组有 N 位且恰有 M 个置位；全部组均检查越界、重复及数量，只有配置的有效子带参与恢复，未选择输出为正零。当 M ≥ N 时，不读取编码方式位或映射，直接保留前 N 个内部系数。此前九槽→十六输出的线上数据、标识与 PCM 保持不变。
+
+`DynamicBandMapping::target_acn_indices` 改为实际长度 `Vec<u8>`，JSON 仍为数组。新域的报告记录 `domain_profile`、`configured_subband_count`、`wire_mapping_groups`；无映射时 `encoding` 为 `identity` 或 `prefix`，映射列表和频率表为空，有效映射带数为零。`output_order()` 查询返回容纳实际输出的阶数；非平方输出的 PCM 不伪造完整 `hoa_output_order`，改记 `hoa_output_containing_order` 和实际系数数。
+
+新规则为 `apac-hoa-dynamic-domains-v1`、`apac-hoa-dynamic-domains-math-v1`／`apac-hoa-dynamic-domains-state-v1`，后端为 `rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v1`。映射存储使用实际长度的有界集合。绑定参考组件的固定映射行只有 36 个槽位；更大的扩张域按同一已核实读写规则和独立数学验证，不执行超出该原生存储范围的跟踪，也不将原生存储限制冒充码流位宽限制。
+
+```sh
+python3 -B scripts/generate_hoa_dynamic_domains_manifest.py --check
+python3 -B scripts/validate_hoa_dynamic_domains.py --binary target/debug/apac-tool --report reports/hoa-dynamic-domains-math.json
+python3 -B scripts/validate_hoa_dynamic_domains.py --binary target/release/apac-tool \
+  --reference-report reports/hoa-dynamic-domains-math.json --report reports/hoa-dynamic-domains-release.json
 ```
 
 **HOA 传输组合**：CPE 两路各占一个连续载波，LFE 占一个，扩展元素占零个。所有音频载波仍完整读取并数值校验，包括未参与空间恢复的载波。公共两位窗型供全部 HOA ICS 使用，CPE 独立右头不重复读取窗型；SCE／CPE 复用现有 SQ、CAC、TNS、逐元素 BWE2，LFE 不携带 TNS／BWE2，不增加播放增益。

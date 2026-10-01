@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "numeric_profile": "apac-hoa-spatial-controls-math-v2",
+  "state_profile": "apac-hoa-spatial-controls-state-v2",
+  "layout": ["component", "subband", "coefficient"],
+  "capacity": ["cookie maximum salient components", "cookie maximum subbands", "internal coefficient count"],
+  "initial_history": "positive zero",
+  "component_stride": "cookie maximum subbands times internal coefficient count",
+  "inactive_subbands": "clear after every successfully recovered core frame",
+  "inactive_components": "clear after every successfully recovered core frame",
+  "higher_descriptor_coefficients": "zero extension to the internal coefficient count",
+  "independent_frame_configuration": "required for current frame types 1 and 2",
+  "commit": "whole outer packet, including embedded frames and synthesis"
+}

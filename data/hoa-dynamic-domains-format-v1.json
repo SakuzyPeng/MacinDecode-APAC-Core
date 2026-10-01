@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "format_profile": "apac-hoa-dynamic-domains-format-v1",
+  "maximum_coefficients": 121,
+  "mapping_condition": "internal_slots < output_coefficients",
+  "wire_mapping_groups": 8,
+  "list_index_width": "ceil_log2(output_coefficients)",
+  "bitmap_length": "output_coefficients",
+  "bitmap_population": "internal_slots",
+  "no_mapping_output": "first output_coefficients internal coefficients",
+  "dependencies": {
+    "hoa-dynamic-format-v1.json": "71b33fe60cd71eefcf08ee23a877ca3a1d90d0e344b9a28924f26ac72532ccac",
+    "hoa-dynamic-format-v2.json": "70f9e851b979721662118f3ff272a0e5582c27f215c6bd2a142667af769a00fd",
+    "hoa-spatial-controls-format-v1.json": "1185450e4ede00df940f622bb2df2f8d7c568f4ea3386013c7da55602a790abb",
+    "hoa-frame-configuration-state-v2.json": "62abfc59fede7c8a31ef7affa3fdbb8d68616bfba20166c294e972a44002ae21"
+  },
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "evidence": "Serialize/Deserialize and recovery pseudocode; independent actual-domain runtime controls",
+    "native_mapping_row_storage": 36
+  }
+}

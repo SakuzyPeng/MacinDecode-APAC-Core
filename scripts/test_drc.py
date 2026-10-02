@@ -51,13 +51,14 @@ class DrcTests(unittest.TestCase):
             for r,t in zip(rows,truth):check(r['report'],t)
             self.assertFalse(rows[0]['report']['drc_history_sufficient'])
             self.assertTrue(all(r['report']['drc_history_sufficient'] for r in rows[1:]))
-    def test_malformed_times_and_unsupported_header_fail_without_history_commit(self):
+    def test_future_times_are_valid_but_frame_end_must_remain_increasing(self):
         cases=[dict(absent=True,drc=dict(mode=1,frame_end=False,gains=[0],times=[33])),
                dict(absent=True,drc=dict(mode=1,gains=[0,0],times=[16])),
                dict(absent=True,drc=dict(mode=1,gains=[0,0,0],times=[17,2])),dict(absent=True)]
         result,rows,_,_=self.inspect(cases)
         self.assertEqual(result.returncode,1,result.stderr)
-        for r in rows[:3]:self.assertEqual(r['error']['kind'],'drc-node-time')
+        self.assertEqual(rows[0]['report']['drc']['nodes'][0]['time'],2111)
+        for r in rows[1:3]:self.assertEqual(r['error']['kind'],'drc-node-time')
         self.assertFalse(rows[3]['report']['drc_history_sufficient'])
     def test_byte_truncation_output_protection_and_limit(self):
         raw,truth=packet(dict(absent=True,drc=dict(header=True,mode=1,gains=[0,-14],times=[3])))
@@ -89,14 +90,16 @@ class DrcTests(unittest.TestCase):
         self.assertEqual(result.returncode,1)
         self.assertTrue((bad/'pcm/.incomplete.json').exists())
         self.assertFalse((bad/'pcm/pcm.json').exists())
-    def test_unqualified_instruction_effect_is_rejected_with_cookie_position(self):
+    def test_passive_instruction_effect_uses_shared_syntax_without_processing(self):
         raw,_=packet(dict(absent=True));root=self.root/'effect'
         bundle(root,[raw],rich=True,effect=0)
         result=self.run_tool('decode-sq',root,'--out',root/'pcm')
-        self.assertEqual(result.returncode,1)
-        error=json.loads(result.stderr)['error']
-        self.assertEqual(error['operation'],'SQ decoder')
-        self.assertRegex(error['message'],r'instructions\[0\].effect=0 at cookie bit [0-9]+')
+        self.assertEqual(result.returncode,0,result.stderr)
+        report=json.loads(result.stdout)
+        self.assertEqual(report['drc_processing'],'off')
+        self.assertEqual((root/'pcm/pcm.f32le').read_bytes(),bytes(8192))
+        impl=report['pcm']['decoder_settings']['implementation']['value']
+        self.assertEqual(impl['shared_drc_syntax_profile'],'apac-hoa-shared-drc-syntax-v1')
 
 
 if __name__=='__main__':unittest.main()

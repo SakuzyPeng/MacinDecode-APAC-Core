@@ -3,6 +3,24 @@
 use super::parser::{PResult, Parser};
 
 impl Parser<'_> {
+    fn scene_extension(&mut self, prefix: &str) -> PResult<()> {
+        if !self.flag(&format!("{prefix}.extension_present"))? {
+            return Ok(());
+        }
+        for i in 0..8 {
+            let p = format!("{prefix}.extensions[{i}]");
+            if self.take(&format!("{p}.type"), 3)? == 0 {
+                return Ok(());
+            }
+            let width = self.take(&format!("{p}.length_width_minus_four"), 4)? as usize + 4;
+            let count = self.take(&format!("{p}.bits_minus_one"), width)? as usize + 1;
+            self.passive_bits(&format!("{p}.payload"), count)?;
+        }
+        self.invalid(
+            "scene-extension-count",
+            "scene extension chain requires a terminator within eight records",
+        )
+    }
     fn scene_tag(&mut self, prefix: &str) -> PResult<()> {
         let words = self.take(&format!("{prefix}.word_count_minus_one"), 2)? + 1;
         for i in 0..words {
@@ -14,7 +32,7 @@ impl Parser<'_> {
                 self.take(&format!("{prefix}.fallback_words[{i}]"), 10)?;
             }
         }
-        self.absent(&format!("{prefix}.extension_present"))
+        self.scene_extension(prefix)
     }
 
     fn scene_language(&mut self, prefix: &str) -> PResult<()> {
@@ -87,7 +105,7 @@ impl Parser<'_> {
         if self.flag(&format!("{root}.tag_present"))? {
             self.scene_tag(&format!("{root}.tag"))?;
         }
-        self.absent(&format!("{root}.extension_present"))
+        self.scene_extension(root)
     }
 
     fn scene_composition(&mut self, p: &str) -> PResult<()> {
@@ -100,9 +118,6 @@ impl Parser<'_> {
         let selection = self.take(&format!("{p}.selection_item_count"), 6)?;
         let groups = self.take(&format!("{p}.group_count"), 5)?;
         let presets = self.take(&format!("{p}.preset_count"), 4)?;
-        if language != 0 || selection != 0 {
-            return self.stop("scene language/selection item arrays are not implemented");
-        }
         let nonlanguage = self.count(nonlanguage, 7)?;
         for i in 0..nonlanguage {
             let prefix = format!("{p}.nonlanguage_items[{i}]");
@@ -111,6 +126,36 @@ impl Parser<'_> {
             for j in 0..count {
                 self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
             }
+            if self.flag(&format!("{prefix}.tag_present"))? {
+                self.scene_tag(&format!("{prefix}.tag"))?;
+            }
+        }
+        let language = self.count(language, 8)?;
+        for i in 0..language {
+            let prefix = format!("{p}.language_items[{i}]");
+            let count = self.drc_count(&format!("{prefix}.source_count"), 2, 6)?;
+            for j in 0..count {
+                self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
+            }
+            self.scene_language(&format!("{prefix}.language"))?;
+            self.flag(&format!("{prefix}.flag_a"))?;
+            self.flag(&format!("{prefix}.flag_b"))?;
+        }
+        let selection = self.count(selection, 22)?;
+        for i in 0..selection {
+            let prefix = format!("{p}.selection_items[{i}]");
+            let count = self.drc_count(&format!("{prefix}.language_item_count"), 6, 6)?;
+            if count == 0 {
+                return self.invalid("scene-reference", "language selection set is empty");
+            }
+            for j in 0..count {
+                if self.take(&format!("{prefix}.language_item_indices[{j}]"), 6)? as usize
+                    >= language
+                {
+                    return self.invalid("scene-reference", "language item index is out of range");
+                }
+            }
+            self.take(&format!("{prefix}.parameter"), 15)?;
             if self.flag(&format!("{prefix}.tag_present"))? {
                 self.scene_tag(&format!("{prefix}.tag"))?;
             }
@@ -125,19 +170,25 @@ impl Parser<'_> {
                     return self.invalid("scene-reference", "group item index is out of range");
                 }
             }
-            let other = self.take(&format!("{prefix}.selection_count"), 6)?;
-            // The complete path verified in this milestone has one nonlanguage item per group.
-            if n != 1 || other != 0 {
-                return self
-                    .stop("multi-item or language-selection scene groups are not implemented");
+            let other = self.drc_count(&format!("{prefix}.selection_count"), 6, 6)?;
+            for j in 0..other {
+                if self.take(&format!("{prefix}.selection_indices[{j}]"), 6)? as usize >= selection
+                {
+                    return self.invalid(
+                        "scene-reference",
+                        "language selection index is out of range",
+                    );
+                }
             }
-            self.scene_controls(&format!("{prefix}.controls[0]"))?;
+            for preset in 0..presets {
+                self.scene_controls(&format!("{prefix}.controls[{preset}]"))?;
+            }
             if self.flag(&format!("{prefix}.tag_present"))? {
                 self.scene_tag(&format!("{prefix}.tag"))?;
             }
-            self.absent(&format!("{prefix}.extension_present"))?;
+            self.scene_extension(&prefix)?;
         }
-        self.absent(&format!("{p}.preset_selection_data_present"))?;
+        let selection_data = self.flag(&format!("{p}.preset_selection_data_present"))?;
         let presets = self.count(presets, 20)?;
         for i in 0..presets {
             let prefix = format!("{p}.presets[{i}]");
@@ -148,12 +199,47 @@ impl Parser<'_> {
                 self.flag(&format!("{prefix}.characteristics[{j}]"))?;
             }
             self.scene_language(&format!("{prefix}.language"))?;
+            if selection_data {
+                self.flag(&format!("{prefix}.selection_flag"))?;
+                let count = self.drc_count(&format!("{prefix}.selection_count"), 6, 6)?;
+                for j in 0..count {
+                    self.take(&format!("{prefix}.selection_indices[{j}]"), 6)?;
+                }
+            }
         }
         if self.flag(&format!("{p}.tag_present"))? {
             self.scene_tag(&format!("{p}.tag"))?;
         }
-        self.absent(&format!("{p}.selection_updates_present"))?;
-        self.absent(&format!("{p}.extension_present"))
+        // Keep the existing presence-field name; its payload is category metadata.
+        if self.flag(&format!("{p}.selection_updates_present"))? {
+            let count = self.drc_count(&format!("{p}.category_count"), 4, 8)?;
+            for i in 0..count {
+                let prefix = format!("{p}.categories[{i}]");
+                let members = self.drc_count(&format!("{prefix}.group_count"), 6, 6)?;
+                for j in 0..members {
+                    if self.take(&format!("{prefix}.group_indices[{j}]"), 6)? as usize >= groups {
+                        return self
+                            .invalid("scene-reference", "category group index is out of range");
+                    }
+                }
+                if self.flag(&format!("{prefix}.members_present"))? {
+                    for preset in 0..presets {
+                        let selected =
+                            self.take(&format!("{prefix}.members[{preset}]"), 6)? as usize;
+                        if selected >= members {
+                            return self.invalid(
+                                "scene-reference",
+                                "category member index is out of range",
+                            );
+                        }
+                    }
+                }
+                if self.flag(&format!("{prefix}.tag_present"))? {
+                    self.scene_tag(&format!("{prefix}.tag"))?;
+                }
+            }
+        }
+        self.scene_extension(p)
     }
 
     fn scene_controls(&mut self, p: &str) -> PResult<()> {

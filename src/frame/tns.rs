@@ -1,5 +1,5 @@
 //! Per-window APAC TNS syntax and a Float64 synthesis lattice, before BWE2.
-use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac, spectrum::tables};
+use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::OnceLock};
@@ -10,6 +10,10 @@ pub const NUMERIC_PROFILE: &str = "apac-tns-math-v1";
 pub struct TnsFilter {
     pub length: usize,
     pub order: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoded_order: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub order_profile: Option<String>,
     pub direction: Option<bool>,
     pub compression: Option<bool>,
     pub coefficient_width: Option<usize>,
@@ -101,15 +105,22 @@ pub(super) fn read_channel(
     let start_bit_offset = bits.position();
     let present = bits.read(1)? != 0;
     let short = ics.block_type == 2;
+    let bands = super::sfb::rate(rate);
     let (size, full, limit, maximum, offsets) = if short {
-        (128, 14, 14, 7, &tables().short_offsets)
+        (
+            128,
+            super::sfb::offsets(rate, true).len() - 1,
+            bands.tns_short_limit,
+            7,
+            super::sfb::offsets(rate, true),
+        )
     } else {
         (
             1024,
-            49,
-            if rate == 48000 { 40 } else { 42 },
+            super::sfb::offsets(rate, false).len() - 1,
+            bands.tns_long_limit,
             12,
-            &tables().long_offsets,
+            super::sfb::offsets(rate, false),
         )
     };
     let active = ics.max_sfb.min(limit);
@@ -135,18 +146,16 @@ pub(super) fn read_channel(
                         "TNS filter length must be positive",
                     ));
                 }
-                let order_at = bits.position();
-                let order = bits.read(if short { 3 } else { 5 })? as usize;
-                if order > maximum {
-                    return Err(ParseError::new(
-                        order_at,
-                        "tns-order",
-                        format!("TNS order {order} exceeds {maximum}"),
-                    ));
-                }
+                let encoded_order = bits.read(if short { 3 } else { 5 })? as usize;
+                // The wire value is clamped before consuming coefficients,
+                // so larger long-order codes still carry only twelve values.
+                let order = encoded_order.min(maximum);
                 let mut record = TnsFilter {
                     length,
                     order,
+                    encoded_order: (encoded_order != order).then_some(encoded_order),
+                    order_profile: (encoded_order != order)
+                        .then(|| "apac-tns-order-clamp-v1".into()),
                     direction: None,
                     compression: None,
                     coefficient_width: None,
@@ -387,7 +396,7 @@ mod tests {
         );
         for (word, kind) in [
             (word & !(63 << 11), "tns-length"),
-            ((word & !(31 << 6)) | (13 << 6), "tns-order"),
+            ((word & !(31 << 6)) | (13 << 6), "truncated"),
         ] {
             let bytes = packed(word, width);
             assert_eq!(

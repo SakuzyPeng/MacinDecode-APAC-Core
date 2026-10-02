@@ -6,9 +6,10 @@ from spectrum_vectors import TABLES, bits, pack
 from cac_vectors import windows
 
 
-def regions(ics):
+def regions(ics,rate=48000):
     short=ics['block_type']==2
-    offsets=TABLES['short_offsets' if short else 'long_offsets']
+    from shared_config_tables import offsets as band_offsets
+    offsets=band_offsets(rate,short,TABLES)
     lower=offsets[ics['max_sfb']]*(8 if short else 1)<384
     size=128 if short else 1024
     source_start=16 if short else 128
@@ -45,7 +46,7 @@ def packet(case,rate=48000):
                 parameters=copy.deepcopy(channels[0]['parameters']);source=0
         channels.append(dict(channel_index=ch,active=active,parameter_source_channel=source,parameters=parameters))
     truth['bwe2']=dict(start_bit_offset=start,end_bit_offset=len(payload),control_bits=flags,channels=channels)
-    truth['bwe2_regions']=[regions(c['ics']) if p['active'] else [] for c,p in zip(truth['channels'],channels)]
+    truth['bwe2_regions']=[regions(c['ics'],rate) if p['active'] else [] for c,p in zip(truth['channels'],channels)]
     return pack(payload)+b'\0',truth
 
 

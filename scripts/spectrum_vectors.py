@@ -73,10 +73,11 @@ def window_groups(mask, short):
     return groups
 
 
-def channel(bands, block=0, grouping=0, gain=160):
+def channel(bands, block=0, grouping=0, gain=160,rate=48000):
     """bands maps sfb to (codebook, tuple, sf); nonzero runs merge into sections."""
     short = block == 2
-    offsets = TABLES['short_offsets' if short else 'long_offsets']
+    from shared_config_tables import offsets as band_offsets
+    offsets = band_offsets(rate,short,TABLES)
     groups = window_groups(grouping, short)
     max_sfb = max(bands, default=-1)+1
     head = bits(block, 2)+bits(max_sfb, 4 if short else 6)+(bits(grouping, 7) if short else '')
@@ -125,10 +126,10 @@ def channel(bands, block=0, grouping=0, gain=160):
         global_gain=gain, header_bits=len(head), spectral_relative_offset=len(header))
 
 
-def frame(case):
+def frame(case,rate=48000):
     block, grouping, gain = (case.get(k, v) for k, v in [('block', 0), ('grouping', 0), ('gain', 160)])
-    left, a = channel(case.get('left', {}), block, grouping, gain)
-    right, b = channel(case.get('right', {}), case.get('right_block', block), case.get('right_grouping', grouping), gain)
+    left, a = channel(case.get('left', {}), block, grouping, gain,rate)
+    right, b = channel(case.get('right', {}), case.get('right_block', block), case.get('right_grouping', grouping), gain,rate)
     a.update(channel_index=0, stream_bit_offset=4+a.pop('header_bits'), spectral_bit_offset=4+a.pop('spectral_relative_offset'), end_bit_offset=4+len(left))
     origin = 5+len(left)
     b.update(channel_index=1, stream_bit_offset=origin+b.pop('header_bits'), spectral_bit_offset=origin+b.pop('spectral_relative_offset'), end_bit_offset=origin+len(right))

@@ -1,5 +1,5 @@
 //! Shared-ICS SQ spectra and bounded CAC before TNS. No inter-frame CAC state.
-use super::spectrum::{Codebook, Trie, tables as spectral_tables};
+use super::spectrum::{Codebook, Trie};
 use super::{FrameContext, IcsInfo, Parser, SpectrumReport, parse_spectrum};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use serde::{Deserialize, Serialize};
@@ -209,14 +209,21 @@ pub(super) fn apply_channels(
     channels: &[super::ChannelSpectrum],
     data: &CacData,
 ) -> Result<Vec<CacChannelSpectrum>, ParseError> {
+    apply_channels_at_rate(channels, data, 48000)
+}
+pub(super) fn apply_channels_at_rate(
+    channels: &[super::ChannelSpectrum],
+    data: &CacData,
+    rate: u64,
+) -> Result<Vec<CacChannelSpectrum>, ParseError> {
     let mut left = channels[0].scaled.clone();
     let mut right = channels[1].scaled.clone();
     let ics = &channels[0].ics;
     let short = ics.block_type == 2;
     let (size, offsets) = if short {
-        (128, &spectral_tables().short_offsets)
+        (128, super::sfb::offsets(rate, true))
     } else {
-        (1024, &spectral_tables().long_offsets)
+        (1024, super::sfb::offsets(rate, false))
     };
     let mut first = 0;
     for (group, &length) in ics.window_groups.iter().enumerate() {

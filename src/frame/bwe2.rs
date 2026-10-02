@@ -1,5 +1,5 @@
 //! Bounded two-channel BWE2 syntax, after TNS and before core alignment.
-use super::{FrameContext, IcsInfo, Parser, TnsReport, parse_tns, spectrum::tables};
+use super::{FrameContext, IcsInfo, Parser, TnsReport, parse_tns};
 use crate::{
     bwe2_math,
     config::{ConfigField, ParseError, bits::BitReader},
@@ -142,11 +142,11 @@ pub(super) fn read_element_data(
         channels,
     })
 }
-pub(super) fn cutoff(ics: &IcsInfo) -> usize {
+pub(super) fn cutoff_at_rate(ics: &IcsInfo, rate: u64) -> usize {
     let (offsets, scale) = if ics.block_type == 2 {
-        (&tables().short_offsets, 8)
+        (super::sfb::offsets(rate, true), 8)
     } else {
-        (&tables().long_offsets, 1)
+        (super::sfb::offsets(rate, false), 1)
     };
     if offsets[ics.max_sfb] * scale < 384 {
         256 / scale
@@ -155,11 +155,14 @@ pub(super) fn cutoff(ics: &IcsInfo) -> usize {
     }
 }
 pub(super) fn regions(ics: &IcsInfo) -> (usize, Vec<Bwe2Region>) {
+    regions_at_rate(ics, 48000)
+}
+pub(super) fn regions_at_rate(ics: &IcsInfo, rate: u64) -> (usize, Vec<Bwe2Region>) {
     let short = ics.block_type == 2;
     let (size, offsets, scale) = if short {
-        (128, &tables().short_offsets, 8)
+        (128, super::sfb::offsets(rate, true), 8)
     } else {
-        (1024, &tables().long_offsets, 1)
+        (1024, super::sfb::offsets(rate, false), 1)
     };
     let lower = offsets[ics.max_sfb] * scale < 384;
     let source = 128 / scale;

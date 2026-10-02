@@ -228,7 +228,16 @@ fn decode_with_access(
         interleaved: true,
         sample_rate: info.format.sample_rate,
         channels,
-        layout: info.layout,
+        layout: if decoder.stream_context.is_some()
+            || decoder
+                .hoa_context
+                .as_ref()
+                .is_some_and(|c| c.shared_configuration_enabled())
+        {
+            Property::known(decoder.channel_layout().clone())
+        } else {
+            info.layout
+        },
         start_frame: range.start_frame,
         requested_frames: range.requested_frames,
         frames: saved,
@@ -280,6 +289,35 @@ fn decode_with_access(
             .as_mut()
             .unwrap()["hoa_numeric_profile"] = json!(profile);
     }
+    if let Some(components) = decoder.components() {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        value["hoa_multiple_asc_profile"] = json!(crate::frame::stream::PROFILE);
+        value["components"] = json!(components);
+        value["hoa_shared_config_format_sha256"] =
+            json!(crate::frame::hoa_shared_config_format_sha256());
+        if let Some(context) = &decoder.stream_context
+            && !context.additional_components().is_empty()
+        {
+            value["additional_components"] = json!(context.additional_components());
+        }
+    }
+    if decoder.drc.shared_syntax_used {
+        let value = pcm
+            .decoder_settings
+            .get_mut("implementation")
+            .unwrap()
+            .value
+            .as_mut()
+            .unwrap();
+        value["shared_drc_syntax_profile"] = json!(crate::frame::HOA_SHARED_DRC_PROFILE);
+        value["shared_drc_format_sha256"] = json!(crate::frame::hoa_shared_drc_format_sha256());
+    }
     if let Some(context) = &decoder.hoa_context {
         let value = pcm
             .decoder_settings
@@ -288,6 +326,12 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
+        if context.shared_configuration_enabled() {
+            value["hoa_shared_config_profile"] = json!(crate::frame::HOA_SHARED_CONFIG_PROFILE);
+            value["hoa_shared_config_format_sha256"] =
+                json!(crate::frame::hoa_shared_config_format_sha256());
+            value["hoa_sfb_sample_rate_hz"] = json!(context.sfb_sample_rate_hz());
+        }
         if let Some(mapping) = context.static_remapping() {
             value["hoa_static_remapping"] = json!(mapping);
         }
@@ -533,7 +577,7 @@ fn decode_with_access(
     if let Some(profile) = decoder.access_context.channel_layout_profile() {
         report["channel_layout_profile"] = json!(profile);
     }
-    if channels != 2 {
+    if channels != 2 || decoder.stream_context.is_some() {
         report["channel_count"] = json!(channels);
         report["channel_layout"] = json!(decoder.channel_layout());
         report["absent_elements"] = json!(absent_elements);

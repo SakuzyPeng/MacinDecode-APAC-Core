@@ -1,8 +1,13 @@
 //! Independent APAC cookie syntax inspection. No Apple APIs are used here.
 pub(crate) mod bits;
 mod drc;
+mod drc_metadata;
 mod hoa;
 mod parser;
+pub(crate) mod passive;
+mod passive_compression;
+mod passive_metadata;
+mod passive_renderer;
 mod scenes;
 
 use crate::model::{SCHEMA_VERSION, sha256};

@@ -205,16 +205,19 @@ impl CafReader {
             .collect();
         let channels = ints[4];
         let layout = crate::channel_layout::layout(u64::from(channels));
-        let hoa_count = (1..=121).contains(&channels);
+        let hoa_count = (1..=255).contains(&channels);
         if layout.is_none() && !hoa_count {
             return Err(invalid(
                 b"desc",
                 desc.offset + 24,
-                "requires a supported discrete layout or a qualified HOA count up to 121",
+                "requires a supported discrete layout or a qualified HOA stream count up to 255",
             ));
         }
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
-        if !matches!(rate, 44100.0 | 48000.0) {
+        if !rate.is_finite()
+            || rate.fract() != 0.
+            || crate::frame::sfb::index(rate as u64).is_none()
+        {
             return Err(invalid(
                 b"desc",
                 desc.offset,
@@ -241,19 +244,23 @@ impl CafReader {
             }));
             e
         })?;
-        let output_layout = if parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "components[0].type" && f.value == json!(2))
-        {
-            let context = crate::frame::HoaFrameContext::from_cookie(&cookie)?;
+        let output_layout = if parsed.fields.iter().any(|f| {
+            f.name.ends_with(".type")
+                && f.name.starts_with("components[")
+                && !f.name.contains("tce[")
+                && f.value == json!(2)
+        }) {
+            let context = crate::frame::DecodedFrameContext::from_cookie(&cookie)?;
             if let Some(reason) = context.rejection() {
                 return Err(Error::new(
                     "SQ decoder",
                     format!("unsupported configuration: {reason}"),
                 ));
             }
-            context.channel_layout().clone()
+            context
+                .channel_layout()
+                .expect("qualified stream layout")
+                .clone()
         } else {
             let layout = layout.ok_or_else(|| {
                 invalid(
@@ -273,7 +280,6 @@ impl CafReader {
             ("sample_rate_hz", rate as u64),
             ("channels", u64::from(channels)),
             ("frame_samples", 1024),
-            ("components[0].layout_tag", u64::from(layout_tag)),
         ] {
             if parsed.derived.get(key).and_then(Value::as_u64) != Some(want) {
                 return Err(invalid(
@@ -282,6 +288,26 @@ impl CafReader {
                     format!("cookie {key} must equal {want}"),
                 ));
             }
+        }
+        if parsed
+            .fields
+            .iter()
+            .any(|f| f.name == "global.component_count" && f.value == json!(1))
+            && !parsed
+                .fields
+                .iter()
+                .any(|f| f.name == "global.additional_asc_present" && f.value == json!(true))
+            && parsed
+                .derived
+                .get("components[0].layout_tag")
+                .and_then(Value::as_u64)
+                != Some(u64::from(layout_tag))
+        {
+            return Err(invalid(
+                b"kuki",
+                kuki.offset,
+                "cookie layout tag disagrees with output",
+            ));
         }
         let layout_source = if let Some(chan) = chunks.get(b"chan") {
             let mut expected = Vec::with_capacity(12 + 20 * output_layout.descriptions.len());

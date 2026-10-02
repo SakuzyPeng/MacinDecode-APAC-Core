@@ -74,12 +74,14 @@ def esc(value,widths=(4,6,8)):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None,source_layout=None,remapping=None,remapping_tail=None):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None,source_layout=None,remapping=None,remapping_tail=None,_parts=None,shared=None):
     assert 0<=len(counts)<=121 and all(1<=n<=16 for n in counts);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;assert mixed or (selection is None and not transform) or (controls or {}).get('flag_b')
     control=control_values(controls,path)
     n=shape(order,dynamic,coefficient_count,output_coefficients,source_layout);m=(order+1)**2 if coefficient_count is None else coefficient_count
     assert component_orders is None or len(component_orders)==len(counts)
-    fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(profile,6),(level,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
+    from shared_config_tables import RATES
+    shared=shared or {}
+    fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(profile,6),(level,4),(shared.get('flag_a',0),1),(RATES.index(rate),6),(0,6),(n,8),(shared.get('parameter_b',2),8),(shared.get('flag_c',0),1),(1,3),(0,8),(2,3)]
     wire=''.join(bits(v,w) for v,w in fields)+bits(int(coefficient_count is None),1)+bits(control['flag_a'],1)+bits(control['flag_b'],1)+(bits(control['flag_c'],1) if control['flag_b'] else '')+''.join(bits(control[k],1) for k in ('flag_d','flag_e','flag_f'))+bits(int(dynamic),1)
     if dynamic:wire+=bits(method,2)+bits(subbands-1,4)
     wire+=bits(control['parameter_0'],2)+bits(spatial_method,2)+bits(quantization_bits-6,2)+(esc(order) if coefficient_count is None else esc(coefficient_count-1,(7,12,17)))
@@ -113,7 +115,8 @@ def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',d
         core=len(counts)+ambient;assert len(remapping)==core and core<=n
         tail=[0]*(n-core) if remapping_tail is None else remapping_tail;assert len(tail)==n-core
         wire+=''.join(bits(index,(n-1).bit_length()) for index in list(remapping)+list(tail))
-    wire+='0'+bits(0,3)+bits(0,2)
+    if _parts is not None:_parts.update(codec=wire[sum(w for _,w in fields[:-1]):],channels=n)
+    wire+='0'+esc(shared.get('parameter_0',0),(3,6,9))+esc(shared.get('parameter_1',0),(2,8,32))
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
     if drc:wire+=drc_header(rate,rich=rich,channels=n)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]

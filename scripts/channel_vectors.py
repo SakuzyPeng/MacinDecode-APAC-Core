@@ -22,10 +22,12 @@ def configuration(channels):
 
 def scene_bits(drc=False):return ('1'+neutral_scene()[1:]) if drc else neutral_scene()
 
-def cookie(channels=8,rate=48000,scene=True,drc=False,rich=False):
+def cookie(channels=8,rate=48000,scene=True,drc=False,rich=False,_parts=None):
     family,level,types,_=layout(channels)
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(31,6),(level,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(channels,8),(2,8),(0,1),(1,3),(0,8),(0,3),(0,1),(len(types),5)]
-    wire=''.join(bits(v,w) for v,w in fields)+''.join(bits(t,3) for t in types)+bits(family,16)+'00'+bits(0,3)+bits(0,2)
+    wire=''.join(bits(v,w) for v,w in fields)+''.join(bits(t,3) for t in types)+bits(family,16)+'0'
+    if _parts is not None:_parts.update(codec=wire[sum(w for _,w in fields[:-3]):],channels=channels)
+    wire+='0'+bits(0,3)+bits(0,2)
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
     if drc:wire+=drc_header(rate,rich=rich,channels=channels)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]
@@ -34,7 +36,7 @@ def single(case,typ,rate,origin):
     block=case.get('block',0);grouping=case.get('grouping',0);gain=case.get('gain',160)
     bands=copy.deepcopy(case.get('bands',{}));maximum=case.get('max_sfb',max(bands,default=-1)+1)
     if maximum:bands.setdefault(maximum-1,(0,(),0))
-    data,truth=channel(bands,block,grouping,gain)
+    data,truth=channel(bands,block,grouping,gain,rate)
     truth.update(channel_index=0,stream_bit_offset=origin+2+truth.pop('header_bits'),spectral_bit_offset=origin+2+truth.pop('spectral_relative_offset'),end_bit_offset=origin+2+len(data))
     wire='10'+data;tns=[]
     if typ==0:

@@ -202,7 +202,17 @@ impl Parser<'_> {
         prefix: &str,
         ics: IcsInfo,
         channel_index: u8,
+        quantized: Vec<i32>,
+    ) -> Result<ChannelSpectrum, ParseError> {
+        self.stream_buffer_at_rate(prefix, ics, channel_index, quantized, 48000)
+    }
+    pub(super) fn stream_buffer_at_rate(
+        &mut self,
+        prefix: &str,
+        ics: IcsInfo,
+        channel_index: u8,
         mut quantized: Vec<i32>,
+        rate: u64,
     ) -> Result<ChannelSpectrum, ParseError> {
         let stream_bit_offset = self.bits.position();
         let global_gain = self.member(prefix, "global_gain", 8)? as u8;
@@ -294,11 +304,7 @@ impl Parser<'_> {
         } else {
             Vec::new()
         };
-        let offsets = if ics.block_type == 2 {
-            &tables().short_offsets
-        } else {
-            &tables().long_offsets
-        };
+        let offsets = super::sfb::offsets(rate, ics.block_type == 2);
         let window_size = if ics.block_type == 2 { 128 } else { 1024 };
         for section in &sections {
             if section.codebook == 0 {
@@ -353,15 +359,15 @@ impl Parser<'_> {
 
 /// Materialize the exact same separately rounded values only when a tool needs
 /// them. Untouched zero-codebook/out-of-band lines remain defined positive zero.
-pub(super) fn materialize(channel: &mut ChannelSpectrum) {
+pub(super) fn materialize_at_rate(channel: &mut ChannelSpectrum, rate: u64) {
     if !channel.scaled.is_empty() {
         return;
     }
     channel.scaled.resize(1024, 0.);
     let (size, offsets) = if channel.ics.block_type == 2 {
-        (128, &tables().short_offsets)
+        (128, super::sfb::offsets(rate, true))
     } else {
-        (1024, &tables().long_offsets)
+        (1024, super::sfb::offsets(rate, false))
     };
     let mut first = 0;
     for (group, factors) in channel.scale_factors.iter().enumerate() {

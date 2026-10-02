@@ -12,6 +12,9 @@ mod hoa;
 #[cfg(test)]
 mod hoa_tests;
 pub(crate) mod input;
+#[cfg(test)]
+mod shared_tests;
+mod stream;
 use crate::{
     error::{Error, Result},
     frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},
@@ -179,6 +182,8 @@ impl ChannelState {
 /// Qualified SQ, neutral scene metadata and fixed DRC-off policy.
 /// Each packet produces 1024 * channel_count() interleaved samples. Errors do not advance state.
 pub struct SqDecoder {
+    stream_context: Option<crate::frame::StreamFrameContext>,
+    stream_state: crate::frame::stream::StreamState,
     drc: DrcState,
     hoa_context: Option<crate::frame::HoaFrameContext>,
     hoa_state: crate::frame::HoaState,
@@ -192,11 +197,33 @@ pub struct SqDecoder {
 impl SqDecoder {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self> {
         let context = FrameContext::from_cookie(cookie)?;
-        let (channel_context, hoa_context) =
-            match crate::frame::DecodedFrameContext::from_cookie(cookie)? {
-                crate::frame::DecodedFrameContext::Channels(c) => (c, None),
-                crate::frame::DecodedFrameContext::Hoa(h) => (h.transport.clone(), Some(h)),
-            };
+        let decoded_context = crate::frame::DecodedFrameContext::from_cookie(cookie)?;
+        if let crate::frame::DecodedFrameContext::Stream(stream) = decoded_context {
+            if let Some(reason) = stream.rejection() {
+                return Err(Error::new(
+                    "SQ decoder",
+                    format!("unsupported configuration: {reason}"),
+                ));
+            }
+            return Ok(Self {
+                drc: stream.initial_drc_state(),
+                stream_state: stream.initial_state(),
+                access_context: stream.first_core().clone(),
+                channels: vec![ChannelState::new(); stream.synthesis_channel_count()],
+                layout: stream.channel_layout().clone(),
+                stream_context: Some(*stream),
+                hoa_context: None,
+                hoa_state: crate::frame::HoaState::default(),
+                context,
+                channel_context: None,
+                scan_workspace: crate::frame::ScanWorkspace::default(),
+            });
+        }
+        let (channel_context, hoa_context) = match decoded_context {
+            crate::frame::DecodedFrameContext::Channels(c) => (c, None),
+            crate::frame::DecodedFrameContext::Hoa(h) => (h.transport.clone(), Some(h)),
+            crate::frame::DecodedFrameContext::Stream(_) => unreachable!("handled composite"),
+        };
         let multichannel = hoa_context.is_some() || channel_context.channel_count != 2;
         if let Some(reason) = if multichannel {
             channel_context.rejection.as_deref()
@@ -209,6 +236,8 @@ impl SqDecoder {
             ));
         }
         Ok(Self {
+            stream_context: None,
+            stream_state: crate::frame::stream::StreamState::default(),
             hoa_state: crate::frame::HoaState::default(),
             access_context: channel_context.clone(),
             scan_workspace: crate::frame::ScanWorkspace::default(),
@@ -225,6 +254,13 @@ impl SqDecoder {
         })
     }
     pub fn reset(&mut self) {
+        if let Some(context) = &self.stream_context {
+            self.drc = context.initial_drc_state();
+            self.stream_state = context.initial_state();
+            self.channels.fill(ChannelState::new());
+            self.scan_workspace.numeric_elements = 0;
+            return;
+        }
         self.drc = self
             .channel_context
             .as_ref()
@@ -237,21 +273,18 @@ impl SqDecoder {
         self.scan_workspace.numeric_elements = 0;
     }
     fn metadata_sha256(&self) -> String {
-        if self.hoa_context.is_some() {
-            return crate::model::sha256(&serde_json::to_vec(&serde_json::json!({"channels":self.drc.channels,"configuration":self.drc.configuration,"previous_nodes":self.drc.previous_nodes,"hoa":self.hoa_state})).expect("finite HOA state"));
+        let mut value = self.drc.metadata();
+        if self.stream_context.is_some() {
+            value["components"] = serde_json::json!(self.stream_state);
+        } else if self.hoa_context.is_some() {
+            value["hoa"] = serde_json::json!(self.hoa_state);
         }
-        crate::model::sha256(
-            &serde_json::to_vec(&serde_json::json!({
-                "channels":self.drc.channels,"configuration":self.drc.configuration,
-                "previous_nodes":self.drc.previous_nodes,
-            }))
-            .expect("finite metadata"),
-        )
+        crate::model::sha256(&serde_json::to_vec(&value).expect("finite metadata"))
     }
     /// Private state-only advancement; callers must synthesize the predecessor
     /// before exporting PCM. No public decoder method exposes stale overlap.
     fn scan_frame(&mut self, packet: &[u8]) -> Result<PrefixCounts> {
-        if self.hoa_context.is_some() {
+        if self.hoa_context.is_some() || self.stream_context.is_some() {
             return Err(Error::new(
                 "SQ access",
                 "HOA fast access is not supported; use sequential",
@@ -276,6 +309,8 @@ impl SqDecoder {
                 // embedded spectra. Re-run only failed scans through that exact
                 // path to preserve its first-error ordering and public errors.
                 let mut validation = Self {
+                    stream_context: self.stream_context.clone(),
+                    stream_state: self.stream_state.clone(),
                     hoa_context: self.hoa_context.clone(),
                     hoa_state: self.hoa_state.clone(),
                     context: self.context.clone(),
@@ -297,13 +332,31 @@ impl SqDecoder {
         }
     }
     pub fn channel_count(&self) -> u32 {
-        self.channels.len() as u32
+        self.stream_context
+            .as_ref()
+            .map_or(self.channels.len() as u32, |c| c.channel_count())
+    }
+    pub fn components(&self) -> Option<&[crate::frame::StreamComponentConfiguration]> {
+        self.stream_context.as_ref().map(|c| c.components())
+    }
+    pub fn hoa_component(&self, index: usize) -> Option<&crate::frame::HoaFrameContext> {
+        match &self.stream_context {
+            Some(stream) => stream.hoa_component(index),
+            None if index == 0 => self.hoa_context.as_ref(),
+            None => None,
+        }
     }
     pub fn channel_layout(&self) -> &crate::model::ChannelLayout {
         &self.layout
     }
     pub fn backend(&self) -> &'static str {
+        if self.stream_context.is_some() {
+            return stream::BACKEND;
+        }
         if let Some(context) = &self.hoa_context {
+            if context.shared_configuration_enabled() {
+                return "rust_hoa_shared_configuration_sq_drc_off_f64_fft_v1";
+            }
             if context.static_remapping().is_some() {
                 return "rust_hoa_static_remapping_sq_drc_off_f64_fft_v1";
             }
@@ -353,6 +406,9 @@ impl SqDecoder {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.stream_context.is_some() {
+            return crate::frame::stream::STATE_PROFILE;
+        }
         if let Some(context) = &self.hoa_context {
             return context.state_profile();
         }
@@ -363,7 +419,13 @@ impl SqDecoder {
         }
     }
     pub fn support_scope(&self) -> &'static str {
+        if self.stream_context.is_some() {
+            return "hoa_multiple_asc_sq_drc_off";
+        }
         if let Some(context) = &self.hoa_context {
+            if context.shared_configuration_enabled() {
+                return "hoa_shared_configuration_sq_drc_off";
+            }
             if context.static_remapping().is_some() {
                 return "hoa_static_remapping_sq_drc_off";
             }
@@ -440,6 +502,9 @@ impl SqDecoder {
         }
     }
     pub fn hoa_numeric_profile(&self) -> Option<&'static str> {
+        if self.stream_context.is_some() {
+            return Some("apac-hoa-shared-configuration-math-v1");
+        }
         self.hoa_context.as_ref().map(|c| c.numeric_profile())
     }
     pub fn decode_frame(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
@@ -449,6 +514,15 @@ impl SqDecoder {
         &mut self,
         packet: &[u8],
     ) -> Result<(Vec<f32>, FrameStateCounts)> {
+        if let Some(context) = &self.stream_context {
+            return stream::decode(
+                context,
+                &mut self.drc,
+                &mut self.stream_state,
+                &mut self.channels,
+                packet,
+            );
+        }
         if let Some(context) = &self.hoa_context {
             return hoa::decode(
                 context,

@@ -372,36 +372,21 @@ fn drc_counts_rates_and_references_are_checked() {
 }
 
 #[test]
-fn unknown_drc_branches_stop_and_preserve_exact_remaining_bits() {
+fn passive_eq_requirement_preserves_following_wire_boundaries() {
     let bytes = rich_cookie();
     let r = parse_cookie(&bytes).unwrap();
-    for (name, value) in [
-        ("config_present", 0),
-        ("channel_layout_present", 1),
-        ("downmix_instructions_present", 1),
-        ("coefficients[0].gain_sets[0].coding_profile", 3),
-        ("instructions[0].downmix_id_present", 1),
-        ("instructions[0].effect", 0x8000),
-        ("instructions[0].requires_eq", 1),
-        ("instructions[0].depends_on_set_present", 1),
-        ("scene_extension_present", 1),
-        ("loudness.extensions_present", 1),
-    ] {
-        let f = field(&r, name);
-        let mut changed = bytes.clone();
-        replace(&mut changed, f.bit_offset, f.bit_length, value);
-        let parsed = parse_cookie(&changed).unwrap();
-        assert_eq!(parsed.status, ParseStatus::Partial, "{name}");
-        let u = &parsed.unknown_ranges[0];
-        // The coding profile's fixed flags precede its unsupported payload.
-        assert!(u.bit_offset >= f.bit_offset + f.bit_length);
-        assert_eq!(u.bit_offset + u.bit_length, changed.len() * 8);
-        let hex: String = changed[u.bit_offset / 8..]
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
-        assert_eq!(hex, u.raw_hex);
-        assert_eq!(u.first_byte_skip_bits, u.bit_offset % 8);
+    let f = field(&r, "instructions[0].requires_eq");
+    let mut changed = bytes.clone();
+    replace(&mut changed, f.bit_offset, 1, 1);
+    let parsed = parse_cookie(&changed).unwrap();
+    coverage(&changed, &parsed);
+    for (before, after) in r.fields.iter().zip(&parsed.fields) {
+        assert_eq!(before.name, after.name);
+        assert_eq!(before.bit_offset, after.bit_offset);
+        assert_eq!(before.bit_length, after.bit_length);
+        if before.bit_offset != f.bit_offset {
+            assert_eq!(before.value, after.value);
+        }
     }
 }
 

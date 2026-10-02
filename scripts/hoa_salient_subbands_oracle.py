@@ -48,7 +48,7 @@ class Decoder:
             sources=[]
             for e in truth['elements']:
                 mapping=e['configuration'].get('transport_channels',e['configuration']['output_channels'])
-                sources.extend(spectra(e)['bwe2'] if e['present'] and mapping else [[0.]*1024 for _ in mapping])
+                sources.extend(spectra(e,opts.get('rate',48000))['bwe2'] if e['present'] and mapping else [[0.]*1024 for _ in mapping])
             transport=sources;sources=self.core_sources(sources,truth,opts)
             selected=side['ambient_indices'];ambient_data=truth.get('dynamic_selection',{}).get('internal_ambient',{}) if truth.get('dynamic_selection') else side.get('ambient',{})
             index=ambient_data.get('effective_index',3)

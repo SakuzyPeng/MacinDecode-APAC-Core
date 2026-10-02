@@ -117,8 +117,10 @@ fn cookie(file: &mut File, s: &Structure) -> Result<(Vec<u8>, u32, Atom)> {
         return Err(entry.error("requires version 0 apac, data reference 1 and the observed 2-channel/16-bit placeholders"));
     }
     let rate = u32be(&fields[24..]);
-    if !matches!(rate, 0xac44_0000 | 0xbb80_0000) {
-        return Err(entry.error("requires integral 44100/48000 sample rate"));
+    if rate & 0xffff != 0
+        || (rate != 0 && crate::frame::sfb::index(u64::from(rate >> 16)).is_none())
+    {
+        return Err(entry.error("requires an integral supported sample rate"));
     }
     let mut found = None;
     let mut pos = entry.data + 28;
@@ -153,6 +155,7 @@ pub(crate) struct Mp4Reader {
     track_id: u32,
     movie_timescale: u32,
     edit_duration: u64,
+    sample_entry_rate: u32,
     audio_hash: Sha256,
     packet_hash: Sha256,
     expected: Option<(String, String)>,
@@ -211,7 +214,7 @@ impl Mp4Reader {
         {
             return Err(url.error("external or unsupported data reference"));
         }
-        let (cookie, rate, cookie_atom) = cookie(&mut file, &structure)?;
+        let (cookie, sample_entry_rate, cookie_atom) = cookie(&mut file, &structure)?;
         let context = DecodedFrameContext::from_cookie(&cookie).map_err(|e| {
             let mut e: Error = e.into();
             e.file_position = Some(Box::new(FilePosition {
@@ -227,7 +230,8 @@ impl Mp4Reader {
                 format!("unsupported configuration: {reason}"),
             ));
         }
-        if context.sample_rate_hz() != u64::from(rate) {
+        let rate = context.sample_rate_hz() as u32;
+        if sample_entry_rate != 0 && rate != sample_entry_rate {
             return Err(cookie_atom.error("cookie sample rate disagrees with sample entry"));
         }
         let parsed = config::parse_cookie(&cookie)?;
@@ -315,6 +319,7 @@ impl Mp4Reader {
             track_id,
             movie_timescale,
             edit_duration,
+            sample_entry_rate,
             audio_hash: Sha256::new(),
             packet_hash: Sha256::new(),
             expected: None,
@@ -360,15 +365,20 @@ impl Mp4Reader {
                 )
             })
             .collect::<BTreeMap<_, _>>();
-        json!({"kind":"mp4","profile":PROFILE,"brands":self.brands,"track_id":self.track_id,
-            "sample_entry":{"version":0,"channelcount":2,"samplesize":16,"sample_rate":self.info.format.sample_rate},
+        let mut report = json!({"kind":"mp4","profile":PROFILE,"brands":self.brands,"track_id":self.track_id,
+            "sample_entry":{"version":0,"channelcount":2,"samplesize":16,"sample_rate":f64::from(self.sample_entry_rate)},
             "format":self.info.format,"layout_source":"cookie","layout":self.info.layout.value,
             "packet_count":self.info.packet_count.value,"packet_table":self.info.packet_table.value,
             "timeline":{"source":"single_elst","movie_timescale":self.movie_timescale,"media_timescale":self.info.format.sample_rate as u32,"edit_duration":self.edit_duration,"rounding":"exact_integral_frames"},
             "file_bytes":self.structure.bytes,"boxes":ranges,"mdat_count":self.structure.mdat_count,"skipped_boxes":self.structure.skipped,
             "sample_group_box_counts":{"sgpd":self.structure.sgpd_count,"sbgp":self.structure.sbgp_count},
             "metadata_sha256":self.structure.hash,"cookie_sha256":sha256(&self.cookie),"audio_sha256":audio,"packets_sha256":packets,
-            "access":"sequential_from_packet_zero","consistency_verified":self.verified,"verification":"two_pass_read_consistency_no_stored_checksums"})
+            "access":"sequential_from_packet_zero","consistency_verified":self.verified,"verification":"two_pass_read_consistency_no_stored_checksums"});
+        if self.sample_entry_rate == 0 {
+            report["sample_entry"]["sample_rate_source"] = json!("cookie");
+            report["sample_entry"]["sample_rate_profile"] = json!("apac-mp4-cookie-sample-rate-v1");
+        }
+        report
     }
     pub(crate) fn next_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
         let index = self.index.next;

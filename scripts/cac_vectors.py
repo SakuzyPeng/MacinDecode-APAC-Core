@@ -27,18 +27,20 @@ def encode_runs(indices):
     return runs
 
 
-def frame(case):
+def frame(case,rate=48000):
     block, grouping, gain = (case.get(k, v) for k, v in [('block', 0), ('grouping', 0), ('gain', 160)])
     left, right = copy.deepcopy(case.get('left', {})), copy.deepcopy(case.get('right', {}))
     required = max([*left, *right], default=-1)+1
     max_sfb = case.get('max_sfb', required)
-    if not required <= max_sfb <= (14 if block == 2 else 49):
+    from shared_config_tables import offsets
+    from spectrum_vectors import TABLES
+    if not required <= max_sfb < len(offsets(rate,block==2,TABLES)):
         raise ValueError('shared max_sfb does not contain both streams')
     for side in (left, right):
         if max_sfb:
             side.setdefault(max_sfb-1, (0, (), 0))
-    a, expected_a = channel(left, block, grouping, gain)
-    b, expected_b = channel(right, block, grouping, gain)
+    a, expected_a = channel(left, block, grouping, gain,rate)
+    b, expected_b = channel(right, block, grouping, gain,rate)
     header = expected_b.pop('header_bits')
     body = b[header:]
     origin = 5+len(a)
@@ -66,12 +68,12 @@ def frame(case):
     return pack('0110'+a+'1'+body+payload+'0000')+b'\0', expected
 
 
-def packet(case):
+def packet(case,rate=48000):
     if case.get('independent'):
         from spectrum_vectors import frame as independent_frame
-        data, channels = independent_frame(case)
+        data, channels = independent_frame(case,rate)
         return data, dict(channels=channels, shared_ics=False, cac=None)
-    return frame(case)
+    return frame(case,rate)
 
 
 def windows():

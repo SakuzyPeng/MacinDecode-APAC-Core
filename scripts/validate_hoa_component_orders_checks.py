@@ -10,7 +10,7 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False,spatial_controls=False,dynamic_domains=False,source_layouts=False,static_remapping=False):
+def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False,spatial_controls=False,dynamic_domains=False,source_layouts=False,static_remapping=False,shared_configuration=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
@@ -21,12 +21,13 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         p.add_argument('--expanded-reference',type=Path,required=True)
         p.add_argument('--channel-reference',type=Path,required=True)
     if static_remapping:p.add_argument('--source-reference',type=Path,required=True)
+    if shared_configuration:p.add_argument('--drc-reference',type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
            binary_sha256=sha256_file(a.binary),test_binary_sha256=sha256_file(a.test_binary),rust=[],python=None,legacy=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        for module in (('config::hoa::remapping_tests::',) if static_remapping else ())+(('frame::hoa_source::tests::',) if source_layouts else ())+(('frame::hoa_dynamic::domains_tests::',) if dynamic_domains else ())+(('frame::hoa_controls::tests::',) if spatial_controls else ())+(('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
+        for module in (('synthesis::shared_tests::','frame::drc::tests::') if shared_configuration else ())+(('config::hoa::remapping_tests::',) if static_remapping else ())+(('frame::hoa_source::tests::',) if source_layouts else ())+(('frame::hoa_dynamic::domains_tests::',) if dynamic_domains else ())+(('frame::hoa_controls::tests::',) if spatial_controls else ())+(('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
             proc=subprocess.run([str(a.test_binary),module],capture_output=True,text=True)
             require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'test result: ok\. (\d+) passed;',proc.stdout)
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))
@@ -37,6 +38,7 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         if dynamic_domains:modules.extend(['test_hoa_dynamic','test_hoa_dynamic_subbands'])
         if source_layouts:modules.append('test_hoa_source_layouts')
         if static_remapping:modules.append('test_hoa_remapping')
+        if shared_configuration:modules.extend(['test_hoa_shared_config','test_drc','test_packets'])
         proc=subprocess.run([sys.executable,'-B','-m','unittest','-v',*modules,'test_access.AccessTests.test_default_is_unchanged_and_fast_is_explicit_for_files'],cwd=ROOT/'scripts',env=env,capture_output=True,text=True)
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
@@ -92,6 +94,9 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         require(len(r['legacy'])==(7 if first_order else 6) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'cases missing/source changed')
         if transports:r['channel_regression']=channel_regression(a.binary,a.channel_reference,r)
         if static_remapping:r['source_regression']=source_regression(a.binary,a.source_reference,r)
+        if shared_configuration:
+            from validate_hoa_shared_checks import drc_regression
+            r['drc_regression']=drc_regression(a.binary,a.drc_reference,r)
         require(source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'source or executable changed during regression')
         r['passed']=True
     except Exception as e:r['errors'].append(str(e))

@@ -26,6 +26,7 @@ pub enum ParseDepth {
     Packet,
     Channels,
     Hoa,
+    Stream,
 }
 
 /// Stream per-packet reports; the integer is the CLI exit code (0/1/2).
@@ -69,6 +70,27 @@ pub fn parse_packets_with_depth(
         error.bit_offset = Some(e.bit_offset);
         error
     })?;
+    let depth = if depth == ParseDepth::Hoa
+        && crate::config::parse_cookie(bundle.cookie())?
+            .fields
+            .iter()
+            .any(|f| {
+                (f.name == "global.component_count" && f.value.as_u64().is_some_and(|n| n > 1))
+                    || (f.name == "global.additional_asc_present" && f.value == json!(true))
+            }) {
+        ParseDepth::Stream
+    } else {
+        depth
+    };
+    let stream_context = if depth == ParseDepth::Stream {
+        Some(super::StreamFrameContext::from_cookie(bundle.cookie())?)
+    } else {
+        None
+    };
+    let mut stream_state = stream_context
+        .as_ref()
+        .map(|c| c.initial_state())
+        .unwrap_or_default();
     let channel_context = if depth == ParseDepth::Channels {
         Some(super::ChannelFrameContext::from_cookie(bundle.cookie())?)
     } else {
@@ -88,9 +110,12 @@ pub fn parse_packets_with_depth(
     if let Some(hoa) = &hoa_context {
         drc_state = hoa.initial_drc_state();
     }
+    if let Some(stream) = &stream_context {
+        drc_state = stream.initial_drc_state();
+    }
     let (mut present_elements, mut absent_elements, mut spectrum_channels) = (0u64, 0u64, 0u64);
     let first = bundle.manifest().start_packet;
-    if depth == ParseDepth::Hoa && first != 0 {
+    if matches!(depth, ParseDepth::Hoa | ParseDepth::Stream) && first != 0 {
         return Err(Error::new(
             "parse-packets",
             "HOA input must include packet zero to establish sequential state",
@@ -144,6 +169,32 @@ pub fn parse_packets_with_depth(
             .next_packet()?
             .ok_or_else(|| Error::new("parse-packets", "unexpected packet EOF"))?;
         if packet.packet_index < start {
+            if let Some(context) = &stream_context {
+                let previous = super::stream::parse_with_state(
+                    context,
+                    &bytes,
+                    &mut drc_state,
+                    &mut stream_state,
+                    true,
+                    &mut super::ScanWorkspace::default(),
+                )
+                .map_err(|e| {
+                    let mut error: Error = e.into();
+                    error.packet_index = Some(packet.packet_index);
+                    error
+                })?;
+                if !previous.packet_complete {
+                    let mut error = Error::new(
+                        "parse-packets",
+                        format!(
+                            "incomplete component history: {}",
+                            previous.frame.stop_reason
+                        ),
+                    );
+                    error.packet_index = Some(packet.packet_index);
+                    return Err(error);
+                }
+            }
             if let Some(context) = &hoa_context {
                 let previous = super::parse_hoa_packet_with_state(
                     context,
@@ -189,6 +240,32 @@ pub fn parse_packets_with_depth(
         }
         eprintln!("parse packet {}", packet.packet_index);
         let result = match depth {
+            ParseDepth::Stream => super::stream::parse_with_state(
+                stream_context.as_ref().expect("stream context"),
+                &bytes,
+                &mut drc_state,
+                &mut stream_state,
+                true,
+                &mut super::ScanWorkspace::default(),
+            )
+            .map(|report| {
+                for component in &report.components {
+                    present_elements +=
+                        component.elements.iter().filter(|e| e.present).count() as u64;
+                    absent_elements +=
+                        component.elements.iter().filter(|e| !e.present).count() as u64;
+                    spectrum_channels += component
+                        .elements
+                        .iter()
+                        .map(|e| e.channels.len() as u64)
+                        .sum::<u64>();
+                }
+                hoa_complete += u64::from(report.packet_complete);
+                (
+                    report.frame.clone(),
+                    Some(serde_json::to_value(report).expect("finite stream report")),
+                )
+            }),
             ParseDepth::Hoa => super::parse_hoa_packet_with_state(
                 hoa_context.as_ref().expect("HOA context"),
                 &bytes,
@@ -397,9 +474,19 @@ pub fn parse_packets_with_depth(
         summary["absent_elements"] = json!(absent_elements);
         summary["spectrum_channels"] = json!(spectrum_channels);
     }
+    if depth == ParseDepth::Stream {
+        let context = stream_context.as_ref().unwrap();
+        summary["depth"] = json!(depth);
+        summary["context"] = json!({"components":context.components(),"sample_rate_hz":context.sample_rate_hz(),"channel_count":context.channel_count(),"layout":context.channel_layout(),"rejection":context.rejection()});
+        summary["stream_packets_complete"] = json!(whole);
+        summary["hoa_packets_complete"] = json!(whole);
+        summary["present_elements"] = json!(present_elements);
+        summary["absent_elements"] = json!(absent_elements);
+        summary["spectrum_channels"] = json!(spectrum_channels);
+    }
     if !matches!(
         depth,
-        ParseDepth::Prefix | ParseDepth::Channels | ParseDepth::Hoa
+        ParseDepth::Prefix | ParseDepth::Channels | ParseDepth::Hoa | ParseDepth::Stream
     ) {
         summary["depth"] = json!(depth);
         summary["spectrum_complete_packets"] = json!(spectra);

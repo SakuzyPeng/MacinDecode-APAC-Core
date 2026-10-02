@@ -10,7 +10,9 @@ from pathlib import Path
 import struct
 
 import native_frame_trace as base
-if os.environ.get('APAC_DRC_CHANNELS')=='1':
+if os.environ.get('APAC_DRC_SYNTAX_ONLY')=='1':
+    import native_ancillary_trace as packet
+elif os.environ.get('APAC_DRC_CHANNELS')=='1':
     import native_channels_trace as packet
 else:
     import native_packet_trace as packet
@@ -79,7 +81,8 @@ def hit(frame, location, _dict):
                     p=saved['processor']
                     e['state_after']=dict(delay_samples=u32(frame,p+0x990),transition=u32(frame,p+0x994),active=u32(frame,p+0x998),previous=u32(frame,p+0x99c),crossfade=base.memory(frame,p+0x9a0,1)[0])
             elif kind in ('payload','header','gain_read'):
-                e['end']=packet.reader(frame,saved['reader'])
+                read=packet.configuration_reader if saved.get('configuration') else packet.reader
+                e['end']=read(frame,saved['reader'])
                 if kind=='gain_read':
                     e['native_timing_mode_word']=u32(frame,saved['pointer'])
                     e['sequences']=gain(frame,saved['pointer'])
@@ -113,10 +116,13 @@ def hit(frame, location, _dict):
                      before_sha256=[hashlib.sha256(base.memory(frame,p,frames*4)).hexdigest() for p in inputs])
             back(frame,kind,e,outputs=outputs,channels=channels,**extra)
         elif kind in ('payload','header','gain_read'):
-            if packet.CURRENT is None:return False  # Cookie header uses a different bounded buffer.
-            source=base.reg(frame,'x1');e['start']=packet.reader(frame,source)
+            configuration=packet.CURRENT is None
+            if configuration and (kind!='header' or os.environ.get('APAC_DRC_SYNTAX_ONLY')!='1'):return False
+            read=packet.configuration_reader if configuration else packet.reader
+            source=base.reg(frame,'x1');e['start']=read(frame,source)
+            e['role']=e['start']['role']
             if kind!='gain_read':e['payload_type']=base.reg(frame,'w2')
-            back(frame,kind,e,reader=source,pointer=base.reg(frame,'x0'))
+            back(frame,kind,e,reader=source,pointer=base.reg(frame,'x0'),configuration=configuration)
         elif kind=='gain_reset':
             if packet.CURRENT is None:return False
             e['sequences_before']=gain(frame,base.reg(frame,'x0'))
@@ -129,7 +135,11 @@ def hit(frame, location, _dict):
 
 def __lldb_init_module(debugger,_dict):
     import shlex
-    debugger.HandleCommand('command script import '+shlex.quote(str(Path(packet.__file__).resolve())))  # Includes component hash / architecture gate.
+    debugger.HandleCommand('script import '+packet.__name__)
+    try:
+        packet.__lldb_init_module(debugger,_dict)  # Component hash / architecture gate.
+    except Exception as error:
+        ERRORS.append('packet trace initialization: '+str(error));return
     target=debugger.GetSelectedTarget()
     points={'payload':r'^mpddrc::UniDrc::Deserialize\(', 'header':r'^mpddrc::UniDrcHeader::Deserialize\(',
             'gain_read':r'^mpddrc::UniDrcGain::Deserialize\(', 'gain_reset':r'^mpddrc::UniDrcGain::Reset\(',
@@ -137,6 +147,8 @@ def __lldb_init_module(debugger,_dict):
             'processor_process':r'^mpddrc::UniDrcProcessor::Process\(',
             'wrapper_process':r'^apac::drc::DynRangeCompressor::ProcessUniDrc\('}
     for kind,pattern in points.items():
+        if os.environ.get('APAC_DRC_SYNTAX_ONLY')=='1' and kind in ('process','processor_process','wrapper_process'):
+            continue
         bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind
         bp.SetScriptCallbackFunction(__name__+'.hit')
 
@@ -154,7 +166,7 @@ def finish(debugger):
     with Path(os.environ['APAC_DRC_TRACE_OUTPUT']).open('xb') as out:out.write(raw)
 
 
-def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_failure=False,channel_mode=False):
+def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_failure=False,channel_mode=False,syntax_only=False):
     import shlex
     import subprocess
     if any(os.environ.get(k) for k in ('DYLD_INSERT_LIBRARIES','DYLD_FORCE_FLAT_NAMESPACE')):
@@ -164,9 +176,11 @@ def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_fa
     if output.exists():raise RuntimeError('refusing to overwrite DRC trace')
     env=dict(os.environ,APAC_DRC_TRACE_OUTPUT=str(output.resolve()))
     env.pop('APAC_DRC_CHANNELS',None)
-    if channel_mode:
+    env.pop('APAC_DRC_SYNTAX_ONLY',None)
+    if channel_mode or syntax_only:
         manifest=json.loads((bundle/'manifest.json').read_text(encoding='utf-8'))
         env.update(APAC_DRC_CHANNELS='1',APAC_CHANNEL_COUNT=str(manifest['file']['format']['channels']))
+        if syntax_only:env['APAC_DRC_SYNTAX_ONLY']='1'
     command=['replay',str(bundle.resolve()),'--out',str((root/'native-pcm').resolve()),
              '--frames',str(frames),'--processing-policy',policy]
     args=['xcrun','lldb','--batch','-o','command script import '+shlex.quote(str(Path(__file__).resolve())),
@@ -177,4 +191,6 @@ def trace_bundle(binary,bundle,root,frames=4096,policy='drc-off',allow_replay_fa
     result=json.loads(output.read_text(encoding='utf-8'))
     if result['errors'] or result['pending_returns'] or (result['process_exit_code']!=0 and not allow_replay_failure):
         raise RuntimeError('DRC trace incomplete: '+json.dumps({k:result[k] for k in ('errors','pending_returns','process_exit_code')}))
+    if result['process_exit_code']==0 and frames and not result['packets']:
+        raise RuntimeError('DRC trace did not capture any input packet')
     return result

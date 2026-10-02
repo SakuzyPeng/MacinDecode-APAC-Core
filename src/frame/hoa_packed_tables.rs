@@ -20,7 +20,9 @@ impl Bits {
         };
         let data: Vec<u8> = hex
             .as_bytes()
-            .chunks_exact(2)
+            .as_chunks::<2>()
+            .0
+            .iter()
             .map(|pair| Ok((digit(pair[0])? << 4) | digit(pair[1])?))
             .collect::<Result<_, &'static str>>()?;
         let padding = (8 - end % 8) % 8;

@@ -65,6 +65,8 @@ pub(super) struct HoaConfiguration {
     pub static_ambient: bool,
     pub ambient_combination: super::AmbientCombination,
     pub sample_rate_hz: u64,
+    pub shared_configuration: bool,
+    pub auxiliary: super::auxiliary::AuxiliaryConfiguration,
     pub preroll_bytes: u64,
 }
 impl HoaConfiguration {
@@ -247,15 +249,39 @@ impl HoaConfiguration {
             } else {
                 super::AmbientCombination::Replace
             },
-            sample_rate_hz: if value("global.sample_rate_index") == Some(4) {
-                44100
-            } else {
-                48000
-            },
+            sample_rate_hz: parsed
+                .derived
+                .get("sample_rate_hz")
+                .and_then(|v| v.as_u64())
+                .filter(|&rate| super::sfb::index(rate).is_some())
+                .unwrap_or(48000),
+            shared_configuration: parsed
+                .derived
+                .get("sample_rate_hz")
+                .and_then(|v| v.as_u64())
+                .is_some_and(super::sfb::extended)
+                || flag("global.flag_a")
+                || value("global.parameter_b").is_some_and(|v| v < 2)
+                || value("components[0].parameter_0").is_some_and(|v| v != 0)
+                || value("components[0].parameter_1").is_some_and(|v| v != 0)
+                || flag("ancillary.custom_data_present")
+                || flag("ancillary.scene_graph_present")
+                || flag("ancillary.metadata_present")
+                || parsed.fields.iter().any(|f| {
+                    f.name.starts_with("extensions[")
+                        && (f.name.ends_with("opaque_payload")
+                            || f.name.ends_with("extra_payload")
+                            || f.name.ends_with("padding")
+                                && f.value.as_u64().is_some_and(|v| v != 0))
+                }),
+            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_report(parsed),
             preroll_bytes,
         }
     }
     pub fn numeric_profile(&self) -> &'static str {
+        if self.shared_configuration {
+            return "apac-hoa-shared-configuration-math-v1";
+        }
         if self.source_layout.extended {
             return super::hoa_source::NUMERIC_PROFILE;
         }
@@ -307,6 +333,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.shared_configuration {
+            return "apac-hoa-shared-configuration-state-v1";
+        }
         if self.static_remapping.is_some() {
             return super::hoa_remapping::STATE_PROFILE;
         }
@@ -508,7 +537,10 @@ pub struct HoaFrameContext {
 impl HoaFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         let parsed = config::parse_cookie(cookie)?;
-        let shape = HoaConfiguration::selected(&parsed);
+        Self::from_report(parsed)
+    }
+    pub(super) fn from_report(parsed: config::CookieReport) -> Result<Self, ParseError> {
+        let mut shape = HoaConfiguration::selected(&parsed);
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
@@ -517,6 +549,11 @@ impl HoaFrameContext {
             .rejection(usize::from(shape.recovery_slots))
         {
             rejected.push(reason);
+        }
+        if super::sfb::offsets(shape.sample_rate_hz, false).len() != 50
+            && ((salient && shape.salient_partition_method == 1) || shape.dynamic_method == Some(1))
+        {
+            rejected.push("HOA partition method 1 requires the reference 49-band SFB table".into());
         }
         if profile_channel_limit(shape.profile_id, shape.level_id)
             .is_none_or(|maximum| channels > maximum)
@@ -543,16 +580,23 @@ impl HoaFrameContext {
             ("global.level_id", u64::from(shape.level_id)),
             (
                 "global.sample_rate_index",
-                if shape.sample_rate_hz == 44100 { 4 } else { 3 },
+                super::sfb::index(shape.sample_rate_hz).expect("qualified rate") as u64,
             ),
             ("global.frame_size_index", 0),
             ("global.channel_count", channels),
-            ("global.parameter_b", 2),
+            (
+                "global.parameter_b",
+                parsed
+                    .fields
+                    .iter()
+                    .find(|f| f.name == "global.parameter_b")
+                    .and_then(|f| f.value.as_u64())
+                    .unwrap_or(2)
+                    .min(2),
+            ),
             ("global.component_count", 1),
             ("components[0].lowest_channel_index", 0),
             ("components[0].type", 2),
-            ("components[0].parameter_0", 0),
-            ("components[0].parameter_1", 0),
             (
                 "components[0].hoa.parameter_0",
                 u64::from(shape.controls.parameter_0),
@@ -601,14 +645,7 @@ impl HoaFrameContext {
                 &mut rejected,
             );
         }
-        for name in [
-            "global.flag_a",
-            "global.flag_c",
-            "global.additional_asc_present",
-            "ancillary.scene_graph_present",
-            "ancillary.metadata_present",
-            "ancillary.custom_data_present",
-        ] {
+        for name in ["global.flag_c", "global.additional_asc_present"] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
         }
         packet_config::check(
@@ -706,6 +743,10 @@ impl HoaFrameContext {
         };
         let scene = field("ancillary.audio_scenes_present") == Some(&json!(true));
         let drc = DrcContext::for_channels(&parsed, channels);
+        shape.shared_configuration |= drc
+            .configuration
+            .as_ref()
+            .is_some_and(|c| c.shared_parameters.is_some());
         if scene {
             rejected.extend(packet_config::neutral_scene(
                 &parsed.fields,
@@ -720,13 +761,6 @@ impl HoaFrameContext {
                 "cookie",
                 &mut rejected,
             );
-        }
-        for f in parsed
-            .fields
-            .iter()
-            .filter(|f| f.name.starts_with("extensions[") && f.name.ends_with(".type"))
-        {
-            packet_config::check(&parsed.fields, &f.name, json!(3), "cookie", &mut rejected);
         }
         if !parsed.is_complete() {
             rejected.push(format!(
@@ -765,6 +799,12 @@ impl HoaFrameContext {
     }
     pub fn sample_rate_hz(&self) -> u64 {
         self.configuration.sample_rate_hz
+    }
+    pub fn sfb_sample_rate_hz(&self) -> u64 {
+        super::sfb::rate(self.sample_rate_hz()).sfb_rate
+    }
+    pub fn shared_configuration_enabled(&self) -> bool {
+        self.configuration.shared_configuration
     }
     pub fn cookie_sha256(&self) -> &str {
         self.transport.cookie_sha256()
@@ -1194,10 +1234,18 @@ pub(super) fn restore(
 pub(crate) enum DecodedFrameContext {
     Channels(ChannelFrameContext),
     Hoa(HoaFrameContext),
+    Stream(Box<super::StreamFrameContext>),
 }
 impl DecodedFrameContext {
     pub(crate) fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         let parsed = config::parse_cookie(cookie)?;
+        if parsed.fields.iter().any(|f| {
+            (f.name == "global.component_count" && f.value.as_u64().is_some_and(|n| n > 1))
+                || (f.name == "global.additional_asc_present" && f.value == json!(true))
+        }) {
+            return super::StreamFrameContext::from_cookie(cookie)
+                .map(|c| Self::Stream(Box::new(c)));
+        }
         if parsed
             .fields
             .iter()
@@ -1212,24 +1260,28 @@ impl DecodedFrameContext {
         match self {
             Self::Channels(c) => c.rejection(),
             Self::Hoa(c) => c.rejection(),
+            Self::Stream(c) => c.rejection(),
         }
     }
     pub(crate) fn sample_rate_hz(&self) -> u64 {
         match self {
             Self::Channels(c) => c.sample_rate_hz(),
             Self::Hoa(c) => c.sample_rate_hz(),
+            Self::Stream(c) => c.sample_rate_hz(),
         }
     }
     pub(crate) fn channel_count(&self) -> u32 {
         match self {
             Self::Channels(c) => c.channel_count(),
             Self::Hoa(c) => c.channel_count(),
+            Self::Stream(c) => c.channel_count(),
         }
     }
     pub(crate) fn channel_layout(&self) -> Option<&ChannelLayout> {
         match self {
             Self::Channels(c) => c.channel_layout(),
             Self::Hoa(c) => Some(c.channel_layout()),
+            Self::Stream(c) => Some(c.channel_layout()),
         }
     }
 }

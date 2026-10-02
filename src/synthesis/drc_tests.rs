@@ -199,10 +199,13 @@ fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
         actual.decode_frame(&absent).unwrap(),
         control.decode_frame(&absent).unwrap()
     );
-    let invalid_inner = packet(false, Some((55, true, 1)), None, false);
+    let mut invalid_inner = packet(false, Some((55, true, 0)), None, false);
+    // The absent core ends at bit 8; the full header's base-channel field
+    // occupies bits 12..22. Change its declared count from two to three.
+    invalid_inner[21 / 8] |= 1 << (7 - 21 % 8);
     let rejected = packet(false, None, Some(&invalid_inner), false);
     let error = actual.decode_frame(&rejected).unwrap_err();
-    assert_eq!(error.bit_offset, Some(32));
+    assert_eq!(error.bit_offset, Some(24 + 22));
     assert_eq!(value(&actual), before);
     let good = packet(true, Some((55, false, 0)), Some(&child), false);
     let plain = packet(true, None, Some(&active), false);
@@ -236,7 +239,8 @@ fn incompatible_header_and_missing_gain_do_not_commit_metadata() {
     let config = cookie();
     let mut decoder = SqDecoder::from_cookie(&config).unwrap();
     let before = value(&decoder);
-    let invalid = packet(false, Some((77, true, 1)), None, false);
+    let mut invalid = packet(false, Some((77, true, 0)), None, false);
+    invalid[21 / 8] |= 1 << (7 - 21 % 8);
     assert!(decoder.decode_frame(&invalid).is_err());
     assert_eq!(value(&decoder), before);
     let good = packet(false, Some((77, false, 0)), None, false);

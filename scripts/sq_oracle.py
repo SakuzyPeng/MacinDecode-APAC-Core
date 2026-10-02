@@ -25,10 +25,11 @@ def coefficient(q, sf):
         return round_f32((-magnitude if q < 0 else magnitude) * gain)
 
 
-def scaled_channel(channel):
+def scaled_channel(channel,rate=48000):
     short = channel['ics']['block_type'] == 2
     n = 128 if short else 1024
-    offsets = TABLES['short_offsets' if short else 'long_offsets']
+    from shared_config_tables import offsets as band_offsets
+    offsets=band_offsets(rate,short,TABLES)
     scaled = [0.0] * 1024
     first_window = 0
     for length, factors in zip(channel['ics']['window_groups'], channel['scale_factors']):

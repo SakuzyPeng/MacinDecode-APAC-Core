@@ -30,101 +30,196 @@ pub(super) fn check(
 }
 
 pub(super) fn neutral_scene(fields: &[ConfigField], origin: &str, drc_off: bool) -> Vec<String> {
+    neutral_scene_sources(fields, origin, drc_off, 1)
+}
+
+pub(super) fn neutral_scene_sources(
+    fields: &[ConfigField],
+    origin: &str,
+    _drc_off: bool,
+    sources: usize,
+) -> Vec<String> {
     let mut rejected = Vec::new();
     let root = "ancillary.audio_scenes";
-    let mut expect = |suffix: &str, value| {
-        check(
-            fields,
-            &format!("{root}.{suffix}"),
-            value,
-            origin,
-            &mut rejected,
-        );
+    let composition = format!("{root}.compositions[0]");
+    let indexed: std::collections::BTreeMap<_, _> =
+        fields.iter().map(|f| (f.name.as_str(), &f.value)).collect();
+    let number = |name: &str| {
+        indexed
+            .get(name)
+            .and_then(|v| v.as_u64())
+            .and_then(|v| usize::try_from(v).ok())
     };
-    for suffix in ["flags[1]", "flags[2]", "tag_present", "extension_present"] {
-        expect(suffix, json!(false));
-    }
-    // The observed DRC declaration variant has flag 0 set. The remaining
-    // one-source scene controls are identical and their audio route is identity
-    // under the qualified off policy. Preserve the old no-DRC whitelist.
-    if !drc_off {
-        expect("flags[0]", json!(false));
-    }
-    expect("parameter", json!(0));
-    expect("composition_count", json!(1));
-    let p = "compositions[0]";
-    expect(&format!("{p}.flag"), json!(true));
-    for (suffix, count) in [
-        ("nonlanguage_item_count", 1),
-        ("language_item_count", 0),
-        ("selection_item_count", 0),
-        ("group_count", 1),
-        ("preset_count", 1),
-        ("nonlanguage_items[0].source_count", 1),
-        ("nonlanguage_items[0].source_indices[0]", 0),
-        ("groups[0].item_count", 1),
-        ("groups[0].item_indices[0]", 0),
-        ("groups[0].selection_count", 0),
-    ] {
-        expect(&format!("{p}.{suffix}"), json!(count));
-    }
-    for suffix in [
-        "language_present",
-        "preset_selection_data_present",
-        "tag_present",
-        "selection_updates_present",
-        "extension_present",
-        "groups[0].extension_present",
-    ] {
-        expect(&format!("{p}.{suffix}"), json!(false));
-    }
-    let controls = format!("{p}.groups[0].controls[0]");
-    for suffix in [
-        "primary_flag",
-        "secondary_flag",
-        "range_0_present",
-        "range_1_present",
-        "range_2_present",
-        "range_3_present",
-    ] {
-        expect(&format!("{controls}.{suffix}"), json!(false));
-    }
-    expect(&format!("{controls}.parameters_present"), json!(true));
-    expect(&format!("{controls}.parameter_0"), json!(0));
-    for i in 1..=5 {
-        expect(&format!("{controls}.parameter_{i}_present"), json!(false));
-    }
-    // Labels and preset characteristics remain encoded values: accepting this
-    // route does not assign unverified meanings to arbitrary scene controls.
-    for (item, word, has_presence) in [
-        ("nonlanguage_items[0]", 21, true),
-        ("groups[0]", 21, true),
-        ("presets[0]", 97, false),
-    ] {
-        let prefix = format!("{p}.{item}");
-        if has_presence {
-            expect(&format!("{prefix}.tag_present"), json!(true));
-        }
-        expect(&format!("{prefix}.tag.word_count_minus_one"), json!(0));
-        expect(&format!("{prefix}.tag.words[0]"), json!(word));
-        expect(&format!("{prefix}.tag.fallback_present"), json!(false));
-        expect(&format!("{prefix}.tag.extension_present"), json!(false));
-    }
-    let preset = format!("{p}.presets[0]");
-    expect(&format!("{preset}.characteristics_size_index"), json!(1));
-    for i in 0..16 {
-        expect(&format!("{preset}.characteristics[{i}]"), json!(i >= 13));
-    }
-    expect(&format!("{preset}.language.terminator"), json!(0));
-    expect(&format!("{preset}.language.flag"), json!(false));
-    for field in fields.iter().filter(|f| {
-        f.name
-            .starts_with(&format!("{root}.{preset}.language.characters["))
-    }) {
+    let flag = |name: &str| indexed.get(name).and_then(|v| v.as_bool()).unwrap_or(false);
+    check(
+        fields,
+        &format!("{root}.composition_count"),
+        json!(1),
+        origin,
+        &mut rejected,
+    );
+    check(
+        fields,
+        &format!("{composition}.flag"),
+        json!(true),
+        origin,
+        &mut rejected,
+    );
+    let items = number(&format!("{composition}.nonlanguage_item_count")).unwrap_or(0);
+    let languages = number(&format!("{composition}.language_item_count")).unwrap_or(0);
+    let selections = number(&format!("{composition}.selection_item_count")).unwrap_or(0);
+    let groups = number(&format!("{composition}.group_count")).unwrap_or(0);
+    let presets = number(&format!("{composition}.preset_count")).unwrap_or(0);
+    if items + selections == 0 || groups == 0 || presets == 0 {
         rejected.push(format!(
-            "{}={} at {origin} bit {} (expected empty preset language)",
-            field.name, field.value, field.bit_offset
+            "neutral scene requires items, groups and presets at {origin}"
         ));
+        return rejected;
+    }
+    let source_list = |prefix: &str| -> Option<Vec<usize>> {
+        let count = number(&format!("{prefix}.source_count"))?;
+        let mut result = Vec::with_capacity(count);
+        for i in 0..count {
+            let index = number(&format!("{prefix}.source_indices[{i}]"))?;
+            if index >= sources {
+                return None;
+            }
+            result.push(index);
+        }
+        result.sort_unstable();
+        Some(result)
+    };
+    let item_sources: Vec<_> = (0..items)
+        .map(|i| source_list(&format!("{composition}.nonlanguage_items[{i}]")))
+        .collect();
+    let language_sources: Vec<_> = (0..languages)
+        .map(|i| source_list(&format!("{composition}.language_items[{i}]")))
+        .collect();
+    if item_sources
+        .iter()
+        .chain(&language_sources)
+        .any(Option::is_none)
+    {
+        rejected.push(format!(
+            "scene source reference is outside the coded declarations at {origin}"
+        ));
+    }
+    let selection_sources: Vec<_> = (0..selections)
+        .map(|i| {
+            let p = format!("{composition}.selection_items[{i}]");
+            let count = number(&format!("{p}.language_item_count"))?;
+            let mut shared = None;
+            let mut fallback = false;
+            for j in 0..count {
+                let index = number(&format!("{p}.language_item_indices[{j}]"))?;
+                let entry = language_sources.get(index)?.as_ref()?;
+                if shared.as_ref().is_some_and(|previous| previous != entry) {
+                    return None;
+                }
+                shared = Some(entry.clone());
+                fallback |= flag(&format!("{composition}.language_items[{index}].flag_a"));
+            }
+            if fallback { shared } else { None }
+        })
+        .collect();
+    for preset in 0..presets {
+        let mut routes = Vec::with_capacity(groups);
+        for group in 0..groups {
+            let p = format!("{composition}.groups[{group}]");
+            let controls = format!("{p}.controls[{preset}]");
+            // Parameters activate the selected member; descriptive primary and
+            // secondary flags do not make an otherwise muted group audible.
+            if !flag(&format!("{controls}.parameters_present")) {
+                routes.push(Some(Vec::new()));
+                continue;
+            }
+            // Ranges and parameters 2..5 describe presentation controls. Only
+            // the explicit gain changes these raw PCM sources; 256 is unity.
+            if flag(&format!("{controls}.parameter_1_present")) {
+                check(
+                    fields,
+                    &format!("{controls}.parameter_1"),
+                    json!(256),
+                    origin,
+                    &mut rejected,
+                );
+            }
+            let member = number(&format!("{controls}.parameter_0")).unwrap_or(usize::MAX);
+            let count = number(&format!("{p}.item_count")).unwrap_or(0);
+            let route = if member < count {
+                number(&format!("{p}.item_indices[{member}]"))
+                    .and_then(|i| item_sources.get(i))
+                    .cloned()
+                    .flatten()
+            } else {
+                let member = member.saturating_sub(count);
+                number(&format!("{p}.selection_indices[{member}]"))
+                    .and_then(|i| selection_sources.get(i))
+                    .cloned()
+                    .flatten()
+            };
+            if route.is_none() {
+                rejected.push(format!("scene group {group}, preset {preset} does not select a fixed source set at {origin}"));
+            }
+            routes.push(route);
+        }
+        let mut selected = vec![0usize; sources];
+        let mut categorized = vec![false; groups];
+        let categories = number(&format!("{composition}.category_count")).unwrap_or(0);
+        for category in 0..categories {
+            let p = format!("{composition}.categories[{category}]");
+            let count = number(&format!("{p}.group_count")).unwrap_or(0);
+            let mut members = Vec::new();
+            for i in 0..count {
+                if let Some(group) = number(&format!("{p}.group_indices[{i}]"))
+                    && group < groups
+                {
+                    if std::mem::replace(&mut categorized[group], true) {
+                        rejected.push(format!("overlapping scene categories require presentation selection at {origin}"));
+                    }
+                    members.push(group);
+                }
+            }
+            let choices: Vec<_> = if flag(&format!("{p}.members_present")) {
+                number(&format!("{p}.members[{preset}]"))
+                    .and_then(|i| members.get(i))
+                    .copied()
+                    .into_iter()
+                    .collect()
+            } else {
+                members
+            };
+            let mut common = None;
+            for group in choices {
+                if let Some(route) = &routes[group] {
+                    if common.as_ref().is_some_and(|old| old != route) {
+                        rejected.push(format!(
+                            "scene category {category} changes source selection at {origin}"
+                        ));
+                    }
+                    common = Some(route.clone());
+                }
+            }
+            if let Some(route) = common {
+                for source in route {
+                    selected[source] += 1;
+                }
+            }
+        }
+        for (group, route) in routes.iter().enumerate() {
+            if !categorized[group]
+                && let Some(route) = route
+            {
+                for &source in route {
+                    selected[source] += 1;
+                }
+            }
+        }
+        if selected.iter().any(|&count| count != 1) {
+            rejected.push(format!(
+                "scene preset {preset} must select every source exactly once at {origin}"
+            ));
+        }
     }
     rejected
 }

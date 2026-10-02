@@ -14,6 +14,12 @@ pub struct PacketTail {
     pub scene_update_present: Option<bool>,
     pub neutral_scene_restatement: bool,
     pub trimming_present: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trimming: Option<super::TrimmingDeclaration>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_data: Option<super::AuxiliaryPayload>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scene_graph: Option<super::SceneGraphPayload>,
     pub ancillary_end_bit_offset: usize,
     pub packet_end_bit_offset: usize,
 }
@@ -213,20 +219,17 @@ pub(crate) fn parse_packet_with_state(
         }
     }
     if context.drc.present {
-        result.drc_history_sufficient =
-            Some(next_state.previous_nodes.iter().any(|n| n.time < 1024));
         let payload = super::drc::read_payload(
             &mut parser,
             &mut next_state,
             context.sample_rate_hz.unwrap_or(0),
         )?;
-        next_state.previous_nodes = payload.nodes.clone();
+        result.drc_history_sufficient = Some(next_state.history_sufficient());
+        next_state.advance(&payload);
         result.drc = Some(payload);
         result.drc_complete = Some(true);
     }
-    if parser.flag("ancillary.trimming_present")? {
-        return partial(result, parser, "nonzero ancillary trimming is unsupported");
-    }
+    let trimming = super::auxiliary::read_trimming(&mut parser)?;
     let ancillary_end = parser.bits.position();
     // The APAC ancillary writer emits a zero custom-data presence flag even
     // when that tool is disabled in the cookie; the decoder then returns before
@@ -255,7 +258,10 @@ pub(crate) fn parse_packet_with_state(
         ancillary_start_bit_offset: core_end,
         scene_update_present: scene_update,
         neutral_scene_restatement: scene_update == Some(true),
-        trimming_present: false,
+        trimming_present: trimming.is_some(),
+        trimming,
+        custom_data: None,
+        scene_graph: None,
         ancillary_end_bit_offset: ancillary_end,
         packet_end_bit_offset: parser.bits.position(),
     });

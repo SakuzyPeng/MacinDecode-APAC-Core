@@ -1,0 +1,763 @@
+{
+  "format_profile": "apac-hoa-shared-configuration-v1",
+  "rates": [
+    {
+      "sample_rate": 96000,
+      "sfb_rate": 96000,
+      "long": "2a32277ca57745a5df41f3cbdc705c4fff00486fc6767a641b5ac92e65d7e375",
+      "short": "ee98c6b6d41c4ea6352ec3c16b4795a5c0edbb1eabe4e0b524487c7beb00113a",
+      "tns_long_limit": 31,
+      "tns_short_limit": 9
+    },
+    {
+      "sample_rate": 88200,
+      "sfb_rate": 88200,
+      "long": "2a32277ca57745a5df41f3cbdc705c4fff00486fc6767a641b5ac92e65d7e375",
+      "short": "ee98c6b6d41c4ea6352ec3c16b4795a5c0edbb1eabe4e0b524487c7beb00113a",
+      "tns_long_limit": 31,
+      "tns_short_limit": 9
+    },
+    {
+      "sample_rate": 64000,
+      "sfb_rate": 64000,
+      "long": "9552858c909ecf5ad260a432a2f9d7eec45a39d93b53fa82820320f0480556fa",
+      "short": "ee98c6b6d41c4ea6352ec3c16b4795a5c0edbb1eabe4e0b524487c7beb00113a",
+      "tns_long_limit": 34,
+      "tns_short_limit": 10
+    },
+    {
+      "sample_rate": 48000,
+      "sfb_rate": 48000,
+      "long": "legacy-long",
+      "short": "legacy-short",
+      "tns_long_limit": 40,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 44100,
+      "sfb_rate": 44100,
+      "long": "legacy-long",
+      "short": "legacy-short",
+      "tns_long_limit": 42,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 32000,
+      "sfb_rate": 32000,
+      "long": "c961fa1861cd4278663c942fd7ae86586eebf090ecca5c9694d63a528b309a77",
+      "short": "legacy-short",
+      "tns_long_limit": 51,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 24000,
+      "sfb_rate": 24000,
+      "long": "7c7a81c9ecb1907c0d5d5eef75862894d5e8d3338388a93ff25146ac27cc68c0",
+      "short": "4b1c74da49ccfc0430bab0b8015eb44d9f30496d2770f1675c09081aab17dc5c",
+      "tns_long_limit": 46,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 22050,
+      "sfb_rate": 22050,
+      "long": "7c7a81c9ecb1907c0d5d5eef75862894d5e8d3338388a93ff25146ac27cc68c0",
+      "short": "4b1c74da49ccfc0430bab0b8015eb44d9f30496d2770f1675c09081aab17dc5c",
+      "tns_long_limit": 46,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 16000,
+      "sfb_rate": 16000,
+      "long": "c8c05b9a270f7a529f6a2f0cdc3c4acfb487176a663967472b5c7e742eb7470c",
+      "short": "45ef4ace98db92d4e140394e2476d0d30e6f6173edbf208d900046b155e5bf75",
+      "tns_long_limit": 42,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 12000,
+      "sfb_rate": 12000,
+      "long": "c8c05b9a270f7a529f6a2f0cdc3c4acfb487176a663967472b5c7e742eb7470c",
+      "short": "45ef4ace98db92d4e140394e2476d0d30e6f6173edbf208d900046b155e5bf75",
+      "tns_long_limit": 42,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 11025,
+      "sfb_rate": 11025,
+      "long": "c8c05b9a270f7a529f6a2f0cdc3c4acfb487176a663967472b5c7e742eb7470c",
+      "short": "45ef4ace98db92d4e140394e2476d0d30e6f6173edbf208d900046b155e5bf75",
+      "tns_long_limit": 42,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 8000,
+      "sfb_rate": 8000,
+      "long": "3a227afb406479094c755e41aa471ec470c7f90306d60b3a63687c8638c78dc0",
+      "short": "b062d9847511b963b22dad8ddc85905724f8e4c692bc0ca415e94bcd1e8410d9",
+      "tns_long_limit": 39,
+      "tns_short_limit": 14
+    },
+    {
+      "sample_rate": 7350,
+      "sfb_rate": 8000,
+      "long": "3a227afb406479094c755e41aa471ec470c7f90306d60b3a63687c8638c78dc0",
+      "short": "b062d9847511b963b22dad8ddc85905724f8e4c692bc0ca415e94bcd1e8410d9",
+      "tns_long_limit": 39,
+      "tns_short_limit": 14
+    }
+  ],
+  "offset_arrays": {
+    "2a32277ca57745a5df41f3cbdc705c4fff00486fc6767a641b5ac92e65d7e375": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36,
+      40,
+      44,
+      48,
+      52,
+      56,
+      64,
+      72,
+      80,
+      88,
+      96,
+      108,
+      120,
+      132,
+      144,
+      156,
+      172,
+      188,
+      212,
+      240,
+      276,
+      320,
+      384,
+      448,
+      512,
+      576,
+      640,
+      704,
+      768,
+      832,
+      896,
+      960,
+      1024
+    ],
+    "ee98c6b6d41c4ea6352ec3c16b4795a5c0edbb1eabe4e0b524487c7beb00113a": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      32,
+      40,
+      48,
+      64,
+      92,
+      128
+    ],
+    "9552858c909ecf5ad260a432a2f9d7eec45a39d93b53fa82820320f0480556fa": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36,
+      40,
+      44,
+      48,
+      52,
+      56,
+      64,
+      72,
+      80,
+      88,
+      100,
+      112,
+      124,
+      140,
+      156,
+      172,
+      192,
+      216,
+      240,
+      268,
+      304,
+      344,
+      384,
+      424,
+      464,
+      504,
+      544,
+      584,
+      624,
+      664,
+      704,
+      744,
+      784,
+      824,
+      864,
+      904,
+      944,
+      984,
+      1024
+    ],
+    "c961fa1861cd4278663c942fd7ae86586eebf090ecca5c9694d63a528b309a77": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36,
+      40,
+      48,
+      56,
+      64,
+      72,
+      80,
+      88,
+      96,
+      108,
+      120,
+      132,
+      144,
+      160,
+      176,
+      196,
+      216,
+      240,
+      264,
+      292,
+      320,
+      352,
+      384,
+      416,
+      448,
+      480,
+      512,
+      544,
+      576,
+      608,
+      640,
+      672,
+      704,
+      736,
+      768,
+      800,
+      832,
+      864,
+      896,
+      928,
+      960,
+      992,
+      1024
+    ],
+    "7c7a81c9ecb1907c0d5d5eef75862894d5e8d3338388a93ff25146ac27cc68c0": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      36,
+      40,
+      44,
+      52,
+      60,
+      68,
+      76,
+      84,
+      92,
+      100,
+      108,
+      116,
+      124,
+      136,
+      148,
+      160,
+      172,
+      188,
+      204,
+      220,
+      240,
+      260,
+      284,
+      308,
+      336,
+      364,
+      396,
+      432,
+      468,
+      508,
+      552,
+      600,
+      652,
+      704,
+      768,
+      832,
+      896,
+      960,
+      1024
+    ],
+    "4b1c74da49ccfc0430bab0b8015eb44d9f30496d2770f1675c09081aab17dc5c": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      36,
+      44,
+      52,
+      64,
+      76,
+      92,
+      108,
+      128
+    ],
+    "c8c05b9a270f7a529f6a2f0cdc3c4acfb487176a663967472b5c7e742eb7470c": [
+      0,
+      8,
+      16,
+      24,
+      32,
+      40,
+      48,
+      56,
+      64,
+      72,
+      80,
+      88,
+      100,
+      112,
+      124,
+      136,
+      148,
+      160,
+      172,
+      184,
+      196,
+      212,
+      228,
+      244,
+      260,
+      280,
+      300,
+      320,
+      344,
+      368,
+      396,
+      424,
+      456,
+      492,
+      532,
+      572,
+      616,
+      664,
+      716,
+      772,
+      832,
+      896,
+      960,
+      1024
+    ],
+    "45ef4ace98db92d4e140394e2476d0d30e6f6173edbf208d900046b155e5bf75": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      32,
+      40,
+      48,
+      60,
+      72,
+      88,
+      108,
+      128
+    ],
+    "3a227afb406479094c755e41aa471ec470c7f90306d60b3a63687c8638c78dc0": [
+      0,
+      12,
+      24,
+      36,
+      48,
+      60,
+      72,
+      84,
+      96,
+      108,
+      120,
+      132,
+      144,
+      156,
+      172,
+      188,
+      204,
+      220,
+      236,
+      252,
+      268,
+      288,
+      308,
+      328,
+      348,
+      372,
+      396,
+      420,
+      448,
+      476,
+      508,
+      544,
+      580,
+      620,
+      664,
+      712,
+      764,
+      820,
+      880,
+      944,
+      1024
+    ],
+    "b062d9847511b963b22dad8ddc85905724f8e4c692bc0ca415e94bcd1e8410d9": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28,
+      36,
+      44,
+      52,
+      60,
+      72,
+      88,
+      108,
+      128
+    ]
+  },
+  "profiles": [
+    {
+      "profile": 31,
+      "levels": [
+        [
+          {
+            "type": 0,
+            "maximum_channels": 2
+          },
+          {
+            "type": 5,
+            "maximum_channels": 2
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 6
+          },
+          {
+            "type": 5,
+            "maximum_channels": 6
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 8
+          },
+          {
+            "type": 5,
+            "maximum_channels": 8
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 12
+          },
+          {
+            "type": 5,
+            "maximum_channels": 12
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 24
+          },
+          {
+            "type": 5,
+            "maximum_channels": 24
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 32
+          },
+          {
+            "type": 5,
+            "maximum_channels": 32
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 64
+          },
+          {
+            "type": 5,
+            "maximum_channels": 64
+          }
+        ]
+      ],
+      "layout_tags": [
+        6553601,
+        6619138,
+        7471107,
+        7077892,
+        7602180,
+        7864325,
+        8126470,
+        9240582,
+        9306119,
+        9371655,
+        8323080,
+        11993096,
+        9437192,
+        8060934,
+        12713992,
+        12779530,
+        12845066,
+        12582924,
+        12648464,
+        7405571,
+        7536644,
+        7667717,
+        7929862,
+        8585219,
+        8650756,
+        8192007,
+        8388616,
+        13369368,
+        13434888,
+        13500428,
+        13565962,
+        13631500,
+        13697038,
+        13762572,
+        13828110
+      ]
+    },
+    {
+      "profile": 5,
+      "levels": [
+        [
+          {
+            "type": 0,
+            "maximum_channels": 12
+          },
+          {
+            "type": 1,
+            "maximum_channels": 7
+          },
+          {
+            "type": 2,
+            "maximum_channels": 16
+          },
+          {
+            "type": 5,
+            "maximum_channels": 12
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 24
+          },
+          {
+            "type": 1,
+            "maximum_channels": 32
+          },
+          {
+            "type": 2,
+            "maximum_channels": 36
+          },
+          {
+            "type": 5,
+            "maximum_channels": 24
+          }
+        ],
+        [
+          {
+            "type": 0,
+            "maximum_channels": 64
+          },
+          {
+            "type": 1,
+            "maximum_channels": 128
+          },
+          {
+            "type": 2,
+            "maximum_channels": 49
+          },
+          {
+            "type": 5,
+            "maximum_channels": 64
+          }
+        ]
+      ],
+      "layout_tags": [
+        6553601,
+        6619138,
+        7471107,
+        7077892,
+        7602180,
+        7864325,
+        8126470,
+        9240582,
+        9306119,
+        9371655,
+        8323080,
+        11993096,
+        9437192,
+        8060934,
+        12713992,
+        12779530,
+        12845066,
+        12582924,
+        12648464,
+        7405571,
+        7536644,
+        7667717,
+        7929862,
+        8585219,
+        8650756,
+        8192007,
+        8388616,
+        13369368,
+        13434888,
+        13500428,
+        13565962,
+        13631500,
+        13697038,
+        13762572,
+        13828110,
+        4028628997,
+        12451840,
+        4026597376,
+        9633792,
+        0
+      ]
+    },
+    {
+      "profile": 0,
+      "levels": [
+        [
+          {
+            "type": 0,
+            "maximum_channels": 64
+          },
+          {
+            "type": 1,
+            "maximum_channels": 1024
+          },
+          {
+            "type": 2,
+            "maximum_channels": 121
+          },
+          {
+            "type": 3,
+            "maximum_channels": 64
+          },
+          {
+            "type": 4,
+            "maximum_channels": 64
+          },
+          {
+            "type": 5,
+            "maximum_channels": 64
+          }
+        ]
+      ],
+      "layout_tags": [
+        6553601,
+        6619138,
+        7471107,
+        7077892,
+        7602180,
+        7864325,
+        8126470,
+        9240582,
+        9306119,
+        9371655,
+        8323080,
+        11993096,
+        9437192,
+        8060934,
+        12713992,
+        12779530,
+        12845066,
+        12582924,
+        12648464,
+        7405571,
+        7536644,
+        7667717,
+        7929862,
+        8585219,
+        8650756,
+        8192007,
+        8388616,
+        13369368,
+        13434888,
+        13500428,
+        13565962,
+        13631500,
+        13697038,
+        13762572,
+        13828110,
+        4028628997,
+        12451840,
+        4026597376,
+        9633792,
+        0
+      ]
+    }
+  ],
+  "frame_samples": 1024,
+  "spatial_method_1_required_long_bands": 49,
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "method": "bounded decoder SFB/TNS tables and shared configuration pseudocode; native rate controls"
+  },
+  "format_sha256": "9860ad56855069471f81973c7db79da21be08a3df1df6d719f87a1d796fa3550"
+}

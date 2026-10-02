@@ -5,6 +5,16 @@ use serde_json::json;
 
 const ROOT: &str = "ancillary.loudness_drc";
 
+pub(super) struct Downmix {
+    pub id: u64,
+    pub channels: usize,
+}
+
+struct Instruction {
+    id: u64,
+    dependency: Option<u64>,
+}
+
 struct Coefficients {
     location: u64,
     left_count: usize,
@@ -14,7 +24,12 @@ struct Coefficients {
 }
 
 impl Parser<'_> {
-    fn drc_count(&mut self, name: &str, width: usize, minimum_bits: usize) -> PResult<usize> {
+    pub(super) fn drc_count(
+        &mut self,
+        name: &str,
+        width: usize,
+        minimum_bits: usize,
+    ) -> PResult<usize> {
         let count = self.take(name, width)?;
         self.count(count, minimum_bits)
     }
@@ -32,17 +47,14 @@ impl Parser<'_> {
         self.drc_header(channels, false)
     }
 
-    pub(super) fn drc_header(&mut self, channels: u64, allow_reuse: bool) -> PResult<()> {
+    pub(super) fn drc_header(&mut self, channels: u64, _allow_reuse: bool) -> PResult<()> {
         // SetClientInfo selects internal version 8 for APAC's feature profile.
         // This is contextual syntax, not an additional version field in the cookie.
         if !self.flag(&format!("{ROOT}.header_present"))? {
             return Ok(());
         }
         if !self.flag(&format!("{ROOT}.config_present"))? {
-            if allow_reuse {
-                return self.drc_loudness();
-            }
-            return self.stop("DRC header without a fresh configuration is not implemented");
+            return self.drc_loudness();
         }
         if self.flag(&format!("{ROOT}.sample_rate_present"))? {
             let rate = self.take(&format!("{ROOT}.sample_rate_minus_1000"), 18)? + 1000;
@@ -59,38 +71,99 @@ impl Parser<'_> {
                 .derived
                 .insert(format!("{ROOT}.sample_rate_hz"), json!(rate));
         }
-        self.absent(&format!("{ROOT}.channel_layout_present"))?;
-        let base_channels = self.take(&format!("{ROOT}.base_channel_count"), 10)?;
+        let explicit_layout = self.flag(&format!("{ROOT}.channel_layout_present"))?;
+        let base_channels = self.take(
+            &format!("{ROOT}.base_channel_count"),
+            if explicit_layout { 7 } else { 10 },
+        )?;
+        if explicit_layout && self.flag(&format!("{ROOT}.layout.signalling_present"))? {
+            let layout = self.take(&format!("{ROOT}.layout.defined_layout"), 8)?;
+            if layout == 0 {
+                self.count(base_channels, 7)?;
+                for index in 0..base_channels {
+                    self.take(&format!("{ROOT}.layout.speaker_positions[{index}]"), 7)?;
+                }
+            } else if let Some(&count) = [
+                0, 1, 2, 3, 4, 5, 6, 7, 2, 3, 4, 7, 8, 24, 8, 12, 10, 12, 14, 12, 14,
+            ]
+            .get(layout as usize)
+                && count != base_channels
+            {
+                return self.invalid(
+                    "drc-layout-count",
+                    "defined DRC layout and base channel count disagree",
+                );
+            }
+        }
         if base_channels != channels {
             return self.invalid(
                 "drc-channel-count",
                 "DRC and global channel counts disagree",
             );
         }
-        self.absent(&format!("{ROOT}.downmix_instructions_present"))?;
+        let mut downmixes = Vec::new();
+        if self.flag(&format!("{ROOT}.downmix_instructions_present"))? {
+            let count = self.drc_count(&format!("{ROOT}.downmix_instruction_count"), 7, 23)?;
+            for i in 0..count {
+                let p = format!("{ROOT}.downmix_instructions[{i}]");
+                let id = self.take(&format!("{p}.id"), 7)?;
+                let target = self.take(&format!("{p}.target_channel_count"), 7)?;
+                if target == 0 {
+                    return self.invalid("drc-downmix-count", "downmix has no target channels");
+                }
+                downmixes.push(Downmix {
+                    id,
+                    channels: target as usize,
+                });
+                self.take(&format!("{p}.target_layout"), 8)?;
+                if self.flag(&format!("{p}.coefficients_present"))? {
+                    self.take(&format!("{p}.offset_encoded"), 4)?;
+                    let entries = self.count(target * channels, 5)?;
+                    for k in 0..entries {
+                        self.take(&format!("{p}.coefficients[{k}]"), 5)?;
+                    }
+                }
+            }
+        }
         let count = self.drc_count(&format!("{ROOT}.coefficient_count"), 3, 20)?;
         let mut coefficients = Vec::with_capacity(count);
         for i in 0..count {
             let entry = self.drc_coefficients(&format!("{ROOT}.coefficients[{i}]"))?;
-            if coefficients
-                .iter()
-                .any(|c: &Coefficients| c.location == entry.location)
-            {
-                return self.stop("selection between multiple DRC coefficients at one location is not implemented");
-            }
             coefficients.push(entry);
         }
-        let count = self.drc_count(&format!("{ROOT}.instruction_count"), 8, 37)?;
+        let count = self.drc_count(&format!("{ROOT}.instruction_count"), 8, 36)?;
+        let mut instructions = Vec::with_capacity(count);
         for i in 0..count {
-            self.drc_instruction(
+            instructions.push(self.drc_instruction(
                 &format!("{ROOT}.instructions[{i}]"),
                 channels as usize,
                 &coefficients,
-            )?;
+                &downmixes,
+            )?);
         }
-        self.absent(&format!("{ROOT}.loudness_eq_present"))?;
-        self.absent(&format!("{ROOT}.eq_present"))?;
-        self.absent(&format!("{ROOT}.scene_extension_present"))?;
+        for instruction in &instructions {
+            let mut next = instruction.dependency;
+            let mut visited = vec![instruction.id];
+            while let Some(id) = next {
+                if visited.contains(&id) {
+                    return self.invalid("drc-dependency", "cyclic DRC set dependency");
+                }
+                visited.push(id);
+                let Some(target) = instructions.iter().find(|i| i.id == id) else {
+                    return self.invalid("drc-dependency", "DRC dependency has no declared set");
+                };
+                next = target.dependency;
+            }
+        }
+        if self.flag(&format!("{ROOT}.loudness_eq_present"))? {
+            self.drc_loudness_eq(&format!("{ROOT}.loudness_eq"), channels as usize)?;
+        }
+        if self.flag(&format!("{ROOT}.eq_present"))? {
+            self.drc_eq(&format!("{ROOT}.eq"), channels as usize, &downmixes)?;
+        }
+        if self.flag(&format!("{ROOT}.scene_extension_present"))? {
+            self.drc_extensions(&format!("{ROOT}.config_extensions"))?;
+        }
         self.drc_loudness()?;
         Ok(())
     }
@@ -164,7 +237,18 @@ impl Parser<'_> {
                     .insert(format!("{q}.time_delta_min"), json!(delta));
             }
             if profile == 3 {
-                return self.stop("DRC constant coding profile is not implemented");
+                if next_sequence >= sequences {
+                    return self.invalid(
+                        "drc-reference",
+                        "constant gain sequence exceeds declared count",
+                    );
+                }
+                self.report
+                    .derived
+                    .insert(format!("{q}.bands[0].sequence_index"), json!(next_sequence));
+                next_sequence += 1;
+                bands_per_set.push(1);
+                continue;
             }
             let bands = self.drc_count(&format!("{q}.band_count"), 4, 2)?;
             if bands == 0 {
@@ -214,7 +298,7 @@ impl Parser<'_> {
         })
     }
 
-    fn drc_presets(&mut self, p: &str) -> PResult<()> {
+    pub(super) fn drc_presets(&mut self, p: &str) -> PResult<()> {
         let count = self.drc_count(&format!("{p}.count"), 4, 4)?;
         for i in 0..count {
             self.take(&format!("{p}.ids[{i}]"), 4)?;
@@ -227,38 +311,52 @@ impl Parser<'_> {
         p: &str,
         channels: usize,
         coefficients: &[Coefficients],
-    ) -> PResult<()> {
+        downmixes: &[Downmix],
+    ) -> PResult<Instruction> {
         self.flag(&format!("{p}.flag_a"))?;
         self.drc_presets(&format!("{p}.presets"))?;
-        self.take(&format!("{p}.set_id"), 6)?;
+        let id = self.take(&format!("{p}.set_id"), 6)?;
         self.take(&format!("{p}.complexity_level"), 4)?;
         let location = self.take(&format!("{p}.location"), 4)?;
-        self.absent(&format!("{p}.downmix_id_present"))?;
+        let channels = self.drc_downmix_target(p, channels, downmixes, 3)?;
         let effect = self.take(&format!("{p}.effect"), 16)?;
-        if effect & 0x8c00 != 0 {
-            return self.stop("DRC ducking or special-effect instruction is not implemented");
+        let special = effect & 0x8000 != 0;
+        let ducking = effect & 0xc00 != 0 && !special;
+        if special && effect & 0xc00 != 0 {
+            return self.invalid(
+                "drc-effect-combination",
+                "special gain-only instructions cannot declare ducking modifiers",
+            );
         }
-        if self.flag(&format!("{p}.limiter_peak_present"))? {
+        if !special && !ducking && self.flag(&format!("{p}.limiter_peak_present"))? {
             self.take(&format!("{p}.limiter_peak_encoded"), 8)?;
         }
-        if self.flag(&format!("{p}.target_loudness_present"))? {
+        if !special && self.flag(&format!("{p}.target_loudness_present"))? {
             self.take(&format!("{p}.target_loudness_upper_encoded"), 6)?;
             if self.flag(&format!("{p}.target_loudness_lower_present"))? {
                 self.take(&format!("{p}.target_loudness_lower_encoded"), 6)?;
             }
         }
-        if self.flag(&format!("{p}.depends_on_set_present"))? {
-            return self.stop("DRC dependent instruction is not implemented");
+        let dependency = if special {
+            None
+        } else if self.flag(&format!("{p}.depends_on_set_present"))? {
+            Some(self.take(&format!("{p}.depends_on_set_id"), 6)?)
+        } else {
+            self.flag(&format!("{p}.no_independent_use"))?;
+            None
+        };
+        if !special {
+            self.flag(&format!("{p}.requires_eq"))?;
         }
-        self.flag(&format!("{p}.no_independent_use"))?;
-        self.absent(&format!("{p}.requires_eq"))?;
-        let Some(coefficient) = coefficients.iter().find(|c| c.location == location) else {
+        let coefficient = coefficients.iter().find(|c| c.location == location);
+        if coefficient.is_none() && !special && !ducking {
             return self.invalid(
                 "drc-reference",
                 "instruction has no coefficients at its location",
             );
-        };
+        }
         let mut indices = Vec::with_capacity(channels);
+        let mut ducking_scales = Vec::with_capacity(channels);
         let mut groups = Vec::new();
         while indices.len() < channels {
             let channel = indices.len();
@@ -266,8 +364,13 @@ impl Parser<'_> {
             let index = self.drc_reference(
                 &format!("{q}.gain_set_index_plus_one"),
                 6,
-                coefficient.bands.len(),
+                coefficient.map_or(63, |c| c.bands.len()),
             )?;
+            let scale = if ducking && self.flag(&format!("{q}.ducking_scaling_present"))? {
+                Some(self.take(&format!("{q}.ducking_scaling_encoded"), 4)?)
+            } else {
+                None
+            };
             let repeat = if self.flag(&format!("{q}.repeat_present"))? {
                 self.take(&format!("{q}.repeat_count_minus_one"), 5)? as usize + 1
             } else {
@@ -280,13 +383,42 @@ impl Parser<'_> {
                 );
             }
             indices.resize(channel + repeat + 1, index as i64 - 1);
+            ducking_scales.resize(channel + repeat + 1, scale);
             if index != 0 && !groups.contains(&(index as usize - 1)) {
                 groups.push(index as usize - 1);
+            }
+        }
+        if ducking {
+            let other = effect & 0x400 != 0;
+            if other && (groups.len() != 1 || !indices.iter().any(|&i| i < 0)) {
+                return self.invalid(
+                    "drc-ducking-groups",
+                    "duck-other requires one gain sequence and at least one recipient channel",
+                );
+            }
+            let mut active = Vec::new();
+            for (&index, &scale) in indices.iter().zip(&ducking_scales) {
+                if (other && index < 0) || (!other && (0..61).contains(&index)) {
+                    let group = (if other { -1 } else { index }, scale);
+                    if !active.contains(&group) {
+                        active.push(group);
+                    }
+                }
+            }
+            if active.is_empty() || active.len() > 63 {
+                return self.invalid(
+                    "drc-ducking-groups",
+                    "ducking requires one to 63 active channel groups",
+                );
             }
         }
         self.report
             .derived
             .insert(format!("{p}.channel_gain_set_indices"), json!(indices));
+        if special || ducking {
+            return Ok(Instruction { id, dependency });
+        }
+        let coefficient = coefficient.expect("checked ordinary coefficient");
         for (group, &set) in groups.iter().enumerate() {
             let q = format!("{p}.groups[{group}]");
             self.report
@@ -327,7 +459,81 @@ impl Parser<'_> {
                 )?;
             }
         }
-        Ok(())
+        Ok(Instruction { id, dependency })
+    }
+
+    pub(super) fn drc_downmix_target(
+        &mut self,
+        p: &str,
+        channels: usize,
+        downmixes: &[Downmix],
+        count_width: usize,
+    ) -> PResult<usize> {
+        if !self.flag(&format!("{p}.downmix_id_present"))? {
+            return Ok(channels);
+        }
+        let id = self.take(&format!("{p}.downmix_id"), 7)?;
+        let apply = self.flag(&format!("{p}.apply_to_downmix"))?;
+        let mut additional = 0;
+        if self.flag(&format!("{p}.additional_downmix_ids_present"))? {
+            additional =
+                self.drc_count(&format!("{p}.additional_downmix_count"), count_width, 7)?;
+            for i in 0..additional {
+                self.take(&format!("{p}.additional_downmix_ids[{i}]"), 7)?;
+            }
+        }
+        let count = if !apply || (id == 0 && additional == 0) {
+            channels
+        } else if id == 127 || additional != 0 {
+            1
+        } else if let Some(downmix) = downmixes.iter().find(|d| d.id == id) {
+            downmix.channels
+        } else {
+            return self.invalid(
+                "drc-downmix-reference",
+                "instruction refers to an undeclared downmix",
+            );
+        };
+        if count == 0 || count > channels {
+            return self.invalid(
+                "drc-instruction-count",
+                "instruction channel count exceeds the base layout",
+            );
+        }
+        Ok(count)
+    }
+
+    fn drc_extensions(&mut self, p: &str) -> PResult<()> {
+        for index in 0..4096 {
+            let q = format!("{p}[{index}]");
+            if self.take(&format!("{q}.type"), 4)? == 0 {
+                return Ok(());
+            }
+            let width = self.take(&format!("{q}.length_width_minus_four"), 4)? as usize + 4;
+            let length = self.take(&format!("{q}.bits_minus_one"), width)? as usize + 1;
+            let start = self.pos();
+            if length > self.bits.remaining() {
+                return Err(super::ParseError::new(
+                    start,
+                    "truncated",
+                    "DRC extension exceeds input",
+                )
+                .into());
+            }
+            let mut data = Vec::with_capacity(length.div_ceil(8));
+            let mut remaining = length;
+            while remaining != 0 {
+                let width = remaining.min(8);
+                data.push((self.bits.read(width)? << (8 - width)) as u8);
+                remaining -= width;
+            }
+            self.record(
+                &format!("{q}.payload"),
+                start,
+                json!({"bits":length,"sha256":crate::model::sha256(&data)}),
+            )?;
+        }
+        self.invalid("drc-extension-count", "too many DRC extensions")
     }
 
     fn drc_loudness(&mut self) -> PResult<()> {
@@ -381,7 +587,9 @@ impl Parser<'_> {
                 }
             }
         }
-        self.absent(&format!("{p}.extensions_present"))?;
+        if self.flag(&format!("{p}.extensions_present"))? {
+            self.drc_extensions(&format!("{p}.extensions"))?;
+        }
         Ok(())
     }
 

@@ -53,7 +53,18 @@ pub(super) fn render(
     }
     counts.drc_payload_frames += u64::from(packet.drc_complete == Some(true));
     counts.drc_missing_history_frames += u64::from(packet.drc_history_sufficient == Some(false));
-    if let Some(hoa) = &packet.hoa
+    let (output, current) = render_core(states, &packet.elements, packet.hoa.as_ref())?;
+    counts.absent_elements += current.absent_elements;
+    counts.cpe_absent = current.cpe_absent;
+    Ok((output, counts))
+}
+pub(super) fn render_core(
+    states: &mut [ChannelState],
+    elements: &[crate::frame::ElementReport],
+    hoa: Option<&crate::frame::HoaFrameInfo>,
+) -> Result<(Vec<f32>, FrameStateCounts)> {
+    let mut counts = FrameStateCounts::default();
+    if let Some(hoa) = hoa
         && (hoa.static_remapping.is_some()
             || hoa.source_layout.is_some()
             || hoa.dynamic_selection.is_some()
@@ -62,7 +73,7 @@ pub(super) fn render(
                 .as_ref()
                 .is_some_and(|s| s.salient.is_some() || s.ambient.is_some()))
     {
-        counts.absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
+        counts.absent_elements += elements.iter().filter(|e| !e.present).count() as u64;
         let channels = states.len();
         if hoa
             .source_layout
@@ -90,7 +101,7 @@ pub(super) fn render(
     }
     let mut output = vec![0f32; 1024 * states.len()];
     let mut occupied = vec![false; states.len()];
-    for element in &packet.elements {
+    for element in elements {
         counts.absent_elements += u64::from(!element.present);
         counts.cpe_absent |=
             element.configuration.kind == crate::frame::ElementKind::Cpe && !element.present;
@@ -101,7 +112,7 @@ pub(super) fn render(
             }
             let samples = if element.present {
                 states[index].render(
-                    if let Some(hoa) = &packet.hoa {
+                    if let Some(hoa) = hoa {
                         &hoa.channels_after_hoa[index].scaled
                     } else {
                         &element.channels_after_bwe2[local].scaled

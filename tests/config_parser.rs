@@ -210,12 +210,17 @@ fn extension_bounds_sentinel_and_padding_are_accounted_for() {
     let mut unknown = bytes.clone();
     let f = field(&parsed, "extensions[0].type");
     set(&mut unknown, f.bit_offset, f.bit_length, 7);
-    assert_eq!(parse_cookie(&unknown).unwrap().status, ParseStatus::Partial);
+    let opaque = parse_cookie(&unknown).unwrap();
+    assert!(opaque.is_complete());
+    assert_eq!(
+        field(&opaque, "extensions[0].opaque_payload").bit_length,
+        40
+    );
     let mut pad = bytes.clone();
     let f = field(&parsed, "extensions[0].padding");
     assert_eq!(f.bit_length, 1);
     set(&mut pad, f.bit_offset, 1, 1);
-    assert_eq!(parse_cookie(&pad).unwrap().status, ParseStatus::Partial);
+    assert!(parse_cookie(&pad).unwrap().is_complete());
     let mut tail = bytes.clone();
     tail.push(0);
     let length = tail.len() as u32;
@@ -287,7 +292,7 @@ fn cli_exit_codes_are_platform_independent_and_errors_have_offsets() {
 }
 
 #[test]
-fn unrecognized_scene_branch_stops_without_assuming_a_payload_length() {
+fn truncated_language_item_is_rejected_without_guessing_a_payload_length() {
     let mut data = channel_config(2, 3, false, false);
     let parsed = parse_cookie(&data).unwrap();
     let present = field(&parsed, "ancillary.audio_scenes_present");
@@ -305,12 +310,11 @@ fn unrecognized_scene_branch_stops_without_assuming_a_payload_length() {
     for (value, width) in [(0, 6), (1, 6), (0, 6), (0, 5), (0, 4)] {
         w.put(value, width);
     }
-    w.put(0xabcdef, 24); // intentionally opaque language-item body
+    w.put(0xabcdef, 24); // incomplete language-item body
     data = w.finish();
-    let result = parse_cookie(&data).unwrap();
-    assert_eq!(result.status, ParseStatus::Partial);
-    assert!(!result.unknown_ranges.is_empty());
-    assert!(result.diagnostics[0].message.contains("language/selection"));
+    let error = parse_cookie(&data).unwrap_err();
+    assert_eq!(error.kind, "truncated");
+    assert!(error.bit_offset <= data.len() * 8);
 }
 
 #[test]
@@ -378,7 +382,7 @@ fn unknown_outer_shape_is_not_misreported_as_a_dapa_length_error() {
 }
 
 #[test]
-fn escaped_u32_values_cannot_wrap() {
+fn passive_component_parameter_retains_the_full_escaped_wire_value() {
     let original = channel_config(2, 3, false, false);
     let parsed = parse_cookie(&original).unwrap();
     let position = field(&parsed, "components[0].parameter_1").bit_offset;
@@ -389,7 +393,17 @@ fn escaped_u32_values_cannot_wrap() {
     w.put(3, 2);
     w.put(255, 8);
     w.put(u64::from(u32::MAX), 32);
-    let error = parse_cookie(&w.finish()).unwrap_err();
-    assert_eq!(error.kind, "overflow");
-    assert_eq!(error.bit_offset, position);
+    for bit in position + 2..original.len() * 8 {
+        w.put(u64::from((original[bit / 8] >> (7 - bit % 8)) & 1), 1);
+    }
+    let parsed = parse_cookie(&w.finish()).unwrap();
+    assert!(parsed.is_complete());
+    assert_eq!(
+        field(&parsed, "components[0].parameter_1").value,
+        u64::from(u32::MAX) + 258
+    );
+    assert_eq!(
+        parsed.derived["components[0].parameter_1_reference_u32"],
+        257
+    );
 }

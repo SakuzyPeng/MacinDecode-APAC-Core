@@ -62,7 +62,7 @@ def encode(config,packets,rate=48000,channels=2,priming=0,remainder=0,variant=0,
         matrix=40 if version==0 else 52
         for i,v in enumerate((65536,0,0,0,65536,0,0,0,1073741824)):struct.pack_into('>I',tkhd,matrix+4*i,v)
         elst=full(version)+struct.pack('>I',1)+struct.pack('>Ii' if version==0 else '>Qq',duration,priming)+struct.pack('>hh',1,0)
-        entry=bytes(6)+struct.pack('>H',1)+bytes(8)+struct.pack('>HHHHI',2,16,0,0,rate<<16)+config
+        entry=bytes(6)+struct.pack('>H',1)+bytes(8)+struct.pack('>HHHHI',2,16,0,0,opts.get('sample_entry_rate',rate if rate<=65535 else 0)<<16)+config
         stsd=full()+struct.pack('>I',1)+emit(box(b'apac',entry))
         runs=[]
         for i,c in enumerate(chunks,1):
@@ -100,7 +100,7 @@ def encode(config,packets,rate=48000,channels=2,priming=0,remainder=0,variant=0,
     ph=hashlib.sha256()
     for i,(offset,p) in enumerate(zip(packet_offsets,packets)):ph.update(struct.pack('<QQQQ',i,offset,len(p),1024));ph.update(hashlib.sha256(p).digest())
     truth=dict(kind='mp4',profile=PROFILE,brands=dict(major='mp42',minor_version=0,compatible=['mp42','isom']),track_id=1,
-               sample_entry=dict(version=0,channelcount=2,samplesize=16,sample_rate=rate),layout_source='cookie',packet_count=len(packets),
+               sample_entry=dict(version=0,channelcount=2,samplesize=16,sample_rate=opts.get('sample_entry_rate',rate if rate<=65535 else 0)),layout_source='cookie',packet_count=len(packets),
                packet_table=dict(valid_frames=valid,priming_frames=priming,remainder_frames=remainder),
                timeline=dict(source='single_elst',movie_timescale=opts['movie_timescale'],media_timescale=rate,edit_duration=duration,rounding='exact_integral_frames'),
                file_bytes=len(out),boxes=records,mdat_count=len(groups),skipped_boxes=2+len(groups),metadata_sha256=metadata.hexdigest(),cookie_sha256=sha(config),

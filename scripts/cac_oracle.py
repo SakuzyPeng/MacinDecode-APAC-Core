@@ -22,14 +22,15 @@ def rotation(index):
         return binary64(1/norm), binary64((-small if index > 17 else small)/norm), ratio >= 1
 
 
-def coupled(expected):
-    left, right = (scaled_channel(c) for c in expected['channels'])
+def coupled(expected,rate=48000):
+    left, right = (scaled_channel(c,rate) for c in expected['channels'])
     if not expected['shared_ics']:
         return [left, right]
     ics = expected['channels'][0]['ics']
     short = ics['block_type'] == 2
     n = 128 if short else 1024
-    offsets = TABLES['short_offsets' if short else 'long_offsets']
+    from shared_config_tables import offsets as band_offsets
+    offsets=band_offsets(rate,short,TABLES)
     first_window = 0
     with localcontext() as ctx:
         ctx.prec = 100

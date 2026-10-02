@@ -68,6 +68,14 @@ pub struct DrcParameters {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrcConfiguration {
     pub parameters: DrcParameters,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_parameters: Option<Vec<super::DrcSequenceParameters>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_coefficient_index: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_format_sha256: Option<String>,
     /// Declaration only, including instructions, characteristics and filters.
     /// Coordinates refer to `source`, not necessarily the current packet.
     pub source: String,
@@ -123,9 +131,9 @@ impl DrcConfiguration {
         ] {
             expect(format!("{SET}.{suffix}"), expected);
         }
-        // None excludes the observed compression/leveling instruction effects.
-        // An effect-free or other unqualified mandatory set can be selected by
-        // the native None policy; do not silently reinterpret it as bypass.
+        // Preserve legacy metadata identities for the original qualified sets.
+        // Other declarations use the shared syntax model. This decoder's off
+        // policy never selects or applies a set, unlike native mandatory sets.
         for field in report.fields.iter().filter(|f| {
             f.name.starts_with(&format!("{ROOT}.instructions[")) && f.name.ends_with(".effect")
         }) {
@@ -140,22 +148,56 @@ impl DrcConfiguration {
                 ));
             }
         }
-        if !rejected.is_empty() {
-            return Err(rejected.join("; "));
-        }
+        let shared_declarations = report.fields.iter().any(|f| {
+            f.value == json!(true)
+                && (f.name == format!("{ROOT}.channel_layout_present")
+                    || f.name == format!("{ROOT}.downmix_instructions_present")
+                    || f.name == format!("{ROOT}.loudness_eq_present")
+                    || f.name == format!("{ROOT}.eq_present")
+                    || f.name == format!("{ROOT}.scene_extension_present")
+                    || f.name == format!("{ROOT}.loudness.extensions_present")
+                    || f.name.ends_with(".downmix_id_present")
+                    || f.name.ends_with(".requires_eq")
+                    || f.name.ends_with(".depends_on_set_present"))
+        });
+        let shared_parameters = if rejected.is_empty() && !shared_declarations {
+            None
+        } else {
+            Some(super::drc_shared::parameters(report, channels)?)
+        };
         Ok(Self {
-            parameters: DrcParameters {
-                coefficient_location: 1,
-                gain_sequences: 1,
-                gain_sets: 1,
-                bands: 1,
-                coding_profile: 0,
-                interpolation: "linear".into(),
-                full_frame: false,
-                time_alignment: false,
-                frame_samples: 1024,
-                time_delta_min: 64,
-            },
+            shared_coefficient_index: shared_parameters
+                .as_ref()
+                .and_then(|_| super::drc_shared::coefficient_index(report)),
+            shared_profile: shared_parameters
+                .as_ref()
+                .map(|_| super::drc_shared::PROFILE.into()),
+            shared_format_sha256: shared_parameters
+                .as_ref()
+                .map(|_| super::drc_shared::format_sha256().into()),
+            parameters: shared_parameters
+                .as_ref()
+                .and_then(|s| s.first())
+                .map(|s| s.parameters.clone())
+                .unwrap_or_else(|| {
+                    if shared_parameters.is_some() {
+                        super::drc_shared::empty_parameters(report)
+                    } else {
+                        DrcParameters {
+                            coefficient_location: 1,
+                            gain_sequences: 1,
+                            gain_sets: 1,
+                            bands: 1,
+                            coding_profile: 0,
+                            interpolation: "linear".into(),
+                            full_frame: false,
+                            time_alignment: false,
+                            frame_samples: 1024,
+                            time_delta_min: 64,
+                        }
+                    }
+                }),
+            shared_parameters,
             source: source.into(),
             source_sha256: report.cookie_sha256.clone(),
             loudness_metadata_source: source.into(),
@@ -209,12 +251,22 @@ pub struct DrcNode {
     pub time: i32,
     pub gain_bit_offset: usize,
     pub gain_bit_length: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slope_index: Option<u8>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrcTimeDelta {
     pub value: u32,
     pub bit_offset: usize,
     pub bit_length: usize,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DrcGainExtension {
+    pub extension_type: u8,
+    pub start_bit_offset: usize,
+    pub end_bit_offset: usize,
+    pub payload_bits: usize,
+    pub payload_sha256: String,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrcPayload {
@@ -231,6 +283,14 @@ pub struct DrcPayload {
     pub encoded_times: Vec<i32>,
     pub nodes: Vec<DrcNode>,
     pub extension_present: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sequences: Option<Vec<super::DrcGainSequence>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration_changed: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_syntax_profile: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gain_extensions: Option<Vec<DrcGainExtension>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrcReport {
@@ -253,6 +313,9 @@ pub(crate) struct DrcState {
     pub channels: u64,
     pub configuration: Option<DrcConfiguration>,
     pub previous_nodes: Vec<DrcNode>,
+    pub previous_sequences: Vec<Vec<DrcNode>>,
+    pub shared_syntax_used: bool,
+    pub scene_graph: Option<super::auxiliary::SceneGraphState>,
 }
 impl DrcState {
     pub fn new(context: &FrameContext) -> Self {
@@ -260,10 +323,51 @@ impl DrcState {
             channels: 2,
             configuration: context.drc.configuration.clone(),
             previous_nodes: Vec::new(),
+            previous_sequences: Vec::new(),
+            shared_syntax_used: false,
+            scene_graph: None,
         }
     }
+    pub(crate) fn advance(&mut self, payload: &DrcPayload) {
+        self.shared_syntax_used |= payload.shared_syntax_profile.is_some();
+        self.previous_nodes = payload.nodes.clone();
+        self.previous_sequences = payload
+            .sequences
+            .as_ref()
+            .map_or_else(Vec::new, |v| v.iter().map(|s| s.nodes.clone()).collect());
+    }
+    pub(crate) fn history_sufficient(&self) -> bool {
+        if self
+            .configuration
+            .as_ref()
+            .and_then(|c| c.shared_parameters.as_ref())
+            .is_some_and(Vec::is_empty)
+        {
+            return true;
+        }
+        if self.previous_sequences.is_empty() {
+            self.previous_nodes.iter().any(|n| n.time < 1024)
+        } else {
+            self.previous_sequences
+                .iter()
+                .all(|s| s.iter().any(|n| n.time < 1024))
+        }
+    }
+    pub(crate) fn metadata(&self) -> Value {
+        let mut value = json!({"channels":self.channels,"configuration":self.configuration,"previous_nodes":self.previous_nodes});
+        if !self.previous_sequences.is_empty() {
+            value["previous_sequences"] = json!(self.previous_sequences);
+        }
+        if self.shared_syntax_used {
+            value["shared_drc_syntax_profile"] = json!(super::drc_shared::PROFILE);
+        }
+        if let Some(graph) = &self.scene_graph {
+            value["scene_graph"] = json!(graph);
+        }
+        value
+    }
 }
-fn gain_delta(bits: &mut BitReader<'_>) -> Result<i32, ParseError> {
+pub(super) fn gain_delta(bits: &mut BitReader<'_>) -> Result<i32, ParseError> {
     let start = bits.position();
     let mut code = 0u16;
     for width in 1..=11 {
@@ -281,12 +385,23 @@ fn gain_delta(bits: &mut BitReader<'_>) -> Result<i32, ParseError> {
         "invalid DRC gain delta codeword",
     ))
 }
-fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, ParseError> {
+pub(super) fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, ParseError> {
     Ok(match bits.read(2)? {
         0 => 1,
         1 => 2 + bits.read(2)? as u32,
         2 => 6 + bits.read(3)? as u32,
-        _ => 14 + bits.read((32 - (2 * ratio - 1).leading_zeros()) as usize)? as u32,
+        _ => {
+            let at = bits.position();
+            let width = if ratio == 0 {
+                32
+            } else {
+                (32 - (2 * ratio - 1).leading_zeros()) as usize
+            };
+            let value = bits.read(width)? as u32;
+            value.checked_add(14).ok_or_else(|| {
+                ParseError::new(at, "drc-time-delta", "time delta exceeds its 32-bit range")
+            })?
+        }
     })
 }
 fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: Value) {
@@ -299,6 +414,65 @@ fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: Value) {
         bit_length: parser.bits.position() - start,
         value,
     });
+}
+fn gain_extensions(
+    parser: &mut Parser<'_>,
+    present: bool,
+) -> Result<Option<Vec<DrcGainExtension>>, ParseError> {
+    if !present {
+        return Ok(None);
+    }
+    let mut entries = Vec::new();
+    loop {
+        let start = parser.bits.position();
+        let root = if entries.is_empty() {
+            ROOT.to_string()
+        } else {
+            format!("{ROOT}.gain_extensions[{}]", entries.len())
+        };
+        let kind = parser.take(&format!("{root}.gain_extension_type"), 4)? as u8;
+        if kind == 0 {
+            break;
+        }
+        if entries.len() == 4096 {
+            return Err(ParseError::new(
+                start,
+                "input-limit",
+                "too many gain extension records",
+            ));
+        }
+        let width = parser.take(&format!("{root}.length_width_minus_four"), 3)? as usize + 4;
+        let length = parser.take(&format!("{root}.payload_bits_minus_one"), width)? as usize + 1;
+        let payload_start = parser.bits.position();
+        if length > parser.bits.remaining() {
+            return Err(ParseError::new(
+                payload_start,
+                "truncated",
+                "gain extension exceeds input",
+            ));
+        }
+        let mut data = vec![0u8; length.div_ceil(8)];
+        for i in 0..length {
+            data[i / 8] |= (parser.bits.read(1)? as u8) << (7 - i % 8);
+        }
+        let sha = crate::model::sha256(&data);
+        if parser.capture {
+            parser.report.fields.push(ConfigField {
+                name: format!("{root}.opaque_payload"),
+                bit_offset: payload_start,
+                bit_length: length,
+                value: json!({"bits":length,"sha256":sha}),
+            });
+        }
+        entries.push(DrcGainExtension {
+            extension_type: kind,
+            start_bit_offset: start,
+            end_bit_offset: parser.bits.position(),
+            payload_bits: length,
+            payload_sha256: sha,
+        });
+    }
+    Ok((!entries.is_empty()).then_some(entries))
 }
 pub(super) fn read_payload(
     parser: &mut Parser<'_>,
@@ -326,19 +500,17 @@ pub(super) fn read_payload(
         value(&header.fields, &format!("{ROOT}.header_present")) == Some(&json!(true));
     let config_present =
         value(&header.fields, &format!("{ROOT}.config_present")) == Some(&json!(true));
+    let mut configuration_changed = false;
     if config_present {
         let next = DrcConfiguration::from_report(&header, "packet", state.channels)
             .map_err(|message| ParseError::new(start, "drc-configuration", message))?;
-        if state
-            .configuration
-            .as_ref()
-            .is_some_and(|previous| previous.parameters != next.parameters)
-        {
-            return Err(ParseError::new(
-                start,
-                "drc-configuration",
-                "DRC coding structure changed",
-            ));
+        if state.configuration.as_ref().is_some_and(|previous| {
+            previous.parameters != next.parameters
+                || previous.shared_parameters != next.shared_parameters
+        }) {
+            configuration_changed = true;
+            state.previous_nodes.clear();
+            state.previous_sequences.clear();
         }
         state.configuration = Some(next);
     } else if header_present {
@@ -361,6 +533,34 @@ pub(super) fn read_payload(
             "gain payload has no verified configuration",
         )
     })?;
+    if let Some(parameters) = &configuration.shared_parameters {
+        let sequences = parameters
+            .iter()
+            .map(|s| super::drc_shared::read_sequence(parser, s))
+            .collect::<Result<Vec<_>, _>>()?;
+        let first = sequences.first();
+        let extension_present = configuration.shared_coefficient_index.is_some()
+            && parser.flag(&format!("{ROOT}.gain_extension_present"))?;
+        let gain_extensions = gain_extensions(parser, extension_present)?;
+        return Ok(DrcPayload {
+            start_bit_offset: start,
+            header_end_bit_offset: header_end,
+            end_bit_offset: parser.bits.position(),
+            header_present,
+            config_present,
+            coding_mode: first.map_or(0, |s| s.coding_mode),
+            frame_end: first.is_none_or(|s| s.frame_end),
+            time_deltas: first.map_or_else(Vec::new, |s| s.time_deltas.clone()),
+            encoded_times: first.map_or_else(Vec::new, |s| s.encoded_times.clone()),
+            nodes: first.map_or_else(Vec::new, |s| s.nodes.clone()),
+            extension_present,
+            sequences: Some(sequences),
+            configuration_changed: configuration_changed.then_some(true),
+            shared_syntax_profile: Some(super::drc_shared::PROFILE.into()),
+            gain_extensions,
+            configuration,
+        });
+    }
     let mode = parser.take(&format!("{ROOT}.coding_mode"), 1)? as u8;
     let (mut count, mut frame_end) = (1usize, true);
     let mut deltas = Vec::new();
@@ -388,12 +588,19 @@ pub(super) fn read_payload(
             let position = parser.bits.position();
             let value = time_delta(&mut parser.bits, (frames / dt) as u32)?;
             field(parser, &format!("time_deltas[{i}]"), position, json!(value));
-            let next = previous + value as i32 * dt;
-            if next <= previous || next >= 2 * frames {
+            let next = i32::try_from(i64::from(previous) + i64::from(value) * i64::from(dt))
+                .map_err(|_| {
+                    ParseError::new(
+                        position,
+                        "drc-node-time",
+                        "DRC node coordinate exceeds its signed range",
+                    )
+                })?;
+            if next <= previous {
                 return Err(ParseError::new(
                     position,
                     "drc-node-time",
-                    "DRC node time must advance within the supported two-frame time range",
+                    "DRC node time must advance",
                 ));
             }
             times.push(next);
@@ -446,20 +653,15 @@ pub(super) fn read_payload(
             time,
             gain_bit_offset: position,
             gain_bit_length: parser.bits.position() - position,
+            slope_index: None,
         });
     }
     let extension_present = parser.flag(&format!("{ROOT}.gain_extension_present"))?;
-    if extension_present {
-        let position = parser.bits.position();
-        let kind = parser.take(&format!("{ROOT}.gain_extension_type"), 4)?;
-        if kind != 0 {
-            return Err(ParseError::new(
-                position,
-                "drc-gain-extension",
-                format!("unsupported gain extension type {kind}"),
-            ));
-        }
-    }
+    let gain_extensions = gain_extensions(parser, extension_present)?;
+    let shared_syntax_profile = (configuration_changed
+        || gain_extensions.is_some()
+        || encoded_times.iter().any(|&t| t >= 2 * frames))
+    .then(|| super::drc_shared::PROFILE.into());
     Ok(DrcPayload {
         start_bit_offset: start,
         header_end_bit_offset: header_end,
@@ -473,6 +675,10 @@ pub(super) fn read_payload(
         encoded_times,
         nodes,
         extension_present,
+        sequences: None,
+        configuration_changed: configuration_changed.then_some(true),
+        shared_syntax_profile,
+        gain_extensions,
     })
 }
 
@@ -491,7 +697,7 @@ pub(super) fn parse_drc_with_state(
         drc_codebook_sha256: codebook_sha256(),
         drc_complete: false,
         drc_payload_present: context.drc.present,
-        drc_history_sufficient: state.previous_nodes.iter().any(|n| n.time < 1024),
+        drc_history_sufficient: state.history_sufficient(),
         drc_processing_applied: false,
         drc: None,
         drc_preroll: None,
@@ -579,8 +785,10 @@ pub(super) fn parse_drc_with_state(
             context.sample_rate_hz.unwrap_or(0),
         )?);
     }
-    out.drc_history_sufficient = next.previous_nodes.iter().any(|n| n.time < 1024);
-    next.previous_nodes = out.drc.as_ref().map_or_else(Vec::new, |d| d.nodes.clone());
+    out.drc_history_sufficient = next.history_sufficient();
+    if let Some(payload) = &out.drc {
+        next.advance(payload);
+    }
     out.drc_complete = true;
     let prefix = parser.report.prefix_complete;
     out.bwe2.tns.cac.spectrum.frame =
@@ -623,6 +831,10 @@ mod tests {
         DrcState {
             channels: 2,
             configuration: Some(DrcConfiguration {
+                shared_parameters: None,
+                shared_coefficient_index: None,
+                shared_profile: None,
+                shared_format_sha256: None,
                 parameters: DrcParameters {
                     coefficient_location: 1,
                     gain_sequences: 1,
@@ -643,6 +855,9 @@ mod tests {
                 loudness_metadata_source_sha256: String::new(),
             }),
             previous_nodes: Vec::new(),
+            previous_sequences: Vec::new(),
+            shared_syntax_used: false,
+            scene_graph: None,
         }
     }
     fn raw(text: &str) -> Vec<u8> {
@@ -699,8 +914,36 @@ mod tests {
         };
         assert_eq!(
             read_payload(&mut p, &mut state(), 48000).unwrap_err().kind,
-            "drc-gain-extension"
+            "truncated"
         );
+    }
+    #[test]
+    fn opaque_gain_extension_is_bounded_and_preserves_the_following_marker() {
+        let wire = "000000000001000100000101010000";
+        let data = raw(&format!("{wire}101101"));
+        let mut parser = Parser {
+            capture: true,
+            bits: BitReader::new(&data),
+            report: report(),
+        };
+        let payload = read_payload(&mut parser, &mut state(), 48000).unwrap();
+        assert_eq!(payload.end_bit_offset, wire.len());
+        assert_eq!(parser.bits.read(6).unwrap(), 0b101101);
+        assert_eq!(payload.gain_extensions.as_ref().unwrap()[0].payload_bits, 3);
+        assert!(payload.shared_syntax_profile.is_some());
+        for end in 0..wire.len() {
+            let mut bits = BitReader::new(&data);
+            bits.set_end(end).unwrap();
+            let mut parser = Parser {
+                capture: true,
+                bits,
+                report: report(),
+            };
+            assert!(
+                read_payload(&mut parser, &mut state(), 48000).is_err(),
+                "{end}"
+            );
+        }
     }
     #[test]
     fn every_gain_word_marker_and_bit_truncation() {

@@ -8,8 +8,9 @@ from spectrum_vectors import TABLES, bits, pack
 
 def channel_payload(spec, ics, origin, rate, channel_index):
     short = ics['block_type'] == 2
-    n, full, limit = (128, 14, 14) if short else (1024, 49, 40 if rate == 48000 else 42)
-    offsets = TABLES['short_offsets' if short else 'long_offsets']
+    from shared_config_tables import offsets as band_offsets,rate_info
+    offsets=band_offsets(rate,short,TABLES)
+    n,full,limit=(128 if short else 1024),len(offsets)-1,rate_info(rate)['tns_short_limit' if short else 'tns_long_limit']
     payload = '0' if spec is None else '1'
     result = dict(channel_index=channel_index, present=spec is not None, start_bit_offset=origin, windows=[])
     if spec is not None:
@@ -25,7 +26,7 @@ def channel_payload(spec, ics, origin, rate, channel_index):
                 at = origin+len(payload)
                 length, q = f['length'], list(f.get('q', []))
                 order = len(q)
-                payload += bits(length, 4 if short else 6)+bits(order, 3 if short else 5)
+                payload += bits(length, 4 if short else 6)+bits(f.get('encoded_order',order), 3 if short else 5)
                 direction = f.get('direction', False) if order else None
                 compression = f.get('compression', False) if order else None
                 width = r-int(compression) if order else None
@@ -41,6 +42,7 @@ def channel_payload(spec, ics, origin, rate, channel_index):
                                     coefficient_width=width, quantized=q, top_band=top, bottom_band=bottom,
                                     start_line=w*n+offsets[min(bottom, active)], end_line=w*n+offsets[min(top, active)],
                                     start_bit_offset=at, end_bit_offset=origin+len(payload)))
+                if f.get('encoded_order',order)!=order:records[-1].update(encoded_order=f['encoded_order'],order_profile='apac-tns-order-clamp-v1')
                 top = bottom
             result['windows'].append(dict(window_index=w, resolution=r if filters else None, filters=records,
                                            start_bit_offset=start, end_bit_offset=origin+len(payload)))
@@ -49,7 +51,7 @@ def channel_payload(spec, ics, origin, rate, channel_index):
 
 
 def packet(case, rate=48000):
-    raw, truth = cac_packet(case)
+    raw, truth = cac_packet(case,rate)
     end = truth['cac']['end_bit_offset'] if truth['shared_ics'] else truth['channels'][-1]['end_bit_offset']
     payload = ''.join(bits(v, 8) for v in raw)[:end]
     truth['tns'] = []

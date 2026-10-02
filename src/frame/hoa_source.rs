@@ -58,6 +58,32 @@ fn format() -> &'static Format {
 pub fn format_sha256() -> &'static str {
     &format().format_sha256
 }
+pub(super) fn descriptions(layout: &ChannelLayout, channels: u32) -> Vec<ChannelDescription> {
+    if layout.tag == 0 {
+        return layout.descriptions.clone();
+    }
+    let labels: Vec<u32> = match layout.tag >> 16 {
+        190 => (0..channels).map(|i| (2 << 16) | i).collect(),
+        191 => (0..channels).map(|i| (3 << 16) | i).collect(),
+        147 => (0..channels).map(|i| (1 << 16) | i).collect(),
+        _ => format()
+            .layouts
+            .iter()
+            .find(|e| e.tag == layout.tag)
+            .map_or_else(
+                || (0..channels).map(|i| (1 << 16) | i).collect(),
+                |e| e.channel_labels.clone(),
+            ),
+    };
+    labels
+        .into_iter()
+        .map(|label| ChannelDescription {
+            label,
+            flags: 0,
+            coordinates: [0.; 3],
+        })
+        .collect()
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct SourceLayout {

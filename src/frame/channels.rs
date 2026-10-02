@@ -55,10 +55,15 @@ pub struct ChannelFrameContext {
     configuration: PacketConfiguration,
     #[serde(skip)]
     drc: DrcContext,
+    #[serde(skip)]
+    auxiliary: super::auxiliary::AuxiliaryConfiguration,
 }
 impl ChannelFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         let parsed = config::parse_cookie(cookie)?;
+        Self::from_report(parsed)
+    }
+    pub(super) fn from_report(parsed: config::CookieReport) -> Result<Self, ParseError> {
         let count = parsed
             .derived
             .get("channels")
@@ -111,6 +116,7 @@ impl ChannelFrameContext {
             })
             .collect();
         Ok(Self {
+            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_report(&parsed),
             cookie_sha256: parsed.cookie_sha256,
             sample_rate_hz: parsed
                 .derived
@@ -139,6 +145,7 @@ impl ChannelFrameContext {
     ) -> Self {
         let rejection = configuration.rejection.clone().or(drc.rejection.clone());
         Self {
+            auxiliary: hoa.auxiliary.clone(),
             cookie_sha256,
             sample_rate_hz: hoa.sample_rate_hz,
             channel_count: hoa.channels,
@@ -231,6 +238,9 @@ impl ChannelFrameContext {
             channels: u64::from(self.channel_count),
             configuration: self.drc.configuration.clone(),
             previous_nodes: vec![],
+            previous_sequences: vec![],
+            shared_syntax_used: false,
+            scene_graph: None,
         }
     }
 }
@@ -334,20 +344,21 @@ fn read_element(
     let cpe = element.configuration.kind == ElementKind::Cpe;
     let ics_name = format!("{prefix}.{}", if cpe { "left_ics" } else { "ics" });
     let left = if let Some(block) = common_window {
-        parser.ics_with_block(&ics_name, block)?
+        parser.ics_with_block_at_rate(&ics_name, block, context.sample_rate_hz)?
     } else {
-        parser.ics(&ics_name)?
+        parser.ics_at_rate(&ics_name, context.sample_rate_hz)?
     };
     let buffer = if parser.capture {
         Vec::new()
     } else {
         scratch.quantized.pop().unwrap_or_default()
     };
-    element.channels.push(parser.stream_buffer(
+    element.channels.push(parser.stream_buffer_at_rate(
         &format!("{prefix}.channels[0]"),
         left.clone(),
         0,
         buffer,
+        context.sample_rate_hz,
     )?);
     if cpe {
         let shared = parser.flag(&format!("{prefix}.shared_ics"))?;
@@ -355,25 +366,31 @@ fn read_element(
         let right = if shared {
             left.clone()
         } else if let Some(block) = common_window {
-            parser.ics_with_block(&format!("{prefix}.right_ics"), block)?
+            parser.ics_with_block_at_rate(
+                &format!("{prefix}.right_ics"),
+                block,
+                context.sample_rate_hz,
+            )?
         } else {
-            parser.ics(&format!("{prefix}.right_ics"))?
+            parser.ics_at_rate(&format!("{prefix}.right_ics"), context.sample_rate_hz)?
         };
         let buffer = if parser.capture {
             Vec::new()
         } else {
             scratch.quantized.pop().unwrap_or_default()
         };
-        element.channels.push(parser.stream_buffer(
+        element.channels.push(parser.stream_buffer_at_rate(
             &format!("{prefix}.channels[1]"),
             right,
             1,
             buffer,
+            context.sample_rate_hz,
         )?);
         if shared {
             let data = cac::read_data_at(parser, &left, &format!("{prefix}.cac"))?;
             if parser.capture {
-                element.channels_after_cac = cac::apply_channels(&element.channels, &data)?;
+                element.channels_after_cac =
+                    cac::apply_channels_at_rate(&element.channels, &data, context.sample_rate_hz)?;
             }
             element.cac = Some(data);
         }
@@ -408,7 +425,7 @@ fn read_element(
                 });
             }
             let scaled = if parser.capture || tns::effective(&data) {
-                ensure_numeric(element, scratch)?;
+                ensure_numeric(element, scratch, context.sample_rate_hz)?;
                 tns::apply(&element.channels_after_cac[index].scaled, &data)?
             } else {
                 Vec::new()
@@ -432,16 +449,17 @@ fn read_element(
 fn ensure_numeric(
     element: &mut ElementReport,
     scratch: &mut ScanWorkspace,
+    rate: u64,
 ) -> Result<(), ParseError> {
     if !element.channels_after_cac.is_empty() {
         return Ok(());
     }
     scratch.numeric_elements += 1;
     for channel in &mut element.channels {
-        super::spectrum::materialize(channel);
+        super::spectrum::materialize_at_rate(channel, rate);
     }
     element.channels_after_cac = if let Some(data) = &element.cac {
-        cac::apply_channels(&element.channels, data)?
+        cac::apply_channels_at_rate(&element.channels, data, rate)?
     } else {
         element
             .channels
@@ -459,6 +477,7 @@ fn extensions(
     parser: &mut Parser<'_>,
     element: &mut ElementReport,
     scratch: &mut ScanWorkspace,
+    rate: u64,
 ) -> Result<(), ParseError> {
     if !element.present || element.configuration.kind == ElementKind::Extension {
         return Ok(());
@@ -490,7 +509,7 @@ fn extensions(
             .filter(|_| element.channels[index].ics.max_sfb > 0)
             .cloned();
         let (scaled, analysis, regions) = if let Some(p) = parameters {
-            ensure_numeric(element, scratch)?;
+            ensure_numeric(element, scratch, rate)?;
             if element.channels_after_tns[index].scaled.is_empty() {
                 // This channel had no effective TNS. Other channels may already
                 // have undergone their checks, in the original error order.
@@ -499,9 +518,9 @@ fn extensions(
             }
             let ics = &element.channels[index].ics;
             let (cutoff, regions) = if parser.capture {
-                bwe2::regions(ics)
+                bwe2::regions_at_rate(ics, rate)
             } else {
-                (bwe2::cutoff(ics), Vec::new())
+                (bwe2::cutoff_at_rate(ics, rate), Vec::new())
             };
             let (scaled, analysis) = crate::bwe2_math::restore_captured(
                 &element.channels_after_tns[index].scaled,
@@ -638,57 +657,7 @@ fn parse_impl(
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
-    let mut result = ChannelPacketReport {
-        frame,
-        packet_complete: false,
-        packet_state_profile: context
-            .hoa
-            .as_ref()
-            .map_or(STATE_PROFILE, |h| h.state_profile())
-            .into(),
-        hoa: context
-            .hoa
-            .as_ref()
-            .map(|_| super::hoa::HoaFrameInfo::default()),
-        channel_layout_profile: context.channel_layout_profile().map(str::to_owned),
-        channel_count: context.channel_count,
-        channel_labels: context.channel_labels.clone(),
-        elements: vec![],
-        numeric_profile: crate::numeric::PROFILE.into(),
-        cac_numeric_profile: cac::NUMERIC_PROFILE.into(),
-        tns_numeric_profile: tns::NUMERIC_PROFILE.into(),
-        bwe2_numeric_profile: bwe2::NUMERIC_PROFILE.into(),
-        packet_tail: None,
-        embedded_preroll: None,
-        drc: None,
-        drc_complete: context.drc.present.then_some(false),
-        drc_history_sufficient: None,
-        drc_processing_applied: false,
-    };
-    if let Some(shape) = &context.hoa {
-        let hoa = result.hoa.as_mut().expect("HOA context");
-        hoa.numeric_profile = shape.numeric_profile().into();
-        hoa.order = shape.order;
-        hoa.full_order = (!shape.full_order).then_some(false);
-        hoa.coefficient_count = usize::from(shape.recovery_slots);
-        hoa.transport_channels = usize::from(shape.transport_channels);
-        if shape.transport_extended() {
-            hoa.transport_profile = Some(super::hoa::TRANSPORT_PROFILE.into());
-            hoa.transport_format_sha256 = Some(super::hoa_transport::format_sha256().into());
-            hoa.transport_element_count = Some(shape.transport_types.len());
-        }
-        hoa.core_channels = usize::from(shape.core_channels);
-        hoa.static_remapping = shape.static_remapping.as_deref().cloned();
-        hoa.mixed = shape.mixed_mapping();
-        if shape.dynamic_method.is_some() {
-            hoa.output_order = shape
-                .source_layout
-                .layout
-                .ambisonic_order
-                .map(|order| order as u8);
-            hoa.output_coefficient_count = Some(usize::from(shape.channels));
-        }
-    }
+    let mut result = core_report(context, frame);
     let code = if context.asp_header {
         parser.take("frame.type_code", 2)?
     } else {
@@ -764,6 +733,115 @@ fn parse_impl(
             return finish(result, parser, "embedded_preroll_incomplete");
         }
     }
+    if let Some(reason) = read_core(
+        context,
+        &mut parser,
+        &mut result,
+        &mut next_hoa,
+        scratch,
+        code,
+    )? {
+        return finish(result, parser, &reason);
+    }
+    let core_end = parser.bits.position();
+    let scene_graph = super::auxiliary::read_graph(&mut parser, &context.auxiliary, &mut next)?;
+    let mut scene_update = None;
+    if context.configuration.scene_present {
+        let present = parser.flag("ancillary.audio_scenes_update_present")?;
+        scene_update = Some(present);
+        if present {
+            let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
+            parser.bits.skip(end - parser.bits.position())?;
+            if capture {
+                parser.report.fields.extend(scene.fields.iter().cloned());
+            }
+            if !scene.is_complete() {
+                return finish(result, parser, "unsupported audio scene update");
+            }
+            let rejected =
+                packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
+            if !rejected.is_empty() {
+                return finish(
+                    result,
+                    parser,
+                    &format!("non-neutral audio scene update: {}", rejected.join("; ")),
+                );
+            }
+        }
+    }
+    if context.drc.present {
+        let payload = drc::read_payload(&mut parser, &mut next, context.sample_rate_hz)?;
+        result.drc_history_sufficient = Some(next.history_sufficient());
+        next.advance(&payload);
+        if capture {
+            result.drc = Some(payload);
+        }
+        result.drc_complete = Some(true);
+    }
+    let trimming = super::auxiliary::read_trimming(&mut parser)?;
+    let custom_data = super::auxiliary::read(&mut parser, &context.auxiliary)?;
+    let ancillary_end = parser.bits.position();
+    if context.auxiliary.present
+        && parser.bits.remaining() != 0
+        && parser.flag("packet.extension_terminator")?
+    {
+        return finish(
+            result,
+            parser,
+            "nonzero packet extension terminator is unsupported",
+        );
+    }
+    if !context.auxiliary.present
+        && context.drc.present
+        && parser.bits.remaining() != 0
+        && parser.flag("packet.disabled_custom_data_flag")?
+    {
+        return finish(
+            result,
+            parser,
+            "nonzero disabled custom-data flag is unsupported",
+        );
+    }
+    let padding = (8 - parser.bits.position() % 8) % 8;
+    if padding != 0 && parser.take("packet.alignment_padding", padding)? != 0 {
+        return finish(result, parser, "nonzero packet alignment is unsupported");
+    }
+    if parser.bits.remaining() != 0 {
+        return finish(result, parser, "unparsed trailing bytes");
+    }
+    result.packet_tail = Some(PacketTail {
+        core_end_bit_offset: core_end,
+        ancillary_start_bit_offset: core_end,
+        scene_update_present: scene_update,
+        neutral_scene_restatement: scene_update == Some(true),
+        trimming_present: trimming.is_some(),
+        trimming,
+        custom_data,
+        scene_graph,
+        ancillary_end_bit_offset: ancillary_end,
+        packet_end_bit_offset: parser.bits.position(),
+    });
+    result.packet_complete = true;
+    parser.report.status = ParseStatus::Complete;
+    parser.report.prefix_complete = true;
+    parser.report.stop_reason = "packet_complete".into();
+    parser.report.stop_bit_offset = parser.bits.position();
+    parser.report.fields.sort_by_key(|f| f.bit_offset);
+    parser.report.unknown_ranges.sort_by_key(|r| r.bit_offset);
+    result.frame = parser.report;
+    *state = next;
+    *hoa_state = next_hoa;
+    Ok(result)
+}
+
+fn read_core(
+    context: &ChannelFrameContext,
+    parser: &mut Parser<'_>,
+    result: &mut ChannelPacketReport,
+    next_hoa: &mut Option<super::hoa::HoaState>,
+    scratch: &mut ScanWorkspace,
+    code: u64,
+) -> Result<Option<String>, ParseError> {
     let common_window = if context.hoa.is_some() {
         let block = parser.take("hoa.common_window", 2)? as u8;
         result.hoa.as_mut().expect("HOA context").common_window = Some(block);
@@ -793,20 +871,19 @@ fn parse_impl(
             channels_after_bwe2: vec![],
             extension: None,
         };
-        let supported = read_element(&mut parser, context, &mut element, scratch, common_window)
+        let supported = read_element(parser, context, &mut element, scratch, common_window)
             .map_err(|e| element_error(e, configuration.element_index))?;
         result.elements.push(element);
         if !supported {
-            return finish(
-                result,
-                parser,
-                &format!("lrvq_element_{}_deferred", configuration.element_index),
-            );
+            return Ok(Some(format!(
+                "lrvq_element_{}_deferred",
+                configuration.element_index
+            )));
         }
         let element = result.elements.last_mut().expect("recorded element");
-        extensions(&mut parser, element, scratch)
+        extensions(parser, element, scratch, context.sample_rate_hz)
             .map_err(|e| element_error(e, element.configuration.element_index))?;
-        if !capture {
+        if !parser.capture {
             for channel in element.channels.drain(..) {
                 scratch.quantized.push(channel.quantized);
             }
@@ -820,14 +897,10 @@ fn parse_impl(
     if let Some(shape) = &context.hoa {
         let state = next_hoa.as_mut().expect("HOA state");
         let (effective, frame_configuration) =
-            super::hoa_controls::effective_configuration(&mut parser, state, shape, code)?;
+            super::hoa_controls::effective_configuration(parser, state, shape, code)?;
         let shape = &effective;
-        let mut spatial = super::hoa::spatial(
-            &mut parser,
-            state,
-            shape,
-            common_window.expect("HOA window"),
-        )?;
+        let mut spatial =
+            super::hoa::spatial(parser, state, shape, common_window.expect("HOA window"))?;
         if let Some(report) = &frame_configuration {
             spatial.start_bit_offset = report.start_bit_offset;
         }
@@ -838,13 +911,13 @@ fn parse_impl(
             && shape.ambient_components != 0
         {
             let (restored, additive) =
-                super::hoa_additive::restore(&result, &mut spatial, state, shape)?;
+                super::hoa_additive::restore(result, &mut spatial, state, shape)?;
             result.hoa.as_mut().expect("HOA context").additive = Some(additive);
             restored
         } else {
             let mut restored = if let Some(data) = &mut spatial.salient {
                 super::hoa_salient::restore(
-                    &result,
+                    result,
                     data,
                     state.salient.as_mut().expect("salient state"),
                     usize::from(shape.recovery_slots),
@@ -853,10 +926,10 @@ fn parse_impl(
                     !shape.controls.flag_a,
                 )?
             } else {
-                super::hoa::restore(&result, shape)?
+                super::hoa::restore(result, shape)?
             };
             if let Some(data) = &mut spatial.ambient {
-                super::hoa_ambient::restore(&result, data, &mut restored, spatial.end_bit_offset)?;
+                super::hoa_ambient::restore(result, data, &mut restored, spatial.end_bit_offset)?;
             }
             restored
         };
@@ -891,7 +964,7 @@ fn parse_impl(
         }
         let (dynamic, restored) = if shape.dynamic_method.is_some() {
             let (data, spectra) = super::hoa_dynamic::read_and_apply(
-                &mut parser,
+                parser,
                 shape,
                 common_window.expect("HOA window"),
                 restored,
@@ -940,84 +1013,110 @@ fn parse_impl(
     }
     let padding = (8 - parser.bits.position() % 8) % 8;
     if padding != 0 && parser.take("core.alignment_padding", padding)? != 0 {
-        return finish(result, parser, "nonzero core alignment is unsupported");
+        return Ok(Some("nonzero core alignment is unsupported".into()));
     }
     let core_end = parser.bits.position();
     parser.report.component_end_bit_offset = Some(core_end);
-    let mut scene_update = None;
-    if context.configuration.scene_present {
-        let present = parser.flag("ancillary.audio_scenes_update_present")?;
-        scene_update = Some(present);
-        if present {
-            let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
-            parser.bits.skip(end - parser.bits.position())?;
-            if capture {
-                parser.report.fields.extend(scene.fields.iter().cloned());
-            }
-            if !scene.is_complete() {
-                return finish(result, parser, "unsupported audio scene update");
-            }
-            let rejected =
-                packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
-            if !rejected.is_empty() {
-                return finish(
-                    result,
-                    parser,
-                    &format!("non-neutral audio scene update: {}", rejected.join("; ")),
-                );
-            }
+    Ok(None)
+}
+
+fn core_report(context: &ChannelFrameContext, frame: FrameReport) -> ChannelPacketReport {
+    let mut result = ChannelPacketReport {
+        frame,
+        packet_complete: false,
+        packet_state_profile: context
+            .hoa
+            .as_ref()
+            .map_or(STATE_PROFILE, |h| h.state_profile())
+            .into(),
+        hoa: context
+            .hoa
+            .as_ref()
+            .map(|_| super::hoa::HoaFrameInfo::default()),
+        channel_layout_profile: context.channel_layout_profile().map(str::to_owned),
+        channel_count: context.channel_count,
+        channel_labels: context.channel_labels.clone(),
+        elements: vec![],
+        numeric_profile: crate::numeric::PROFILE.into(),
+        cac_numeric_profile: cac::NUMERIC_PROFILE.into(),
+        tns_numeric_profile: tns::NUMERIC_PROFILE.into(),
+        bwe2_numeric_profile: bwe2::NUMERIC_PROFILE.into(),
+        packet_tail: None,
+        embedded_preroll: None,
+        drc: None,
+        drc_complete: context.drc.present.then_some(false),
+        drc_history_sufficient: None,
+        drc_processing_applied: false,
+    };
+    if let Some(shape) = &context.hoa {
+        let hoa = result.hoa.as_mut().expect("HOA context");
+        hoa.numeric_profile = shape.numeric_profile().into();
+        hoa.order = shape.order;
+        hoa.full_order = (!shape.full_order).then_some(false);
+        hoa.coefficient_count = usize::from(shape.recovery_slots);
+        hoa.transport_channels = usize::from(shape.transport_channels);
+        if shape.transport_extended() {
+            hoa.transport_profile = Some(super::hoa::TRANSPORT_PROFILE.into());
+            hoa.transport_format_sha256 = Some(super::hoa_transport::format_sha256().into());
+            hoa.transport_element_count = Some(shape.transport_types.len());
+        }
+        hoa.core_channels = usize::from(shape.core_channels);
+        hoa.static_remapping = shape.static_remapping.as_deref().cloned();
+        hoa.mixed = shape.mixed_mapping();
+        if shape.dynamic_method.is_some() {
+            hoa.output_order = shape
+                .source_layout
+                .layout
+                .ambisonic_order
+                .map(|order| order as u8);
+            hoa.output_coefficient_count = Some(usize::from(shape.channels));
         }
     }
-    if context.drc.present {
-        result.drc_history_sufficient = Some(next.previous_nodes.iter().any(|n| n.time < 1024));
-        let payload = drc::read_payload(&mut parser, &mut next, context.sample_rate_hz)?;
-        if capture {
-            next.previous_nodes = payload.nodes.clone();
-            result.drc = Some(payload);
-        } else {
-            next.previous_nodes = payload.nodes;
-        }
-        result.drc_complete = Some(true);
+    result
+}
+
+pub(super) fn parse_core_at(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    start: usize,
+    code: u64,
+    state: &mut Option<super::hoa::HoaState>,
+    capture: bool,
+    scratch: &mut ScanWorkspace,
+) -> Result<ChannelPacketReport, ParseError> {
+    let frame = FrameReport {
+        schema_version: SCHEMA_VERSION,
+        cookie_sha256: context.cookie_sha256.clone(),
+        packet_sha256: sha256(packet),
+        packet_bytes: packet.len(),
+        status: ParseStatus::Partial,
+        prefix_complete: false,
+        fields: vec![],
+        derived: BTreeMap::new(),
+        stop_reason: String::new(),
+        stop_bit_offset: start,
+        payload_bit_offset: Some(start),
+        component_end_bit_offset: None,
+        unknown_ranges: vec![],
+        diagnostics: vec![],
+    };
+    let mut parser = Parser {
+        capture,
+        bits: BitReader::new(packet),
+        report: frame.clone(),
+    };
+    parser.bits.skip(start)?;
+    let mut result = core_report(context, frame);
+    let mut next = state.clone();
+    if let Some(reason) = read_core(context, &mut parser, &mut result, &mut next, scratch, code)? {
+        return finish(result, parser, &reason);
     }
-    if parser.flag("ancillary.trimming_present")? {
-        return finish(result, parser, "nonzero ancillary trimming is unsupported");
-    }
-    let ancillary_end = parser.bits.position();
-    if context.drc.present
-        && parser.bits.remaining() != 0
-        && parser.flag("packet.disabled_custom_data_flag")?
-    {
-        return finish(
-            result,
-            parser,
-            "nonzero disabled custom-data flag is unsupported",
-        );
-    }
-    let padding = (8 - parser.bits.position() % 8) % 8;
-    if padding != 0 && parser.take("packet.alignment_padding", padding)? != 0 {
-        return finish(result, parser, "nonzero packet alignment is unsupported");
-    }
-    if parser.bits.remaining() != 0 {
-        return finish(result, parser, "unparsed trailing bytes");
-    }
-    result.packet_tail = Some(PacketTail {
-        core_end_bit_offset: core_end,
-        ancillary_start_bit_offset: core_end,
-        scene_update_present: scene_update,
-        neutral_scene_restatement: scene_update == Some(true),
-        trimming_present: false,
-        ancillary_end_bit_offset: ancillary_end,
-        packet_end_bit_offset: parser.bits.position(),
-    });
     result.packet_complete = true;
     parser.report.status = ParseStatus::Complete;
     parser.report.prefix_complete = true;
-    parser.report.stop_reason = "packet_complete".into();
+    parser.report.stop_reason = "core_complete".into();
     parser.report.stop_bit_offset = parser.bits.position();
-    parser.report.fields.sort_by_key(|f| f.bit_offset);
-    parser.report.unknown_ranges.sort_by_key(|r| r.bit_offset);
     result.frame = parser.report;
     *state = next;
-    *hoa_state = next_hoa;
     Ok(result)
 }

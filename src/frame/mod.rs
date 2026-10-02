@@ -1,5 +1,7 @@
 //! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC, TNS and BWE2 before core alignment.
+mod auxiliary;
 mod bundle;
+pub use auxiliary::{AuxiliaryPayload, SceneGraphPayload, TrimmingDeclaration};
 mod channels;
 mod hoa;
 mod hoa_remapping;
@@ -53,12 +55,27 @@ pub(crate) use hoa_transport::format_sha256 as hoa_transport_format_sha256;
 mod bwe2;
 mod cac;
 mod drc;
+mod drc_shared;
+pub use drc::DrcGainExtension;
 pub use drc::RULES_VERSION as DRC_RULES_VERSION;
 pub(crate) use drc::{DrcState, codebook_sha256 as drc_codebook_sha256};
+pub use drc_shared::{DrcGainSequence, DrcSequenceParameters};
+pub use drc_shared::{
+    PROFILE as HOA_SHARED_DRC_PROFILE, format_sha256 as hoa_shared_drc_format_sha256,
+};
 pub(crate) use packet::parse_packet_with_state;
 mod packet;
 mod packet_config;
+pub(crate) mod sfb;
 mod spectrum;
+pub(crate) mod stream;
+pub use sfb::{
+    PROFILE as HOA_SHARED_CONFIG_PROFILE, format_sha256 as hoa_shared_config_format_sha256,
+};
+pub use stream::{
+    AdditionalComponentConfiguration, StreamComponentConfiguration, StreamComponentReport,
+    StreamFrameContext, StreamOutputRange, StreamPacketReport, parse_stream_packet,
+};
 mod tns;
 pub use crate::bwe2_math::Analysis as Bwe2Analysis;
 pub use bundle::{ParseDepth, parse_packets, parse_packets_with_depth};
@@ -286,6 +303,28 @@ impl Parser<'_> {
             self.bits.read(width)
         }
     }
+    fn escaped(&mut self, name: &str, widths: &[usize]) -> Result<u64, ParseError> {
+        let start = self.bits.position();
+        let mut value = 0u64;
+        for &width in widths {
+            let part = self.bits.read(width)?;
+            value = value.checked_add(part).ok_or_else(|| {
+                ParseError::new(start, "overflow", "escaped payload value overflow")
+            })?;
+            if part < (1u64 << width) - 1 {
+                break;
+            }
+        }
+        if self.capture {
+            self.report.fields.push(ConfigField {
+                name: name.into(),
+                bit_offset: start,
+                bit_length: self.bits.position() - start,
+                value: json!(value),
+            });
+        }
+        Ok(value)
+    }
     /// Public APAC packets use ASP framing, not APACDecoder's internal one-bit
     /// framing. Only explicit byte lengths permit skipping embedded preroll.
     fn asp(&mut self, frame_type: u64) -> Result<Option<&'static str>, ParseError> {
@@ -369,15 +408,22 @@ impl Parser<'_> {
         Ok(None)
     }
     fn ics(&mut self, prefix: &str) -> Result<IcsInfo, ParseError> {
-        let block = self.take(&format!("{prefix}.block_type"), 2)?;
-        // The two supported rates both initialize long/short limits to 49/14.
-        self.ics_with_block(prefix, block as u8)
+        self.ics_at_rate(prefix, 48000)
     }
-    fn ics_with_block(&mut self, prefix: &str, block: u8) -> Result<IcsInfo, ParseError> {
+    fn ics_at_rate(&mut self, prefix: &str, rate: u64) -> Result<IcsInfo, ParseError> {
+        let block = self.take(&format!("{prefix}.block_type"), 2)?;
+        self.ics_with_block_at_rate(prefix, block as u8, rate)
+    }
+    fn ics_with_block_at_rate(
+        &mut self,
+        prefix: &str,
+        block: u8,
+        rate: u64,
+    ) -> Result<IcsInfo, ParseError> {
         let short = block == 2;
         let start = self.bits.position();
         let max_sfb = self.take(&format!("{prefix}.max_sfb"), if short { 4 } else { 6 })?;
-        if max_sfb > if short { 14 } else { 49 } {
+        if max_sfb as usize >= sfb::offsets(rate, short).len() {
             return Err(ParseError::new(
                 start,
                 "max-sfb",

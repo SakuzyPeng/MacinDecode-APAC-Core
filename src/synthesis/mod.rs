@@ -2,6 +2,8 @@
 //! Ordinary products and sums round separately; only final PCM is cast to Float32.
 #[cfg(test)]
 mod access_tests;
+#[cfg(test)]
+mod asp_tests;
 mod bundle;
 #[cfg(test)]
 mod channel_tests;

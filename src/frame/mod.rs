@@ -269,6 +269,8 @@ struct Parser<'a> {
     bits: BitReader<'a>,
     report: FrameReport,
 }
+#[cfg(test)]
+mod asp_tests;
 impl Parser<'_> {
     fn take(&mut self, name: &str, width: usize) -> Result<u64, ParseError> {
         let start = self.bits.position();
@@ -336,11 +338,13 @@ impl Parser<'_> {
         maximum: u64,
     ) -> Result<Option<&'static str>, ParseError> {
         if frame_type == 3 {
-            return Ok(Some("unverified ASP frame type 3"));
+            self.derived("asp.frame_type_profile", json!("apac-asp-boundaries-v1"));
         }
         if frame_type == 2 {
             if self.flag("asp.reconfiguration_present")? {
-                return Ok(Some("ASP reconfiguration is unsupported"));
+                return Ok(Some(
+                    "bound reference codec does not implement ASP reconfiguration",
+                ));
             }
             let count_offset = self.bits.position();
             let count = self.take("asp.preroll_count", 2)?;
@@ -348,7 +352,7 @@ impl Parser<'_> {
                 return Err(ParseError::new(
                     count_offset,
                     "preroll-count",
-                    "ASP permits at most one embedded preroll frame",
+                    "bound reference codec supports at most one embedded preroll frame",
                 ));
             }
             if count == 1 {
@@ -371,7 +375,7 @@ impl Parser<'_> {
                 }
                 let padding = (8 - self.bits.position() % 8) % 8;
                 if padding != 0 && self.take("asp.preroll.alignment_padding", padding)? != 0 {
-                    return Ok(Some("nonzero ASP preroll alignment is unverified"));
+                    self.derived("asp.alignment_profile", json!("apac-asp-boundaries-v1"));
                 }
                 let start = self.bits.position();
                 let bits = bytes as usize * 8;
@@ -389,9 +393,6 @@ impl Parser<'_> {
                         "nested-preroll",
                         "an ASP preroll frame cannot contain another ASP preroll",
                     ));
-                }
-                if embedded_type == 3 {
-                    return Ok(Some("unverified embedded preroll frame type 3"));
                 }
                 let opaque_start = self.bits.position();
                 self.bits.skip(bits - 2)?;

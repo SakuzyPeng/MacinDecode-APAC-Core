@@ -293,7 +293,8 @@ impl Parser<'_> {
             );
         }
         if self.take("global.frame_size_index", 6)? != 0 {
-            return self.stop("unverified frame-size index");
+            return self
+                .stop("bound reference codec only implements frame-size index 0 (1024 samples)");
         }
         self.report
             .derived

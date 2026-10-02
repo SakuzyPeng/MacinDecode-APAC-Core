@@ -194,7 +194,7 @@ pub(super) fn effective_configuration(
     // Independence belongs to the current core frame. The bound decoder sets
     // this flag after Deserialize and therefore checks the preceding frame;
     // the format requirement must not inherit that one-frame delay.
-    if !present && frame_type != 0 {
+    if !present && matches!(frame_type, 1 | 2) {
         return Err(ParseError::new(
             start,
             "hoa-frame-configuration",

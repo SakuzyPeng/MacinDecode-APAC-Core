@@ -16,6 +16,8 @@ def sources():
     for name,options,cases in controls.sequences():
         if name in ('frame-variable-add','dynamic-controls'):
             yield name,controls,options,cases
+            if options.get('controls',{}).get('flag_b'):
+                yield name+'-reuse',controls,options,[dict(cases[0],frame_type=0),dict(cases[0],frame_type=0,configuration_present=False)]
     yield 'capacity-8192',shared,dict(components=[shared.ambient(4)],custom=dict(variable=False)),[{},{}]
 
 def generated():

@@ -30,6 +30,9 @@ impl Bits {
     }
 }
 fn cookie(rate: u64, channels: u64, lbr: bool) -> Vec<u8> {
+    cookie_with_metadata(rate, channels, lbr, false)
+}
+fn cookie_with_metadata(rate: u64, channels: u64, lbr: bool, metadata: bool) -> Vec<u8> {
     let mut b = Bits::default();
     b.fields(&[
         (0, 32),
@@ -53,7 +56,13 @@ fn cookie(rate: u64, channels: u64, lbr: bool) -> Vec<u8> {
     for _ in 0..channels / 2 {
         b.put(1, 3);
     }
-    b.fields(&[(101, 16), (0, 1), (0, 1), (0, 3), (0, 2), (0, 5), (0, 1)]);
+    b.fields(&[(101, 16), (0, 1), (0, 1), (0, 3), (0, 2), (0, 3)]);
+    b.put(u64::from(metadata), 1);
+    if metadata {
+        // Uncompressed renderer configuration, without parameters or groups.
+        b.fields(&[(0, 1), (1, 1), (0, 1), (0, 4)]);
+    }
+    b.fields(&[(0, 1), (0, 1)]); // No custom data or extensions.
     let size = b.0.len() as u32;
     b.0[..4].copy_from_slice(&size.to_be_bytes());
     b.0
@@ -226,20 +235,16 @@ fn asp_preroll_lengths_allow_skipping_without_claiming_payload_completion() {
 }
 
 #[test]
-fn asp_unknown_branches_reserved_alignment_and_preroll_bounds_are_explicit() {
-    for fields in [
-        vec![(3, 2)],
-        vec![(2, 2), (1, 1)],
-        vec![(2, 2), (0, 1), (1, 2), (3, 16), (1, 3)],
-    ] {
-        let mut bits = Bits::default();
-        bits.fields(&fields);
-        let bytes = bits.opaque();
-        let report = parse_frame(&context(), &bytes).unwrap();
-        check_coverage(&bytes, &report);
-        assert!(!report.prefix_complete);
-    }
+fn asp_reconfiguration_and_preroll_bounds_are_explicit() {
+    let mut bits = Bits::default();
+    bits.fields(&[(2, 2), (1, 1)]);
+    let bytes = bits.opaque();
+    let report = parse_frame(&context(), &bytes).unwrap();
+    check_coverage(&bytes, &report);
+    assert!(!report.prefix_complete);
+    assert!(report.stop_reason.contains("ASP reconfiguration"));
     for (fields, kind) in [
+        (vec![(3, 2)], "truncated"),
         (vec![(2, 2), (0, 1), (2, 2)], "preroll-count"),
         (vec![(2, 2), (0, 1), (1, 2), (0, 16)], "preroll-size"),
         (
@@ -247,6 +252,7 @@ fn asp_unknown_branches_reserved_alignment_and_preroll_bounds_are_explicit() {
             "preroll-size",
         ),
         (vec![(2, 2), (0, 1), (1, 2), (3, 16), (0, 3)], "truncated"),
+        (vec![(2, 2), (0, 1), (1, 2), (3, 16), (1, 3)], "truncated"),
         (
             vec![(2, 2), (0, 1), (1, 2), (1, 16), (0, 3), (2, 2), (0, 6)],
             "nested-preroll",
@@ -280,18 +286,35 @@ fn unsupported_cookie_fields_do_not_acquire_container_defaults() {
     assert_eq!(report.stop_bit_offset, 0);
     assert!(report.fields.is_empty());
     assert!(FrameContext::from_cookie(&[]).is_err());
-    // A future ancillary branch is irrelevant to an already confirmed prefix context.
-    let mut bytes = cookie(3, 2, false);
+    // A complete passive declaration does not change the stereo prefix grammar.
+    let bytes = cookie_with_metadata(3, 2, false, true);
+    assert!(parse_cookie(&bytes).unwrap().is_complete());
+    assert!(FrameContext::from_cookie(&bytes).unwrap().is_supported());
+}
+
+#[test]
+fn renderer_metadata_requires_a_complete_configuration() {
+    let bytes = cookie_with_metadata(3, 2, false, true);
     let parsed = parse_cookie(&bytes).unwrap();
-    let offset = parsed
+    let present = parsed
         .fields
         .iter()
-        .find(|f| f.name == "ancillary.metadata_present")
-        .unwrap()
-        .bit_offset;
-    bytes[offset / 8] |= 1 << (7 - offset % 8);
-    assert_eq!(parse_cookie(&bytes).unwrap().status, ParseStatus::Partial);
-    assert!(FrameContext::from_cookie(&bytes).unwrap().is_supported());
+        .find(|f| f.name == "ancillary.metadata.configuration_present")
+        .unwrap();
+    let mut missing = bytes.clone();
+    missing[present.bit_offset / 8] &= !(1 << (7 - present.bit_offset % 8));
+    let error = parse_cookie(&missing).unwrap_err();
+    assert_eq!(error.kind, "metadata-presence");
+    assert_eq!(error.bit_offset, present.bit_offset + 1);
+    assert!(FrameContext::from_cookie(&missing).is_err());
+    for end in present.bit_offset / 8 + 1..bytes.len() {
+        let mut truncated = bytes[..end].to_vec();
+        truncated[..4].copy_from_slice(&(end as u32).to_be_bytes());
+        let error = parse_cookie(&truncated).unwrap_err();
+        assert_eq!(error.kind, "truncated");
+        assert!(error.bit_offset <= end * 8);
+        assert!(FrameContext::from_cookie(&truncated).is_err());
+    }
 }
 
 #[test]
@@ -1076,14 +1099,13 @@ mod tns_tests {
                 .message
                 .contains("global.sample_rate_index=5 at cookie bit")
         );
-        let mut bytes = cookie(3, 2, false);
+        let bytes = cookie_with_metadata(3, 2, false, true);
         let fields = parse_cookie(&bytes).unwrap().fields;
         let bit = fields
             .iter()
             .find(|f| f.name == "ancillary.metadata_present")
             .unwrap()
             .bit_offset;
-        bytes[bit / 8] |= 1 << (7 - bit % 8);
         let error = SqDecoder::from_cookie(&bytes).err().unwrap();
         assert!(error.message.contains(&format!(
             "ancillary.metadata_present=true at cookie bit {bit}"
@@ -1195,6 +1217,59 @@ fn complete_packet_absence_preserves_empty_spectral_reports() {
     assert!(packet.bwe2.tns.cac.spectrum.channels.is_empty());
     assert!(!packet.bwe2.bwe2_complete);
     assert!(packet.frame().unknown_ranges.is_empty());
+}
+
+#[test]
+fn asp_type_aliases_and_preroll_padding_preserve_complete_packets() {
+    let config = cookie(3, 2, false);
+    let active = packet_test_frame(true, None);
+    let absent = packet_test_frame(false, None);
+    let mut control = SqDecoder::from_cookie(&config).unwrap();
+    let expected = control.decode_frame(&active).unwrap();
+    let expected_tail = control.decode_frame(&absent).unwrap();
+    for code in [0u8, 1, 3] {
+        let mut frame = active.clone();
+        frame[0] = (frame[0] & 0x3f) | (code << 6);
+        let packet = parse_packet(&context(), &frame).unwrap();
+        assert!(packet.packet_complete);
+        if code == 3 {
+            assert_eq!(
+                packet.frame().derived["asp.frame_type_profile"],
+                "apac-asp-boundaries-v1"
+            );
+        }
+        let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+        assert_eq!(decoder.decode_frame(&frame).unwrap(), expected);
+        for padding in [0u8, 1, 7] {
+            let mut outer = packet_test_frame(false, Some(&frame));
+            outer[2] = (outer[2] & !7) | padding;
+            let packet = parse_packet(&context(), &outer).unwrap();
+            assert!(packet.packet_complete);
+            assert!(
+                packet
+                    .embedded_preroll
+                    .as_ref()
+                    .unwrap()
+                    .report
+                    .packet_complete
+            );
+            let field = packet
+                .frame()
+                .fields
+                .iter()
+                .find(|f| f.name == "asp.preroll.alignment_padding")
+                .unwrap();
+            assert_eq!(field.value, padding);
+            if padding != 0 {
+                assert_eq!(
+                    packet.frame().derived["asp.alignment_profile"],
+                    "apac-asp-boundaries-v1"
+                );
+            }
+            let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+            assert_eq!(decoder.decode_frame(&outer).unwrap(), expected_tail);
+        }
+    }
 }
 
 #[test]

@@ -374,6 +374,13 @@ impl SqDecoder {
     pub fn channel_layout(&self) -> &crate::model::ChannelLayout {
         &self.layout
     }
+    fn channel_layout_profile(&self) -> Option<&'static str> {
+        // A component's discrete profile does not describe the whole HOA stream.
+        if self.stream_context.is_some() {
+            return None;
+        }
+        self.access_context.channel_layout_profile()
+    }
     pub fn backend(&self) -> &'static str {
         if self.stream_context.is_some() {
             return stream::BACKEND;

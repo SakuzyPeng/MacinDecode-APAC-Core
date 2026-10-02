@@ -48,6 +48,26 @@ class SharedConfigTests(unittest.TestCase):
                     self.assertEqual(field['bit_offset'],cursor);cursor+=field['bit_length']
                 self.assertEqual(cursor,len(raw)*8)
 
+    def test_composite_outputs_do_not_inherit_a_discrete_component_profile(self):
+        for channels in (12,24):
+            for discrete_first in (True,False):
+                with self.subTest(channels=channels,discrete_first=discrete_first):
+                    components=[dict(type=0,options=dict(channels=channels)),ambient(1)]
+                    if not discrete_first:components.reverse()
+                    opts=dict(components=components,profile=0)
+                    root=self.root/f'{channels}-{discrete_first}'
+                    bundle(root,[packet({},**opts)[0]],**opts)
+                    out=root/'pcm'
+                    result=subprocess.run([str(self.binary),'decode-sq',str(root),'--out',str(out)],capture_output=True,text=True)
+                    self.assertEqual(result.returncode,0,result.stderr)
+                    report=json.loads(result.stdout)
+                    self.assertEqual(report['channel_count'],channels+1)
+                    self.assertEqual(report['channel_layout']['tag'],0)
+                    self.assertNotIn('channel_layout_profile',report)
+                    self.assertNotIn('channel_layout_profile',report['pcm']['decoder_settings']['implementation']['value'])
+                    self.assertEqual(json.loads((out/'decode-sq.json').read_text()),report)
+                    self.assertEqual(json.loads((out/'pcm.json').read_text()),report['pcm'])
+
     def test_scene_qualification_distinguishes_full_routes_from_selection_and_gain(self):
         negative={'no-parameters','split-items','category-split','different-languages'}
         selected={'default','tag-words','split-groups','reverse-groups','equivalent-languages','inactive-languages','unused-language-alternative','category-one','preset-selection-explicit',*negative,'parameter-1-0','parameter-1-256','parameter-2-63','range-0-40-80'}

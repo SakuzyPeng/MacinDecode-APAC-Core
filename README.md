@@ -274,7 +274,7 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 22.2 的 TCE 类型序列为 `[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1]`（0=SCE、1=CPE、3=LFE），输出顺序固定为 `Lw Rw C LFE2 Rls Rrs L R Cs LFE3 Lss Rss Vhl Vhr Vhc Ts Ltr Rtr Ltm Rtm Ctr Cb Lb Rb`。首对是标签 35／36 的 Lw／Rw；两个 LFE 分别占输出索引 3／9，独立保持 overlap。解码不重排声道，不增加低频管理或 LFE 播放增益。其他具有相同声道数的布局仍会被拒绝。
 
-上述 channel ASC 的 7.1.4／22.2 布局在 `ChannelPacketReport`、解码报告及 PCM 实现元数据中附带可选 `channel_layout_profile=apac-channel-layout-v2`；根据 ASC 类型与实际布局标签判定，不仅依据 12／24 声道数。HOA 输出不使用此离散布局标识，包括相同通道数及 HOA 还原的扬声器布局。历史报告缺失该字段仍可读取；旧布局不增加此字段，既有后端、状态、容器、访问及数学配置标识不变。
+上述 channel ASC 的 7.1.4／22.2 布局在 `ChannelPacketReport`、解码报告及 PCM 实现元数据中附带可选 `channel_layout_profile=apac-channel-layout-v2`；根据 ASC 类型与实际布局标签判定，不仅依据 12／24 声道数。HOA 输出不使用此离散布局标识，包括相同通道数、HOA 还原的扬声器布局及含离散 ASC 的 HOA 组合流；组件声明顺序不影响这一规则。历史报告缺失该字段仍可读取；旧布局不增加此字段，既有后端、状态、容器、访问及数学配置标识不变。
 
 配置保持 profile 31、44.1/48 kHz、1024 帧、单 ASC、无重映射及既有中性场景规则。只读取 SQ；LRVQ、LRVQ-LFE、其他元素组合和布局、多个 ASC、空间渲染、非零 trimming 与结构重配置明确停止。HOA 使用下述单独的配置和解析入口。DRC 可缺席，或使用已验证的单序列／单频带／profile 0 关闭策略；基准声道数必须与 cookie 声明一致，不应用曲线、shape filter、响度处理或额外 LFE 增益。
 

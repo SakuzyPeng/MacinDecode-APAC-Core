@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Run every portable CLI validator against one binary and record outcomes.
+
+Each validator writes its own report under OUT; a summary.json records the
+command, exit code, elapsed seconds and stderr tail. Native, media and
+baseline-dependent validators are excluded because they need macOS or
+explicit local inputs. Compare two summaries/report trees with
+compare_reports.py.
+"""
+import argparse
+import json
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+# name -> (output flag, extra arguments)
+SUITE = {
+    'validate_portable': ('--output', []),
+    'validate_tns': ('--output', []),
+    'validate_cac': ('--output', []),
+    'validate_bwe2': ('--output', []),
+    'validate_packets': ('--output', []),
+    'validate_spectra': ('--output', []),
+    'validate_synthesis': ('--output', []),
+    'validate_access': ('--report', []),
+    'validate_caf': ('--report', []),
+    'validate_mp4': ('--report', []),
+    'validate_channels': ('--report', []),
+    'validate_layouts': ('--report', ['presence']),
+    'validate_drc': ('--report', []),
+    'validate_drc_pcm': ('--report', []),
+    'validate_hoa': ('--report', []),
+    'validate_hoa_access': ('--report', []),
+    'validate_hoa_additive': ('--report', []),
+    'validate_hoa_ambient_counts': ('--report', []),
+    'validate_hoa_asp': ('--report', []),
+    'validate_hoa_component_orders': ('--report', []),
+    'validate_hoa_controls': ('--report', []),
+    'validate_hoa_dynamic': ('--report', []),
+    'validate_hoa_dynamic_domains': ('--report', []),
+    'validate_hoa_dynamic_subbands': ('--report', []),
+    'validate_hoa_expanded_orders': ('--report', []),
+    'validate_hoa_mixed': ('--report', []),
+    'validate_hoa_order1': ('--report', []),
+    'validate_hoa_orders': ('--report', []),
+    'validate_hoa_partial': ('--report', []),
+    'validate_hoa_quantization': ('--report', []),
+    'validate_hoa_remapping': ('--report', []),
+    'validate_hoa_salient': ('--report', []),
+    'validate_hoa_salient_counts': ('--report', []),
+    'validate_hoa_salient_partition': ('--report', []),
+    'validate_hoa_salient_subbands': ('--report', []),
+    'validate_hoa_shared': ('--report', []),
+    'validate_hoa_source_layouts': ('--report', []),
+    'validate_hoa_static_ambient': ('--report', []),
+    'validate_hoa_transports': ('--report', []),
+}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--binary', type=Path, required=True)
+    parser.add_argument('--presence-binary', type=Path,
+                        help='layout_presence example binary (required for validate_layouts)')
+    parser.add_argument('--out', type=Path, required=True, help='new report directory')
+    parser.add_argument('--only', nargs='*', help='validator names to run (default: all)')
+    args = parser.parse_args()
+    if args.out.exists():
+        raise SystemExit('output directory exists: ' + str(args.out))
+    args.out.mkdir(parents=True)
+    binary = args.binary.resolve()
+    names = args.only or list(SUITE)
+    summary = []
+    for name in names:
+        flag, extra = SUITE[name]
+        report = (args.out / (name + '.json')).resolve()
+        command = [sys.executable, '-B', str(ROOT / 'scripts' / (name + '.py')),
+                   '--binary', str(binary), flag, str(report)]
+        if 'presence' in extra:
+            if not args.presence_binary:
+                summary.append(dict(name=name, skipped='missing --presence-binary'))
+                continue
+            command += ['--presence-binary', str(args.presence_binary.resolve())]
+        start = time.monotonic()
+        done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
+        elapsed = round(time.monotonic() - start, 1)
+        row = dict(name=name, returncode=done.returncode, seconds=elapsed,
+                   stderr_tail=done.stderr[-2000:])
+        summary.append(row)
+        print(f'{name}: exit {done.returncode} in {elapsed}s', flush=True)
+    (args.out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
+    return 0 if all(r.get('returncode', 0) == 0 for r in summary) else 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

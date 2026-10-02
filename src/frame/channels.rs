@@ -405,6 +405,12 @@ fn read_element(
             })
             .collect();
     }
+    // Capturing syntax/report details is independent of evaluating spectra.
+    // HOA restoration and its numeric checks always require every carrier.
+    let evaluate = parser.capture || context.hoa.is_some();
+    if evaluate && !parser.capture {
+        ensure_numeric(element, scratch, context.sample_rate_hz)?;
+    }
     element.spectrum_complete = true;
     element.tns_applicable = element.configuration.kind != ElementKind::Lfe;
     for index in 0..element.channels.len() {
@@ -424,7 +430,7 @@ fn read_element(
                     value: serde_json::to_value(&data).expect("finite TNS"),
                 });
             }
-            let scaled = if parser.capture || tns::effective(&data) {
+            let scaled = if evaluate || tns::effective(&data) {
                 ensure_numeric(element, scratch, context.sample_rate_hz)?;
                 tns::apply(&element.channels_after_cac[index].scaled, &data)?
             } else {
@@ -432,7 +438,7 @@ fn read_element(
             };
             element.tns.push(data);
             scaled
-        } else if parser.capture {
+        } else if evaluate {
             element.channels_after_cac[index].scaled.clone()
         } else {
             Vec::new()
@@ -478,6 +484,7 @@ fn extensions(
     element: &mut ElementReport,
     scratch: &mut ScanWorkspace,
     rate: u64,
+    evaluate: bool,
 ) -> Result<(), ParseError> {
     if !element.present || element.configuration.kind == ElementKind::Extension {
         return Ok(());
@@ -533,7 +540,7 @@ fn extensions(
             )
             .map_err(|s| ParseError::new(parser.bits.position(), "bwe2-numeric", s))?;
             (scaled, analysis, regions)
-        } else if parser.capture {
+        } else if evaluate {
             (
                 element.channels_after_tns[index].scaled.clone(),
                 None,
@@ -542,7 +549,7 @@ fn extensions(
         } else {
             (Vec::new(), None, Vec::new())
         };
-        if parser.capture {
+        if evaluate {
             element.channels_after_bwe2.push(Bwe2ChannelSpectrum {
                 channel_index,
                 processing_applied: analysis.is_some(),
@@ -613,6 +620,21 @@ pub(crate) fn scan_channel_packet(
     parse_impl(context, packet, state, false, scratch, &mut None)
 }
 
+pub(crate) fn scan_hoa_packet(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    state: &mut DrcState,
+    hoa: &mut super::hoa::HoaState,
+    scratch: &mut ScanWorkspace,
+) -> Result<ChannelPacketReport, ParseError> {
+    let mut next = Some(hoa.clone());
+    let report = parse_impl(context, packet, state, false, scratch, &mut next)?;
+    if report.packet_complete {
+        *hoa = next.expect("HOA state");
+    }
+    Ok(report)
+}
+
 fn parse_impl(
     context: &ChannelFrameContext,
     packet: &[u8],
@@ -635,7 +657,7 @@ fn parse_impl(
         } else {
             String::new()
         },
-        packet_sha256: if capture || context.drc.present {
+        packet_sha256: if capture || context.drc.present || context.hoa.is_some() {
             sha256(packet)
         } else {
             String::new()
@@ -881,7 +903,8 @@ fn read_core(
             )));
         }
         let element = result.elements.last_mut().expect("recorded element");
-        extensions(parser, element, scratch, context.sample_rate_hz)
+        let evaluate = parser.capture || context.hoa.is_some();
+        extensions(parser, element, scratch, context.sample_rate_hz, evaluate)
             .map_err(|e| element_error(e, element.configuration.element_index))?;
         if !parser.capture {
             for channel in element.channels.drain(..) {
@@ -912,7 +935,9 @@ fn read_core(
         {
             let (restored, additive) =
                 super::hoa_additive::restore(result, &mut spatial, state, shape)?;
-            result.hoa.as_mut().expect("HOA context").additive = Some(additive);
+            if parser.capture {
+                result.hoa.as_mut().expect("HOA context").additive = Some(additive);
+            }
             restored
         } else {
             let mut restored = if let Some(data) = &mut spatial.salient {
@@ -941,7 +966,7 @@ fn read_core(
                 &result.frame.packet_sha256,
             );
         }
-        let internal = shape.source_layout.extended.then(|| {
+        let internal = (parser.capture && shape.source_layout.extended).then(|| {
             restored
                 .iter()
                 .map(|s| super::HoaCoefficientSpectrum {
@@ -990,8 +1015,10 @@ fn read_core(
             hoa.core_channels = usize::from(shape.core_channels);
             hoa.mixed = shape.mixed_mapping();
         }
-        hoa.dynamic_selection = dynamic;
-        hoa.spatial = Some(spatial);
+        if parser.capture {
+            hoa.dynamic_selection = dynamic;
+            hoa.spatial = Some(spatial);
+        }
         if let Some(internal) = internal {
             hoa.source_layout = Some(
                 shape.source_layout.report(
@@ -1006,7 +1033,7 @@ fn read_core(
             );
             hoa.channels_after_hoa = internal;
             hoa.spectral_stage = "hoa_internal_coefficients_before_source_layout".into();
-        } else {
+        } else if parser.capture {
             hoa.channels_after_hoa = restored;
         }
         hoa.hoa_complete = true;

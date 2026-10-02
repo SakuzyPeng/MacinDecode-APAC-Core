@@ -12,6 +12,8 @@ mod channels;
 mod drc_tests;
 mod hoa;
 #[cfg(test)]
+mod hoa_access_tests;
+#[cfg(test)]
 mod hoa_tests;
 pub(crate) mod input;
 #[cfg(test)]
@@ -25,6 +27,7 @@ pub use bundle::{
     SqAccessMode, SqDecodeOptions, decode_sq, decode_sq_with_access, decode_sq_with_options,
 };
 pub const ACCESS_PROFILE: &str = "apac-sq-access-v1";
+pub const HOA_ACCESS_PROFILE: &str = "apac-hoa-access-v1";
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
 pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10";
 pub const QUALIFICATION: &str = "independent_math_reference";
@@ -286,24 +289,44 @@ impl SqDecoder {
     /// Private state-only advancement; callers must synthesize the predecessor
     /// before exporting PCM. No public decoder method exposes stale overlap.
     fn scan_frame(&mut self, packet: &[u8]) -> Result<PrefixCounts> {
-        if self.hoa_context.is_some() || self.stream_context.is_some() {
-            return Err(Error::new(
-                "SQ access",
-                "HOA fast access is not supported; use sequential",
-            ));
-        }
         let mut next = self.drc.clone();
-        let scanned = crate::frame::scan_channel_packet(
-            &self.access_context,
-            packet,
-            &mut next,
-            &mut self.scan_workspace,
-        );
+        let mut next_hoa = self.hoa_state.clone();
+        let mut next_stream = self.stream_state.clone();
+        self.scan_workspace.numeric_elements = 0;
+        let scanned = if let Some(context) = &self.stream_context {
+            crate::frame::stream::parse_with_state(
+                context,
+                packet,
+                &mut next,
+                &mut next_stream,
+                false,
+                &mut self.scan_workspace,
+            )
+            .map(|r| r.packet_complete.then(|| PrefixCounts::from_stream(&r)))
+        } else if self.hoa_context.is_some() {
+            crate::frame::scan_hoa_packet(
+                &self.access_context,
+                packet,
+                &mut next,
+                &mut next_hoa,
+                &mut self.scan_workspace,
+            )
+            .map(|r| r.packet_complete.then(|| PrefixCounts::from_report(&r)))
+        } else {
+            crate::frame::scan_channel_packet(
+                &self.access_context,
+                packet,
+                &mut next,
+                &mut self.scan_workspace,
+            )
+            .map(|r| r.packet_complete.then(|| PrefixCounts::from_report(&r)))
+        };
         match scanned {
-            Ok(report) if report.packet_complete => {
-                let mut counts = PrefixCounts::from_report(&report);
+            Ok(Some(mut counts)) => {
                 counts.numeric_elements = self.scan_workspace.numeric_elements;
                 self.drc = next;
+                self.hoa_state = next_hoa;
+                self.stream_state = next_stream;
                 Ok(counts)
             }
             _ => {
@@ -593,6 +616,22 @@ struct PrefixCounts {
     drc_missing_history_frames: u64,
 }
 impl PrefixCounts {
+    fn from_stream(report: &crate::frame::StreamPacketReport) -> Self {
+        let mut out = report
+            .embedded_preroll
+            .as_ref()
+            .map_or_else(Self::default, |p| Self::from_stream(&p.report));
+        out.frames += 1;
+        out.present_elements += report
+            .components
+            .iter()
+            .flat_map(|c| &c.elements)
+            .filter(|e| e.present)
+            .count() as u64;
+        out.drc_payload_frames += u64::from(report.drc_complete == Some(true));
+        out.drc_missing_history_frames += u64::from(report.drc_history_sufficient == Some(false));
+        out
+    }
     fn from_report(report: &crate::frame::ChannelPacketReport) -> Self {
         let mut out = report
             .embedded_preroll

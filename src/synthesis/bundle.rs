@@ -96,12 +96,6 @@ fn decode_with_access(
     let backend = decoder.backend();
     let state_profile = decoder.state_profile();
     let support_scope = decoder.support_scope();
-    if fast && decoder.hoa_numeric_profile().is_some() {
-        return Err(Error::new(
-            "SQ access",
-            "HOA fast access is not supported; use sequential",
-        ));
-    }
     if decoder.hoa_numeric_profile().is_some() && bundle.first_packet_index() != 0 {
         return Err(Error::new(
             "SQ access",
@@ -587,7 +581,12 @@ fn decode_with_access(
         report["hoa_numeric_profile"] = json!(profile);
     }
     if let Some(mode) = access {
-        report["access"] = json!({"profile":super::ACCESS_PROFILE,"mode":mode,
+        let profile = if decoder.hoa_numeric_profile().is_some() {
+            super::HOA_ACCESS_PROFILE
+        } else {
+            super::ACCESS_PROFILE
+        };
+        report["access"] = json!({"profile":profile,"mode":mode,
             "verification_scope":"full_input","prefix_scanned_packets":prefix_packets,
             "prefix_scanned_frames":prefix_frames,"prefix_numeric_packets":numeric_prefix_packets,
             "prefix_numeric_elements":numeric_prefix_elements,"prefix_bounded_elements":bounded_prefix_elements,

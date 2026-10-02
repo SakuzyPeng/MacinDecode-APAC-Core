@@ -102,12 +102,11 @@ fn snapshot(d: &SqDecoder) -> (Vec<Vec<u64>>, String) {
     )
 }
 #[test]
-fn hoa_transactions_reset_and_explicit_fast_rejection() {
+fn hoa_transactions_and_reset() {
     let f = fixture();
     let mut d = SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap();
     assert_eq!(d.channel_count(), 16);
     assert_eq!(d.channel_layout().ambisonic_order, Some(3));
-    assert!(d.scan_frame(&bytes(&f["first"])).is_err());
     d.decode_frame(&bytes(&f["first"])).unwrap();
     let state = snapshot(&d);
     for key in [
@@ -194,7 +193,6 @@ fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
         snapshot(&decoder),
         snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
     );
-    assert!(decoder.scan_frame(&first).is_err());
 }
 
 #[test]
@@ -242,7 +240,6 @@ fn hoa_order_dimensions_rates_and_transactions_are_qualified() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(decoder.scan_frame(&first).is_err());
     }
 }
 
@@ -303,7 +300,6 @@ fn mixed_hoa_rolls_back_all_output_history_and_drc_and_resets() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(decoder.scan_frame(&first).is_err());
     }
 }
 
@@ -375,7 +371,6 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(decoder.scan_frame(&first).is_err());
     }
 }
 
@@ -436,7 +431,6 @@ fn dynamic_hoa_dimensions_mapping_state_and_all_outputs_are_atomic() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(decoder.scan_frame(&first).is_err());
     }
 }
 
@@ -554,7 +548,6 @@ fn additive_history_transform_mapping_and_output_overlap_are_atomic() {
             restored.hoa().additive.as_ref().unwrap().combination,
             crate::frame::AmbientCombination::Add
         );
-        assert!(decoder.scan_frame(&first).is_err());
     }
 }
 
@@ -632,7 +625,6 @@ fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
                 .len(),
             8
         );
-        assert!(decoder.scan_frame(&bytes(&f["first"])).is_err());
     }
     let old: Value =
         serde_json::from_str(include_str!("../../data/hoa-ambient-state-v1.json")).unwrap();
@@ -704,7 +696,6 @@ fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
             snapshot(&d),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(d.scan_frame(&first).is_err());
         let parsed = crate::frame::parse_hoa_packet(&ctx, &first).unwrap();
         let value = serde_json::to_value(parsed).unwrap();
         let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
@@ -833,7 +824,6 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        assert!(decoder.scan_frame(&first).is_err());
         let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();
         let json = serde_json::to_value(report).unwrap();
         let restored: crate::frame::HoaPacketReport = serde_json::from_value(json).unwrap();

@@ -23,7 +23,7 @@ def controls():
     joint=next(c for c in sequences(n) if c[0]=='joint_tools');yield 'numeric_tools',joint[1],[joint[2][1]]
     meta=next(c for c in sequences(n) if c[0]=='metadata_updates');yield 'metadata_updates',meta[1],meta[2][:-2]
 
-def paired(binary,source,root,start,frames,trials,channels,packets):
+def paired(binary,source,root,start,frames,trials,channels,packets,*,profile=PROFILE):
     times={m:[] for m in ('sequential','fast')};phases={m:[] for m in times};stable=None;implementation=None
     for trial in range(trials+1):
         for mode in (('sequential','fast') if trial%2==0 else ('fast','sequential')):
@@ -32,7 +32,7 @@ def paired(binary,source,root,start,frames,trials,channels,packets):
             elapsed=time.perf_counter()-before
             impl=report['pcm']['decoder_settings']['implementation']['value'];require(not impl['debug_assertions'],'benchmark requires release build')
             if implementation is None:implementation=impl
-            require(impl==implementation and report['access']['profile']==PROFILE,'benchmark implementation/access changed')
+            require(impl==implementation and report['access']['profile']==profile,'benchmark implementation/access changed')
             state_identity(report)
             pcm=(out/'pcm.f32le').read_bytes();identity=(report['saved_frames'],sha(pcm),report['access']['metadata_before_output_sha256'],report['access']['metadata_after_processing_sha256'])
             require(report['complete'] and report['input']['consistency_verified'] and report['integrity_checked_packets']==packets,'benchmark reduced input verification')

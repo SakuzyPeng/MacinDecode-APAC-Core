@@ -8,6 +8,7 @@ explicit local inputs. Compare two summaries/report trees with
 compare_reports.py.
 """
 import argparse
+import concurrent.futures
 import json
 import subprocess
 import sys
@@ -67,30 +68,33 @@ def main():
                         help='layout_presence example binary (required for validate_layouts)')
     parser.add_argument('--out', type=Path, required=True, help='new report directory')
     parser.add_argument('--only', nargs='*', help='validator names to run (default: all)')
+    parser.add_argument('--skip', nargs='*', default=[], help='validator names to leave out')
+    parser.add_argument('--jobs', type=int, default=1, help='validators run concurrently')
     args = parser.parse_args()
     if args.out.exists():
         raise SystemExit('output directory exists: ' + str(args.out))
     args.out.mkdir(parents=True)
     binary = args.binary.resolve()
-    names = args.only or list(SUITE)
-    summary = []
-    for name in names:
+    names = [n for n in (args.only or list(SUITE)) if n not in args.skip]
+
+    def run(name):
         flag, extra = SUITE[name]
         report = (args.out / (name + '.json')).resolve()
         command = [sys.executable, '-B', str(ROOT / 'scripts' / (name + '.py')),
                    '--binary', str(binary), flag, str(report)]
         if 'presence' in extra:
             if not args.presence_binary:
-                summary.append(dict(name=name, skipped='missing --presence-binary'))
-                continue
+                return dict(name=name, skipped='missing --presence-binary')
             command += ['--presence-binary', str(args.presence_binary.resolve())]
         start = time.monotonic()
         done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
         elapsed = round(time.monotonic() - start, 1)
-        row = dict(name=name, returncode=done.returncode, seconds=elapsed,
-                   stderr_tail=done.stderr[-2000:])
-        summary.append(row)
         print(f'{name}: exit {done.returncode} in {elapsed}s', flush=True)
+        return dict(name=name, returncode=done.returncode, seconds=elapsed,
+                    stderr_tail=done.stderr[-2000:])
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+        summary = list(pool.map(run, names))
     (args.out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
     return 0 if all(r.get('returncode', 0) == 0 for r in summary) else 1
 

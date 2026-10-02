@@ -51,8 +51,12 @@ def frame_configuration_wire(case,origin,order,coefficient_count,counts,componen
     return wire,dict(present=bool(present),start_bit_offset=origin,end_bit_offset=origin+len(wire),salient_components=len(counts),ambient_components=len(selected),component_configurations=components,ambient_indices=selected)
 
 
-def shape(order,dynamic,coefficient_count=None,output_coefficients=None):
+def shape(order,dynamic,coefficient_count=None,output_coefficients=None,source_layout=None):
     assert order in range(11)
+    if source_layout is not None:
+        n=len(source_layout['labels']) if source_layout['tag']==0 else source_layout['tag']&65535
+        assert 1<=n<=121 and (output_coefficients is None or output_coefficients==n)
+        return n
     if output_coefficients is not None:
         assert 1<=output_coefficients<=121 and (dynamic or output_coefficients==((order+1)**2 if coefficient_count is None else coefficient_count))
         return output_coefficients
@@ -70,10 +74,10 @@ def esc(value,widths=(4,6,8)):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None,source_layout=None):
     assert 0<=len(counts)<=121 and all(1<=n<=16 for n in counts);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;assert mixed or (selection is None and not transform) or (controls or {}).get('flag_b')
     control=control_values(controls,path)
-    n=shape(order,dynamic,coefficient_count,output_coefficients);m=(order+1)**2 if coefficient_count is None else coefficient_count
+    n=shape(order,dynamic,coefficient_count,output_coefficients,source_layout);m=(order+1)**2 if coefficient_count is None else coefficient_count
     assert component_orders is None or len(component_orders)==len(counts)
     fields=[(0,32),(int.from_bytes(b'dapa','big'),32),(0,32),(0x800,16),(profile,6),(level,4),(0,1),(3 if rate==48000 else 4,6),(0,6),(n,8),(2,8),(0,1),(1,3),(0,8),(2,3)]
     wire=''.join(bits(v,w) for v,w in fields)+bits(int(coefficient_count is None),1)+bits(control['flag_a'],1)+bits(control['flag_b'],1)+(bits(control['flag_c'],1) if control['flag_b'] else '')+''.join(bits(control[k],1) for k in ('flag_d','flag_e','flag_f'))+bits(int(dynamic),1)
@@ -99,7 +103,12 @@ def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',d
         wire+=bits(int(transform!=0),1)
         if transform:wire+=bits(transform-1,2)
     types=[0]*n if tce_types is None else list(tce_types)
-    wire+=esc(len(types),(5,10,16))+''.join(bits(t,3) for t in types)+'0'+bits(190,16)+bits(n,16)+'0'+'0'+bits(0,3)+bits(0,2)
+    wire+=esc(len(types),(5,10,16))+''.join(bits(t,3) for t in types)
+    if source_layout is not None and source_layout['tag']==0:
+        wire+='1'+bits(n-1,16)+''.join(bits(label,32) for label in source_layout['labels'])
+    else:
+        wire+='0'+bits(190 if source_layout is None else source_layout['tag']>>16,16)+bits(n,16)
+    wire+='0'+'0'+bits(0,3)+bits(0,2)
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
     if drc:wire+=drc_header(rate,rich=rich,channels=n)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]
@@ -233,9 +242,14 @@ def bundle(root,payloads,priming=0,remainder=0,**opts):
     base_bundle(root,payloads,opts.get('scene',True),opts.get('drc',False),opts.get('rich',False),priming,remainder,order=3 if opts.get('dynamic') else opts.get('order',3),rate=opts.get('rate',48000))
     cfg=cookie(**opts);(root/'cookie.bin').write_bytes(cfg);p=root/'manifest.json';m=json.loads(p.read_text());m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=hashlib.sha256(cfg).hexdigest())
     if opts.get('coefficient_count') is not None or opts.get('output_coefficients') is not None:
-        n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'),opts.get('output_coefficients'));m['file']['format']['channels']=n
+        n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'),opts.get('output_coefficients'),opts.get('source_layout'));m['file']['format']['channels']=n
         layout=m['file']['layout']['value'];layout['tag']=(190<<16)|n;layout.pop('ambisonic_order',None)
         if int(n**.5)**2==n:layout['ambisonic_order']=int(n**.5)-1
+    if opts.get('source_layout') is not None:
+        source=opts['source_layout'];n=shape(opts['order'],opts.get('dynamic',False),opts.get('coefficient_count'),opts.get('output_coefficients'),source)
+        m['file']['format']['channels']=n
+        family=source['tag']>>16;hoa=family in (190,191)
+        m['file']['layout']['value']=dict(tag=source['tag'],bitmap=0,descriptions=[dict(label=label,flags=0,coordinates=[0.,0.,0.]) for label in source.get('labels',[])],name=None,ambisonic_order=int(n**.5)-1 if hoa and int(n**.5)**2==n else None,ambisonic_channel_order='ACN' if hoa else None,ambisonic_normalization=('SN3D' if family==190 else 'N3D') if hoa else None)
     p.write_text(json.dumps(m))
 
 

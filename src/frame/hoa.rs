@@ -45,6 +45,7 @@ pub(super) struct HoaConfiguration {
     pub level_id: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
+    pub source_layout: std::sync::Arc<super::hoa_source::SourceLayout>,
     pub recovery_slots: u8,
     pub dynamic_method: Option<u8>,
     pub dynamic_subbands: Option<u8>,
@@ -114,13 +115,13 @@ impl HoaConfiguration {
         } else {
             partial_count
         };
-        let channels = if dynamic {
-            value("components[0].hoa.layout_channels")
-                .filter(|&n| (1..=121).contains(&n))
-                .unwrap_or(16) as u8
-        } else {
-            recovery_slots
-        };
+        let source_layout = super::hoa_source::SourceLayout::selected(
+            parsed,
+            recovery_slots,
+            dynamic,
+            controls.parameter_0,
+        );
+        let channels = source_layout.channels;
         let transport_types: Vec<u8> = parsed
             .fields
             .iter()
@@ -181,6 +182,7 @@ impl HoaConfiguration {
             profile_id: value("global.profile_id").unwrap_or(5) as u8,
             level_id: value("global.level_id").unwrap_or(0) as u8,
             channels,
+            source_layout: std::sync::Arc::new(source_layout),
             recovery_slots,
             dynamic_method: dynamic
                 .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
@@ -251,6 +253,9 @@ impl HoaConfiguration {
         }
     }
     pub fn numeric_profile(&self) -> &'static str {
+        if self.source_layout.extended {
+            return super::hoa_source::NUMERIC_PROFILE;
+        }
         if self.dynamic_domains_extended() {
             return super::hoa_dynamic::DOMAINS_NUMERIC_PROFILE;
         }
@@ -296,6 +301,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.source_layout.extended {
+            return super::hoa_source::STATE_PROFILE;
+        }
         if self.dynamic_domains_extended() {
             return super::hoa_dynamic::DOMAINS_STATE_PROFILE;
         }
@@ -473,8 +481,11 @@ impl HoaFrameContext {
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
-        if !matches!(shape.controls.parameter_0, 1 | 2) {
-            rejected.push("HOA ACN/SN3D requires parameter_0=1 or 2".into());
+        if let Some(reason) = shape
+            .source_layout
+            .rejection(usize::from(shape.recovery_slots))
+        {
+            rejected.push(reason);
         }
         if profile_channel_limit(shape.profile_id, shape.level_id)
             .is_none_or(|maximum| channels > maximum)
@@ -539,8 +550,6 @@ impl HoaFrameContext {
                 "components[0].hoa.tce_count",
                 shape.transport_types.len() as u64,
             ),
-            ("components[0].hoa.layout_family", 190),
-            ("components[0].hoa.layout_channels", channels),
         ] {
             packet_config::check(&parsed.fields, name, json!(value), "cookie", &mut rejected);
         }
@@ -568,7 +577,6 @@ impl HoaFrameContext {
             "ancillary.scene_graph_present",
             "ancillary.metadata_present",
             "ancillary.custom_data_present",
-            "components[0].hoa.custom_layout_present",
             "components[0].hoa.remapping_present",
         ] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
@@ -733,6 +741,13 @@ impl HoaFrameContext {
     }
     pub fn channel_layout(&self) -> &ChannelLayout {
         self.transport.channel_layout().expect("fixed HOA layout")
+    }
+    pub fn source_layout_enabled(&self) -> bool {
+        self.configuration.source_layout.extended
+    }
+    /// Source normalization when identified by a tagged layout or explicit ACN labels.
+    pub fn source_normalization(&self) -> Option<&'static str> {
+        self.configuration.source_layout.normalization()
     }
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.transport.maximum_preroll_bytes()
@@ -913,6 +928,8 @@ pub struct HoaMixedMapping {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaFrameInfo {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_layout: Option<super::HoaSourceLayoutData>,
     pub numeric_profile: String,
     pub order: u8,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -947,6 +964,7 @@ pub struct HoaFrameInfo {
 impl Default for HoaFrameInfo {
     fn default() -> Self {
         Self {
+            source_layout: None,
             numeric_profile: NUMERIC_PROFILE.into(),
             order: 3,
             full_order: None,

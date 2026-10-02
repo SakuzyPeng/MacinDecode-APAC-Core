@@ -1,0 +1,2150 @@
+{
+  "profile": "apac-hoa-source-layout-format-v1",
+  "format_sha256": "994f136273257d8c0f20bc1c8cc1623f58520c4f8ad1408f2cf2421c5000a580",
+  "cases": [
+    {
+      "index": 0,
+      "kind": "matrix-6553601",
+      "options": {
+        "order": 0,
+        "output_coefficients": 1,
+        "source_layout": {
+          "tag": 6553601
+        },
+        "counts": [],
+        "ambient_count": 1,
+        "path": "replace",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0
+        ]
+      },
+      "packets": 5,
+      "input_sha256": "182c452d96be97970ca6ded723cdcfb2b9c2c476bf64d34dcf4c7ef6e76ecd36",
+      "truth_sha256": "1b0447cbdd2a2f58b634ddd740f5d1d38f0220e43fbf5f1c95e67027ebd51c97"
+    },
+    {
+      "index": 1,
+      "kind": "matrix-6619138",
+      "options": {
+        "order": 1,
+        "output_coefficients": 2,
+        "source_layout": {
+          "tag": 6619138
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "de7009615fa97eeeaedee767433fa84d8bd8e165c313762ea2517bf9d4552d09",
+      "truth_sha256": "947cfd3d7edd37be68424e50c0829ebba7c945a7157e97eb8189f02f20b5bf6c"
+    },
+    {
+      "index": 2,
+      "kind": "matrix-7077892",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7077892
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "145f9e17d90c7dc3f22be56cee8db321a21f2c328076822f5baeccc15d4c69fb",
+      "truth_sha256": "7fd8b7c6720866cdfde32e38e4e6f456a25f6feee0f188db5ccf967a6f250d53"
+    },
+    {
+      "index": 3,
+      "kind": "matrix-7405571",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 7405571
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "128001c294d11b16a21d944cb94b4b6f25d6b1690e291ba3b06a92a27cc46564",
+      "truth_sha256": "dcf77e1816fc0e5ed4fd32ae67c7958e82072fc300d64a5e9ad746e7fdc3ac79"
+    },
+    {
+      "index": 4,
+      "kind": "matrix-7471107",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 7471107
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "a1e21b9a94b7a6b7d39b2ea25435059e328d6f527a61a5b6ae8c758db45d5582",
+      "truth_sha256": "6e6bb08f12ad23d726a381af03d3d7632da82b98647ff4afe8154486ebed400d"
+    },
+    {
+      "index": 5,
+      "kind": "matrix-7536644",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7536644
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "d35f1d0d670d44adbdfbe4ac5a83dfa2b51843d1b48b14e9ea56199de09b3f10",
+      "truth_sha256": "49785893245535dc12948fdb49977a8129a7f50eae9febe09cd6abd2c2d01e63"
+    },
+    {
+      "index": 6,
+      "kind": "matrix-7602180",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7602180
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "676fe7e5296ecb1fca0c789753d0beb0000243bd9dc76f6f7ea951b2b0630a8c",
+      "truth_sha256": "fb2c19b88e89a1dcdae4d96ed0970df088595356a51f1ff95910b1419d94d672"
+    },
+    {
+      "index": 7,
+      "kind": "matrix-7667717",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 7667717
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "34712ae755fdcebfed249eedf3bd0e4e8eb5bff8042f531b6d94cc21ce0d5469",
+      "truth_sha256": "efe85af30d3fa8bdb5d2cb6c4bb180388a6a8feb1fb325f4f3abb3e9611b1499"
+    },
+    {
+      "index": 8,
+      "kind": "matrix-7864325",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 7864325
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "6b647791a9c69ebd20dc5571dabd7a624073e144804c2ecf297e6b1f30dc9f3f",
+      "truth_sha256": "91fe150ed654adb730a20d9b62c49b67676a655069cf88cff4ea551e30426305"
+    },
+    {
+      "index": 9,
+      "kind": "matrix-7929862",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "0a8cf4aef189877dd00bf87481046290e3c21df2e41e9b0c64d23f350b6eccc7",
+      "truth_sha256": "2d6b6efd79741502f72904ac6e2a1459a5dfa335755e49028ccae412b8c2aebd"
+    },
+    {
+      "index": 10,
+      "kind": "matrix-8126470",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 8126470
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "2cb6963d8d9f5d20db454f54edb8497238ac2ceb956a96aebfe250d0ed6104f1",
+      "truth_sha256": "e1d81b3fc45ef6425c15603643ca463d92c6a428630793193b3eb5f7eb516b06"
+    },
+    {
+      "index": 11,
+      "kind": "matrix-8192007",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 8192007
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "4b5c25010ac48aacaf97061d6d8ea1e58f114018e36fdbb0a6146949f8efb382",
+      "truth_sha256": "e279eb7d3e1bfdbfd62fc70cd2a330e41881590dcf413c4a5399630db80ddc12"
+    },
+    {
+      "index": 12,
+      "kind": "matrix-8323080",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8323080
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "f6bafaebbe8fa7e4ae8a85af45d54bb1f07eb0a05ef7c2ab30d05afd826f4227",
+      "truth_sha256": "057b70bb27100bcd0e9f973e5b9b58960d4f45d8a09352f49520196dc377de0c"
+    },
+    {
+      "index": 13,
+      "kind": "matrix-8388616",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8388616
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "821d23843f8b09a4a8dcba98953996725a44d156db7058fff917e05e01a007b8",
+      "truth_sha256": "a723623d2317067b603e330123304bd74bc675564b1071f2f277dffd1e5285a1"
+    },
+    {
+      "index": 14,
+      "kind": "matrix-8585219",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 8585219
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "a7273cdd5737962dd9b835941aa95e22492345e1a03fdfcfdd94163a614e346f",
+      "truth_sha256": "ad1e314e8666c506a01832bd18b2f4360878494c7fde691318df255e3dfe0f45"
+    },
+    {
+      "index": 15,
+      "kind": "matrix-8650756",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 8650756
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "376cc3b11ae8e9bf5957e5ebef5ddb5bce0513a58f2376b5e8988a3b2cdeb635",
+      "truth_sha256": "db3202e22b0cc2e45b9630990b081d97d5b5c34f0f85c18d4b5d97b297625fa0"
+    },
+    {
+      "index": 16,
+      "kind": "matrix-9240582",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 9240582
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "acf4fcc0ac57ec48cb60ebcc898ddc825e082fda0881e33d628401e2682052ab",
+      "truth_sha256": "ade75668aaa89fd455b5f0537d3386c1b9baa58b378a474605ed53aa1c326a45"
+    },
+    {
+      "index": 17,
+      "kind": "matrix-9306119",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 9306119
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "1c79cf9e16be11bb1ff5fc42789e69ccc9298841f54bdc3964e528feb75d4a4c",
+      "truth_sha256": "b76a5782456e722e80991bc1515f8c54827815a33ee83f89754740089438a52c"
+    },
+    {
+      "index": 18,
+      "kind": "matrix-9371655",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 9371655
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "dc59b7e748210d1b240181cde51b653ebfa05837d67c2df1ab9864667399ac6c",
+      "truth_sha256": "35b3da115e37af0028e28f8c773a866ece88c9940de2abda04897ec180f70a44"
+    },
+    {
+      "index": 19,
+      "kind": "matrix-9437192",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 9437192
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "464d0bca47b773b73196521712424329bfd7eb86fa0f5a33a3cdf268ece34a50",
+      "truth_sha256": "6b42a4b7963b1a9fad22a67c476e1b47bcd2ffbb5af2da018d8eaec4705ef5a3"
+    },
+    {
+      "index": 20,
+      "kind": "matrix-11993096",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 11993096
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "53264040399adf40f8e701547a5215580c1908e87b8f56645306a6b13f4848a5",
+      "truth_sha256": "8d9a83322b888d6bcb89f45a1ad364798dad872272dd3d956945ab4b2ff0681d"
+    },
+    {
+      "index": 21,
+      "kind": "matrix-12582924",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 12582924
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "c47dd31858d511deaed971127047ff0b37d2d55169f037012e04f925b0f84a3a",
+      "truth_sha256": "b6ba96030e8ae93e868254525ddeba8957994c94dd9735699ecb9671defaddea"
+    },
+    {
+      "index": 22,
+      "kind": "matrix-12648464",
+      "options": {
+        "order": 3,
+        "output_coefficients": 16,
+        "source_layout": {
+          "tag": 12648464
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "646707c11380e8b7219ec9419ef0e183fef5a7d116dfb2fa549445b734fd3e98",
+      "truth_sha256": "a2be35ef0e9bee7f43c093271bd5815e1ef6b151c4684a56c04790213b75c8b8"
+    },
+    {
+      "index": 23,
+      "kind": "matrix-12713992",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 12713992
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "c1aba634ea7c0c8c9e5f9653166c249b047b0cdc81cd8ba8ed3ea709a4e21c4f",
+      "truth_sha256": "4939dbd101a7ffad875a8e2d1ac7d51bc8d01988d84eae7275bf30470de65d73"
+    },
+    {
+      "index": 24,
+      "kind": "matrix-12779530",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 12779530
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "6b712c5c658c66970765d810df47cbf9e835301b2c1fe018bbe4f4bd8babd7c9",
+      "truth_sha256": "7930be2ebf9fe37828b233c56dcada445d6e93b5be2971f04d7de120220f0cc5"
+    },
+    {
+      "index": 25,
+      "kind": "matrix-12845066",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 12845066
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "7e97ad1a6264a650cd9149f8c715eb4bc5a15206c465a13ae87377c036823094",
+      "truth_sha256": "31c2a5a93430e282f30fa83d4cf3490228b69929305e9cf64f83d03737e8be3d"
+    },
+    {
+      "index": 26,
+      "kind": "matrix-13369368",
+      "options": {
+        "order": 4,
+        "output_coefficients": 24,
+        "source_layout": {
+          "tag": 13369368
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 1,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 29,
+      "input_sha256": "f040cb51780f1495c820fb5c2913de7bc9ce933e76ae859608bd077291dfc8bb",
+      "truth_sha256": "e67b4294759070aaeee2ecf5713232cd7ba3111be997ac7860e2fd4c8c8220d0"
+    },
+    {
+      "index": 27,
+      "kind": "matrix-13434888",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 13434888
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "e46ec421e51642856214788dea8b5adb419f095a4fc832cabe469e461f743115",
+      "truth_sha256": "672b47738fe80336b32c1e6f57f031fb0a4f6bc31f091d9a362b913c7e671f70"
+    },
+    {
+      "index": 28,
+      "kind": "matrix-13500428",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13500428
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "1334cb269177e560f455fd6f1bc0833a538946ee30d1eeec429a69ce51794c6f",
+      "truth_sha256": "43ed51e4ce54fcb78a52321e5855f4db8813b768acd39c1a787f39d38dce52b3"
+    },
+    {
+      "index": 29,
+      "kind": "matrix-13565962",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 13565962
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "4c2e9784a4528458c9bb6a5a0681d6aae862795548f7e1423216c31ffab3a405",
+      "truth_sha256": "8fa061aa5fb4989d914b6f1c0211b9f340a0ad8806cf30f2463cd11820ae0d13"
+    },
+    {
+      "index": 30,
+      "kind": "matrix-13631500",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13631500
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "efc9e0817eb94b8948e185dd6b6e1841edf0b9222fcb03b9e327cef7fd1081d9",
+      "truth_sha256": "6bfcc037c67961b15bc806b9a48c82a230c2bbade991670e0ee255f59d7e698c"
+    },
+    {
+      "index": 31,
+      "kind": "matrix-13697038",
+      "options": {
+        "order": 3,
+        "output_coefficients": 14,
+        "source_layout": {
+          "tag": 13697038
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "42015b7a4d50998d5dc65d42fbfb2347717a6552de7d8ef2ac6bc2d381f5cb61",
+      "truth_sha256": "9f1293d7d65e5c0a3dd43d6b400312fabb2bd006b4358aa16578da58fc0cf906"
+    },
+    {
+      "index": 32,
+      "kind": "matrix-13762572",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13762572
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "36eb40113909a0ab9bb47eed7766a2ba9f81ff11a43321a8a3416a684d09bd25",
+      "truth_sha256": "45a80ccc52c482b848cc175d25f9b6696db5690fad8fe40de30dbf2c8e7a1a1a"
+    },
+    {
+      "index": 33,
+      "kind": "matrix-13828110",
+      "options": {
+        "order": 3,
+        "output_coefficients": 14,
+        "source_layout": {
+          "tag": 13828110
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 20,
+      "input_sha256": "68c2f5ab856b69697ba4c7142feb2414fb725403d405a4b7018ed3e845d8d12c",
+      "truth_sha256": "7e9d62d38907b22a17ff1b8a33154d2d78d346587e2e6d178319de7931a9ce26"
+    },
+    {
+      "index": 34,
+      "kind": "n3d-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "56b10ed9727657aeb9f174abbbb0bd8bcb02e82fb4416011f4f67bb0f90d428a",
+      "truth_sha256": "3cda440709f3a380ccc247629464c7449bd146e5dbe698681d7e1b84d2906580"
+    },
+    {
+      "index": 35,
+      "kind": "sn3d-labels",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            131072,
+            131073,
+            131074,
+            131075,
+            131076
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "coefficient_count": 5
+      },
+      "packets": 9,
+      "input_sha256": "695719af5cef5f4d301080105d8a65519ca0f42c91af34238edda90732ceab3c",
+      "truth_sha256": "12d7b34956cc0b0a93772a55184d742ca32fec39b1ac7bd76b01ab642dc44c17"
+    },
+    {
+      "index": 36,
+      "kind": "reordered-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            131075,
+            131072,
+            131074,
+            131073
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "7ffc80d591831e3eaa8357cc26121f080aee987e579f0d0780ac6c3cac45899c",
+      "truth_sha256": "1b3fa97bc0fd5e91e64f3d5dbb6f044bcf9ad6fcb8fb9833fb1345f50903e9a3"
+    },
+    {
+      "index": 37,
+      "kind": "speaker-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            1,
+            2,
+            5,
+            6
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "9e129c6e42f3f67bcc412a10e89f9df6cb1993c6e704813f80e9c7f0c9d65f73",
+      "truth_sha256": "2471b5b279e8c529b6f7f0968f8967ccc552b6704faf3a4dd82e0117019d68ad"
+    },
+    {
+      "index": 38,
+      "kind": "discrete",
+      "options": {
+        "order": 2,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 9633801
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "259d19c51f932f7898f2e4b403864a8c242516bcaa71ba968c6b7302b3d2d033",
+      "truth_sha256": "a7f631913570d2d181575f9a216d5c05007d8069200baf095edb6d495af6cecc"
+    },
+    {
+      "index": 39,
+      "kind": "source-crop",
+      "options": {
+        "order": 2,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 12451844
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "cdc26b9a0a448cbbd21c20645319f2db0443c92464c24d28cb91ef0447228764",
+      "truth_sha256": "690929329ccaf0f9fba3db726ca8b5e0d8dd32fe171e84137124edf5ac7d2e37"
+    },
+    {
+      "index": 40,
+      "kind": "source-expand",
+      "options": {
+        "order": 1,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 12451849
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "9d9b2cb231e85273cc7ec0e5e18445be90466419080967f74fa257b7377d85bb",
+      "truth_sha256": "e2af8fbc68d2cb810ac62e14d2d3c6c48bdfd7ac51b4aea54565c93c0f3dc991"
+    },
+    {
+      "index": 41,
+      "kind": "matrix-partial",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "coefficient_count": 5
+      },
+      "packets": 9,
+      "input_sha256": "e3fc282bf1931f81fcf8db202ead5d475e559eccabadee2f9c30920f85f5f923",
+      "truth_sha256": "1f641c3230b6c07d83047c9c8a474ca2ae928e92aa3808ecea237d1fe5acf47c"
+    },
+    {
+      "index": 42,
+      "kind": "matrix-reduced",
+      "options": {
+        "order": 1,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "42f799fc128add6c782fd84f2997e835721f6c2b91a6c4c36801cb4a67be2f87",
+      "truth_sha256": "0aed5965314f6d79661f649659d662bdd40c881ac0aee61cac817400d9ce118f"
+    },
+    {
+      "index": 43,
+      "kind": "matrix-single",
+      "options": {
+        "order": 0,
+        "output_coefficients": 2,
+        "source_layout": {
+          "tag": 6619138
+        },
+        "counts": [],
+        "ambient_count": 1,
+        "path": "replace",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0
+        ]
+      },
+      "packets": 5,
+      "input_sha256": "195758c9d248f3e9e229db1c5781a2718ffb8f3262e14dfdaa710c67c194b6b6",
+      "truth_sha256": "1af2ccf21d447c73218a6faf533b20edfd361ae6983e4c6699a045393e7b7f3b"
+    },
+    {
+      "index": 44,
+      "kind": "lfe-position",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "ef74803706715a6b24399cc0764583666ac45f9f60521ac97a46b1a16745e750",
+      "truth_sha256": "c08ce8d81a33c43a439c865ea2152257568aac7c9981f66793edb63755d0299b"
+    },
+    {
+      "index": 45,
+      "kind": "lfe-retained",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "3caddf2f33a2c740f3b8748cc629baef36a6a362fa01e716655490b6410fb0e3",
+      "truth_sha256": "8b5a52db731c965ffb947bfd0063587c33b936e6426b78d45e00026da8f755e1"
+    },
+    {
+      "index": 46,
+      "kind": "lfe-tag-order",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8323080
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "5d0925d4928e593d2c474d111e931466e8ecb346ccc0fdbefb3a9619d49073a8",
+      "truth_sha256": "b037afabbc1cfef6b6a83690f993b748b1660dc56cd14e6698b8ba846c395f2a"
+    },
+    {
+      "index": 47,
+      "kind": "matrix-unavailable-position",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 8060934
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 13,
+      "input_sha256": "a93e1a12a410c6e3993a36435c416974d6577ca0b366086b290c91e12f802d1b",
+      "truth_sha256": "7b07cf68812ba97582ffa25f361c442f15db45720406739a860d487c9d68c07a"
+    },
+    {
+      "index": 48,
+      "kind": "private-variable",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 4026597380
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "bf9d293d619ff7f1325d0e42622fafac8c1e18d815727bce4cee1ca7f336e008",
+      "truth_sha256": "dc8a845b10ee8855e7bc7f34da7a436a867396def99273fecf740ac5bb28ce5c"
+    },
+    {
+      "index": 49,
+      "kind": "private-fixed",
+      "options": {
+        "order": 1,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 4028628997
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 8,
+      "input_sha256": "b1e758a9f349f557151d6708aa704feadc22d6eaecb900a690fc90e794598b15",
+      "truth_sha256": "c9bdfd555c940f0c66e14c0dbbcfbe53abc5b4895e8fb5e125337f22fcfb8caa"
+    },
+    {
+      "index": 50,
+      "kind": "n3d-last-coefficient",
+      "options": {
+        "order": 10,
+        "output_coefficients": 121,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611,
+            196612,
+            196613,
+            196614,
+            196615,
+            196616,
+            196617,
+            196618,
+            196619,
+            196620,
+            196621,
+            196622,
+            196623,
+            196624,
+            196625,
+            196626,
+            196627,
+            196628,
+            196629,
+            196630,
+            196631,
+            196632,
+            196633,
+            196634,
+            196635,
+            196636,
+            196637,
+            196638,
+            196639,
+            196640,
+            196641,
+            196642,
+            196643,
+            196644,
+            196645,
+            196646,
+            196647,
+            196648,
+            196649,
+            196650,
+            196651,
+            196652,
+            196653,
+            196654,
+            196655,
+            196656,
+            196657,
+            196658,
+            196659,
+            196660,
+            196661,
+            196662,
+            196663,
+            196664,
+            196665,
+            196666,
+            196667,
+            196668,
+            196669,
+            196670,
+            196671,
+            196672,
+            196673,
+            196674,
+            196675,
+            196676,
+            196677,
+            196678,
+            196679,
+            196680,
+            196681,
+            196682,
+            196683,
+            196684,
+            196685,
+            196686,
+            196687,
+            196688,
+            196689,
+            196690,
+            196691,
+            196692,
+            196693,
+            196694,
+            196695,
+            196696,
+            196697,
+            196698,
+            196699,
+            196700,
+            196701,
+            196702,
+            196703,
+            196704,
+            196705,
+            196706,
+            196707,
+            196708,
+            196709,
+            196710,
+            196711,
+            196712,
+            196713,
+            196714,
+            196715,
+            196716,
+            196717,
+            196718,
+            196719,
+            196720,
+            196721,
+            196722,
+            196723,
+            196724,
+            196725,
+            196726,
+            196727,
+            196728
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 0,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "packets": 11,
+      "input_sha256": "0ca16dc08b95ae77c29bff1f9bf59d34006d10d32fdb1daaea4a5483587223dd",
+      "truth_sha256": "8b7e348c86dfa79f9f65ea783e3e56edd1d4079bb700e1daba159fc72fff5356"
+    },
+    {
+      "index": 51,
+      "kind": "dynamic-source-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611,
+            196612,
+            196613,
+            196614,
+            196615,
+            196616
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "dynamic": true
+      },
+      "packets": 6,
+      "input_sha256": "c99effc93134079c9101224f1ffa3a6bc0895115653301c1a97b3dd8a36a53ff",
+      "truth_sha256": "01e8adbf9dea2d55ea86fa68de88b818a1b0eace79cc48e7bcf2668d1ba8e13a"
+    },
+    {
+      "index": 52,
+      "kind": "matrix-controls-transports-drc",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          2,
+          1
+        ],
+        "ambient_count": 3,
+        "path": "replace",
+        "scene": true,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0,
+          "flag_b": true,
+          "flag_c": true,
+          "flag_f": false
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          6,
+          1,
+          3,
+          0,
+          0,
+          0
+        ],
+        "drc": true,
+        "rich": true
+      },
+      "packets": 6,
+      "input_sha256": "c0aad24c25c6efb97551e05d442d9aecd7e1f5e8f11d13574541999c61243d9d",
+      "truth_sha256": "4b3b95c46354cd7878af644db8a35549c2380c5c12d1375064d06048151ef6df"
+    }
+  ],
+  "sha256": "51a44a20e81b627fbcae533f8a3d7b98a69b68b75a14706080cd0260c0018edc"
+}

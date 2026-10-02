@@ -54,7 +54,8 @@ pub(super) fn render(
     counts.drc_payload_frames += u64::from(packet.drc_complete == Some(true));
     counts.drc_missing_history_frames += u64::from(packet.drc_history_sufficient == Some(false));
     if let Some(hoa) = &packet.hoa
-        && (hoa.dynamic_selection.is_some()
+        && (hoa.source_layout.is_some()
+            || hoa.dynamic_selection.is_some()
             || hoa
                 .spatial
                 .as_ref()
@@ -62,7 +63,12 @@ pub(super) fn render(
     {
         counts.absent_elements += packet.elements.iter().filter(|e| !e.present).count() as u64;
         let channels = states.len();
-        if hoa.channels_after_hoa.len() != channels {
+        if hoa
+            .source_layout
+            .as_ref()
+            .map_or(hoa.channels_after_hoa.len(), |s| s.channels.len())
+            != channels
+        {
             return Err(Error::new(
                 "HOA synthesis",
                 "restored coefficients do not match the output dimension",
@@ -70,10 +76,11 @@ pub(super) fn render(
         }
         let mut output = vec![0.; 1024 * channels];
         for (index, state) in states.iter_mut().enumerate() {
-            let samples = state.render(
-                &hoa.channels_after_hoa[index].scaled,
-                hoa.common_window.expect("HOA window"),
-            )?;
+            let spectrum = match &hoa.source_layout {
+                Some(source) => &source.channels[index].scaled,
+                None => &hoa.channels_after_hoa[index].scaled,
+            };
+            let samples = state.render(spectrum, hoa.common_window.expect("HOA window"))?;
             for (frame, value) in samples.into_iter().enumerate() {
                 output[frame * channels + index] = value;
             }

@@ -142,12 +142,8 @@ impl ChannelFrameContext {
             cookie_sha256,
             sample_rate_hz: hoa.sample_rate_hz,
             channel_count: hoa.channels,
-            layout: Some(ChannelLayout::tagged(
-                (190 << 16) | u32::from(hoa.channels),
-                u32::from(hoa.channels),
-                Some("HOA ACN/SN3D".into()),
-            )),
-            channel_labels: (0..hoa.channels).map(|i| format!("ACN{i}")).collect(),
+            layout: Some(hoa.source_layout.layout.clone()),
+            channel_labels: hoa.source_layout.channel_labels(),
             elements: hoa
                 .transport_types
                 .iter()
@@ -171,15 +167,19 @@ impl ChannelFrameContext {
                             _ => ElementKind::Sce,
                         },
                         tce_type: kind,
-                        output_channels: if hoa.salient_components != 0 || hoa.static_ambient {
+                        output_channels: if hoa.salient_components != 0
+                            || hoa.static_ambient
+                            || hoa.source_layout.extended
+                        {
                             vec![]
                         } else {
                             mapped.clone()
                         },
                         transport_channels: (hoa.salient_components != 0
                             || hoa.static_ambient
-                            || hoa.transport_extended())
-                        .then_some(mapped),
+                            || hoa.transport_extended()
+                            || hoa.source_layout.extended)
+                            .then_some(mapped),
                     })
                 })
                 .collect(),
@@ -673,8 +673,11 @@ fn parse_impl(
         hoa.core_channels = usize::from(shape.core_channels);
         hoa.mixed = shape.mixed_mapping();
         if shape.dynamic_method.is_some() {
-            hoa.output_order = (shape.channels.isqrt().pow(2) == shape.channels)
-                .then(|| shape.channels.isqrt() - 1);
+            hoa.output_order = shape
+                .source_layout
+                .layout
+                .ambisonic_order
+                .map(|order| order as u8);
             hoa.output_coefficient_count = Some(usize::from(shape.channels));
         }
     }
@@ -857,6 +860,27 @@ fn parse_impl(
                 &result.frame.packet_sha256,
             );
         }
+        let internal = shape.source_layout.extended.then(|| {
+            restored
+                .iter()
+                .map(|s| super::HoaCoefficientSpectrum {
+                    acn_index: s.slot_index,
+                    scaled: s.scaled.clone(),
+                })
+                .collect()
+        });
+        let mut restored = if shape.source_layout.extended {
+            shape
+                .source_layout
+                .convert(&restored, spatial.end_bit_offset)?
+        } else {
+            restored
+        };
+        if shape.dynamic_method.is_some() {
+            restored.truncate(usize::from(shape.recovery_slots));
+        } else if shape.source_layout.extended {
+            restored.truncate(usize::from(shape.channels));
+        }
         let (dynamic, restored) = if shape.dynamic_method.is_some() {
             let (data, spectra) = super::hoa_dynamic::read_and_apply(
                 &mut parser,
@@ -887,7 +911,23 @@ fn parse_impl(
         }
         hoa.dynamic_selection = dynamic;
         hoa.spatial = Some(spatial);
-        hoa.channels_after_hoa = restored;
+        if let Some(internal) = internal {
+            hoa.source_layout = Some(
+                shape.source_layout.report(
+                    restored
+                        .into_iter()
+                        .map(|s| super::HoaSourceChannelSpectrum {
+                            channel_index: s.acn_index,
+                            scaled: s.scaled,
+                        })
+                        .collect(),
+                ),
+            );
+            hoa.channels_after_hoa = internal;
+            hoa.spectral_stage = "hoa_internal_coefficients_before_source_layout".into();
+        } else {
+            hoa.channels_after_hoa = restored;
+        }
         hoa.hoa_complete = true;
     }
     let padding = (8 - parser.bits.position() % 8) % 8;

@@ -2,6 +2,11 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_source;
+pub use hoa_source::{
+    HoaSourceChannelSpectrum, HoaSourceLayoutData, PROFILE as HOA_SOURCE_LAYOUT_PROFILE,
+    format_sha256 as hoa_source_layout_format_sha256,
+};
 mod hoa_controls;
 pub use hoa_controls::PROFILE as HOA_SPATIAL_CONTROLS_PROFILE;
 pub use hoa_controls::format_sha256 as hoa_spatial_controls_format_sha256;

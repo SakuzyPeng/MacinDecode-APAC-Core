@@ -96,7 +96,7 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 DRC 字段位于 `ancillary.loudness_drc.*`，包括系数、增益集合、指令、声道关联、响度及来源记录。`derived` 中的声道增益集合索引从零计数，`-1` 是线上零值转换得到的哨兵。`*_encoded` 保留编码数值，不自动赋予 dB 等物理单位；内部版本 8 来自已确认的 APAC 调用上下文，不伪装成额外读取的版本字段。未支持的下混、依赖指令、特殊 effect、EQ 或扩展分支返回 `partial`。
 
-HOA 字段位于 `components[i].hoa.*`。派生的 `hoa.coefficient_count`、`hoa.core_channels`、`hoa.transport_channels` 分别表示系数、内部编码通道和 TCE 提供的通道数量；`components[i].channels` 来自 cookie 中独立的输出布局。`hoa.order` 表示容纳系数所需的阶数；输出布局的阶数另以 `components[i].ambisonic_order` 表示，仅在布局声道数为完整平方数时提供。ACN/SN3D 标识由序列化的布局标签确认。自定义布局、N3D、未验证的 TCE 类型，以及内部／输出通道数不同的重映射分支保留为 `partial`。
+HOA 字段位于 `components[i].hoa.*`。派生的 `hoa.coefficient_count`、`hoa.core_channels`、`hoa.transport_channels` 分别表示系数、内部编码通道和 TCE 提供的通道数量；`components[i].channels` 来自 cookie 中独立的输出布局。`hoa.order` 表示容纳系数所需的阶数；输出布局的阶数另以 `components[i].ambisonic_order` 表示，仅在 ACN 布局声道数为完整平方数时提供。布局标签确认 ACN/SN3D 或 ACN/N3D；自定义布局逐项保留 32 位声道标签。语法可完整解析不表示该标签通过参考组件的 profile 检查。未验证的 TCE 类型，以及内部／输出通道数不同的重映射分支保留为 `partial`。
 
 **`dump`**：
 
@@ -319,9 +319,22 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及按实际内部／输出维度的动态选择 |
 | 动态分带 | 方法 0–2、1–8 有效带；内部维度小于输出时读取八组实际长度列表／位图，否则不读取映射载荷 |
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
-| 输出与访问 | ACN/SN3D，包目录、CAF、受限 MP4／M4A；范围请求从包零顺序推进 |
+| 输出与访问 | ACN/SN3D、显式源声道标签及下述内置源布局还原；包目录、CAF、受限 MP4／M4A，范围请求从包零顺序推进 |
 
-LRVQ、N3D、自定义布局／remapping、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ、静态 remapping、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+
+**源布局与归一化**：保留 cookie 声明的标签及声道顺序。自定义布局支持显式 SN3D、N3D、重排的 ACN 标签以及普通声道标签；不会把 N3D 自动缩放成 SN3D。`HoaFrameContext::source_normalization()` 在标签能确定时返回归一化名称，显式标签的实际系数编号记录在报告中。AudioCodecs 7.0 的 profile 布局表接受自定义 N3D 标签，但不接受 tagged ACN/N3D 和 Ambisonic B-format；后两者可解析语法，解码资格明确拒绝。
+
+普通源布局按已验证的 `parameter_0` 执行固定矩阵还原、带 LFE 省略的位置恢复或直接位置恢复。固定矩阵共用有界常量表，行步长使用实际恢复系数数；超出表容量的输入拒绝，不读取相邻表。内部与输出数量不同而未开启动态选择时，按输出维度裁剪或补零。若同时开启动态选择，先完成源布局恢复，再执行既有映射规则。公开布局所指的 LFE 位置用于输出；参考组件 CICP_7 别名的错误 LFE 位置仅保留在独立诊断中。
+
+报告的可选 `hoa.source_layout` 包含源布局、归一化／系数编号、转换方式及最终 `channels[].channel_index` 频谱；`hoa.channels_after_hoa` 在此分支保留转换前的内部恢复域。PCM 元数据增加 `hoa_source_layout_profile`、格式摘要和源声道数；扬声器布局不附加 HOA 输出阶数。源布局规则为 `apac-hoa-source-layout-format-v1`，后端为 `rust_hoa_source_layout_sq_drc_off_f64_fft_v1`。这一步完成码流声明的源声道还原，不包含外部空间渲染。
+
+```sh
+python3 -B scripts/generate_hoa_source_layout_format.py --check
+python3 -B scripts/hoa_source_layout_vectors.py --check
+python3 -B scripts/validate_hoa_source_layouts.py --binary target/debug/apac-tool \
+  --report reports/hoa-source-layout-math.json
+```
 
 库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 

@@ -288,6 +288,16 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
+        if context.source_layout_enabled() {
+            value["hoa_source_layout_profile"] = json!(crate::frame::HOA_SOURCE_LAYOUT_PROFILE);
+            value["hoa_source_layout_format_sha256"] =
+                json!(crate::frame::hoa_source_layout_format_sha256());
+            value["hoa_source_layout"] = json!(context.channel_layout());
+            value["hoa_source_channel_count"] = json!(context.channel_count());
+            if let Some(normalization) = context.source_normalization() {
+                value["hoa_source_normalization"] = json!(normalization);
+            }
+        }
         if context.controls_extended() {
             value["hoa_spatial_controls_profile"] =
                 json!(crate::frame::HOA_SPATIAL_CONTROLS_PROFILE);
@@ -431,7 +441,7 @@ fn decode_with_access(
         value["hoa_internal_order"] = json!(context.order());
         if let Some(order) = context.channel_layout().ambisonic_order {
             value["hoa_output_order"] = json!(order);
-        } else {
+        } else if !context.source_layout_enabled() {
             value["hoa_output_containing_order"] = json!(context.output_order());
         }
         if context.dynamic_domains_extended() {

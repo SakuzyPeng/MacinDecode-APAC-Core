@@ -194,32 +194,53 @@ impl Parser<'_> {
         self.report
             .derived
             .insert(format!("{p}.transport_channels"), json!(transported));
-        self.absent(&format!("{p}.custom_layout_present"))?;
-        let family = self.take(&format!("{p}.layout_family"), 16)?;
-        if family != 190 {
-            return self.stop(format!(
-                "HOA layout family {family} is outside the verified ACN/SN3D subset"
-            ));
-        }
-        let channels = self.take(&format!("{p}.layout_channels"), 16)?;
+        let custom = self.flag(&format!("{p}.custom_layout_present"))?;
+        let (family, channels) = if custom {
+            let channels = self.take(&format!("{p}.layout_channels_minus_one"), 16)? + 1;
+            self.component_range(start, channels, total)?;
+            let count = self.count(channels, 32)?;
+            let mut labels = Vec::with_capacity(count);
+            for i in 0..count {
+                labels.push(self.take(&format!("{p}.channel_labels[{i}]"), 32)?);
+            }
+            self.report
+                .derived
+                .insert(format!("{component}.channel_labels"), json!(labels));
+            self.report
+                .derived
+                .insert(format!("{p}.layout_channels"), json!(channels));
+            (0, channels)
+        } else {
+            let family = self.take(&format!("{p}.layout_family"), 16)?;
+            let channels = self.take(&format!("{p}.layout_channels"), 16)?;
+            if family <= 1 {
+                return self.invalid(
+                    "hoa-layout",
+                    "HOA tagged layouts cannot declare descriptions or a channel bitmap",
+                );
+            }
+            (family, channels)
+        };
         // Check the shared ASC bounds before a remapping branch can stop parsing.
         self.component_range(start, channels, total)?;
         self.report.derived.insert(
             format!("{component}.layout_tag"),
-            json!((family << 16) | channels),
+            json!(if custom { 0 } else { (family << 16) | channels }),
         );
-        self.report
-            .derived
-            .insert(format!("{component}.ambisonic_channel_order"), json!("ACN"));
-        self.report.derived.insert(
-            format!("{component}.ambisonic_normalization"),
-            json!("SN3D"),
-        );
-        let root = channels.isqrt();
-        if root.checked_mul(root) == Some(channels) {
+        if matches!(family, 190 | 191) {
             self.report
                 .derived
-                .insert(format!("{component}.ambisonic_order"), json!(root - 1));
+                .insert(format!("{component}.ambisonic_channel_order"), json!("ACN"));
+            self.report.derived.insert(
+                format!("{component}.ambisonic_normalization"),
+                json!(if family == 190 { "SN3D" } else { "N3D" }),
+            );
+            let root = channels.isqrt();
+            if root.checked_mul(root) == Some(channels) {
+                self.report
+                    .derived
+                    .insert(format!("{component}.ambisonic_order"), json!(root - 1));
+            }
         }
         if self.flag(&format!("{p}.remapping_present"))? {
             // The reader checks core indices but skips a tail when the layout is

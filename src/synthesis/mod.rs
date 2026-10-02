@@ -304,6 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.source_layout_enabled() {
+                return "rust_hoa_source_layout_sq_drc_off_f64_fft_v1";
+            }
             return if context.dynamic_domains_extended() {
                 hoa::DYNAMIC_DOMAINS_BACKEND
             } else if context.controls_extended() {
@@ -358,6 +361,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.source_layout_enabled() {
+                return "hoa_source_layout_sq_drc_off";
+            }
             if context.dynamic_domains_extended() {
                 return "hoa_dynamic_actual_domains_sq_drc_off";
             }

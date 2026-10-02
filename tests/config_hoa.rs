@@ -346,15 +346,10 @@ fn out_of_range_orders_and_escaped_counts_fail_before_allocation() {
 }
 
 #[test]
-fn unknown_layout_tce_and_remapping_conventions_preserve_the_remaining_input() {
+fn unknown_tce_and_remapping_conventions_preserve_the_remaining_input() {
     let bytes = rich_cookie();
     let r = parse_cookie(&bytes).unwrap();
-    for (name, value) in [
-        ("custom_layout_present", 1),
-        ("layout_family", 191),
-        ("tce[0].type", 7),
-        ("remapping_present", 1),
-    ] {
+    for (name, value) in [("tce[0].type", 7), ("remapping_present", 1)] {
         let f = hoa(&r, name);
         let mut changed = bytes.clone();
         replace(&mut changed, f.bit_offset, f.bit_length, value);
@@ -368,6 +363,85 @@ fn unknown_layout_tce_and_remapping_conventions_preserve_the_remaining_input() {
             .map(|b| format!("{b:02x}"))
             .collect();
         assert_eq!(unknown.raw_hex, hex);
+    }
+}
+
+#[test]
+fn tagged_source_layouts_preserve_the_declared_normalization() {
+    let bytes = rich_cookie();
+    let report = parse_cookie(&bytes).unwrap();
+    let f = hoa(&report, "layout_family");
+    for family in [108, 190, 191] {
+        let mut changed = bytes.clone();
+        replace(&mut changed, f.bit_offset, f.bit_length, family);
+        let parsed = parse_cookie(&changed).unwrap();
+        coverage(&changed, &parsed);
+        assert_eq!(
+            parsed.derived["components[0].layout_tag"],
+            (family << 16) | 9
+        );
+        let normalization = parsed
+            .derived
+            .get("components[0].ambisonic_normalization")
+            .and_then(|v| v.as_str());
+        assert_eq!(
+            normalization,
+            match family {
+                190 => Some("SN3D"),
+                191 => Some("N3D"),
+                _ => None,
+            }
+        );
+    }
+}
+
+#[test]
+fn custom_hoa_labels_have_exact_boundaries_and_do_not_claim_a_tagged_order() {
+    let original = full_cookie(1, false);
+    let parsed = parse_cookie(&original).unwrap();
+    let start = hoa(&parsed, "custom_layout_present").bit_offset;
+    let end = hoa(&parsed, "remapping_present").bit_offset;
+    for labels in [
+        [131072, 131075, 131073, 131074],
+        [196608, 196609, 196610, 196611],
+        [1, 2, 5, 6],
+    ] {
+        let mut w = Wire {
+            data: vec![],
+            bit: 0,
+        };
+        for bit in 0..start {
+            w.put(u64::from((original[bit / 8] >> (7 - bit % 8)) & 1), 1);
+        }
+        w.fields(&[(1, 1), (3, 16)]);
+        for label in labels {
+            w.put(label, 32);
+        }
+        let custom_end = w.bit;
+        // Exclude the old byte padding and let the new stream acquire its own.
+        let padding = parsed
+            .fields
+            .last()
+            .filter(|f| f.name == "alignment_padding")
+            .map_or(0, |f| f.bit_length);
+        for bit in end..original.len() * 8 - padding {
+            w.put(u64::from((original[bit / 8] >> (7 - bit % 8)) & 1), 1);
+        }
+        let bytes = w.finish();
+        let result = parse_cookie(&bytes).unwrap();
+        coverage(&bytes, &result);
+        assert_eq!(result.derived["components[0].layout_tag"], 0);
+        assert_eq!(
+            result.derived["components[0].channel_labels"],
+            json!(labels)
+        );
+        assert_eq!(hoa(&result, "remapping_present").bit_offset, custom_end);
+        assert!(!result.derived.contains_key("components[0].ambisonic_order"));
+        for end in (start + 1) / 8..custom_end.div_ceil(8) {
+            let mut cut = bytes[..end].to_vec();
+            cut[..4].copy_from_slice(&(end as u32).to_be_bytes());
+            assert!(parse_cookie(&cut).is_err());
+        }
     }
 }
 

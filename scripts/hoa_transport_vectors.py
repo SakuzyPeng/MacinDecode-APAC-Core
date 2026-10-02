@@ -64,7 +64,7 @@ def cpe(spec, rate, origin):
 
 
 def packet(case, **opts):
-    n = shape(opts.get('order', 3), opts.get('dynamic', False),opts.get('coefficient_count'),opts.get('output_coefficients'))
+    n = shape(opts.get('order', 3), opts.get('dynamic', False),opts.get('coefficient_count'),opts.get('output_coefficients'),opts.get('source_layout'))
     if opts.get('controls') is not None:opts=dict(opts,controls=control_values(opts['controls'],opts.get('path','salient')))
     declared=opts
     if (opts.get('controls') or {}).get('flag_b'):
@@ -111,7 +111,7 @@ def packet(case, **opts):
             encoded, truth = single(dict(spec, block=block), kind, rate, begin - 2)
             encoded = encoded[:2] + encoded[4:]
         wire += encoded
-        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform') and not (opts.get('controls') or {}).get('flag_b')
+        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform') and not (opts.get('controls') or {}).get('flag_b') and opts.get('source_layout') is None
         truth.update(configuration=dict(element_index=index, kind={0:'sce',1:'cpe',3:'lfe',6:'extension'}[kind],
                                         tce_type=kind, output_channels=channels if direct else [], transport_channels=channels),
                      present=present, start_bit_offset=begin,

@@ -13,6 +13,47 @@ fn bytes(v: &Value) -> Vec<u8> {
 fn fixture() -> Value {
     serde_json::from_str(include_str!("../../data/hoa-ambient-state-v1.json")).unwrap()
 }
+
+#[test]
+fn source_layout_dimensions_transactions_and_reset_follow_the_declared_output() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-source-layout-state-v1.json")).unwrap();
+    for fixture in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&fixture["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(
+            context.is_supported(),
+            "{}: {:?}",
+            fixture["name"],
+            context.rejection()
+        );
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let n = fixture["options"]["output_coefficients"].as_u64().unwrap() as usize;
+        assert_eq!(decoder.channel_count() as usize, n);
+        let initial = snapshot(&decoder);
+        let first = decoder.decode_frame(&bytes(&fixture["first"])).unwrap();
+        assert_eq!(first.len(), n * 1024);
+        assert!(first.iter().all(|v| v.is_finite()));
+        let checkpoint = snapshot(&decoder);
+        assert!(decoder.decode_frame(&bytes(&fixture["bad"])).is_err());
+        assert_eq!(snapshot(&decoder), checkpoint);
+        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
+        clean.decode_frame(&bytes(&fixture["first"])).unwrap();
+        assert_eq!(
+            decoder.decode_frame(&bytes(&fixture["good"])).unwrap(),
+            clean.decode_frame(&bytes(&fixture["good"])).unwrap()
+        );
+        decoder.reset();
+        assert_eq!(snapshot(&decoder), initial);
+        assert_eq!(
+            decoder.decode_frame(&bytes(&fixture["first"])).unwrap(),
+            first
+        );
+        if fixture["name"] == "n3d-labels" {
+            assert_eq!(context.source_normalization(), Some("N3D"));
+        }
+    }
+}
 fn snapshot(d: &SqDecoder) -> (Vec<Vec<u64>>, String) {
     (
         d.channels

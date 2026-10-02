@@ -29,6 +29,8 @@ class Decoder:
         return vectors
     def history_record(self):
         return {'history':[[list(map(float,band)) for band in component] for component in self.history]}
+    def source_layout(self,internal,truth,opts):
+        return internal
     def decode(self,truth):
         if truth['inner']:self.decode(truth['inner'])
         with localcontext() as ctx:
@@ -59,15 +61,16 @@ class Decoder:
                     value=means[k]+sum((D.from_float(sources[offset+s][line])*self.history[s][bands[s]][k] for s in active if k<dimensions[s]),D(0))
                     if addition and k in selected:value+=exact_ambient[selected.index(k)][line]
                     internal[k][line]=round_f32(value)
-            dyn=truth.get('dynamic_selection');scaled=internal
+            source=self.source_layout(internal,truth,opts)
+            dyn=truth.get('dynamic_selection');scaled=source[:len(self.channels)]
             if dyn:
                 outputs=len(self.channels)
-                if self.slots>=outputs:scaled=internal[:outputs]
+                if self.slots>=outputs:scaled=source[:outputs]
                 else:
                     matrices=[[[int(target==out) for target in row['target_acn_indices']] for out in range(outputs)] for row in dyn['mappings']];scaled=[[0.]*1024 for _ in range(outputs)]
                     for line in range(1024):
                         frequency=(line%128)*8+line//128 if short and not rounded else line%128 if short else line;b=next(b for b,end in enumerate(dyn['lines_per_window'] if rounded else dyn['subband_ends']) if frequency<end)
-                        for out,row in enumerate(matrices[b]):scaled[out][line]=round_f32(sum((D.from_float(internal[j][line])*v for j,v in enumerate(row) if v),D(0)))
+                        for out,row in enumerate(matrices[b]):scaled[out][line]=round_f32(sum((D.from_float(source[j][line])*v for j,v in enumerate(row) if v),D(0)))
             self.records.append(dict(vectors=[[float(v) for v in row] for row in vectors],internal=internal,scaled=scaled,transport=sources,
                                      **(self.history_record() if opts.get('controls') is not None else {})))
             out=[state.render(spectrum,truth['common_window']) for state,spectrum in zip(self.channels,scaled)];return [v for row in zip(*out) for v in row]

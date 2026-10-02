@@ -129,7 +129,7 @@ fn scan(file: &mut File) -> Result<Structure> {
             }
             let valid = match &tag {
                 b"desc" => size == 32,
-                b"chan" => size == 12,
+                b"chan" => (12..=12 + 255 * 20).contains(&size) && (size - 12) % 20 == 0,
                 b"kuki" => size > 0 && size <= MAX_COOKIE_BYTES as u64,
                 b"pakt" => size >= 24,
                 _ => size >= 4,
@@ -241,7 +241,7 @@ impl CafReader {
             }));
             e
         })?;
-        let (name, layout_tag) = if parsed
+        let output_layout = if parsed
             .fields
             .iter()
             .any(|f| f.name == "components[0].type" && f.value == json!(2))
@@ -253,7 +253,7 @@ impl CafReader {
                     format!("unsupported configuration: {reason}"),
                 ));
             }
-            ("HOA ACN/SN3D", context.channel_layout().tag)
+            context.channel_layout().clone()
         } else {
             let layout = layout.ok_or_else(|| {
                 invalid(
@@ -262,8 +262,13 @@ impl CafReader {
                     "this channel count requires a qualified HOA ASC",
                 )
             })?;
-            (layout.name, ((layout.family as u32) << 16) | channels)
+            ChannelLayout::tagged(
+                ((layout.family as u32) << 16) | channels,
+                channels,
+                Some(layout.name.into()),
+            )
         };
+        let layout_tag = output_layout.tag;
         for (key, want) in [
             ("sample_rate_hz", rate as u64),
             ("channels", u64::from(channels)),
@@ -279,13 +284,31 @@ impl CafReader {
             }
         }
         let layout_source = if let Some(chan) = chunks.get(b"chan") {
-            let mut raw = [0; 12];
-            read(&mut file, b"chan", chan.offset, &mut raw)?;
-            if raw[..4] != layout_tag.to_be_bytes() || raw[4..] != [0; 8] {
+            let mut expected = Vec::with_capacity(12 + 20 * output_layout.descriptions.len());
+            expected.extend_from_slice(&layout_tag.to_be_bytes());
+            expected.extend_from_slice(&output_layout.bitmap.to_be_bytes());
+            expected.extend_from_slice(&(output_layout.descriptions.len() as u32).to_be_bytes());
+            for description in &output_layout.descriptions {
+                expected.extend_from_slice(&description.label.to_be_bytes());
+                expected.extend_from_slice(&description.flags.to_be_bytes());
+                for coordinate in description.coordinates {
+                    expected.extend_from_slice(&coordinate.to_be_bytes());
+                }
+            }
+            if chan.bytes != expected.len() as u64 {
                 return Err(invalid(
                     b"chan",
                     chan.offset,
-                    "requires matching supported layout tag, zero bitmap and no descriptions",
+                    "channel layout size disagrees with cookie",
+                ));
+            }
+            let mut raw = vec![0; expected.len()];
+            read(&mut file, b"chan", chan.offset, &mut raw)?;
+            if raw != expected {
+                return Err(invalid(
+                    b"chan",
+                    chan.offset,
+                    "channel layout tag, bitmap or descriptions disagree with cookie",
                 ));
             }
             "chan"
@@ -350,11 +373,7 @@ impl CafReader {
                 channels,
                 bits_per_channel: 0,
             },
-            layout: Property::known(ChannelLayout::tagged(
-                layout_tag,
-                channels,
-                Some(name.into()),
-            )),
+            layout: Property::known(output_layout),
             packet_count: Property::known(count),
             packet_table: Property::known(table),
             max_packet_bytes: Property::known(0),

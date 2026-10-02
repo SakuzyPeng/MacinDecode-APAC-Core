@@ -199,6 +199,12 @@ impl ChannelFrameContext {
     pub fn channel_layout(&self) -> Option<&ChannelLayout> {
         self.layout.as_ref()
     }
+    pub(crate) fn channel_layout_profile(&self) -> Option<&'static str> {
+        if self.hoa.is_some() || !self.is_supported() {
+            return None;
+        }
+        crate::channel_layout::profile(self.channel_layout()?.tag)
+    }
     pub fn channel_labels(&self) -> &[String] {
         &self.channel_labels
     }
@@ -644,8 +650,7 @@ fn parse_impl(
             .hoa
             .as_ref()
             .map(|_| super::hoa::HoaFrameInfo::default()),
-        channel_layout_profile: crate::channel_layout::profile(u64::from(context.channel_count))
-            .map(str::to_owned),
+        channel_layout_profile: context.channel_layout_profile().map(str::to_owned),
         channel_count: context.channel_count,
         channel_labels: context.channel_labels.clone(),
         elements: vec![],

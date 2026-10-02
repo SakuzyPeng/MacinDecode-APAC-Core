@@ -68,6 +68,10 @@ pub(crate) fn layout(channels: u64) -> Option<Layout> {
     })
 }
 
-pub(crate) fn profile(channels: u64) -> Option<&'static str> {
-    matches!(channels, 12 | 24).then_some(EXTENDED_PROFILE)
+pub(crate) fn profile(layout_tag: u32) -> Option<&'static str> {
+    matches!(
+        (layout_tag >> 16, layout_tag & 0xffff),
+        (192, 12) | (204, 24)
+    )
+    .then_some(EXTENDED_PROFILE)
 }

@@ -264,7 +264,7 @@ fn decode_with_access(
         )]),
         all_finite: true,
     };
-    if let Some(profile) = crate::channel_layout::profile(u64::from(channels)) {
+    if let Some(profile) = decoder.access_context.channel_layout_profile() {
         pcm.decoder_settings
             .get_mut("implementation")
             .unwrap()
@@ -530,7 +530,7 @@ fn decode_with_access(
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
         "raw_frames_decoded":decoded_packets*1024,
         "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
-    if let Some(profile) = crate::channel_layout::profile(u64::from(channels)) {
+    if let Some(profile) = decoder.access_context.channel_layout_profile() {
         report["channel_layout_profile"] = json!(profile);
     }
     if channels != 2 {

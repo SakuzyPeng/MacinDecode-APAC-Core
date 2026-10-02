@@ -25,6 +25,27 @@ class SourceLayoutTests(unittest.TestCase):
             self.assertEqual([d['label'] for d in result['channel_layout']['descriptions']],opts['source_layout']['labels'])
             self.assertIsNone(result['channel_layout']['ambisonic_order'])
 
+    def test_hoa_outputs_do_not_advertise_the_discrete_layout_profile(self):
+        for channels, family in ((12,192),(24,204)):
+            for tag in ((190<<16)|channels,(family<<16)|channels,0):
+                with self.subTest(channels=channels,tag=tag), tempfile.TemporaryDirectory() as tmp:
+                    labels=[(2<<16)|i for i in range(channels)] if tag==0 else None
+                    opts=vectors.options(channels,tag,labels=labels,parameter=2)
+                    root=Path(tmp);raw,_=vectors.packet(vectors.basis(opts),**opts)
+                    vectors.bundle(root/'bundle',[raw],**opts)
+                    self.command('parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed')
+                    packet=json.loads((root/'parsed').read_text())['report']
+                    self.assertNotIn('channel_layout_profile',packet)
+                    result=self.command('decode-sq',root/'bundle','--out',root/'pcm')
+                    self.assertEqual(result['saved_frames'],1024)
+                    self.assertEqual(result['pcm']['layout']['value']['tag'],tag)
+                    self.assertNotIn('channel_layout_profile',result)
+                    self.assertNotIn('channel_layout_profile',result['pcm']['decoder_settings']['implementation']['value'])
+                    self.command('parse-packets',root/'bundle','--depth','channels','--output',root/'unsupported',code=2)
+                    unsupported=json.loads((root/'unsupported').read_text())['report']
+                    self.assertEqual(unsupported['status'],'unsupported')
+                    self.assertNotIn('channel_layout_profile',unsupported)
+
     def test_tagged_n3d_is_parseable_but_reference_profile_rejects_it(self):
         opts=vectors.options(4,(191<<16)|4,parameter=1)
         with tempfile.TemporaryDirectory() as tmp:

@@ -321,7 +321,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
 | 输出与访问 | ACN/SN3D、显式源声道标签及下述内置源布局还原；包目录、CAF、受限 MP4／M4A，范围请求从包零顺序推进 |
 
-LRVQ、外层 ASP 重配置及 HOA fast 尚未开放。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ 与外层 ASP 重配置尚未开放；HOA CAF／MP4 支持下述 fast 访问模式。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 **源布局与归一化**：保留 cookie 声明的标签及声道顺序。自定义布局支持显式 SN3D、N3D、重排的 ACN 标签以及普通声道标签；不会把 N3D 自动缩放成 SN3D。`HoaFrameContext::source_normalization()` 在标签能确定时返回归一化名称，显式标签的实际系数编号记录在报告中。AudioCodecs 7.0 的 profile 布局表接受自定义 N3D 标签，但不接受 tagged ACN/N3D 和 Ambisonic B-format；后两者可解析语法，解码资格明确拒绝。
 
@@ -352,7 +352,7 @@ python3 -B scripts/validate_hoa_remapping.py --binary target/debug/apac-tool \
 
 原无选择／变换扩展的一、三阶 ambient 恢复均已确认是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、实际阶数、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
 
-HOA 的三个输入入口均从包零顺序建立状态；包目录必须包含包零，CAF／MP4 范围请求会解码并丢弃前置 PCM。显式 `--access fast` 对 HOA 返回尚未支持，离散声道快速模式不变。一／二／三阶分别实测的内嵌 preroll 容量为 8,192／18,432／32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、全部系数 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。原恒等 ambient 路径的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空；启用变换时按恢复后的输出系数管理 overlap。
+HOA 的三个输入入口均按包序建立状态；包目录必须包含包零，CAF／MP4 默认解码并丢弃前置 PCM，也可显式使用下述 `--access fast`。离散声道快速模式不变。一／二／三阶分别实测的内嵌 preroll 容量为 8,192／18,432／32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、全部系数 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。原恒等 ambient 路径的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空；启用变换时按恢复后的输出系数管理 overlap。
 
 ```sh
 apac-tool parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
@@ -411,7 +411,7 @@ python3 -B scripts/validate_hoa_orders_media.py --binary target/release/apac-too
 
 混合数值规则为 `apac-hoa-mixed-math-v1`，状态为 `apac-hoa-mixed-state-v1`，后端为 `rust_hoa_mixed_sq_drc_off_f64_fft_v1`。PCM 实现元数据另记录 `hoa_descriptor_numeric_profile`，沿用已有二／三阶格式和数学摘要；无新增常量表。上下文增加 `ambient_components()`、`core_channels()`、`transport_channels()`、`descriptor_numeric_profile()` 查询。全部输出 overlap、描述历史和 DRC 一起按外层包提交，内嵌帧优先；缺席传输不会按同编号清除输出系数。两种混合实例分别核实的 preroll 容量为 18,432／32,768 字节。
 
-三个输入入口及顺序范围解码直接接受混合配置，HOA fast 仍拒绝。新增验证使用 14 个语义序列，独立 Decimal 参考和三平台 debug／release 摘要；原生证据来自两份短人工载荷，不宣称已有真实混合歌曲覆盖。不重跑旧完整矩阵。
+三个输入入口及顺序范围解码直接接受混合配置，CAF／MP4 的 HOA fast 访问规则见下文。新增验证使用 14 个语义序列，独立 Decimal 参考和三平台 debug／release 摘要；原生证据来自两份短人工载荷，不宣称已有真实混合歌曲覆盖。不重跑旧完整矩阵。
 
 ```sh
 python3 -B scripts/generate_hoa_mixed_manifest.py --check
@@ -430,7 +430,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 启用新语法的配置使用 `apac-hoa-static-ambient-math-v1`、`apac-hoa-static-ambient-state-v1` 和 `rust_hoa_static_ambient_sq_drc_off_f64_fft_v1`。原配置的后端、数值标识和输出保持不变。`hoa.spatial.ambient` 可选报告记录选择表、`transform_config`、`effective_index`、`index_source`、索引位范围及 `channels_after_transform`；固定模式的帧索引位范围为 null。原始传输频谱保留，旧 JSON 缺失新增字段时仍可读取。上下文提供 `ambient_selection()`、`ambient_transform()` 和 `static_ambient_enabled()` 查询，PCM 实现元数据新增格式与数学表摘要。
 
-三个输入入口、顺序预热、内嵌帧优先与外层包原子回滚均保持原规则，HOA fast 仍拒绝。验证只运行新增语义序列和受影响代表；原生强相消差异单独保留，独立数学容差不变。
+三个输入入口、顺序预热、内嵌帧优先与外层包原子回滚均保持原规则，CAF／MP4 的 HOA fast 访问规则见下文。验证只运行新增语义序列和受影响代表；原生强相消差异单独保留，独立数学容差不变。
 
 ```sh
 python3 -B scripts/generate_hoa_static_ambient_tables.py --check
@@ -452,7 +452,7 @@ python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-t
 
 新规则为 `apac-hoa-dynamic-selection-math-v1`、状态为 `apac-hoa-dynamic-selection-state-v1`、后端为 `rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1`。PCM 元数据分别记录基础恢复、二阶描述和动态划分格式摘要；原有常量和旧配置标识不变。动态复制不引入音频乘加或舍入，内部数值错误优先于后续映射错误。新实例的 preroll 容量均实测为 32,768 字节。
 
-包目录、CAF、受限 MP4／M4A 入口及范围规则保持不变，输出预算与交错步长使用 16 个声道；所有 HOA 仍从包零预热并拒绝 fast。新增语义序列只覆盖必要分支，原生验证使用两份主控制和感知边界短探针，旧路径只取受影响代表。
+包目录、CAF、受限 MP4／M4A 入口及范围规则保持不变，输出预算与交错步长使用 16 个声道；默认 HOA 仍从包零预热，CAF／MP4 可显式使用 fast。新增语义序列只覆盖必要分支，原生验证使用两份主控制和感知边界短探针，旧路径只取受影响代表。
 
 ```sh
 python3 -B scripts/generate_hoa_dynamic_format.py --check
@@ -470,7 +470,7 @@ python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
 
 可选 `hoa.additive` 记录策略、选择表、变换索引、恢复阶段与 `ambient_contributions`。这些诊断贡献采用 Float64；其 `recovery_index` 依 `coordinate_space` 指向固定路径的 ACN 或动态路径的内部槽位，不用诊断值回写计算。新增路径的原 `channels_after_transform` 数组为空，避免伪造中途 Float32 舍入；原始传输频谱及最终 ACN 频谱仍完整保留。描述报告的实际编码索引和空省略集合明确表示线上完整读取。历史报告缺少新增字段时仍可读取。
 
-包目录、CAF、受限 MP4／M4A 使用原入口，无需新增开关。输出 overlap 属于最终 ACN，内嵌帧优先，全部历史、DRC 和 overlap 原子提交。范围请求仍从包零预热，HOA fast 在创建输出前拒绝。叠加实例的内嵌容量分别为二阶 18,432 bytes、三阶及动态配置 32,768 bytes。
+包目录、CAF、受限 MP4／M4A 使用原入口，无需新增开关。输出 overlap 属于最终 ACN，内嵌帧优先，全部历史、DRC 和 overlap 原子提交。默认范围请求仍从包零预热，CAF／MP4 可显式使用下述 HOA fast。叠加实例的内嵌容量分别为二阶 18,432 bytes、三阶及动态配置 32,768 bytes。
 
 ```sh
 python3 -B scripts/generate_hoa_additive_manifest.py --check
@@ -488,7 +488,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 `DynamicSelectionData.subband_ends` 和 `lines_per_window` 现为有界 `Vec<usize>`，长度等于有效数量，`mappings` 始终为八组。1–7 带报告增加 `active_subband_count`、`subband_profile=apac-hoa-dynamic-subbands-v1` 和 `format_sha256`；PCM 实现元数据增加 `hoa_dynamic_subband_count`／`hoa_dynamic_subband_profile`，动态格式摘要指向 `apac-hoa-dynamic-selection-format-v2`。原八带报告省略这些新增字段，继续使用 v1 格式、原标识与原输出；旧 JSON 仍可读取。
 
-新边界使用经过验证的整数表，运行时不做浮点插值。原描述、覆盖／叠加、动态复制、合成及状态／后端规则不变。包目录、CAF、受限 MP4／M4A 使用原入口；范围继续从包零预热，HOA fast 仍拒绝，所有失败按外层包回滚。
+新边界使用经过验证的整数表，运行时不做浮点插值。原描述、覆盖／叠加、动态复制、合成及状态／后端规则不变。包目录、CAF、受限 MP4／M4A 使用原入口；默认范围继续从包零预热，也可选择 CAF／MP4 HOA fast，所有失败按外层包回滚。
 
 ```sh
 python3 -B scripts/generate_hoa_dynamic_subbands_format.py --check
@@ -509,7 +509,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 新配置的报告记录 `subband_profile=apac-hoa-salient-subbands-v1` 和格式摘要；PCM 元数据增加 `hoa_salient_subband_counts`、`hoa_salient_subband_profile`、`hoa_salient_subband_format_sha256`。原方法 0 的 `[4,4,4,4,4]` 不新增字段，保留旧 JSON、数学、状态和后端标识及输出。正式构建只使用验证过的整数边界，复用现有字典、角度和矩阵常量。
 
-包目录、CAF、受限 MP4／M4A 接口和范围规则不变。缺席或未使用载波仍完整校验；内嵌帧先处理，所有描述历史、overlap、映射和 DRC 按外层包原子提交。HOA fast 继续在创建输出前拒绝。
+包目录、CAF、受限 MP4／M4A 接口和范围规则不变。缺席或未使用载波仍完整校验；内嵌帧先处理，所有描述历史、overlap、映射和 DRC 按外层包原子提交。CAF／MP4 支持下述 HOA fast 访问规则。
 
 ```sh
 python3 -B scripts/generate_hoa_salient_subbands_format.py --check
@@ -534,7 +534,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 `HoaFrameContext::salient_partition_method() -> Option<u8>` 返回空间方法，无 salient 时返回 `None`。方法 1／2 的 `hoa.spatial.salient` 增加可选 `partition_method`、`partition_profile=apac-hoa-salient-partition-v1`，`format_sha256` 指向 `apac-hoa-salient-subbands-format-v2`；相同数量仍报告真实公共边界，不同数量仍使用逐分量报告。PCM 实现元数据增加 `hoa_salient_partition_method`／`hoa_salient_partition_profile`，并记录五个数量及实际格式摘要，即使数量均为四带也记录。历史方法 0 的 JSON、格式摘要、标识和输出保持不变。
 
-三个输入入口无需新参数，由 cookie 选择方法；HOA 仍顺序预热，fast 在创建输出前拒绝。内嵌帧、数值首错、整包回滚、重置、容器核验及 128 MiB 输出保护不变。
+三个输入入口无需新参数，由 cookie 选择方法；HOA 默认顺序预热，CAF／MP4 可使用 fast。内嵌帧、数值首错、整包回滚、重置、容器核验及 128 MiB 输出保护不变。
 
 ```sh
 python3 -B scripts/generate_hoa_salient_partition_format.py --check
@@ -557,7 +557,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 PCM 实现元数据增加 `hoa_salient_component_orders`、`hoa_salient_components`，并记录组合描述规则；新配置以逐分量字典摘要取代单个 `hoa_format_sha256`。整体三阶且分量全部为三阶，以及固定二阶、原动态和纯 ambient 配置的 JSON、标识与输出均不改变。
 
-四个新实例的内嵌 preroll 容量均实测为 32,768 字节。全部传输载波仍须完整校验；描述数值检查先于整体恢复及尾部，内嵌优先、整包回滚、reset、三个输入入口及范围规则不变。HOA fast 仍在创建输出前拒绝。
+四个新实例的内嵌 preroll 容量均实测为 32,768 字节。全部传输载波仍须完整校验；描述数值检查先于整体恢复及尾部，内嵌优先、整包回滚、reset、三个输入入口及范围规则不变。CAF／MP4 可显式使用 HOA fast。
 
 ```sh
 python3 -B scripts/generate_hoa_component_orders_manifest.py --check
@@ -577,7 +577,7 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 接口不变：`salient_component_orders()` 可返回 1，`component_orders` 报告记录四项维度及一阶数学／格式摘要。含一阶分量的 `hoa.spatial.salient.order1_profile` 和 PCM 实现元数据 `hoa_salient_order1_profile` 为 `apac-hoa-salient-order1-v1`。固定配置复用 `component-orders` 组合数学、状态和后端；动态配置保留 `dynamic-selection` 顶层数学，并记录 `component-orders` 基础恢复。其他历史配置不增加字段或改变标识、常量、PCM。
 
-维持五个 salient、零／四个 ambient、44.1／48 kHz、1024 帧、六位量化、每分量 1–16 带、空间方法 0／1／2、已有选择／变换范围、SQ、中性场景、DRC／响度关闭及 `experimental=true`。全部传输 SCE 仍须完整校验；overlap 和 DRC 属于实际输出，内嵌优先、数值首错、原子回滚、reset、容器核验及输出保护不变。零阶、越过内部阶数、其他分量数量、帧内重配置和 HOA fast 仍拒绝。
+维持五个 salient、零／四个 ambient、44.1／48 kHz、1024 帧、六位量化、每分量 1–16 带、空间方法 0／1／2、已有选择／变换范围、SQ、中性场景、DRC／响度关闭及 `experimental=true`。全部传输 SCE 仍须完整校验；overlap 和 DRC 属于实际输出，内嵌优先、数值首错、原子回滚、reset、容器核验及输出保护不变。其他已扩展的维度和帧内参数支持范围见下文；CAF／MP4 可显式使用 HOA fast。
 
 ```sh
 python3 -B scripts/generate_hoa_order1_manifest.py --check
@@ -783,7 +783,7 @@ MP4 默认顺序模式也从第 0 包预热，不设 4096 包依赖搜索上限�
 
 `decode-sq.json.input` 为 `kind=mp4`、`profile=apac-mp4-input-v1`，包含品牌、轨道、原始样本条目字段、cookie 布局来源、时间线换算、box 范围和一致性状态。音频摘要按样本顺序拼接包字节；包边界摘要依次使用包序号、**文件绝对偏移**、包长、1024 帧数四个小端 u64，后接包 SHA-256 原始字节。元数据摘要按遍历顺序覆盖已读取 box 头及使用的元数据载荷；未知非解码载荷和未引用 `mdat` 填充不计入。开始和结束核对内容摘要、文件长度与修改时间；这是读取一致性检查，并非预存校验和或真实性证明。容器错误使用 `chunk_type` 表示 box 类型，附带文件 `byte_offset`。旧 CAF／包目录报告、数值配置与 PCM 保持兼容。
 
-**快速范围解码**：受支持的离散声道 CAF／MP4 文件可显式选择 `--access fast`，HOA 暂不支持；默认及原库入口仍使用顺序模式：
+**快速范围解码**：受支持的离散声道、单 HOA 和 HOA 组合流 CAF／MP4 文件均可显式选择 `--access fast`；默认及原库入口仍使用顺序模式：
 
 ```sh
 apac-tool decode-sq input.m4a --out artifacts/fast-window \
@@ -796,13 +796,16 @@ python3 -B scripts/validate_access.py --binary target/debug/apac-tool --report r
 python3 -B scripts/validate_access.py --binary target/release/apac-tool \
   --reference-report reports/access-math.json --report reports/access-release.json
 python3 -B scripts/benchmark_access.py --binary target/release/apac-tool --report reports/access-performance.json
+# HOA 与组合流：独立输入、范围／状态对照，以及配对性能测试
+python3 -B scripts/validate_hoa_access.py --binary target/debug/apac-tool --report reports/hoa-access.json
+python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --report reports/hoa-access-performance.json
 ```
 
-快速模式仍完整读取、核验文件，前缀也按顺序检查语法并推进内嵌帧及 DRC 元数据。没有有效 TNS／BWE2 运算的元素使用已证明的有限值界，省去前缀反量化、CAC 数值运算和合成；需要 TNS／BWE2 数值检查时，按原顺序调用相同内核，但不生成完整字段报告或各阶段诊断副本。该模式不引入持久索引，不解释 MP4 分组来绕过历史校验，读取成本仍随文件大小增长。
+快速模式仍完整读取、核验文件，前缀按码流顺序解析内嵌帧及所有核心，推进空间描述、动态映射、帧内配置、场景图和 DRC 历史。HOA 载波始终完成反量化、CAC／TNS／BWE2、空间恢复、源转换及数值校验，包含最终不输出的组件；扫描省去详细字段／诊断报告和 PCM 合成。离散声道仍沿用原规则：没有有效 TNS／BWE2 运算时使用已证明的有限值界，否则执行相同数值内核。该模式不引入持久索引，不解释 MP4 分组来绕过历史校验，读取成本仍随文件大小增长。
 
-对非空范围，目标首包之前最多完整合成一个外层包来恢复所有声道的 overlap，其 PCM 被丢弃；之后正常解码。缺席元素、内嵌 preroll、DRC 重述／更新及错误回滚保持原规则。空输出请求仍检查语法、元数据和输入完整性，合成数为零。损坏前缀或数值错误不能被扫描模式跳过；包目录的现有依赖规则不变，`--access fast` 对目录返回错误。
+对非空范围，按原始音频坐标从 `max(0, floor(raw_start / 1024) - 1)` 包开始合成；其中 `raw_start` 已包含容器 priming。只丢弃目标前一个外层包的 PCM，即可恢复所有组件的 overlap，之后正常解码。缺席元素、内嵌 preroll、DRC 重述／更新及错误回滚保持原规则。空输出请求仍检查语法、元数据和输入完整性，合成数为零。损坏前缀或数值错误不能被扫描模式跳过；包目录的现有依赖规则不变，`--access fast` 对目录返回错误。
 
-显式访问模式在 `decode-sq.json` 增加 `access`，规则为 `apac-sq-access-v1`，区分前缀外层包／内嵌帧、执行数值内核的元素、用有限值界检查的元素、合成起点和外部预热包。`packets`／`raw_frames_decoded` 始终只计实际完整音频解码量；DRC 载荷计数包括已扫描的历史，缺席元素和内嵌音频解码计数仅描述实际合成部分。`metadata_before_output_sha256` 和 `metadata_after_processing_sha256` 可核对状态历史与声明来源；没有输出时前者为 null。扫描不会对外生成虚构频谱。
+显式访问模式在 `decode-sq.json` 增加 `access`，离散声道规则保留 `apac-sq-access-v1`，HOA 使用 `apac-hoa-access-v1`，区分前缀外层包／内嵌帧、执行数值内核的元素、用有限值界检查的元素、合成起点和外部预热包。`packets`／`raw_frames_decoded` 始终只计实际完整音频解码量；DRC 载荷计数包括已扫描的历史，缺席元素和内嵌音频解码计数仅描述实际合成部分。`metadata_before_output_sha256` 和 `metadata_after_processing_sha256` 可核对状态历史与声明来源；没有输出时前者为 null。扫描不会对外生成虚构频谱。
 
 访问计时分别记录初始化核验（含配置准备）、第二遍读取／收尾核验、前缀扫描、完整包解析与合成、独立合成耗时及总耗时；跨平台摘要排除计时。总计时截至最终解码报告写入之前，性能脚本另测包括进程启动在内的端到端时间，交替模式、丢弃首次热身并比较重复测量中位数。实际收益取决于工具启用情况、目标位置和 I/O。
 
@@ -997,7 +1000,7 @@ python3 scripts/validate.py \
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具已建立配置解析、SQ 帧前缀、基础频谱、共享头／CAC、TNS、BWE2、受限 ambient／salient HOA 和逐包苹果参考回放基准。独立公式数值模型配有人工矩阵和跨平台逐位验收工具，受限 PCM 仍保留实验标识；完整包状态及限定 DRC 关闭策略的包目录和容器 PCM 已提供实验入口；播放 DRC／响度处理、多增益序列／多频带、其他 coding profile、重配置、非零帧内 trimming、LRVQ、多个 ASC、通用 HOA、其他离散声道布局、空间渲染和实时播放属于后续工作。
+当前工具提供上述 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放不在当前交付范围。
 
 ## 仓库与数据边界
 
@@ -1025,7 +1028,7 @@ git clone https://github.com/SakuzyPeng/MacinDecode-APAC-Docs.git MacinDecode-AP
 
 ## 共享配置与组合 HOA 流
 
-共享配置与多 ASC 使用顺序解码；跨平台一致性以对应冻结提交的验收报告为准。此前已发布配置的标识和数值运算顺序保留。新规则使用 `apac-hoa-shared-configuration-v1`、`apac-hoa-multiple-asc-v1` 及可选报告字段。HOA fast 和外层 ASP 重配置仍未开放。
+共享配置与多 ASC 默认使用顺序解码，CAF／MP4 可使用 `--access fast`；跨平台一致性以对应冻结提交的验收报告为准。此前已发布配置的标识和数值运算顺序保留。新规则使用 `apac-hoa-shared-configuration-v1`、`apac-hoa-multiple-asc-v1` 及可选报告字段。外层 ASP 重配置仍按绑定参考的未实现边界拒绝。
 
 明确的采样率索引 0–12 对应 96000、88200、64000、48000、44100、32000、24000、22050、16000、12000、11025、8000、7350 Hz。SQ、CAC、TNS 和 BWE2 使用对应的 SFB 表；7350 Hz 使用 8000 Hz 的表桶。HOA 分带方法 1 要求 49 个长窗 SFB，适用于 44.1/48 kHz。MP4 的零采样率项从 cookie 取实际采样率，非零冲突仍拒绝。CAF、MP4 和包目录保留顺序范围解码行为。
 

@@ -105,7 +105,7 @@ pub(super) fn restore(
         .iter()
         .enumerate()
         .map(|(slot, &k)| AmbientContribution {
-            transport_slot: slot as u8,
+            transport_slot: configuration.transport_slot(slot as u8),
             recovery_index: k,
             scaled: vec![0.; 1024],
         })
@@ -186,8 +186,11 @@ pub(super) fn restore(
             selection: selected.to_vec(),
             salient_transport_channels: (configuration.ambient_components
                 ..configuration.core_channels)
+                .map(|slot| configuration.transport_slot(slot))
                 .collect(),
-            ambient_transport_channels: (0..configuration.ambient_components).collect(),
+            ambient_transport_channels: (0..configuration.ambient_components)
+                .map(|slot| configuration.transport_slot(slot))
+                .collect(),
             effective_transform_index: index,
             spectral_stage: if configuration.dynamic_method.is_some() {
                 "hoa_recovery_slots_before_dynamic_selection"

@@ -145,7 +145,7 @@ pub(super) fn restore(
         }
         output[usize::from(acn)].scaled.clone_from(&scaled);
         data.channels_after_transform.push(AmbientSpectrum {
-            transport_slot: slot as u8,
+            transport_slot: super::hoa_transport::physical_slot(packet, slot as u8),
             acn_index: acn,
             scaled,
         });

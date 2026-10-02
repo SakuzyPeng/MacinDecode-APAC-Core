@@ -288,6 +288,9 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
+        if let Some(mapping) = context.static_remapping() {
+            value["hoa_static_remapping"] = json!(mapping);
+        }
         if context.source_layout_enabled() {
             value["hoa_source_layout_profile"] = json!(crate::frame::HOA_SOURCE_LAYOUT_PROFILE);
             value["hoa_source_layout_format_sha256"] =

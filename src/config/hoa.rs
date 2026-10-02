@@ -11,6 +11,28 @@ fn index_width(count: u64) -> usize {
     (u64::BITS - count.saturating_sub(1).leading_zeros()) as usize
 }
 
+/// Resolve wire links to the carrier permutation once, with a strict traversal
+/// bound. Repeated indices can still describe a terminating permutation.
+fn effective_remapping(links: &[usize]) -> Result<Vec<usize>, usize> {
+    let mut order: Vec<_> = (0..links.len()).collect();
+    for i in 0..links.len() {
+        let mut next = i;
+        let mut resolved = false;
+        for _ in 0..links.len() {
+            next = *links.get(next).ok_or(i)?;
+            if next <= i {
+                order.swap(i, next);
+                resolved = true;
+                break;
+            }
+        }
+        if !resolved {
+            return Err(i);
+        }
+    }
+    Ok(order)
+}
+
 impl Parser<'_> {
     fn hoa_square(&self, order: u64) -> PResult<u64> {
         let count = order
@@ -243,24 +265,71 @@ impl Parser<'_> {
             }
         }
         if self.flag(&format!("{p}.remapping_present"))? {
-            // The reader checks core indices but skips a tail when the layout is
-            // larger. Keep that unverified tail convention outside this subset.
-            if core != channels {
-                return self.stop(
-                    "HOA remapping with differing core/output channel counts is not implemented",
+            if core > channels {
+                return self.invalid(
+                    "hoa-remapping",
+                    "HOA remapping core exceeds the output channel count",
                 );
             }
-            let count = self.count(channels, index_width(channels))?;
+            let width = index_width(channels);
+            let count = self.count(core, width)?;
+            let start = self.pos();
+            let mut links = Vec::with_capacity(count);
             for i in 0..count {
-                let value = self.take(&format!("{p}.remapping[{i}]"), index_width(channels))?;
+                let value = self.take(&format!("{p}.remapping[{i}]"), width)?;
                 if value >= core {
                     return self.invalid(
                         "hoa-remapping",
                         "HOA remapping index exceeds core channel count",
                     );
                 }
+                links.push(value as usize);
+            }
+            let effective = effective_remapping(&links).map_err(|i| {
+                ParseError::new(
+                    start + i * width,
+                    "hoa-remapping-cycle",
+                    "HOA remapping contains a nonterminating link cycle",
+                )
+            })?;
+            self.report
+                .derived
+                .insert(format!("{p}.remapping_core_to_transport"), json!(effective));
+            // The fixed cookie core prefix is active. The serialized output
+            // tail is consumed even if its values exceed the active domain.
+            let tail = self.count(channels - core, width)?;
+            for i in 0..tail {
+                self.take(&format!("{p}.remapping_tail[{i}]"), width)?;
             }
         }
         Ok(channels)
+    }
+}
+
+#[cfg(test)]
+mod remapping_tests {
+    use super::effective_remapping;
+    #[test]
+    fn canonical_mappings_are_transport_to_core_and_noncanonical_forms_are_bounded() {
+        fn permutations(values: &mut [usize], at: usize) {
+            if at == values.len() {
+                let actual = effective_remapping(values).unwrap();
+                for (transport, &core) in values.iter().enumerate() {
+                    assert_eq!(actual[core], transport);
+                }
+            } else {
+                for i in at..values.len() {
+                    values.swap(at, i);
+                    permutations(values, at + 1);
+                    values.swap(at, i);
+                }
+            }
+        }
+        permutations(&mut [0, 1, 2, 3], 0);
+        assert_eq!(effective_remapping(&[0, 0, 2, 3]).unwrap(), [1, 0, 2, 3]);
+        assert_eq!(effective_remapping(&[0, 0, 0, 0]).unwrap(), [3, 0, 1, 2]);
+        assert_eq!(effective_remapping(&[1, 1, 2, 3]), Err(0));
+        assert_eq!(effective_remapping(&[0]).unwrap(), [0]);
+        assert!(effective_remapping(&[2, 0]).is_err());
     }
 }

@@ -111,7 +111,7 @@ def packet(case, **opts):
             encoded, truth = single(dict(spec, block=block), kind, rate, begin - 2)
             encoded = encoded[:2] + encoded[4:]
         wire += encoded
-        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform') and not (opts.get('controls') or {}).get('flag_b') and opts.get('source_layout') is None
+        direct = not opts.get('counts') and opts.get('ambient_count',4) == n and opts.get('selection') is None and not opts.get('transform') and not (opts.get('controls') or {}).get('flag_b') and opts.get('source_layout') is None and opts.get('remapping') is None
         truth.update(configuration=dict(element_index=index, kind={0:'sce',1:'cpe',3:'lfe',6:'extension'}[kind],
                                         tce_type=kind, output_channels=channels if direct else [], transport_channels=channels),
                      present=present, start_bit_offset=begin,

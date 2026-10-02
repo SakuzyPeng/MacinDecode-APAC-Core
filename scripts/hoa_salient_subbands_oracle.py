@@ -31,6 +31,8 @@ class Decoder:
         return {'history':[[list(map(float,band)) for band in component] for component in self.history]}
     def source_layout(self,internal,truth,opts):
         return internal
+    def core_sources(self,sources,truth,opts):
+        return sources
     def decode(self,truth):
         if truth['inner']:self.decode(truth['inner'])
         with localcontext() as ctx:
@@ -47,6 +49,7 @@ class Decoder:
             for e in truth['elements']:
                 mapping=e['configuration'].get('transport_channels',e['configuration']['output_channels'])
                 sources.extend(spectra(e)['bwe2'] if e['present'] and mapping else [[0.]*1024 for _ in mapping])
+            transport=sources;sources=self.core_sources(sources,truth,opts)
             selected=side['ambient_indices'];ambient_data=truth.get('dynamic_selection',{}).get('internal_ambient',{}) if truth.get('dynamic_selection') else side.get('ambient',{})
             index=ambient_data.get('effective_index',3)
             ambient=ambient_transform(sources[:offset],index) if not addition else []
@@ -71,6 +74,6 @@ class Decoder:
                     for line in range(1024):
                         frequency=(line%128)*8+line//128 if short and not rounded else line%128 if short else line;b=next(b for b,end in enumerate(dyn['lines_per_window'] if rounded else dyn['subband_ends']) if frequency<end)
                         for out,row in enumerate(matrices[b]):scaled[out][line]=round_f32(sum((D.from_float(source[j][line])*v for j,v in enumerate(row) if v),D(0)))
-            self.records.append(dict(vectors=[[float(v) for v in row] for row in vectors],internal=internal,scaled=scaled,transport=sources,
+            self.records.append(dict(vectors=[[float(v) for v in row] for row in vectors],internal=internal,scaled=scaled,transport=transport,
                                      **(self.history_record() if opts.get('controls') is not None else {})))
             out=[state.render(spectrum,truth['common_window']) for state,spectrum in zip(self.channels,scaled)];return [v for row in zip(*out) for v in row]

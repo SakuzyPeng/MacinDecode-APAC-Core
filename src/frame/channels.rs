@@ -170,6 +170,7 @@ impl ChannelFrameContext {
                         output_channels: if hoa.salient_components != 0
                             || hoa.static_ambient
                             || hoa.source_layout.extended
+                            || hoa.static_remapping.is_some()
                         {
                             vec![]
                         } else {
@@ -178,8 +179,9 @@ impl ChannelFrameContext {
                         transport_channels: (hoa.salient_components != 0
                             || hoa.static_ambient
                             || hoa.transport_extended()
-                            || hoa.source_layout.extended)
-                            .then_some(mapped),
+                            || hoa.source_layout.extended
+                            || hoa.static_remapping.is_some())
+                        .then_some(mapped),
                     })
                 })
                 .collect(),
@@ -671,6 +673,7 @@ fn parse_impl(
             hoa.transport_element_count = Some(shape.transport_types.len());
         }
         hoa.core_channels = usize::from(shape.core_channels);
+        hoa.static_remapping = shape.static_remapping.as_deref().cloned();
         hoa.mixed = shape.mixed_mapping();
         if shape.dynamic_method.is_some() {
             hoa.output_order = shape

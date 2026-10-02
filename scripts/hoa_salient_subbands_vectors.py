@@ -74,7 +74,7 @@ def esc(value,widths=(4,6,8)):
     return out
 
 
-def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None,source_layout=None):
+def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',dynamic=False,selection=None,transform=0,method=2,subbands=8,counts=(1,3,4,9,16),spatial_method=0,component_orders=None,_count_fields=None,_order_fields=None,_salient_field=None,ambient_count=None,quantization_bits=6,profile=5,level=0,tce_types=None,coefficient_count=None,controls=None,output_coefficients=None,source_layout=None,remapping=None,remapping_tail=None):
     assert 0<=len(counts)<=121 and all(1<=n<=16 for n in counts);ambient=(0 if path=='salient' else 4) if ambient_count is None else ambient_count;mixed=ambient!=0;assert mixed or (selection is None and not transform) or (controls or {}).get('flag_b')
     control=control_values(controls,path)
     n=shape(order,dynamic,coefficient_count,output_coefficients,source_layout);m=(order+1)**2 if coefficient_count is None else coefficient_count
@@ -108,7 +108,12 @@ def cookie(scene=True,drc=False,rich=False,*,order=3,rate=48000,path='salient',d
         wire+='1'+bits(n-1,16)+''.join(bits(label,32) for label in source_layout['labels'])
     else:
         wire+='0'+bits(190 if source_layout is None else source_layout['tag']>>16,16)+bits(n,16)
-    wire+='0'+'0'+bits(0,3)+bits(0,2)
+    wire+=bits(remapping is not None,1)
+    if remapping is not None:
+        core=len(counts)+ambient;assert len(remapping)==core and core<=n
+        tail=[0]*(n-core) if remapping_tail is None else remapping_tail;assert len(tail)==n-core
+        wire+=''.join(bits(index,(n-1).bit_length()) for index in list(remapping)+list(tail))
+    wire+='0'+bits(0,3)+bits(0,2)
     wire+='0'+bits(int(scene),1)+(scene_bits(drc) if scene else '')+bits(int(drc),1)
     if drc:wire+=drc_header(rate,rich=rich,channels=n)
     raw=pack(wire+'000');return len(raw).to_bytes(4,'big')+raw[4:]

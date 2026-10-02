@@ -346,24 +346,77 @@ fn out_of_range_orders_and_escaped_counts_fail_before_allocation() {
 }
 
 #[test]
-fn unknown_tce_and_remapping_conventions_preserve_the_remaining_input() {
+fn unknown_tce_conventions_preserve_the_remaining_input() {
     let bytes = rich_cookie();
     let r = parse_cookie(&bytes).unwrap();
-    for (name, value) in [("tce[0].type", 7), ("remapping_present", 1)] {
-        let f = hoa(&r, name);
-        let mut changed = bytes.clone();
-        replace(&mut changed, f.bit_offset, f.bit_length, value);
-        let parsed = parse_cookie(&changed).unwrap();
-        assert_eq!(parsed.status, ParseStatus::Partial, "{name}");
-        let unknown = &parsed.unknown_ranges[0];
-        assert_eq!(unknown.bit_offset, f.bit_offset + f.bit_length);
-        assert_eq!(unknown.bit_offset + unknown.bit_length, changed.len() * 8);
-        let hex: String = changed[unknown.bit_offset / 8..]
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
-        assert_eq!(unknown.raw_hex, hex);
+    let f = hoa(&r, "tce[0].type");
+    let mut changed = bytes.clone();
+    replace(&mut changed, f.bit_offset, f.bit_length, 7);
+    let parsed = parse_cookie(&changed).unwrap();
+    assert_eq!(parsed.status, ParseStatus::Partial);
+    let unknown = &parsed.unknown_ranges[0];
+    assert_eq!(unknown.bit_offset, f.bit_offset + f.bit_length);
+    assert_eq!(unknown.bit_offset + unknown.bit_length, changed.len() * 8);
+    let hex: String = changed[unknown.bit_offset / 8..]
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect();
+    assert_eq!(unknown.raw_hex, hex);
+}
+
+fn add_remapping(original: &[u8], indices: &[u64]) -> Vec<u8> {
+    let parsed = parse_cookie(original).unwrap();
+    let field = hoa(&parsed, "remapping_present");
+    let width = width(parsed.derived["components[0].channels"].as_u64().unwrap());
+    let padding = parsed
+        .fields
+        .last()
+        .filter(|f| f.name == "alignment_padding")
+        .map_or(0, |f| f.bit_length);
+    let mut w = Wire {
+        data: vec![],
+        bit: 0,
+    };
+    for bit in 0..field.bit_offset {
+        w.put(u64::from((original[bit / 8] >> (7 - bit % 8)) & 1), 1);
     }
+    w.put(1, 1);
+    for &value in indices {
+        w.put(value, width);
+    }
+    for bit in field.bit_offset + 1..original.len() * 8 - padding {
+        w.put(u64::from((original[bit / 8] >> (7 - bit % 8)) & 1), 1);
+    }
+    w.finish()
+}
+
+#[test]
+fn remapping_core_prefix_and_ignored_tail_keep_the_following_marker() {
+    let bytes = add_remapping(&rich_cookie(), &[1, 2, 0, 15, 15, 15, 15, 15, 15]);
+    let parsed = parse_cookie(&bytes).unwrap();
+    coverage(&bytes, &parsed);
+    assert_eq!(
+        parsed.derived["components[0].hoa.remapping_core_to_transport"],
+        json!([2, 0, 1])
+    );
+    assert_eq!(hoa(&parsed, "remapping_tail[5]").value, 15);
+    assert_eq!(field(&parsed, "extensions[0].type").value, 3);
+    let start = hoa(&parsed, "remapping_present").bit_offset;
+    let end = hoa(&parsed, "remapping_tail[5]").bit_offset + 4;
+    for n in (start + 1) / 8..end.div_ceil(8) {
+        let mut cut = bytes[..n].to_vec();
+        cut[..4].copy_from_slice(&(n as u32).to_be_bytes());
+        assert!(parse_cookie(&cut).is_err());
+    }
+    let duplicate = add_remapping(&rich_cookie(), &[0, 0, 2, 0, 0, 0, 0, 0, 0]);
+    assert_eq!(
+        parse_cookie(&duplicate).unwrap().derived["components[0].hoa.remapping_core_to_transport"],
+        json!([1, 0, 2])
+    );
+    let cycle = add_remapping(&rich_cookie(), &[1, 1, 2, 0, 0, 0, 0, 0, 0]);
+    let error = parse_cookie(&cycle).unwrap_err();
+    assert_eq!(error.kind, "hoa-remapping-cycle");
+    assert_eq!(error.bit_offset, start + 1);
 }
 
 #[test]

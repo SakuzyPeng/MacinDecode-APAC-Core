@@ -46,6 +46,7 @@ pub(super) struct HoaConfiguration {
     /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
     pub source_layout: std::sync::Arc<super::hoa_source::SourceLayout>,
+    pub static_remapping: Option<std::sync::Arc<super::HoaStaticRemapping>>,
     pub recovery_slots: u8,
     pub dynamic_method: Option<u8>,
     pub dynamic_subbands: Option<u8>,
@@ -183,6 +184,8 @@ impl HoaConfiguration {
             level_id: value("global.level_id").unwrap_or(0) as u8,
             channels,
             source_layout: std::sync::Arc::new(source_layout),
+            static_remapping: super::HoaStaticRemapping::selected(parsed, channels)
+                .map(std::sync::Arc::new),
             recovery_slots,
             dynamic_method: dynamic
                 .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
@@ -256,6 +259,9 @@ impl HoaConfiguration {
         if self.source_layout.extended {
             return super::hoa_source::NUMERIC_PROFILE;
         }
+        if self.static_remapping.is_some() {
+            return super::hoa_remapping::NUMERIC_PROFILE;
+        }
         if self.dynamic_domains_extended() {
             return super::hoa_dynamic::DOMAINS_NUMERIC_PROFILE;
         }
@@ -301,6 +307,9 @@ impl HoaConfiguration {
         }
     }
     pub fn state_profile(&self) -> &'static str {
+        if self.static_remapping.is_some() {
+            return super::hoa_remapping::STATE_PROFILE;
+        }
         if self.source_layout.extended {
             return super::hoa_source::STATE_PROFILE;
         }
@@ -348,12 +357,34 @@ impl HoaConfiguration {
     }
     pub fn mixed_mapping(&self) -> Option<HoaMixedMapping> {
         (self.path == HoaPath::Mixed && self.dynamic_method.is_none()).then(|| HoaMixedMapping {
-            ambient_transport_channels: (0..self.ambient_components).collect(),
-            salient_transport_channels: (self.ambient_components..self.core_channels).collect(),
+            ambient_transport_channels: (0..self.ambient_components)
+                .map(|slot| self.transport_slot(slot))
+                .collect(),
+            salient_transport_channels: (self.ambient_components..self.core_channels)
+                .map(|slot| self.transport_slot(slot))
+                .collect(),
             ambient_output_coefficients: self.ambient_indices().to_vec(),
-            unused_transport_channels: (self.core_channels..self.transport_channels).collect(),
+            unused_transport_channels: self.unused_transport_channels(),
             descriptor_numeric_profile: self.descriptor_numeric_profile().into(),
         })
+    }
+    pub fn transport_slot(&self, core: u8) -> u8 {
+        self.static_remapping
+            .as_ref()
+            .and_then(|mapping| mapping.core_to_transport.get(usize::from(core)))
+            .copied()
+            .unwrap_or(core)
+    }
+    pub fn unused_transport_channels(&self) -> Vec<u8> {
+        let mut used = vec![false; usize::from(self.transport_channels)];
+        for core in 0..self.core_channels {
+            if let Some(slot) = used.get_mut(usize::from(self.transport_slot(core))) {
+                *slot = true;
+            }
+        }
+        (0..self.transport_channels)
+            .filter(|&slot| !used[usize::from(slot)])
+            .collect()
     }
     pub fn ambient_indices(&self) -> &[u8] {
         &self.ambient_selection[..usize::from(self.ambient_components)]
@@ -577,7 +608,6 @@ impl HoaFrameContext {
             "ancillary.scene_graph_present",
             "ancillary.metadata_present",
             "ancillary.custom_data_present",
-            "components[0].hoa.remapping_present",
         ] {
             packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
         }
@@ -744,6 +774,9 @@ impl HoaFrameContext {
     }
     pub fn source_layout_enabled(&self) -> bool {
         self.configuration.source_layout.extended
+    }
+    pub fn static_remapping(&self) -> Option<&super::HoaStaticRemapping> {
+        self.configuration.static_remapping.as_deref()
     }
     /// Source normalization when identified by a tagged layout or explicit ACN labels.
     pub fn source_normalization(&self) -> Option<&'static str> {
@@ -929,6 +962,8 @@ pub struct HoaMixedMapping {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HoaFrameInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub static_remapping: Option<super::HoaStaticRemapping>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_layout: Option<super::HoaSourceLayoutData>,
     pub numeric_profile: String,
     pub order: u8,
@@ -964,6 +999,7 @@ pub struct HoaFrameInfo {
 impl Default for HoaFrameInfo {
     fn default() -> Self {
         Self {
+            static_remapping: None,
             source_layout: None,
             numeric_profile: NUMERIC_PROFILE.into(),
             order: 3,

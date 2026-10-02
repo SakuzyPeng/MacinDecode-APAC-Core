@@ -405,11 +405,13 @@ pub(super) fn read_and_apply(
             mappings,
             recovery_numeric_profile: configuration.recovery_numeric_profile().into(),
             ambient_recovery_slots: configuration.ambient_indices().to_vec(),
-            ambient_transport_channels: (0..ambient_count).collect(),
-            salient_transport_channels: (ambient_count..configuration.core_channels).collect(),
-            unused_transport_channels: (configuration.core_channels
-                ..configuration.transport_channels)
+            ambient_transport_channels: (0..ambient_count)
+                .map(|slot| configuration.transport_slot(slot))
                 .collect(),
+            salient_transport_channels: (ambient_count..configuration.core_channels)
+                .map(|slot| configuration.transport_slot(slot))
+                .collect(),
+            unused_transport_channels: configuration.unused_transport_channels(),
             before_selection: input,
             internal_ambient: ambient.map(Into::into),
         },

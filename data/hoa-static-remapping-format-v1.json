@@ -1,0 +1,20 @@
+{
+  "format_profile": "apac-hoa-static-remapping-v1",
+  "numeric_profile": "apac-hoa-static-remapping-math-v1",
+  "wire_index_width": "ceil(log2(output_channels)); zero for one output",
+  "wire_entries": "output_channels",
+  "active_entries": "fixed cookie salient plus ambient count",
+  "active_index_domain": "0 <= index < active_entries",
+  "tail": "consume remaining entries without interpreting their values",
+  "normalization": "bounded ordered transposition product; retain every terminating wire-link representation",
+  "canonical_direction": "transport carrier to logical core slot",
+  "effective_query_direction": "logical core slot to transport carrier",
+  "application": "after SQ/CAC/TNS/BWE2, before all spatial recovery",
+  "arithmetic": "none; references to existing finite carrier spectra",
+  "frame_configuration": "mapping prefix remains fixed at cookie capacity",
+  "source": {
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "method": "configuration read/write and remapper pseudocode, independently marked native carriers"
+  }
+}

@@ -111,7 +111,18 @@ pub(super) fn read(parser: &mut Parser<'_>, prefix: &str) -> Result<HoaExtension
     })
 }
 
-/// Borrow all transport spectra in carrier order, including unused carriers.
+/// Physical carrier associated with a logical core slot after static remapping.
+pub(super) fn physical_slot(packet: &ChannelPacketReport, core: u8) -> u8 {
+    packet
+        .hoa
+        .as_ref()
+        .and_then(|h| h.static_remapping.as_ref())
+        .and_then(|m| m.core_to_transport.get(usize::from(core)))
+        .copied()
+        .unwrap_or(core)
+}
+
+/// Borrow validated spectra in logical core order, retaining unused carriers.
 /// Missing elements supply shared positive-zero storage, never stale samples.
 pub(super) fn spectra(packet: &ChannelPacketReport) -> Result<Vec<&[f32]>, ParseError> {
     static ZERO: [f32; 1024] = [0.; 1024];
@@ -151,6 +162,33 @@ pub(super) fn spectra(packet: &ChannelPacketReport) -> Result<Vec<&[f32]>, Parse
                 ));
             }
             output.push(samples);
+        }
+    }
+    if let Some(mapping) = packet
+        .hoa
+        .as_ref()
+        .and_then(|h| h.static_remapping.as_ref())
+    {
+        let count = mapping.core_to_transport.len();
+        if count > output.len() {
+            return Err(ParseError::new(
+                packet.frame.stop_bit_offset,
+                "hoa-remapping",
+                "remapping exceeds available carriers",
+            ));
+        }
+        let before = output[..count].to_vec();
+        let mut seen = vec![false; count];
+        for (slot, &carrier) in mapping.core_to_transport.iter().enumerate() {
+            let carrier = usize::from(carrier);
+            if carrier >= count || std::mem::replace(&mut seen[carrier], true) {
+                return Err(ParseError::new(
+                    packet.frame.stop_bit_offset,
+                    "hoa-remapping",
+                    "invalid effective carrier permutation",
+                ));
+            }
+            output[slot] = before[carrier];
         }
     }
     Ok(output)

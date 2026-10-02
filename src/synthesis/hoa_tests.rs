@@ -54,6 +54,44 @@ fn source_layout_dimensions_transactions_and_reset_follow_the_declared_output() 
         }
     }
 }
+
+#[test]
+fn static_remapping_keeps_fixed_core_maps_and_atomic_history() {
+    let data: Value =
+        serde_json::from_str(include_str!("../../data/hoa-remapping-state-v1.json")).unwrap();
+    for fixture in data["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&fixture["cookie"]);
+        let context = crate::frame::HoaFrameContext::from_cookie(&cookie).unwrap();
+        assert!(
+            context.is_supported(),
+            "{}: {:?}",
+            fixture["name"],
+            context.rejection()
+        );
+        assert_eq!(
+            serde_json::to_value(context.static_remapping().unwrap()).unwrap(),
+            fixture["mapping"]
+        );
+        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let initial = snapshot(&decoder);
+        let first = decoder.decode_frame(&bytes(&fixture["first"])).unwrap();
+        assert!(first.iter().all(|v| v.is_finite()));
+        let saved = snapshot(&decoder);
+        assert!(decoder.decode_frame(&bytes(&fixture["bad"])).is_err());
+        assert_eq!(snapshot(&decoder), saved);
+        let good = decoder.decode_frame(&bytes(&fixture["good"])).unwrap();
+        decoder.reset();
+        assert_eq!(snapshot(&decoder), initial);
+        assert_eq!(
+            decoder.decode_frame(&bytes(&fixture["first"])).unwrap(),
+            first
+        );
+        assert_eq!(
+            decoder.decode_frame(&bytes(&fixture["good"])).unwrap(),
+            good
+        );
+    }
+}
 fn snapshot(d: &SqDecoder) -> (Vec<Vec<u64>>, String) {
     (
         d.channels

@@ -54,7 +54,8 @@ pub(super) fn render(
     counts.drc_payload_frames += u64::from(packet.drc_complete == Some(true));
     counts.drc_missing_history_frames += u64::from(packet.drc_history_sufficient == Some(false));
     if let Some(hoa) = &packet.hoa
-        && (hoa.source_layout.is_some()
+        && (hoa.static_remapping.is_some()
+            || hoa.source_layout.is_some()
             || hoa.dynamic_selection.is_some()
             || hoa
                 .spatial

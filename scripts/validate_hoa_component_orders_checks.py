@@ -10,7 +10,7 @@ from validate_hoa_dynamic_checks import legacy
 from validate_hoa_salient_subbands import fingerprints
 
 
-def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False,spatial_controls=False,dynamic_domains=False,source_layouts=False):
+def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantization=False,expanded_orders=False,transports=False,spatial_controls=False,dynamic_domains=False,source_layouts=False,static_remapping=False):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','test-binary','report','partition-reference','legacy-reference',('component-reference' if first_order else 'spatial-reference')):p.add_argument('--'+name,type=Path,required=True)
     if salient_counts:p.add_argument('--order1-reference',type=Path,required=True)
@@ -20,12 +20,13 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
     if transports:
         p.add_argument('--expanded-reference',type=Path,required=True)
         p.add_argument('--channel-reference',type=Path,required=True)
+    if static_remapping:p.add_argument('--source-reference',type=Path,required=True)
     a=p.parse_args();a.binary=a.binary.resolve();a.test_binary=a.test_binary.resolve()
     require(a.binary.is_file() and a.test_binary.is_file() and not a.report.exists(),'executable missing/report exists')
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
            binary_sha256=sha256_file(a.binary),test_binary_sha256=sha256_file(a.test_binary),rust=[],python=None,legacy=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        for module in (('frame::hoa_source::tests::',) if source_layouts else ())+(('frame::hoa_dynamic::domains_tests::',) if dynamic_domains else ())+(('frame::hoa_controls::tests::',) if spatial_controls else ())+(('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
+        for module in (('config::hoa::remapping_tests::',) if static_remapping else ())+(('frame::hoa_source::tests::',) if source_layouts else ())+(('frame::hoa_dynamic::domains_tests::',) if dynamic_domains else ())+(('frame::hoa_controls::tests::',) if spatial_controls else ())+(('frame::hoa_transport::tests::',) if transports else ())+('caf::tests::','mp4::tests::','synthesis::hoa_tests::','frame::hoa_salient::','frame::hoa_ambient::tests::','frame::hoa_dynamic::tests::','frame::hoa_additive::tests::','synthesis::channel_tests::','synthesis::access_tests::','synthesis::drc_tests::'):
             proc=subprocess.run([str(a.test_binary),module],capture_output=True,text=True)
             require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'test result: ok\. (\d+) passed;',proc.stdout)
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))
@@ -35,6 +36,7 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         if transports:modules.append('test_hoa_transports')
         if dynamic_domains:modules.extend(['test_hoa_dynamic','test_hoa_dynamic_subbands'])
         if source_layouts:modules.append('test_hoa_source_layouts')
+        if static_remapping:modules.append('test_hoa_remapping')
         proc=subprocess.run([sys.executable,'-B','-m','unittest','-v',*modules,'test_access.AccessTests.test_default_is_unchanged_and_fast_is_explicit_for_files'],cwd=ROOT/'scripts',env=env,capture_output=True,text=True)
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests');r['python']=dict(passed=int(count[1]),output=proc.stderr)
         import hoa_salient_partition_vectors as partition
@@ -89,6 +91,8 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
         require(all(now[k]==expected[k] for k in now),'old ambient changed');r['legacy'].append(dict(kind=kind,passed=True,reference_sha256=sha256_file(a.legacy_reference),**now))
         require(len(r['legacy'])==(7 if first_order else 6) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'cases missing/source changed')
         if transports:r['channel_regression']=channel_regression(a.binary,a.channel_reference,r)
+        if static_remapping:r['source_regression']=source_regression(a.binary,a.source_reference,r)
+        require(source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.test_binary)==r['test_binary_sha256'],'source or executable changed during regression')
         r['passed']=True
     except Exception as e:r['errors'].append(str(e))
     write_json(a.report,r);print(json.dumps(dict(passed=r['passed'],rust=sum(t['passed'] for t in r['rust']),python=r['python']['passed'] if r['python'] else None,legacy=len(r['legacy']),errors=r['errors'])))
@@ -130,6 +134,28 @@ def channel_regression(binary,reference,report):
         now=dict(state_sha256=digest(state),pcm_sha256=sha256_file(root/'pcm/pcm.f32le'),**{k+'_sha256':v.hexdigest() for k,v in hashes.items()})
         require(all(record[k]==v for k,v in now.items()),'discrete channel stages changed')
         return dict(passed=True,reference_sha256=sha256_file(reference),**now)
+
+
+def source_regression(binary,reference,report):
+    import hoa_source_layout_vectors as v
+    from validate_channels import digest
+    old=json.loads(reference.read_text());require(old['passed'] and not old['errors'],'invalid source-layout reference')
+    names={'matrix-7929862','n3d-labels','matrix-partial','dynamic-source-labels'};results=[]
+    identities={c['kind']:c for c in v.manifest()['cases']}
+    for name,opts,cases in v.sequences():
+        if name not in names:continue
+        expected=next(c for c in old['cases'] if c['kind']==name);require(expected['input_sha256']==identities[name]['input_sha256'],'source input changed')
+        with workspace(report,'legacy-source-'+name) as root:
+            v.bundle(root/'bundle',[v.packet(c,**opts)[0] for c in cases],**opts)
+            result=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed');require(not result['errors'],'source parse failed')
+            rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]
+            decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm')
+            require(decoded['backend']==v.BACKEND and decoded['packet_state_profile']==v.STATE_PROFILE,'old source backend changed')
+            require('hoa_static_remapping' not in decoded['pcm']['decoder_settings']['implementation']['value'],'static mapping leaked into old source metadata')
+            actual=dict(stages_sha256=digest(rows),pcm_sha256=sha256_file(root/'pcm/pcm.f32le'))
+            require(all(expected[k]==value for k,value in actual.items()),'old source layout stages changed')
+            results.append(dict(name=name,passed=True,reference_sha256=sha256_file(reference),**actual))
+    require(len(results)==len(names),'missing source representative');return results
 
 
 if __name__=='__main__':raise SystemExit(main())

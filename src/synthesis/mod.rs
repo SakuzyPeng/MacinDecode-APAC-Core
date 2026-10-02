@@ -304,6 +304,9 @@ impl SqDecoder {
     }
     pub fn backend(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.static_remapping().is_some() {
+                return "rust_hoa_static_remapping_sq_drc_off_f64_fft_v1";
+            }
             if context.source_layout_enabled() {
                 return "rust_hoa_source_layout_sq_drc_off_f64_fft_v1";
             }
@@ -361,6 +364,9 @@ impl SqDecoder {
     }
     pub fn support_scope(&self) -> &'static str {
         if let Some(context) = &self.hoa_context {
+            if context.static_remapping().is_some() {
+                return "hoa_static_remapping_sq_drc_off";
+            }
             if context.source_layout_enabled() {
                 return "hoa_source_layout_sq_drc_off";
             }

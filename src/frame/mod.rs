@@ -2,6 +2,11 @@
 mod bundle;
 mod channels;
 mod hoa;
+mod hoa_remapping;
+pub use hoa_remapping::{
+    HoaStaticRemapping, PROFILE as HOA_STATIC_REMAPPING_PROFILE,
+    format_sha256 as hoa_static_remapping_format_sha256,
+};
 mod hoa_source;
 pub use hoa_source::{
     HoaSourceChannelSpectrum, HoaSourceLayoutData, PROFILE as HOA_SOURCE_LAYOUT_PROFILE,

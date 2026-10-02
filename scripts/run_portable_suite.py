@@ -3,7 +3,8 @@
 
 Each validator writes its own report under OUT; a summary.json records the
 command, exit code, elapsed seconds and stderr tail. Native, media and
-baseline-dependent validators are excluded because they need macOS or
+baseline-dependent validators (and validate_synthesis, which needs
+Apple reference PCM) are excluded because they need macOS or
 explicit local inputs. Compare two summaries/report trees with
 compare_reports.py.
 """
@@ -25,7 +26,6 @@ SUITE = {
     'validate_bwe2': ('--output', []),
     'validate_packets': ('--output', []),
     'validate_spectra': ('--output', []),
-    'validate_synthesis': ('--output', []),
     'validate_access': ('--report', []),
     'validate_caf': ('--report', []),
     'validate_mp4': ('--report', []),
@@ -60,6 +60,12 @@ SUITE = {
     'validate_hoa_transports': ('--report', []),
 }
 
+# Validators that finished within about two minutes on a 4-core Linux container;
+# the others (portable, tns, cac, bwe2, layouts, access, mp4, packets, channels)
+# take 4 to 25 minutes each and run at phase boundaries.
+FAST = [name for name in SUITE if name.startswith('validate_hoa') or name in (
+    'validate_drc', 'validate_drc_pcm', 'validate_caf', 'validate_spectra')]
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -68,6 +74,7 @@ def main():
                         help='layout_presence example binary (required for validate_layouts)')
     parser.add_argument('--out', type=Path, required=True, help='new report directory')
     parser.add_argument('--only', nargs='*', help='validator names to run (default: all)')
+    parser.add_argument('--fast', action='store_true', help='run only the quick subset')
     parser.add_argument('--skip', nargs='*', default=[], help='validator names to leave out')
     parser.add_argument('--jobs', type=int, default=1, help='validators run concurrently')
     args = parser.parse_args()
@@ -75,7 +82,7 @@ def main():
         raise SystemExit('output directory exists: ' + str(args.out))
     args.out.mkdir(parents=True)
     binary = args.binary.resolve()
-    names = [n for n in (args.only or list(SUITE)) if n not in args.skip]
+    names = [n for n in (args.only or (FAST if args.fast else list(SUITE))) if n not in args.skip]
 
     def run(name):
         flag, extra = SUITE[name]

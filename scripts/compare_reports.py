@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 
 VOLATILE = {
-    'created_at', 'finished_at', 'started_at', 'code_commit', 'source_sha256',
+    'created_at', 'finished_at', 'started_at', 'started_utc', 'finished_utc',
+    'tested_worktree_dirty', 'code_commit', 'source_sha256',
     'binary_sha256', 'presence_binary_sha256', 'test_binary_sha256', 'compiler',
     'environment', 'failure_directory', 'debug_assertions', 'hostname',
     'stderr_tail', 'seconds', 'elapsed', 'elapsed_seconds', 'timing', 'timings',

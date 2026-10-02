@@ -1,7 +1,7 @@
 """Focused HOA entry, failure-artifact and configuration contracts."""
 import json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_vectors import cookie,packet,bundle,excitation,state_fixture
 from spectrum_vectors import bits,pack
 from caf_vectors import encode as caf
@@ -18,11 +18,11 @@ class HoaTests(unittest.TestCase):
         r=json.loads((root/'hoa').read_text())['report'];self.assertTrue(r['hoa']['hoa_complete']);self.assertEqual(r['hoa']['normalization'],'SN3D')
         self.assertEqual(r['hoa']['channels_after_hoa'][15]['acn_index'],15);self.assertEqual(r['elements'][0]['channels'],[])
         p=self.run_tool('parse-packets',root,'--depth','channels','--output',root/'old');self.assertEqual(p.returncode,2)
-    def test_fast_is_rejected_before_output_for_both_containers(self):
+    def test_fast_matches_sequential_for_both_containers(self):
         raw=[packet(excitation(0))[0]]*4
         for name,encoder in [('caf',caf),('mp4',mp4)]:
             src=self.path();src.write_bytes(encoder(cookie(),raw,channels=16)[0]);out=self.path()
-            p=self.run_tool('decode-sq',src,'--out',out,'--access','fast');self.assertEqual(p.returncode,1,p.stdout);self.assertIn('HOA fast access',p.stderr);self.assertFalse(out.exists())
+            assert_hoa_fast(self,src,out);out=self.path()
     def test_sequential_history_requires_origin_and_advances_before_selected_report(self):
         root=self.path();raw=[packet(dict(excitation(0),mode=5))[0],packet(excitation(15))[0]];bundle(root,raw)
         p=self.run_tool('parse-packets',root,'--depth','hoa','--start-packet',1,'--packets',1,'--output',root/'selected');self.assertEqual(p.returncode,0,p.stderr)

@@ -1,4 +1,5 @@
 """First-order domains, full omissions, directional payloads and complete dynamic mappings."""
+from portable_tools import assert_hoa_fast
 import json,unittest
 import test_hoa_salient_partition as helpers
 from hoa_order1_vectors import cookie,packet,bundle,basis,descriptors,native_controls,state_fixtures,component_information,PROFILE
@@ -99,7 +100,7 @@ class Order1Tests(unittest.TestCase):
         opts=dict(order=2,dynamic=True,path='add',component_orders=[1]*5);raw=[packet({},**opts)[0]]*3
         for encode in (caf,mp4):
             source=self.path();source.write_bytes(encode(cookie(**opts),raw,channels=16)[0]);out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
+            assert_hoa_fast(self,source,out);out=self.path()
             p=self.run_tool('decode-sq',source,'--out',out,'--frames',7);self.assertEqual(p.returncode,0,p.stderr);before=(out/'pcm.f32le').read_bytes()
             self.assertEqual(self.run_tool('decode-sq',source,'--out',out).returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path();bundle(root,raw*7,**opts);out=self.path();p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1)

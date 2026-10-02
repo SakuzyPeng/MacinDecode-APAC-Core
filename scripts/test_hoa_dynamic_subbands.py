@@ -1,7 +1,7 @@
 """Effective subband counts, mandatory inactive mappings and portable failure contracts."""
 import hashlib,json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_dynamic_subbands_vectors import cookie,packet,bundle,state_fixtures,native_controls
 from spectrum_vectors import bits,pack
 from caf_vectors import encode as caf
@@ -54,7 +54,7 @@ class SubbandHoaTests(unittest.TestCase):
         root=self.path();bundle(root,[pack('10001'+bits(32769,16))],subbands=1);p=self.run_tool('parse-packets',root,'--depth','hoa','--output',root/'parsed');self.assertEqual(p.returncode,1);self.assertEqual(json.loads((root/'parsed').read_text())['error']['kind'],'preroll-size')
         for encode in (caf,mp4):
             source=self.path();source.write_bytes(encode(cookie(subbands=1),raw,channels=16)[0]);out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
+            assert_hoa_fast(self,source,out);out=self.path()
             p=self.run_tool('decode-sq',source,'--out',out,'--frames',7);self.assertEqual(p.returncode,0,p.stderr)
             before=(out/'pcm.f32le').read_bytes();p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path();bundle(root,raw*7,subbands=1);out=self.path();p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1)

@@ -1,4 +1,5 @@
 """Spatial/dynamic method independence and affected failure/output contracts."""
+from portable_tools import assert_hoa_fast
 import json,unittest
 from hoa_salient_partition_vectors import cookie,packet,bundle,basis,native_controls,state_fixtures,shape
 from generate_hoa_dynamic_subbands_format import boundaries
@@ -94,7 +95,7 @@ class PartitionTests(unittest.TestCase):
         opts=dict(order=2,path='add',dynamic=True,spatial_method=1);raw=[packet({},**opts)[0]]*3
         for encode in (caf,mp4):
             source=self.path();source.write_bytes(encode(cookie(**opts),raw,channels=16)[0]);out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
+            assert_hoa_fast(self,source,out);out=self.path()
             p=self.run_tool('decode-sq',source,'--out',out,'--frames',7);self.assertEqual(p.returncode,0,p.stderr);before=(out/'pcm.f32le').read_bytes()
             self.assertEqual(self.run_tool('decode-sq',source,'--out',out).returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path();bundle(root,raw*7,**opts);out=self.path();p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1)

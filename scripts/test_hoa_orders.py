@@ -1,7 +1,7 @@
 """Fixed-order eligibility, dimensional reports and portable input failure semantics."""
 import hashlib,json,struct,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 import hoa_vectors as ambient
 import hoa_salient_vectors as salient
 from hoa_orders_vectors import state_fixtures
@@ -54,7 +54,7 @@ class HoaOrderTests(unittest.TestCase):
             n=(order+1)**2;case=ambient.excitation(3,order=1) if order==1 else salient.basis(8,4,1,order=2);packets=[module.packet(case,order=order,rate=rate)[0]]*3
             for encoder in (caf,mp4):
                 source=self.path();source.write_bytes(encoder(module.cookie(order=order,rate=rate),packets,rate=rate,channels=n)[0]);out=self.path()
-                p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertIn('HOA fast access',p.stderr);self.assertFalse(out.exists())
+                assert_hoa_fast(self,source,out);out=self.path()
                 out=self.path();p=self.run_tool('decode-sq',source,'--out',out,'--start-frame',3072,'--frames',1);self.assertEqual(p.returncode,0,p.stderr);self.assertEqual((out/'pcm.f32le').read_bytes(),b'');self.assertTrue(json.loads(p.stdout)['input']['consistency_verified'])
                 out=self.path();p=self.run_tool('decode-sq',source,'--out',out,'--start-frame',3069,'--frames',100);self.assertEqual(p.returncode,0,p.stderr);self.assertEqual((out/'pcm.f32le').stat().st_size,3*n*4)
                 before=(out/'pcm.f32le').read_bytes();p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())

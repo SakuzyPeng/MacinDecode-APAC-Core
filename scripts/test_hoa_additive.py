@@ -1,7 +1,7 @@
 """Additive configuration, carrier validation, history and portable failure semantics."""
 import hashlib,json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_additive_vectors import cookie,packet,bundle,basis,shape,state_fixtures,sequences
 from spectrum_vectors import bits,pack
 from caf_vectors import encode as caf
@@ -59,7 +59,7 @@ class AdditiveHoaTests(unittest.TestCase):
         options=dict(order=2,dynamic=True); raw=[packet(basis(8,4,1,**options),**options)[0]]*3
         for encoder in (caf,mp4):
             source=self.path(); source.write_bytes(encoder(cookie(**options),raw,channels=16)[0]); out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast'); self.assertEqual(p.returncode,1); self.assertFalse(out.exists())
+            assert_hoa_fast(self,source,out);out=self.path()
             p=self.run_tool('decode-sq',source,'--out',out,'--frames',7); self.assertEqual(p.returncode,0,p.stderr)
             before=(out/'pcm.f32le').read_bytes(); p=self.run_tool('decode-sq',source,'--out',out); self.assertEqual(p.returncode,1); self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path(); bundle(root,raw*7,**options); out=self.path(); p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1)

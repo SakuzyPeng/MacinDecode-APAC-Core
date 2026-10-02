@@ -1,7 +1,7 @@
 """Focused salient state, dispatch, output, and failure contracts."""
 import hashlib,json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_salient_vectors import basis,bundle,cookie,packet,state_fixture
 from spectrum_vectors import bits,pack
 from caf_vectors import encode as caf
@@ -34,11 +34,11 @@ class SalientTests(unittest.TestCase):
             root=self.path();bundle(root,[packet({})[0]]);(root/'cookie.bin').write_bytes(changed);m=json.loads((root/'manifest.json').read_text());m['file']['cookie']['value']=dict(bytes=len(changed),sha256=hashlib.sha256(changed).hexdigest())
             if name=='global.sample_rate_index':m['file']['format']['sample_rate']=32000
             (root/'manifest.json').write_text(json.dumps(m));out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertIn(name,p.stderr);self.assertFalse(out.exists())
-    def test_fast_rejection_empty_range_budget_and_overwrite(self):
+    def test_fast_empty_range_budget_and_overwrite(self):
         payloads=[packet(basis(15,4,1))[0]]*3
         for encoder in (caf,mp4):
             source=self.path();source.write_bytes(encoder(cookie(),payloads,channels=16)[0]);out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('HOA fast access',p.stderr)
+            assert_hoa_fast(self,source,out);out=self.path()
             out=self.path();p=self.run_tool('decode-sq',source,'--out',out,'--start-frame',3072,'--frames',1);self.assertEqual(p.returncode,0,p.stderr);self.assertEqual((out/'pcm.f32le').read_bytes(),b'');self.assertTrue(json.loads(p.stdout)['input']['consistency_verified'])
             out=self.path();p=self.run_tool('decode-sq',source,'--out',out,'--frames',7);self.assertEqual(p.returncode,0,p.stderr);before=(out/'pcm.f32le').read_bytes()
             p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())

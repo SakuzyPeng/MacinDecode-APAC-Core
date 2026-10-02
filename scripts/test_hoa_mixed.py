@@ -1,7 +1,7 @@
 """Focused mixed HOA dispatch, compact parameters, state and failure contracts."""
 import hashlib, json, subprocess, tempfile, unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_mixed_vectors import basis, bundle, cookie, packet, state_fixtures
 from spectrum_vectors import bits, pack
 from caf_vectors import encode as caf
@@ -72,7 +72,7 @@ class MixedHoaTests(unittest.TestCase):
             n=(order+1)**2; raw=[packet(basis(n-1,4,1,order=order),order=order)[0]]*3
             for encoder in (caf,mp4):
                 source=self.path(); source.write_bytes(encoder(cookie(order=order),raw,channels=n)[0]); out=self.path()
-                p=self.run_tool('decode-sq',source,'--out',out,'--access','fast'); self.assertEqual(p.returncode,1); self.assertIn('HOA fast access',p.stderr); self.assertFalse(out.exists())
+                assert_hoa_fast(self,source,out);out=self.path()
                 out=self.path(); p=self.run_tool('decode-sq',source,'--out',out,'--frames',7); self.assertEqual(p.returncode,0,p.stderr)
                 before=(out/'pcm.f32le').read_bytes(); p=self.run_tool('decode-sq',source,'--out',out); self.assertEqual(p.returncode,1); self.assertEqual(before,(out/'pcm.f32le').read_bytes())
             root=self.path(); bundle(root,raw*11,order=order); out=self.path()

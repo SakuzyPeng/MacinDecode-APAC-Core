@@ -1,7 +1,7 @@
 """Static ambient configuration, synthesis, selector and failure interface contracts."""
 import json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_static_ambient_vectors import cookie,packet,bundle,ambient_basis,state_fixtures
 from hoa_mixed_vectors import basis
 from caf_vectors import encode as caf
@@ -56,7 +56,7 @@ class StaticAmbientTests(unittest.TestCase):
         options=dict(order=3,mixed=True,selection=[1,5,10,15],transform=4); raw=[packet(dict(basis(8,4,1),transform_index=1),**options)[0]]*3
         for encoder in (caf,mp4):
             source=self.path(); source.write_bytes(encoder(cookie(**options),raw,channels=16)[0]); out=self.path()
-            p=self.run_tool('decode-sq',source,'--out',out,'--access','fast'); self.assertEqual(p.returncode,1); self.assertFalse(out.exists()); self.assertIn('HOA fast access',p.stderr)
+            assert_hoa_fast(self,source,out);out=self.path()
             out=self.path(); p=self.run_tool('decode-sq',source,'--out',out,'--frames',7); self.assertEqual(p.returncode,0,p.stderr)
             before=(out/'pcm.f32le').read_bytes(); p=self.run_tool('decode-sq',source,'--out',out); self.assertEqual(p.returncode,1); self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path(); bundle(root,raw*7,**options); out=self.path(); p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1)

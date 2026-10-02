@@ -1,7 +1,7 @@
 """Variable spatial descriptors, independent cookie positions and stateful interfaces."""
 import hashlib,json,subprocess,tempfile,unittest
 from pathlib import Path
-from portable_tools import required_binary
+from portable_tools import required_binary,assert_hoa_fast
 from hoa_salient_subbands_vectors import cookie,packet,bundle,basis,state_fixtures,native_controls,shape
 from spectrum_vectors import bits,pack
 from caf_vectors import encode as caf
@@ -58,7 +58,7 @@ class SpatialSubbandTests(unittest.TestCase):
             n=shape(f['options']['order'],f['options']['dynamic']);cap=18432 if n==9 else 32768;root=self.path();bundle(root,[pack('10001'+bits(cap+1,16))],**f['options']);p=self.run_tool('parse-packets',root,'--depth','hoa','--output',root/'parsed');self.assertEqual(p.returncode,1);self.assertEqual(json.loads((root/'parsed').read_text())['error']['kind'],'preroll-size')
         opts=dict(order=2,path='add',dynamic=True);raw=[packet({},**opts)[0]]*3
         for encode in (caf,mp4):
-            source=self.path();source.write_bytes(encode(cookie(**opts),raw,channels=16)[0]);out=self.path();p=self.run_tool('decode-sq',source,'--out',out,'--access','fast');self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
+            source=self.path();source.write_bytes(encode(cookie(**opts),raw,channels=16)[0]);out=self.path();assert_hoa_fast(self,source,out);out=self.path()
             p=self.run_tool('decode-sq',source,'--out',out,'--frames',7);self.assertEqual(p.returncode,0,p.stderr);before=(out/'pcm.f32le').read_bytes();p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())
         root=self.path();bundle(root,raw*7,**opts);out=self.path();p=self.run_tool('decode-sq',root,'--out',out,'--max-output-mib',1);self.assertEqual(p.returncode,1);self.assertTrue((out/'.incomplete.json').is_file());self.assertFalse((out/'decode-sq.json').exists())
     def test_numeric_failure_coordinates_use_actual_descriptor_offsets(self):

@@ -95,7 +95,7 @@ impl Parser<'_> {
             }
         }
         self.flag(format_args!("{prefix}.flag"))?;
-        self.derive(prefix.to_string(), FieldValue::from(text));
+        self.derive(prefix, FieldValue::from(text));
         Ok(())
     }
 

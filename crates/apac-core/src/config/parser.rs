@@ -633,7 +633,7 @@ impl Parser<'_> {
             // segment permits the escaped sum to exceed u32; retain the full
             // wire value and report the reference's narrowed storage separately.
             let bit_offset = self.pos();
-            let value = self.escaped(&format!("{root}.parameter_1"), [2, 8, 32], u64::MAX)?;
+            let value = self.escaped(format_args!("{root}.parameter_1"), [2, 8, 32], u64::MAX)?;
             let parameter_1 = at(value, bit_offset);
             if additional {
                 let declared = &mut self.config.additional_components[index];

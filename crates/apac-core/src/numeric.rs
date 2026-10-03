@@ -27,6 +27,10 @@ impl Tables {
 pub fn tables() -> &'static Tables {
     &crate::tables::SQ_MATH
 }
+/// Identity of the SQ constants, as embedded in `data/sq-math-v1.json`.
+pub fn tables_sha256() -> &'static str {
+    tables().sha256
+}
 
 #[cfg(test)]
 mod tests {

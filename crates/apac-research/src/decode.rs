@@ -252,7 +252,7 @@ fn decode_with_access(
                 "qualification":crate::synthesis::QUALIFICATION,
                 "compiler":env!("APAC_BUILD_RUSTC"),
                 "debug_assertions":cfg!(debug_assertions),
-                "tables_sha256":crate::numeric::tables().sha256
+                "tables_sha256":crate::numeric::tables_sha256()
             })),
         )]),
         all_finite: true,

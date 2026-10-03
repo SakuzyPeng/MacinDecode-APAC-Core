@@ -19,5 +19,5 @@ pub mod channel_layout {
 }
 
 pub mod numeric {
-    pub use crate::numeric::tables;
+    pub use crate::numeric::tables_sha256;
 }

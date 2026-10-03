@@ -4,7 +4,7 @@
 //! A field that the syntax did not reach (partial parse, absent branch) is
 //! `None`, which keeps the `=missing at … bit unknown` texts distinct from a
 //! mismatching value. Derived values carry no position.
-use super::{ConfigField, CookieReport, ParseError, ParseStatus, passive::PositionSyntax};
+use super::{ConfigField, ParseError, ParseStatus, passive::PositionSyntax};
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,12 +139,12 @@ pub(crate) struct Ancillary {
     pub drc: DrcDeclaration,
 }
 
-/// Initial passive positions. `trace` is the recorded declaration; its JSON
-/// seeds the scene-graph history digest.
+/// Initial passive positions. `trace_sha256` digests the JSON array of the
+/// declaration's fields and seeds the scene-graph history digest.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct SceneGraph {
     pub positions: Vec<PositionSyntax>,
-    pub trace: Vec<ConfigField>,
+    pub trace_sha256: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -259,14 +259,14 @@ pub(crate) struct DrcGainSet {
 impl Config {
     /// Parse a standalone `dapa` cookie once into its typed configuration.
     pub fn parse(cookie: &[u8]) -> Result<Self, ParseError> {
-        Ok(super::parse_cookie_and_config(cookie)?.1)
+        Ok(super::parse_with(cookie, false)?.0)
     }
     /// Nothing read yet; the parser fills fields as the syntax reaches them.
-    pub(super) fn empty(report: &CookieReport) -> Self {
+    pub(super) fn empty(data: &[u8]) -> Self {
         Self {
-            cookie_sha256: report.cookie_sha256.clone(),
-            cookie_bytes: report.cookie_bytes,
-            status: report.status.clone(),
+            cookie_sha256: crate::model::sha256(data),
+            cookie_bytes: data.len(),
+            status: ParseStatus::Complete,
             first_unknown_bit: None,
             version_flags: None,
             bitstream_version: None,
@@ -275,20 +275,6 @@ impl Config {
             additional_components: Vec::new(),
             ancillary: Ancillary::default(),
             extensions: Vec::new(),
-        }
-    }
-    /// Completion state and the recorded syntax carried for reports.
-    pub(super) fn finish(&mut self, report: &CookieReport) {
-        self.status = report.status.clone();
-        self.first_unknown_bit = report.unknown_ranges.first().map(|u| u.bit_offset);
-        self.ancillary.drc.finish(report);
-        if let Some(graph) = &mut self.ancillary.scene_graph {
-            graph.trace = report
-                .fields
-                .iter()
-                .filter(|f| f.name.starts_with("ancillary.scene_graph."))
-                .cloned()
-                .collect();
         }
     }
     pub fn is_complete(&self) -> bool {
@@ -444,30 +430,27 @@ impl Config {
 }
 
 impl DrcDeclaration {
-    /// Completion, source identity and the recorded syntax carried into DRC
-    /// payload reports; the parser fills the qualified values themselves.
-    pub(super) fn finish(&mut self, report: &CookieReport) {
+    /// Completion, source identity and the declaration's own recorded
+    /// syntax, carried into DRC payload reports and state.
+    pub(super) fn finish(
+        &mut self,
+        complete: bool,
+        source_sha256: &str,
+        sample_rate_hz: Option<u64>,
+        syntax: Vec<ConfigField>,
+    ) {
         const ROOT: &str = "ancillary.loudness_drc";
-        self.complete = report.is_complete();
-        self.source_sha256 = report.cookie_sha256.clone();
-        self.sample_rate_hz = report
-            .derived
-            .get("sample_rate_hz")
-            .and_then(crate::record::FieldValue::as_u64);
-        self.loudness_metadata = report
-            .fields
-            .iter()
-            .filter(|f| f.name.starts_with(&format!("{ROOT}.loudness.")))
-            .cloned()
-            .collect();
-        self.fields = report
-            .fields
-            .iter()
-            .filter(|f| {
-                f.name.starts_with(&format!("{ROOT}."))
-                    && !f.name.starts_with(&format!("{ROOT}.loudness."))
-            })
-            .cloned()
-            .collect();
+        self.complete = complete;
+        self.source_sha256 = source_sha256.into();
+        self.sample_rate_hz = sample_rate_hz;
+        let loudness = format!("{ROOT}.loudness.");
+        let root = format!("{ROOT}.");
+        for field in syntax {
+            if field.name.starts_with(&loudness) {
+                self.loudness_metadata.push(field);
+            } else if field.name.starts_with(&root) {
+                self.fields.push(field);
+            }
+        }
     }
 }

@@ -60,9 +60,7 @@ impl AuxiliaryConfiguration {
             variable_parameter: ancillary.custom_data_flag_a.is(true),
             graph: ancillary.scene_graph.as_ref().map(|graph| SceneGraphState {
                 positions: graph.positions.clone(),
-                history_sha256: crate::model::sha256(
-                    &serde_json::to_vec(&graph.trace).expect("finite graph declaration"),
-                ),
+                history_sha256: graph.trace_sha256.clone(),
             }),
         }
     }
@@ -83,6 +81,13 @@ pub struct SceneGraphPayload {
     pub metadata_sha256: String,
     pub processing_applied: bool,
 }
+/// Chain one in-band update into the scene-graph history: the digest of the
+/// JSON array `[previous, packet digest, start, end]` (hex digests need no
+/// escaping).
+fn provenance_sha256(previous: &str, packet_sha256: &str, start: usize, end: usize) -> String {
+    crate::model::sha256(format!("[\"{previous}\",\"{packet_sha256}\",{start},{end}]").as_bytes())
+}
+
 pub(crate) fn read_graph(
     parser: &mut Parser<'_>,
     config: &AuxiliaryConfiguration,
@@ -99,8 +104,9 @@ pub(crate) fn read_graph(
             parser.bits.data(),
             parser.bits.position(),
             &mut graph.positions,
+            parser.capture,
         )?;
-        if !report.is_complete() {
+        if !report.complete {
             return Err(ParseError::new(
                 parser.bits.position(),
                 "scene-graph-update",
@@ -111,14 +117,11 @@ pub(crate) fn read_graph(
         if parser.capture {
             parser.report.fields.extend(report.fields);
         }
-        graph.history_sha256 = crate::model::sha256(
-            &serde_json::to_vec(&(
-                graph.history_sha256.as_str(),
-                crate::model::sha256(parser.bits.data()),
-                start,
-                end,
-            ))
-            .expect("finite graph provenance"),
+        graph.history_sha256 = provenance_sha256(
+            &graph.history_sha256,
+            &crate::model::sha256(parser.bits.data()),
+            start,
+            end,
         );
     }
     Ok(Some(SceneGraphPayload {
@@ -207,4 +210,20 @@ pub(crate) fn read(
     }
     result.end_bit_offset = parser.bits.position();
     Ok(Some(result))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn provenance_digest_hashes_the_former_json_tuple() {
+        let previous = crate::model::sha256(b"graph");
+        let packet = crate::model::sha256(b"packet");
+        assert_eq!(
+            super::provenance_sha256(&previous, &packet, 17, 4242),
+            crate::model::sha256(
+                &serde_json::to_vec(&(previous.as_str(), packet.clone(), 17usize, 4242usize))
+                    .unwrap()
+            )
+        );
+    }
 }

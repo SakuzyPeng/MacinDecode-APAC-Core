@@ -199,14 +199,15 @@ pub fn parse_packet_with_state(
         let present = parser.flag("ancillary.audio_scenes_update_present")?;
         scene_update = Some(present);
         if present {
-            let (scene, scenes, end) = config::parse_scene_at(packet, parser.bits.position())?;
+            let (scene, scenes, end) =
+                config::parse_scene_at(packet, parser.bits.position(), true)?;
             parser.bits.skip(end - parser.bits.position())?;
-            parser.report.fields.extend(scene.fields.iter().cloned());
-            if !scene.is_complete() {
+            parser.report.fields.extend(scene.fields);
+            if !scene.complete {
                 let reason = scene
-                    .diagnostics
-                    .first()
-                    .map_or("unsupported audio scene update", |d| d.message.as_str());
+                    .reason
+                    .as_deref()
+                    .unwrap_or("unsupported audio scene update");
                 return partial(result, parser, reason);
             }
             let rejected = packet_config::neutral_scene(&scenes, "packet");

@@ -66,13 +66,21 @@ fn cookie_field_names_are_unique_across_the_corpus() {
 /// for every corpus cookie, every truncated prefix of it and single-bit
 /// variants (a quarter of the positions per cookie, rotating, to bound the
 /// run time): partial syntax, missing fields, other values and stop positions.
+/// The unrecorded parse decoding uses yields the same configuration.
 #[test]
 fn parsed_configuration_matches_the_report_oracle() {
     let mut checked = 0usize;
     let mut partial = 0usize;
     let mut check = |data: &[u8]| {
-        if let Ok((report, config)) = parse_cookie_and_config(data) {
+        let unrecorded = Config::parse(data);
+        let recorded = parse_cookie_and_config(data);
+        assert_eq!(
+            unrecorded.as_ref().err().map(ToString::to_string),
+            recorded.as_ref().err().map(ToString::to_string)
+        );
+        if let (Ok((report, config)), Ok(unrecorded)) = (recorded, unrecorded) {
             assert_eq!(config, Config::from_report(&report), "{data:02x?}");
+            assert_eq!(config, unrecorded, "{data:02x?}");
             checked += 1;
             partial += usize::from(!report.is_complete());
         }
@@ -97,7 +105,8 @@ fn parsed_configuration_matches_the_report_oracle() {
 
 /// The in-band entry points read the same grammar from a packet offset. Start
 /// them where a corpus cookie (or a single-bit variant of it) declares scenes
-/// or DRC; each call checks its typed result against the oracle in test builds.
+/// or DRC; each recorded call checks its typed result against the oracle in
+/// test builds, and the unrecorded call returns the same typed result.
 #[test]
 fn in_band_scene_and_drc_syntax_match_the_report_oracle() {
     let (mut scenes, mut headers) = (0usize, 0usize);
@@ -125,11 +134,16 @@ fn in_band_scene_and_drc_syntax_match_the_report_oracle() {
                 variant[bit / 8] ^= 0x80 >> (bit % 8);
             }
             if let Some(offset) = scene {
-                scenes += usize::from(parse_scene_at(&variant, offset).is_ok());
+                let recorded = parse_scene_at(&variant, offset, true);
+                let plain = parse_scene_at(&variant, offset, false);
+                assert_eq!(in_band(&recorded), in_band(&plain));
+                scenes += usize::from(recorded.is_ok());
             }
             if let Some(offset) = drc {
-                headers +=
-                    usize::from(parse_drc_header_at(&variant, offset, rate, channels).is_ok());
+                let recorded = parse_drc_header_at(&variant, offset, rate, channels, true);
+                let plain = parse_drc_header_at(&variant, offset, rate, channels, false);
+                assert_eq!(in_band(&recorded), in_band(&plain));
+                headers += usize::from(recorded.is_ok());
             }
             if let Some(bit) = bit {
                 variant[bit / 8] ^= 0x80 >> (bit % 8);
@@ -140,4 +154,14 @@ fn in_band_scene_and_drc_syntax_match_the_report_oracle() {
         scenes > 100 && headers > 100,
         "{scenes} scenes, {headers} headers"
     );
+}
+
+/// An in-band result without its recorded fields.
+fn in_band<T: Clone>(
+    result: &Result<(InBand, T, usize), ParseError>,
+) -> Result<(bool, Option<String>, T, usize), String> {
+    result
+        .as_ref()
+        .map(|(update, value, end)| (update.complete, update.reason.clone(), value.clone(), *end))
+        .map_err(ToString::to_string)
 }

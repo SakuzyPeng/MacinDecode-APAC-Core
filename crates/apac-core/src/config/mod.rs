@@ -16,7 +16,7 @@ mod passive_metadata;
 mod passive_renderer;
 mod scenes;
 
-use crate::model::{SCHEMA_VERSION, sha256};
+use crate::model::SCHEMA_VERSION;
 use serde::Serialize;
 use std::{collections::BTreeMap, fmt};
 
@@ -25,6 +25,8 @@ pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 pub use crate::record::{ConfigField, DigestUnit, FieldValue};
 pub(crate) use model::*;
 pub use model::{Config, Field, Located};
+#[cfg(test)]
+use parser::InBand;
 pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
 pub use passive::PositionSyntax;
 
@@ -68,18 +70,29 @@ impl CookieReport {
     pub fn is_complete(&self) -> bool {
         self.status == ParseStatus::Complete
     }
-    fn new(data: &[u8]) -> Self {
+    /// The report of one recorded parse.
+    pub fn assemble(config: &Config, recording: Recording) -> Self {
         Self {
             schema_version: SCHEMA_VERSION,
-            cookie_bytes: data.len(),
-            cookie_sha256: sha256(data),
-            status: ParseStatus::Complete,
-            fields: vec![],
-            derived: BTreeMap::new(),
-            unknown_ranges: vec![],
-            diagnostics: vec![],
+            cookie_bytes: config.cookie_bytes,
+            cookie_sha256: config.cookie_sha256.clone(),
+            status: config.status.clone(),
+            fields: recording.fields,
+            derived: recording.derived,
+            unknown_ranges: recording.unknown_ranges,
+            diagnostics: recording.diagnostics,
         }
     }
+}
+
+/// The recorded syntax of one parse: field events in stream order, derived
+/// values, unparsed ranges and diagnostics. Decoding never reads it.
+#[derive(Debug, Clone, Default)]
+pub struct Recording {
+    pub fields: Vec<ConfigField>,
+    pub derived: BTreeMap<String, FieldValue>,
+    pub unknown_ranges: Vec<UnknownRange>,
+    pub diagnostics: Vec<Diagnostic>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -124,8 +137,19 @@ pub fn parse_cookie(data: &[u8]) -> Result<CookieReport, ParseError> {
 
 /// The recorded report and the typed configuration from a single parse.
 pub fn parse_cookie_and_config(data: &[u8]) -> Result<(CookieReport, Config), ParseError> {
+    let (config, recording) = parse_recorded(data)?;
+    Ok((CookieReport::assemble(&config, recording), config))
+}
+
+/// The typed configuration and the recorded syntax from a single parse.
+pub fn parse_recorded(data: &[u8]) -> Result<(Config, Recording), ParseError> {
+    let (config, recording) = parse_with(data, true)?;
+    Ok((config, recording.expect("recording requested")))
+}
+
+fn parse_with(data: &[u8], record: bool) -> Result<(Config, Option<Recording>), ParseError> {
     if data.len() > MAX_COOKIE_BYTES {
         return Err(ParseError::new(0, "input-limit", "cookie exceeds 8 MiB"));
     }
-    parser::parse(data)
+    parser::parse(data, record)
 }

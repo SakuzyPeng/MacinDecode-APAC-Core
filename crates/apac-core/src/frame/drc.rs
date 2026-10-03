@@ -538,20 +538,24 @@ pub(super) fn read_payload(
     rate: u64,
 ) -> Result<DrcPayload, ParseError> {
     let start = parser.bits.position();
-    let (header, declaration, header_end) =
-        config::parse_drc_header_at(parser.bits.data(), start, rate, state.channels)?;
+    let (header, declaration, header_end) = config::parse_drc_header_at(
+        parser.bits.data(),
+        start,
+        rate,
+        state.channels,
+        parser.capture,
+    )?;
     parser.bits.skip(header_end - start)?;
     if parser.capture {
-        parser.report.fields.extend(header.fields.iter().cloned());
+        parser.report.fields.extend(header.fields);
     }
-    if !header.is_complete() {
+    if !header.complete {
         return Err(ParseError::new(
             header_end,
             "drc-header",
             header
-                .diagnostics
-                .first()
-                .map_or("unsupported DRC header", |d| &d.message),
+                .reason
+                .unwrap_or_else(|| "unsupported DRC header".into()),
         ));
     }
     let header_present = declaration.header_present.is(true);
@@ -827,11 +831,11 @@ pub fn parse_drc_with_state(
     if context.packet_configuration.scene_present
         && parser.flag("ancillary.audio_scenes_update_present")?
     {
-        let (scene, scenes, end) = config::parse_scene_at(packet, parser.bits.position())?;
+        let (scene, scenes, end) = config::parse_scene_at(packet, parser.bits.position(), true)?;
         parser.bits.skip(end - parser.bits.position())?;
-        parser.report.fields.extend(scene.fields.iter().cloned());
+        parser.report.fields.extend(scene.fields);
         let rejected = packet_config::neutral_scene(&scenes, "packet");
-        if !scene.is_complete() || !rejected.is_empty() {
+        if !scene.complete || !rejected.is_empty() {
             return Err(ParseError::new(
                 end,
                 "drc-scene",

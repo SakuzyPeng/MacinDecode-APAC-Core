@@ -69,12 +69,16 @@ impl Config {
                         FieldValue::Positions(positions) => positions.clone(),
                         other => panic!("position syntax {other:?}"),
                     },
-                    trace: report
-                        .fields
-                        .iter()
-                        .filter(|f| f.name.starts_with("ancillary.scene_graph."))
-                        .cloned()
-                        .collect(),
+                    trace_sha256: crate::model::sha256(
+                        &serde_json::to_vec(
+                            &report
+                                .fields
+                                .iter()
+                                .filter(|f| f.name.starts_with("ancillary.scene_graph."))
+                                .collect::<Vec<_>>(),
+                        )
+                        .unwrap(),
+                    ),
                 }),
             audio_scenes: AudioScenes::from_lookup(&r),
             drc: DrcDeclaration::from_lookup(&r),

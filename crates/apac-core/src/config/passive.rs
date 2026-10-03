@@ -1,7 +1,7 @@
 //! Passive scene-position syntax. Coordinates remain encoded; no spatial renderer.
 use super::{
-    CookieReport, ParseError, ParseStatus,
-    parser::{PResult, Parser, Stop},
+    ParseError, ParseStatus,
+    parser::{InBand, PResult, Parser, Stop},
 };
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
@@ -25,27 +25,29 @@ impl Parser<'_> {
         full: bool,
     ) -> PResult<()> {
         if full {
-            shape.parent_dynamic = self.flag(&format!("{p}.parent_dynamic"))?;
-            shape.range_dynamic = self.flag(&format!("{p}.range_dynamic"))?;
+            shape.parent_dynamic = self.flag(format_args!("{p}.parent_dynamic"))?;
+            shape.range_dynamic = self.flag(format_args!("{p}.range_dynamic"))?;
             shape.position_precision =
-                (self.take(&format!("{p}.position_precision_encoded"), 4)? as usize * 2).min(24);
+                (self.take(format_args!("{p}.position_precision_encoded"), 4)? as usize * 2)
+                    .min(24);
             shape.rotation_precision =
-                (self.take(&format!("{p}.rotation_precision_encoded"), 4)? as usize * 2).min(24);
+                (self.take(format_args!("{p}.rotation_precision_encoded"), 4)? as usize * 2)
+                    .min(24);
         }
-        if full || (shape.parent_dynamic && self.flag(&format!("{p}.parent_update"))?) {
-            shape.parent = if self.flag(&format!("{p}.absolute_parent"))? {
+        if full || (shape.parent_dynamic && self.flag(format_args!("{p}.parent_update"))?) {
+            shape.parent = if self.flag(format_args!("{p}.absolute_parent"))? {
                 0
             } else {
-                self.take(&format!("{p}.parent_index"), 6)? as usize
+                self.take(format_args!("{p}.parent_index"), 6)? as usize
             };
         }
-        if full || (shape.range_dynamic && self.flag(&format!("{p}.range_update"))?) {
-            self.take(&format!("{p}.range_encoded"), 4)?;
+        if full || (shape.range_dynamic && self.flag(format_args!("{p}.range_update"))?) {
+            self.take(format_args!("{p}.range_encoded"), 4)?;
         }
-        if self.flag(&format!("{p}.position_present"))? {
-            let delta = !full && self.flag(&format!("{p}.position_delta"))?;
+        if self.flag(format_args!("{p}.position_present"))? {
+            let delta = !full && self.flag(format_args!("{p}.position_delta"))?;
             if !delta {
-                shape.polar = self.flag(&format!("{p}.polar"))?;
+                shape.polar = self.flag(format_args!("{p}.polar"))?;
             }
             let widths = if shape.polar { [7, 6, 5] } else { [6; 3] };
             for (i, base) in widths.into_iter().enumerate() {
@@ -55,29 +57,29 @@ impl Parser<'_> {
                     continue;
                 }
                 self.take(
-                    &format!("{p}.position_encoded[{i}]"),
+                    format_args!("{p}.position_encoded[{i}]"),
                     base + shape.position_precision - if delta { 4 } else { 0 },
                 )?;
             }
         }
-        if self.flag(&format!("{p}.rotation_present"))? {
-            let delta = !full && self.flag(&format!("{p}.rotation_delta"))?;
+        if self.flag(format_args!("{p}.rotation_present"))? {
+            let delta = !full && self.flag(format_args!("{p}.rotation_delta"))?;
             for i in 0..4 {
                 self.take(
-                    &format!("{p}.rotation_encoded[{i}]"),
+                    format_args!("{p}.rotation_encoded[{i}]"),
                     8 + shape.rotation_precision - if delta { 4 } else { 0 },
                 )?;
             }
         }
-        if self.flag(&format!("{p}.extensions_present"))? {
+        if self.flag(format_args!("{p}.extensions_present"))? {
             for i in 0..32 {
                 let q = format!("{p}.extensions[{i}]");
-                if self.take(&format!("{q}.type"), 4)? == 0 {
+                if self.take(format_args!("{q}.type"), 4)? == 0 {
                     return Ok(());
                 }
-                let width = self.take(&format!("{q}.length_width_minus_four"), 4)? as usize + 4;
-                let count = self.take(&format!("{q}.bits_minus_one"), width)? as usize + 1;
-                self.passive_bits(&format!("{q}.payload"), count)?;
+                let width = self.take(format_args!("{q}.length_width_minus_four"), 4)? as usize + 4;
+                let count = self.take(format_args!("{q}.bits_minus_one"), width)? as usize + 1;
+                self.passive_bits(format_args!("{q}.payload"), count)?;
             }
             return self.invalid("position-extensions", "too many position extensions");
         }
@@ -85,22 +87,25 @@ impl Parser<'_> {
     }
     pub(super) fn scene_graph(&mut self) -> PResult<()> {
         let p = "ancillary.scene_graph";
-        let count = self.drc_count(&format!("{p}.count"), 6, 18)?;
+        self.begin_graph_digest();
+        let count = self.drc_count(format_args!("{p}.count"), 6, 18)?;
         let mut shapes = vec![PositionSyntax::default(); count];
         for (i, shape) in shapes.iter_mut().enumerate() {
             self.position(&format!("{p}.positions[{i}]"), shape, true)?;
         }
         validate_graph(&shapes, self.pos())?;
-        self.report
-            .derived
-            .insert(format!("{p}.syntax"), FieldValue::Positions(shapes.clone()));
+        let trace_sha256 = self.end_graph_digest();
+        self.derive(
+            format_args!("{p}.syntax"),
+            FieldValue::Positions(shapes.clone()),
+        );
         self.config.ancillary.scene_graph = Some(super::SceneGraph {
             positions: shapes,
-            trace: Vec::new(),
+            trace_sha256,
         });
         Ok(())
     }
-    pub(super) fn passive_bits(&mut self, p: &str, count: usize) -> PResult<()> {
+    pub(super) fn passive_bits(&mut self, p: impl core::fmt::Display, count: usize) -> PResult<()> {
         if count == 0 {
             return Ok(());
         }
@@ -155,14 +160,15 @@ pub(crate) fn graph_update(
     data: &[u8],
     offset: usize,
     shapes: &mut [PositionSyntax],
-) -> Result<(CookieReport, usize), ParseError> {
-    let mut parser = Parser::new(data);
+    record: bool,
+) -> Result<(InBand, usize), ParseError> {
+    let mut parser = Parser::new(data, record);
     parser.bits.skip(offset)?;
     let mut next = shapes.to_vec();
     let result = (|| -> PResult<()> {
         for (i, shape) in next.iter_mut().enumerate() {
             let p = format!("ancillary.scene_graph.positions[{i}]");
-            if parser.flag(&format!("{p}.updated"))? {
+            if parser.flag(format_args!("{p}.updated"))? {
                 parser.position(&p, shape, false)?;
             }
         }
@@ -174,13 +180,8 @@ pub(crate) fn graph_update(
         Err(Stop::Invalid(error)) => return Err(error),
         Err(Stop::Unsupported {
             position, reason, ..
-        }) => {
-            parser.report.status = ParseStatus::Partial;
-            parser.report.diagnostics.push(super::Diagnostic {
-                bit_offset: position,
-                message: reason,
-            });
-        }
+        }) => parser.stopped(position, reason, ParseStatus::Partial),
     }
-    Ok((parser.report, parser.bits.position()))
+    let end = parser.bits.position();
+    Ok((parser.in_band(), end))
 }

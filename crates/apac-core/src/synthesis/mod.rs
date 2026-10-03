@@ -71,7 +71,7 @@ fn fft(data: &mut [Complex]) {
     }
 }
 fn modulation(n: usize) -> &'static [[f64; 2]] {
-    &crate::numeric::tables().transform(n).modulation
+    crate::numeric::tables().transform(n).modulation
 }
 fn imdct(input: &[f32]) -> Vec<f64> {
     let n = input.len();
@@ -107,7 +107,7 @@ fn imdct(input: &[f32]) -> Vec<f64> {
         .collect()
 }
 fn window(n: usize) -> &'static [f64] {
-    &crate::numeric::tables().transform(n).window
+    crate::numeric::tables().transform(n).window
 }
 #[derive(Clone)]
 struct ChannelState {

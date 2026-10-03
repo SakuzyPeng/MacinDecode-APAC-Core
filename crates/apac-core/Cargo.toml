@@ -2,10 +2,15 @@
 name = "apac-core"
 version.workspace = true
 edition.workspace = true
-build = "build.rs"
+build = "build/main.rs"
 description = "Independent APAC configuration, frame parsing and SQ/HOA synthesis"
 
 [dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[build-dependencies]
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

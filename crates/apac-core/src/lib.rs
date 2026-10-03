@@ -18,6 +18,7 @@ pub mod frame;
 pub mod model;
 mod numeric;
 pub mod synthesis;
+mod tables;
 
 /// Transitional access for `apac-research` while the decoder and its reports
 /// are separated. Not a stable interface; it shrinks as the refactor proceeds.

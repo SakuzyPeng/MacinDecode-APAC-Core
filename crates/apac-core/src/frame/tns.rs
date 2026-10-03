@@ -3,7 +3,6 @@ use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, sync::OnceLock};
 
 pub const NUMERIC_PROFILE: &str = "apac-tns-math-v1";
 
@@ -64,29 +63,17 @@ pub struct TnsReport {
     pub channels_after_tns: Vec<TnsChannelSpectrum>,
 }
 
-#[derive(Deserialize)]
-struct Math {
-    numeric_profile: String,
-    tables_sha256: String,
-    reflection_f64: BTreeMap<String, Vec<u64>>,
-}
-fn math() -> &'static Math {
-    static MATH: OnceLock<Math> = OnceLock::new();
-    MATH.get_or_init(|| {
-        let data: Math = serde_json::from_str(include_str!("../../../../data/tns-math-v1.json"))
-            .expect("built-in TNS mathematical constants");
-        assert_eq!(data.numeric_profile, NUMERIC_PROFILE);
-        assert_eq!(data.reflection_f64["3"].len(), 8);
-        assert_eq!(data.reflection_f64["4"].len(), 16);
-        data
-    })
-}
+/// Generated from `data/tns-math-v1.json` by the build script.
 pub fn math_sha256() -> &'static str {
-    &math().tables_sha256
+    crate::tables::TNS_MATH_SHA256
 }
 fn reflection(q: i8, resolution: usize) -> f64 {
-    let (key, bias) = if resolution == 3 { ("3", 4) } else { ("4", 8) };
-    f64::from_bits(math().reflection_f64[key][(q + bias) as usize])
+    let (table, bias): (&[u64], i8) = if resolution == 3 {
+        (&crate::tables::TNS_REFLECTION_3, 4)
+    } else {
+        (&crate::tables::TNS_REFLECTION_4, 8)
+    };
+    f64::from_bits(table[(q + bias) as usize])
 }
 fn signed(bits: &mut BitReader<'_>, width: usize) -> Result<i8, ParseError> {
     let raw = bits.read(width)? as i8;

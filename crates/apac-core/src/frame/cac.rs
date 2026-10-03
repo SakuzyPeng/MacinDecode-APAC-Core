@@ -5,7 +5,6 @@ use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::OnceLock;
 
 pub const NUMERIC_PROFILE: &str = "apac-cac-math-v1";
 
@@ -43,50 +42,36 @@ pub struct CacReport {
     pub channels_after_cac: Vec<CacChannelSpectrum>,
 }
 
-#[derive(Deserialize)]
 struct Books {
-    gain: Codebook,
-    repeat: Codebook,
+    gain: &'static Codebook,
+    #[cfg_attr(not(test), allow(dead_code))]
+    repeat: &'static Codebook,
 }
+/// Generated from `data/cac-codebooks.json` by the build script.
 fn books() -> &'static Books {
-    static BOOKS: OnceLock<Books> = OnceLock::new();
-    BOOKS.get_or_init(|| {
-        let books: Books =
-            serde_json::from_str(include_str!("../../../../data/cac-codebooks.json"))
-                .expect("built-in CAC format constants");
-        assert_eq!(books.gain.codes.len(), 35);
-        assert_eq!(books.repeat.codes.len(), 44);
-        books
-    })
+    static BOOKS: Books = Books {
+        gain: &crate::tables::CAC_GAIN,
+        repeat: &crate::tables::CAC_REPEAT,
+    };
+    &BOOKS
 }
 fn tries() -> &'static [Trie; 2] {
-    static TRIES: OnceLock<[Trie; 2]> = OnceLock::new();
-    TRIES.get_or_init(|| [Trie::new(&books().gain), Trie::new(&books().repeat)])
+    &crate::tables::CAC_TRIES
 }
-#[derive(Deserialize)]
-struct Rotation {
-    a_f64: u64,
-    b_f64: u64,
-    swap: bool,
-}
-#[derive(Deserialize)]
 struct Math {
-    numeric_profile: String,
-    tables_sha256: String,
-    rotations: Vec<Rotation>,
+    tables_sha256: &'static str,
+    rotations: &'static [crate::tables::CacRotation],
 }
+/// Generated from `data/cac-math-v1.json` by the build script.
 fn math() -> &'static Math {
-    static MATH: OnceLock<Math> = OnceLock::new();
-    MATH.get_or_init(|| {
-        let data: Math = serde_json::from_str(include_str!("../../../../data/cac-math-v1.json"))
-            .expect("built-in CAC mathematical constants");
-        assert_eq!(data.numeric_profile, NUMERIC_PROFILE);
-        assert_eq!(data.rotations.len(), 35);
-        data
-    })
+    static MATH: Math = Math {
+        tables_sha256: crate::tables::CAC_MATH_SHA256,
+        rotations: &crate::tables::CAC_ROTATIONS,
+    };
+    &MATH
 }
 pub fn math_sha256() -> &'static str {
-    &math().tables_sha256
+    math().tables_sha256
 }
 
 /// Each ordinary repeat encodes 1..43 slots. The terminal code has capacity 44,
@@ -319,7 +304,7 @@ pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, Par
 mod tests {
     #[test]
     fn rotations_fit_the_skipped_prefix_finite_value_bound() {
-        for rotation in &super::math().rotations {
+        for rotation in super::math().rotations {
             let a = f64::from_bits(rotation.a_f64);
             let b = f64::from_bits(rotation.b_f64);
             assert!(a.is_finite() && b.is_finite() && a.abs() <= 1. && b.abs() <= 1.);
@@ -345,7 +330,7 @@ mod tests {
     #[test]
     fn every_cac_codeword_preserves_following_bits_and_rejects_truncation() {
         for (book, trie) in [(&books().gain, &tries()[0]), (&books().repeat, &tries()[1])] {
-            for (index, (&code, &width)) in book.codes.iter().zip(&book.bits).enumerate() {
+            for (index, (&code, &width)) in book.codes.iter().zip(book.bits).enumerate() {
                 for marker in [0, 0xffff] {
                     let mut bits = vec![];
                     word(&mut bits, code, width);

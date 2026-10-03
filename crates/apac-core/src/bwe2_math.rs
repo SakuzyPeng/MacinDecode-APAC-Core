@@ -1,100 +1,43 @@
 //! Fixed BWE2 mathematics. Ordinary Float64 operations never fuse or reassociate.
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, sync::OnceLock};
 
 pub const PROFILE: &str = "apac-bwe2-math-v2";
-#[derive(Deserialize)]
-struct Format {
-    format_profile: String,
-    tables_sha256: String,
-    lsf_codebooks_f32: Vec<Vec<[u32; 16]>>,
-    excitation_gains_f32: Vec<u32>,
+pub(crate) struct Constants {
+    pub(crate) format_sha: &'static str,
+    pub(crate) math_sha: &'static str,
+    pub(crate) books: [&'static [[f64; 16]]; 2],
+    pub(crate) gains: &'static [f64],
+    pub(crate) twiddles: &'static [(usize, &'static [Complex])],
+    pub(crate) cosine: [f64; 13],
+    pub(crate) sine: [f64; 13],
+    pub(crate) angle_scale: f64,
+    pub(crate) loading: f64,
 }
-#[derive(Deserialize)]
-struct Math {
-    numeric_profile: String,
-    tables_sha256: String,
-    twiddles_f64: BTreeMap<String, Vec<[u64; 2]>>,
-    cosine_f64: [u64; 13],
-    sine_f64: [u64; 13],
-    lsf_angle_scale_f64: u64,
-    autocorrelation_loading_f64: u64,
+impl Constants {
+    fn twiddles(&self, n: usize) -> &'static [Complex] {
+        self.twiddles
+            .iter()
+            .find(|&&(size, _)| size == n)
+            .map(|&(_, values)| values)
+            .expect("verified BWE2 transform size")
+    }
 }
-struct Constants {
-    format_sha: String,
-    math_sha: String,
-    books: Vec<Vec<[f64; 16]>>,
-    gains: Vec<f64>,
-    twiddles: BTreeMap<usize, Vec<Complex>>,
-    cosine: [f64; 13],
-    sine: [f64; 13],
-    angle_scale: f64,
-    loading: f64,
-}
+/// Generated from `data/bwe2-format-v1.json` and `data/bwe2-math-v2.json`.
 fn constants() -> &'static Constants {
-    static DATA: OnceLock<Constants> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let format: Format =
-            serde_json::from_str(include_str!("../../../data/bwe2-format-v1.json"))
-                .expect("built-in BWE2 format constants");
-        let math: Math = serde_json::from_str(include_str!("../../../data/bwe2-math-v2.json"))
-            .expect("built-in BWE2 mathematical constants");
-        assert_eq!(format.format_profile, "apac-bwe2-format-v1");
-        assert_eq!(math.numeric_profile, PROFILE);
-        assert_eq!(format.lsf_codebooks_f32.len(), 2);
-        assert!(format.lsf_codebooks_f32.iter().all(|b| b.len() == 512));
-        assert_eq!(format.excitation_gains_f32.len(), 64);
-        Constants {
-            format_sha: format.tables_sha256,
-            math_sha: math.tables_sha256,
-            books: format
-                .lsf_codebooks_f32
-                .into_iter()
-                .map(|b| {
-                    b.into_iter()
-                        .map(|v| v.map(|x| f64::from(f32::from_bits(x))))
-                        .collect()
-                })
-                .collect(),
-            gains: format
-                .excitation_gains_f32
-                .into_iter()
-                .map(|x| f64::from(f32::from_bits(x)))
-                .collect(),
-            twiddles: math
-                .twiddles_f64
-                .into_iter()
-                .map(|(n, v)| {
-                    (
-                        n.parse().expect("transform size"),
-                        v.into_iter()
-                            .map(|[re, im]| Complex {
-                                re: f64::from_bits(re),
-                                im: f64::from_bits(im),
-                            })
-                            .collect(),
-                    )
-                })
-                .collect(),
-            cosine: math.cosine_f64.map(f64::from_bits),
-            sine: math.sine_f64.map(f64::from_bits),
-            angle_scale: f64::from_bits(math.lsf_angle_scale_f64),
-            loading: f64::from_bits(math.autocorrelation_loading_f64),
-        }
-    })
+    &crate::tables::BWE2
 }
 pub fn format_sha256() -> &'static str {
-    &constants().format_sha
+    constants().format_sha
 }
 pub fn math_sha256() -> &'static str {
-    &constants().math_sha
+    constants().math_sha
 }
 
 #[derive(Clone, Copy, Default, Debug)]
-struct Complex {
-    re: f64,
-    im: f64,
+pub(crate) struct Complex {
+    pub(crate) re: f64,
+    pub(crate) im: f64,
 }
 impl Complex {
     fn mul(self, other: Self) -> Self {
@@ -113,7 +56,7 @@ impl Complex {
 fn radix2(data: &mut [Complex]) {
     let n = data.len();
     assert!(n.is_power_of_two());
-    let twiddles = &constants().twiddles[&n];
+    let twiddles = constants().twiddles(n);
     let mut j = 0;
     for i in 1..n {
         let mut bit = n >> 1;
@@ -155,7 +98,7 @@ fn forward(data: &mut [Complex]) {
     for branch in &mut branches {
         radix2(branch);
     }
-    let w = &constants().twiddles[&n];
+    let w = constants().twiddles(n);
     for k in 0..n {
         // Fixed association: (branch 0 + rotated branch 1) + rotated branch 2.
         data[k] = branches[0][k % m]
@@ -317,7 +260,7 @@ fn envelope(a: &[f64; 17], bins: usize) -> Vec<f64> {
 }
 fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
     let cosines = lsf.map(lsf_cosine);
-    let grid = &constants().twiddles[&(2 * bins)];
+    let grid = constants().twiddles(2 * bins);
     // On the unit circle each LSF factor is 2*z*(cos(w)-cos(lsf)).
     // A(z) = (P(z)*(1+z) + Q(z)*(1-z))/2, so after removing its
     // unit-magnitude phase, its real/imaginary parts are P*cos(w/2)
@@ -508,7 +451,7 @@ mod tests {
     }
     fn direct(input: &[Complex]) -> Vec<Complex> {
         let n = input.len();
-        let w = &constants().twiddles[&n];
+        let w = constants().twiddles(n);
         (0..n)
             .map(|k| {
                 input

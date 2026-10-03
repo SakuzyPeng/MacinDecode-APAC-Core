@@ -110,7 +110,7 @@ fn bounded_constants_and_extreme_finite_spectra_cannot_overflow_synthesis() {
         assert!(
             t.twiddles
                 .iter()
-                .chain(&t.modulation)
+                .chain(t.modulation)
                 .flatten()
                 .all(|v| v.is_finite() && v.abs() <= 1.)
         );

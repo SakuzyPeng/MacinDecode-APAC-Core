@@ -73,8 +73,8 @@ pub(super) fn offsets(hz: u64, short: bool) -> &'static [usize] {
     let rate = rate(hz);
     let key = if short { &rate.short } else { &rate.long };
     match key.as_str() {
-        "legacy-long" => &super::spectrum::tables().long_offsets,
-        "legacy-short" => &super::spectrum::tables().short_offsets,
+        "legacy-long" => super::spectrum::tables().long_offsets,
+        "legacy-short" => super::spectrum::tables().short_offsets,
         _ => &format().offset_arrays[key],
     }
 }

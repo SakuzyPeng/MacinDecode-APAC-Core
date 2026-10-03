@@ -1,10 +1,6 @@
 //! Order-1/2/3 spatial descriptors with bounded component counts and local grids.
 //! Format tables and independent mathematical constants have separate identities.
-use super::{
-    ChannelPacketReport, Parser,
-    hoa::RecoverySlotSpectrum,
-    spectrum::{Codebook, Trie},
-};
+use super::{ChannelPacketReport, Parser, hoa::RecoverySlotSpectrum, spectrum::Trie};
 use crate::config::{ConfigField, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -513,10 +509,10 @@ fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants 
                     .iter()
                     .map(|book| {
                         assert_eq!(book.len(), 1usize << precision);
-                        Trie::new(&Codebook {
-                            codes: book.iter().map(|v| v.1).collect(),
-                            bits: book.iter().map(|v| v.0).collect(),
-                        })
+                        Trie::build(
+                            &book.iter().map(|v| v.1).collect::<Vec<_>>(),
+                            &book.iter().map(|v| v.0).collect::<Vec<_>>(),
+                        )
                     })
                     .collect()
             })

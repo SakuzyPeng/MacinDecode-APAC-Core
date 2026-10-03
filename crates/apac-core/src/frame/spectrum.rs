@@ -4,7 +4,6 @@ use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IcsInfo {
@@ -47,75 +46,28 @@ pub struct SpectrumReport {
     pub numeric_profile: Option<String>,
 }
 
-#[derive(Deserialize)]
-pub(super) struct Codebook {
-    pub codes: Vec<u32>,
-    pub bits: Vec<usize>,
-}
-#[derive(Deserialize)]
+pub(super) use crate::tables::{Codebook, Trie};
+/// The codebooks themselves are read by tests; decoding uses the tries.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(super) struct Tables {
-    pub spectral: Vec<Codebook>,
-    pub scalefactor: Codebook,
-    pub long_offsets: Vec<usize>,
-    pub short_offsets: Vec<usize>,
+    pub spectral: &'static [Codebook],
+    pub scalefactor: &'static Codebook,
+    pub long_offsets: &'static [usize],
+    pub short_offsets: &'static [usize],
 }
+/// Generated from `data/sq-codebooks.json` by the build script.
 pub(super) fn tables() -> &'static Tables {
-    static TABLES: OnceLock<Tables> = OnceLock::new();
-    TABLES.get_or_init(|| {
-        serde_json::from_str(include_str!("../../../../data/sq-codebooks.json"))
-            .expect("built-in format tables")
-    })
+    static TABLES: Tables = Tables {
+        spectral: &crate::tables::SQ_SPECTRAL,
+        scalefactor: &crate::tables::SQ_SCALEFACTOR,
+        long_offsets: &crate::tables::SQ_LONG_OFFSETS,
+        short_offsets: &crate::tables::SQ_SHORT_OFFSETS,
+    };
+    &TABLES
 }
-#[derive(Default)]
-struct Node {
-    children: [Option<usize>; 2],
-    symbol: Option<usize>,
-}
-pub(super) struct Trie(Vec<Node>);
-impl Trie {
-    pub(super) fn new(book: &Codebook) -> Self {
-        let mut nodes = vec![Node::default()];
-        assert_eq!(book.codes.len(), book.bits.len());
-        for (symbol, (&code, &width)) in book.codes.iter().zip(&book.bits).enumerate() {
-            let mut node = 0;
-            for shift in (0..width).rev() {
-                assert!(nodes[node].symbol.is_none());
-                let bit = ((code >> shift) & 1) as usize;
-                node = if let Some(next) = nodes[node].children[bit] {
-                    next
-                } else {
-                    let next = nodes.len();
-                    nodes.push(Node::default());
-                    nodes[node].children[bit] = Some(next);
-                    next
-                };
-            }
-            assert!(nodes[node].symbol.is_none() && nodes[node].children == [None; 2]);
-            nodes[node].symbol = Some(symbol);
-        }
-        Self(nodes)
-    }
-    pub(super) fn read(&self, bits: &mut BitReader<'_>) -> Result<usize, ParseError> {
-        let start = bits.position();
-        let mut node = 0;
-        loop {
-            if let Some(symbol) = self.0[node].symbol {
-                return Ok(symbol);
-            }
-            let bit = bits.read(1)? as usize;
-            node = self.0[node].children[bit]
-                .ok_or_else(|| ParseError::new(start, "huffman", "invalid Huffman prefix"))?;
-        }
-    }
-}
-fn tries() -> &'static Vec<Trie> {
-    static TRIES: OnceLock<Vec<Trie>> = OnceLock::new();
-    TRIES.get_or_init(|| {
-        std::iter::once(&tables().scalefactor)
-            .chain(tables().spectral.iter())
-            .map(Trie::new)
-            .collect()
-    })
+/// Trie 0 decodes scale factors; trie `cb` decodes spectral codebook `cb`.
+fn tries() -> &'static [Trie] {
+    &crate::tables::SQ_TRIES
 }
 fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<([i32; 4], usize), ParseError> {
     let mut index = tries()[cb as usize].read(bits)?;

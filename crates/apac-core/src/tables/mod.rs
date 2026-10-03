@@ -5,26 +5,23 @@
 //! as `static` data. Floating-point values are emitted from their exact bit
 //! patterns, so nothing is parsed or computed when the decoder starts.
 use crate::config::{ParseError, bits::BitReader};
-use crate::prelude::*;
 
 #[cfg(test)]
 mod legacy_tests;
+#[cfg(test)]
+pub mod packed;
 pub mod trie_build;
 
 /// MSB-first Huffman decoding trie; see [`trie_build`] for the node layout.
-pub struct Trie(Cow<'static, [trie_build::Node]>);
+pub struct Trie(&'static [trie_build::Node]);
 
 impl Trie {
     pub const fn from_static(nodes: &'static [trie_build::Node]) -> Self {
-        Self(Cow::Borrowed(nodes))
+        Self(nodes)
     }
-    /// Runtime construction for tables that are not yet generated statically.
-    pub fn build(codes: &[u32], bits: &[usize]) -> Self {
-        Self(Cow::Owned(trie_build::build(codes, bits)))
-    }
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     pub fn nodes(&self) -> &[trie_build::Node] {
-        &self.0
+        self.0
     }
     pub fn read(&self, bits: &mut BitReader<'_>) -> Result<usize, ParseError> {
         let start = bits.position();
@@ -114,6 +111,34 @@ pub struct HoaSourceLayout {
     pub matrix: &'static [u32],
     pub matrix_columns: usize,
     pub matrix_available: bool,
+}
+
+/// One salient coding mode: coefficient groups, sign flag and cluster matrices
+/// (Float32 bit patterns). Groups and matrices are shared by every
+/// quantization width of the same order.
+pub struct SalientMode {
+    pub groups: &'static [&'static [usize]],
+    pub signs: bool,
+    pub matrices_f32: &'static [&'static [u32]],
+}
+pub struct SalientFormat {
+    pub tables_sha256: &'static str,
+    pub modes: &'static [SalientMode],
+}
+/// Dictionary for one (coefficient count, quantization width); `tries[mode]`
+/// holds one Huffman trie per codebook of that mode.
+pub struct SalientConstants {
+    pub coefficients: usize,
+    pub precision: u8,
+    pub format: SalientFormat,
+    pub tries: &'static [&'static [Trie]],
+}
+/// Shared angle and root constants of the salient descriptors.
+pub struct SalientMath {
+    pub math_sha: &'static str,
+    pub azimuth: &'static [[f64; 2]],
+    pub elevation: &'static [[f64; 2]],
+    pub roots: [f64; 7],
 }
 
 include!(concat!(env!("OUT_DIR"), "/tables.rs"));

@@ -7,6 +7,9 @@ extern crate alloc;
 
 mod emit;
 mod formats;
+#[path = "../src/tables/packed.rs"]
+mod packed;
+mod salient;
 mod sq;
 #[path = "../src/tables/trie_build.rs"]
 mod trie_build;
@@ -43,6 +46,7 @@ fn compiler_identity() {
 fn main() {
     println!("cargo:rerun-if-changed=build");
     println!("cargo:rerun-if-changed=src/tables/trie_build.rs");
+    println!("cargo:rerun-if-changed=src/tables/packed.rs");
     compiler_identity();
     let mut out = emit::Output::new();
     sq::numeric(&mut out);
@@ -59,6 +63,8 @@ fn main() {
     formats::hoa_salient_subbands(&mut out, &dynamic);
     formats::hoa_source(&mut out);
     formats::file_identities(&mut out);
+    salient::dictionaries(&mut out);
+    salient::math(&mut out);
     let path = PathBuf::from(std::env::var_os("OUT_DIR").expect("out dir")).join("tables.rs");
     out.finish(&path);
 }

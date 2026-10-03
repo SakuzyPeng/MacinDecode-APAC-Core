@@ -12,6 +12,7 @@ pub const NO_SYMBOL: u16 = u16::MAX;
 
 /// Insert every codeword MSB first. Codeword prefixes and duplicate leaves are
 /// rejected exactly as the original runtime constructor rejected them.
+#[allow(dead_code)] // the build script and tests construct; decoding only reads nodes
 pub fn build(codes: &[u32], bits: &[usize]) -> Vec<Node> {
     let mut nodes: Vec<Node> = vec![[0, 0, NO_SYMBOL]];
     assert_eq!(codes.len(), bits.len());

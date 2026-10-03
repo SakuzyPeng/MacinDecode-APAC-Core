@@ -1,7 +1,11 @@
 //! Lossless storage decoding. These are table encodings, not APAC payload syntax.
-use crate::prelude::*;
-pub(super) const CODEBOOK_ENCODING: &str = "preorder-tree-msb-hex-v1";
-pub(super) const MATRIX_ENCODING: &str = "micro21-msb-hex-v1";
+//!
+//! Shared by the build script, which unpacks the salient dictionaries into
+//! static tables, and by core tests. Only `alloc` paths are used.
+use alloc::{vec, vec::Vec};
+
+pub const CODEBOOK_ENCODING: &str = "preorder-tree-msb-hex-v1";
+pub const MATRIX_ENCODING: &str = "micro21-msb-hex-v1";
 
 struct Bits {
     data: Vec<u8>,
@@ -62,7 +66,7 @@ impl Bits {
     }
 }
 
-pub(super) fn codebook(hex: &str, precision: u8) -> Result<Vec<(usize, u32)>, &'static str> {
+pub fn codebook(hex: &str, precision: u8) -> Result<Vec<(usize, u32)>, &'static str> {
     if !(6..=9).contains(&precision) {
         return Err("packed codebook precision must be 6..9");
     }
@@ -102,7 +106,7 @@ pub(super) fn codebook(hex: &str, precision: u8) -> Result<Vec<(usize, u32)>, &'
     Ok(book)
 }
 
-pub(super) fn matrix(hex: &str, count: usize) -> Result<Vec<u32>, &'static str> {
+pub fn matrix(hex: &str, count: usize) -> Result<Vec<u32>, &'static str> {
     let mut bits = Bits::new(hex, count.checked_mul(21).ok_or("matrix size overflow")?)?;
     let mut words = Vec::with_capacity(count);
     for _ in 0..count {
@@ -119,6 +123,7 @@ pub(super) fn matrix(hex: &str, count: usize) -> Result<Vec<u32>, &'static str> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::borrow::ToOwned;
 
     #[test]
     fn matrix_words_preserve_sign_bits_and_reject_wrong_sizes_and_padding() {

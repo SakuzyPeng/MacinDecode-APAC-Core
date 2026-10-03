@@ -1,15 +1,14 @@
 //! Order-1/2/3 spatial descriptors with bounded component counts and local grids.
 //! Format tables and independent mathematical constants have separate identities.
-use super::{ChannelPacketReport, Parser, hoa::RecoverySlotSpectrum, spectrum::Trie};
+use super::{ChannelPacketReport, Parser, hoa::RecoverySlotSpectrum};
 use crate::config::{ConfigField, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::OnceLock;
 
+#[cfg(test)]
 #[path = "hoa_salient_format.rs"]
 mod format;
-use format::Format;
 
 pub const EXPANDED_PROFILE: &str = "apac-hoa-expanded-orders-v1";
 pub const EXPANDED_NUMERIC_PROFILE: &str = "apac-hoa-expanded-orders-math-v1";
@@ -200,7 +199,7 @@ pub(super) fn component_information(
                 format_sha256: constants_for_bits(coefficient_count, precision)
                     .format
                     .tables_sha256
-                    .clone(),
+                    .into(),
                 quantization_bits: (precision != 6).then_some(precision),
             }
         })
@@ -255,295 +254,30 @@ impl SalientSpatialData {
     }
 }
 
-#[derive(Deserialize)]
-struct Math {
-    numeric_profile: String,
-    tables_sha256: String,
-    azimuth_f64: Vec<[u64; 2]>,
-    elevation_f64: Vec<[u64; 2]>,
-    roots_f64: [u64; 7],
-}
-struct Constants {
-    format: Format,
-    tries: Vec<Vec<Trie>>,
-}
-struct CommonMath {
-    math_sha: String,
-    azimuth: Vec<[f64; 2]>,
-    elevation: Vec<[f64; 2]>,
-    roots: [f64; 7],
-}
+use crate::tables::SalientConstants as Constants;
 fn constants(coefficients: usize) -> &'static Constants {
     constants_for_bits(coefficients, 6)
 }
+/// Generated from the `data/hoa-salient-*format-v1.json` dictionaries and the
+/// per-order `*-shared-v1.json` tables by the build script.
 fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants {
     // Select the containing order's dictionary; callers filter groups to the
     // actual dimension. The shared dictionary data is not duplicated.
     let coefficients = ((coefficients - 1).isqrt() + 1).pow(2);
-    static DATA: [OnceLock<Constants>; 40] = [const { OnceLock::new() }; 40];
-    let (index, source, profile) = match (coefficients, precision) {
-        (4, 6) => (
-            0,
-            include_str!("../../../../data/hoa-salient-order1-format-v1.json"),
-            "apac-hoa-salient-order1-format-v1",
-        ),
-        (4, 7) => (
-            1,
-            include_str!("../../../../data/hoa-salient-order1-q7-format-v1.json"),
-            "apac-hoa-salient-order1-q7-format-v1",
-        ),
-        (4, 8) => (
-            2,
-            include_str!("../../../../data/hoa-salient-order1-q8-format-v1.json"),
-            "apac-hoa-salient-order1-q8-format-v1",
-        ),
-        (4, 9) => (
-            3,
-            include_str!("../../../../data/hoa-salient-order1-q9-format-v1.json"),
-            "apac-hoa-salient-order1-q9-format-v1",
-        ),
-        (9, 6) => (
-            4,
-            include_str!("../../../../data/hoa-salient-order2-format-v1.json"),
-            "apac-hoa-salient-order2-format-v1",
-        ),
-        (9, 7) => (
-            5,
-            include_str!("../../../../data/hoa-salient-order2-q7-format-v1.json"),
-            "apac-hoa-salient-order2-q7-format-v1",
-        ),
-        (9, 8) => (
-            6,
-            include_str!("../../../../data/hoa-salient-order2-q8-format-v1.json"),
-            "apac-hoa-salient-order2-q8-format-v1",
-        ),
-        (9, 9) => (
-            7,
-            include_str!("../../../../data/hoa-salient-order2-q9-format-v1.json"),
-            "apac-hoa-salient-order2-q9-format-v1",
-        ),
-        (16, 6) => (
-            8,
-            include_str!("../../../../data/hoa-salient-format-v1.json"),
-            "apac-hoa-salient-format-v1",
-        ),
-        (16, 7) => (
-            9,
-            include_str!("../../../../data/hoa-salient-order3-q7-format-v1.json"),
-            "apac-hoa-salient-order3-q7-format-v1",
-        ),
-        (16, 8) => (
-            10,
-            include_str!("../../../../data/hoa-salient-order3-q8-format-v1.json"),
-            "apac-hoa-salient-order3-q8-format-v1",
-        ),
-        (16, 9) => (
-            11,
-            include_str!("../../../../data/hoa-salient-order3-q9-format-v1.json"),
-            "apac-hoa-salient-order3-q9-format-v1",
-        ),
-        (25, 6) => (
-            12,
-            include_str!("../../../../data/hoa-salient-order4-format-v1.json"),
-            "apac-hoa-salient-order4-format-v1",
-        ),
-        (25, 7) => (
-            13,
-            include_str!("../../../../data/hoa-salient-order4-q7-format-v1.json"),
-            "apac-hoa-salient-order4-q7-format-v1",
-        ),
-        (25, 8) => (
-            14,
-            include_str!("../../../../data/hoa-salient-order4-q8-format-v1.json"),
-            "apac-hoa-salient-order4-q8-format-v1",
-        ),
-        (25, 9) => (
-            15,
-            include_str!("../../../../data/hoa-salient-order4-q9-format-v1.json"),
-            "apac-hoa-salient-order4-q9-format-v1",
-        ),
-        (36, 6) => (
-            16,
-            include_str!("../../../../data/hoa-salient-order5-format-v1.json"),
-            "apac-hoa-salient-order5-format-v1",
-        ),
-        (36, 7) => (
-            17,
-            include_str!("../../../../data/hoa-salient-order5-q7-format-v1.json"),
-            "apac-hoa-salient-order5-q7-format-v1",
-        ),
-        (36, 8) => (
-            18,
-            include_str!("../../../../data/hoa-salient-order5-q8-format-v1.json"),
-            "apac-hoa-salient-order5-q8-format-v1",
-        ),
-        (36, 9) => (
-            19,
-            include_str!("../../../../data/hoa-salient-order5-q9-format-v1.json"),
-            "apac-hoa-salient-order5-q9-format-v1",
-        ),
-        (49, 6) => (
-            20,
-            include_str!("../../../../data/hoa-salient-order6-format-v1.json"),
-            "apac-hoa-salient-order6-format-v1",
-        ),
-        (49, 7) => (
-            21,
-            include_str!("../../../../data/hoa-salient-order6-q7-format-v1.json"),
-            "apac-hoa-salient-order6-q7-format-v1",
-        ),
-        (49, 8) => (
-            22,
-            include_str!("../../../../data/hoa-salient-order6-q8-format-v1.json"),
-            "apac-hoa-salient-order6-q8-format-v1",
-        ),
-        (49, 9) => (
-            23,
-            include_str!("../../../../data/hoa-salient-order6-q9-format-v1.json"),
-            "apac-hoa-salient-order6-q9-format-v1",
-        ),
-        (64, 6) => (
-            24,
-            include_str!("../../../../data/hoa-salient-order7-format-v1.json"),
-            "apac-hoa-salient-order7-format-v1",
-        ),
-        (64, 7) => (
-            25,
-            include_str!("../../../../data/hoa-salient-order7-q7-format-v1.json"),
-            "apac-hoa-salient-order7-q7-format-v1",
-        ),
-        (64, 8) => (
-            26,
-            include_str!("../../../../data/hoa-salient-order7-q8-format-v1.json"),
-            "apac-hoa-salient-order7-q8-format-v1",
-        ),
-        (64, 9) => (
-            27,
-            include_str!("../../../../data/hoa-salient-order7-q9-format-v1.json"),
-            "apac-hoa-salient-order7-q9-format-v1",
-        ),
-        (81, 6) => (
-            28,
-            include_str!("../../../../data/hoa-salient-order8-format-v1.json"),
-            "apac-hoa-salient-order8-format-v1",
-        ),
-        (81, 7) => (
-            29,
-            include_str!("../../../../data/hoa-salient-order8-q7-format-v1.json"),
-            "apac-hoa-salient-order8-q7-format-v1",
-        ),
-        (81, 8) => (
-            30,
-            include_str!("../../../../data/hoa-salient-order8-q8-format-v1.json"),
-            "apac-hoa-salient-order8-q8-format-v1",
-        ),
-        (81, 9) => (
-            31,
-            include_str!("../../../../data/hoa-salient-order8-q9-format-v1.json"),
-            "apac-hoa-salient-order8-q9-format-v1",
-        ),
-        (100, 6) => (
-            32,
-            include_str!("../../../../data/hoa-salient-order9-format-v1.json"),
-            "apac-hoa-salient-order9-format-v1",
-        ),
-        (100, 7) => (
-            33,
-            include_str!("../../../../data/hoa-salient-order9-q7-format-v1.json"),
-            "apac-hoa-salient-order9-q7-format-v1",
-        ),
-        (100, 8) => (
-            34,
-            include_str!("../../../../data/hoa-salient-order9-q8-format-v1.json"),
-            "apac-hoa-salient-order9-q8-format-v1",
-        ),
-        (100, 9) => (
-            35,
-            include_str!("../../../../data/hoa-salient-order9-q9-format-v1.json"),
-            "apac-hoa-salient-order9-q9-format-v1",
-        ),
-        (121, 6) => (
-            36,
-            include_str!("../../../../data/hoa-salient-order10-format-v1.json"),
-            "apac-hoa-salient-order10-format-v1",
-        ),
-        (121, 7) => (
-            37,
-            include_str!("../../../../data/hoa-salient-order10-q7-format-v1.json"),
-            "apac-hoa-salient-order10-q7-format-v1",
-        ),
-        (121, 8) => (
-            38,
-            include_str!("../../../../data/hoa-salient-order10-q8-format-v1.json"),
-            "apac-hoa-salient-order10-q8-format-v1",
-        ),
-        (121, 9) => (
-            39,
-            include_str!("../../../../data/hoa-salient-order10-q9-format-v1.json"),
-            "apac-hoa-salient-order10-q9-format-v1",
-        ),
-        _ => unreachable!("qualified HOA dictionary key"),
-    };
-    DATA[index].get_or_init(|| {
-        let format = Format::load(source, coefficients, precision);
-        assert_eq!(format.format_profile, profile);
-        assert_eq!(format.modes.len(), 6);
-        let tries = format
-            .modes
-            .iter()
-            .enumerate()
-            .map(|(index, m)| {
-                assert_eq!(m.mode, index);
-                assert!(
-                    m.groups
-                        .iter()
-                        .flat_map(|group| group.iter())
-                        .all(|&i| i < coefficients)
-                );
-                assert!(
-                    m.matrices_f32
-                        .iter()
-                        .all(|m| m.len() == coefficients * coefficients)
-                );
-                m.codebooks
-                    .iter()
-                    .map(|book| {
-                        assert_eq!(book.len(), 1usize << precision);
-                        Trie::build(
-                            &book.iter().map(|v| v.1).collect::<Vec<_>>(),
-                            &book.iter().map(|v| v.0).collect::<Vec<_>>(),
-                        )
-                    })
-                    .collect()
-            })
-            .collect();
-        Constants { format, tries }
-    })
+    let order = coefficients.isqrt() - 1;
+    if !(1..=10).contains(&order) || !(6..=9).contains(&precision) {
+        unreachable!("qualified HOA dictionary key");
+    }
+    let constants = &crate::tables::SALIENT_CONSTANTS[(order - 1) * 4 + usize::from(precision - 6)];
+    debug_assert_eq!(
+        (constants.coefficients, constants.precision),
+        (coefficients, precision)
+    );
+    constants
 }
-fn common_math() -> &'static CommonMath {
-    static DATA: OnceLock<CommonMath> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let math: Math =
-            serde_json::from_str(include_str!("../../../../data/hoa-salient-math-v1.json"))
-                .expect("shared HOA angle and root constants");
-        assert_eq!(math.numeric_profile, NUMERIC_PROFILE);
-        assert_eq!(math.azimuth_f64.len(), 512);
-        assert_eq!(math.elevation_f64.len(), 256);
-        CommonMath {
-            math_sha: math.tables_sha256,
-            azimuth: math
-                .azimuth_f64
-                .into_iter()
-                .map(|v| v.map(f64::from_bits))
-                .collect(),
-            elevation: math
-                .elevation_f64
-                .into_iter()
-                .map(|v| v.map(f64::from_bits))
-                .collect(),
-            roots: math.roots_f64.map(f64::from_bits),
-        }
-    })
+/// Generated from `data/hoa-salient-math-v1.json` by the build script.
+fn common_math() -> &'static crate::tables::SalientMath {
+    &crate::tables::SALIENT_MATH
 }
 pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
     match coefficients {
@@ -555,10 +289,10 @@ pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
     }
 }
 pub fn format_sha256(coefficients: usize) -> &'static str {
-    &constants(coefficients).format.tables_sha256
+    constants(coefficients).format.tables_sha256
 }
 pub fn math_sha256() -> &'static str {
-    &common_math().math_sha
+    common_math().math_sha
 }
 
 fn huffman_for_bits(
@@ -808,35 +542,15 @@ pub(super) fn read(
     })
 }
 
-#[derive(Deserialize)]
-struct ExpandedMath {
-    numeric_profile: String,
-    tables_sha256: String,
-    normalizations_f64: Vec<Vec<u64>>,
-}
-fn expanded_math() -> &'static ExpandedMath {
-    static DATA: OnceLock<ExpandedMath> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let data: ExpandedMath = serde_json::from_str(include_str!(
-            "../../../../data/hoa-expanded-orders-math-v1.json"
-        ))
-        .expect("higher-order normalizations");
-        assert_eq!(data.numeric_profile, EXPANDED_NUMERIC_PROFILE);
-        assert_eq!(data.normalizations_f64.len(), 11);
-        for (order, row) in data.normalizations_f64.iter().enumerate() {
-            assert_eq!(row.len(), (order + 1).pow(2));
-        }
-        data
-    })
-}
+/// Generated from `data/hoa-expanded-orders-math-v1.json` by the build script.
 pub fn expanded_math_sha256() -> &'static str {
-    &expanded_math().tables_sha256
+    crate::tables::SALIENT_EXPANDED_MATH_SHA256
 }
 fn expanded_direction(azimuth: u16, elevation: u8, coefficients: usize) -> Vec<f64> {
     let order = coefficients.isqrt() - 1;
     let common = common_math();
     let [radial, z] = common.elevation[usize::from(elevation)];
-    let weights = &expanded_math().normalizations_f64[order];
+    let weights = crate::tables::SALIENT_EXPANDED_NORMALIZATIONS[order];
     let mut output = vec![0.; coefficients];
     let mut diagonal = 1.;
     for m in 0..=order {
@@ -1290,9 +1004,10 @@ mod tests {
     fn all_spatial_codewords_and_bit_truncations_preserve_the_marker() {
         for coefficients in [4, 9, 16] {
             let c = constants(coefficients);
+            let codebooks = format::stored_codebooks(coefficients.isqrt() - 1, 6);
             let mut checked = 0;
-            for (mode, m) in c.format.modes.iter().enumerate() {
-                for (book, entries) in m.codebooks.iter().enumerate() {
+            for (mode, books) in codebooks.iter().enumerate() {
+                for (book, entries) in books.iter().enumerate() {
                     for (value, &(length, code)) in entries.iter().enumerate() {
                         let wire: Vec<_> = (0..length)
                             .rev()

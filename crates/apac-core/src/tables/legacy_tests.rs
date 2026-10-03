@@ -598,3 +598,141 @@ fn hoa_source_layouts_and_file_identities_match_the_json_loader() {
         file_sha256("hoa-static-remapping-format-v1.json")
     );
 }
+
+#[test]
+fn hoa_salient_dictionaries_match_the_packed_json_loader() {
+    #[derive(Deserialize)]
+    struct SharedMode {
+        group_indices: Vec<usize>,
+        signs: bool,
+        matrix_indices: Vec<usize>,
+    }
+    #[derive(Deserialize)]
+    struct Shared {
+        modes: Vec<SharedMode>,
+        groups: Vec<Vec<usize>>,
+        matrix_encoding: String,
+        matrices_f32: Vec<String>,
+    }
+    #[derive(Deserialize)]
+    struct StoredMode {
+        codebooks: Vec<String>,
+    }
+    #[derive(Deserialize)]
+    struct Stored {
+        format_profile: String,
+        tables_sha256: String,
+        codebook_encoding: String,
+        modes: Vec<StoredMode>,
+    }
+    let mut tries = 0;
+    for order in 1usize..=10 {
+        let coefficients = (order + 1).pow(2);
+        let shared: Shared =
+            serde_json::from_str(&data(&format!("hoa-salient-order{order}-shared-v1.json")))
+                .unwrap();
+        assert_eq!(shared.matrix_encoding, super::packed::MATRIX_ENCODING);
+        let matrices: Vec<Vec<u32>> = shared
+            .matrices_f32
+            .iter()
+            .map(|hex| super::packed::matrix(hex, coefficients * coefficients).unwrap())
+            .collect();
+        for precision in 6u8..=9 {
+            let (file, profile) = match (order, precision) {
+                (3, 6) => (
+                    "hoa-salient-format-v1.json".to_owned(),
+                    "apac-hoa-salient-format-v1".to_owned(),
+                ),
+                (_, 6) => (
+                    format!("hoa-salient-order{order}-format-v1.json"),
+                    format!("apac-hoa-salient-order{order}-format-v1"),
+                ),
+                _ => (
+                    format!("hoa-salient-order{order}-q{precision}-format-v1.json"),
+                    format!("apac-hoa-salient-order{order}-q{precision}-format-v1"),
+                ),
+            };
+            let stored: Stored = serde_json::from_str(&data(&file)).unwrap();
+            assert_eq!(stored.format_profile, profile);
+            assert_eq!(stored.codebook_encoding, super::packed::CODEBOOK_ENCODING);
+            let constants = &super::SALIENT_CONSTANTS[(order - 1) * 4 + usize::from(precision - 6)];
+            assert_eq!(
+                (constants.coefficients, constants.precision),
+                (coefficients, precision)
+            );
+            assert_eq!(constants.format.tables_sha256, stored.tables_sha256);
+            assert_eq!(constants.format.modes.len(), 6);
+            for (mode, (actual, common)) in
+                constants.format.modes.iter().zip(&shared.modes).enumerate()
+            {
+                assert_eq!(actual.signs, common.signs);
+                let groups: Vec<&[usize]> = common
+                    .group_indices
+                    .iter()
+                    .map(|&i| shared.groups[i].as_slice())
+                    .collect();
+                assert_eq!(actual.groups, groups.as_slice());
+                let expected: Vec<&[u32]> = common
+                    .matrix_indices
+                    .iter()
+                    .map(|&i| matrices[i].as_slice())
+                    .collect();
+                assert_eq!(actual.matrices_f32, expected.as_slice());
+                let books = &stored.modes[mode].codebooks;
+                assert_eq!(constants.tries[mode].len(), books.len());
+                for (trie, hex) in constants.tries[mode].iter().zip(books) {
+                    let book = super::packed::codebook(hex, precision).unwrap();
+                    let codes: Vec<u32> = book.iter().map(|v| v.1).collect();
+                    let bits: Vec<usize> = book.iter().map(|v| v.0).collect();
+                    assert_trie(trie, &codes, &bits);
+                    assert_eq!(
+                        trie.nodes(),
+                        super::trie_build::build(&codes, &bits).as_slice()
+                    );
+                    tries += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(tries, 320);
+}
+
+#[test]
+fn hoa_salient_math_and_normalizations_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct Math {
+        numeric_profile: String,
+        tables_sha256: String,
+        azimuth_f64: Vec<[u64; 2]>,
+        elevation_f64: Vec<[u64; 2]>,
+        roots_f64: [u64; 7],
+    }
+    #[derive(Deserialize)]
+    struct Expanded {
+        numeric_profile: String,
+        tables_sha256: String,
+        normalizations_f64: Vec<Vec<u64>>,
+    }
+    let math: Math = serde_json::from_str(&data("hoa-salient-math-v1.json")).unwrap();
+    assert_eq!(math.numeric_profile, "apac-hoa-salient-math-v1");
+    assert_eq!(crate::frame::hoa_salient_math_sha256(), math.tables_sha256);
+    let actual = &super::SALIENT_MATH;
+    assert_eq!(actual.math_sha, math.tables_sha256);
+    let pairs = |v: &[[f64; 2]]| v.iter().map(|p| p.map(f64::to_bits)).collect::<Vec<_>>();
+    assert_eq!(pairs(actual.azimuth), math.azimuth_f64);
+    assert_eq!(pairs(actual.elevation), math.elevation_f64);
+    assert_eq!(actual.roots.map(f64::to_bits), math.roots_f64);
+    let expanded: Expanded =
+        serde_json::from_str(&data("hoa-expanded-orders-math-v1.json")).unwrap();
+    assert_eq!(expanded.numeric_profile, "apac-hoa-expanded-orders-math-v1");
+    assert_eq!(super::SALIENT_EXPANDED_MATH_SHA256, expanded.tables_sha256);
+    assert_eq!(
+        crate::frame::hoa_expanded_math_sha256(),
+        expanded.tables_sha256
+    );
+    let rows: Vec<Vec<u64>> = super::SALIENT_EXPANDED_NORMALIZATIONS
+        .iter()
+        .map(|r| r.to_vec())
+        .collect();
+    assert_eq!(rows, expanded.normalizations_f64);
+}

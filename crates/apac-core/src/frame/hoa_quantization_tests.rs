@@ -25,8 +25,9 @@ pub(super) fn check_words(counts: &[usize], precisions: std::ops::RangeInclusive
     for &count in counts {
         for precision in precisions.clone() {
             let c = constants_for_bits(count, precision);
-            for (mode, format) in c.format.modes.iter().enumerate() {
-                for (book, entries) in format.codebooks.iter().enumerate() {
+            let codebooks = super::format::stored_codebooks((count - 1).isqrt(), precision);
+            for (mode, books) in codebooks.iter().enumerate() {
+                for (book, entries) in books.iter().enumerate() {
                     for (value, &(length, code)) in entries.iter().enumerate() {
                         let bit_count = length + 5;
                         let size = bit_count.div_ceil(8);

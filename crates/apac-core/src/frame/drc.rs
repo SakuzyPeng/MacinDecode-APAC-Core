@@ -7,7 +7,6 @@ use crate::config::{
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
 use serde::Serialize;
-use serde_json::{Value, json};
 
 pub const RULES_VERSION: &str = "apac-drc-payload-v1";
 const ROOT: &str = "ancillary.loudness_drc";
@@ -406,19 +405,6 @@ impl DrcState {
                 .iter()
                 .all(|s| s.iter().any(|n| n.time < 1024))
         }
-    }
-    pub(crate) fn metadata(&self) -> Value {
-        let mut value = json!({"channels":self.channels,"configuration":self.configuration,"previous_nodes":self.previous_nodes});
-        if !self.previous_sequences.is_empty() {
-            value["previous_sequences"] = json!(self.previous_sequences);
-        }
-        if self.shared_syntax_used {
-            value["shared_drc_syntax_profile"] = json!(super::drc_shared::PROFILE);
-        }
-        if let Some(graph) = &self.scene_graph {
-            value["scene_graph"] = json!(graph);
-        }
-        value
     }
 }
 pub(super) fn gain_delta(bits: &mut BitReader<'_>) -> Result<i32, ParseError> {

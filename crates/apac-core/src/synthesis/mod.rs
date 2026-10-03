@@ -277,13 +277,38 @@ impl SqDecoder {
         self.channels.fill(ChannelState::new());
         self.scan_workspace.numeric_elements = 0;
     }
+    /// The committed state the research layer digests as
+    /// `metadata_after_processing_sha256`.
     #[doc(hidden)]
-    pub fn metadata_sha256(&self) -> String {
-        let mut value = self.drc.metadata();
-        if self.stream_context.is_some() {
-            value["components"] = serde_json::json!(self.stream_state);
-        } else if self.hoa_context.is_some() {
-            value["hoa"] = serde_json::json!(self.hoa_state);
+    pub fn metadata_state(&self) -> MetadataState<'_> {
+        MetadataState {
+            drc: &self.drc,
+            components: self.stream_context.is_some().then_some(&self.stream_state),
+            hoa: (self.stream_context.is_none() && self.hoa_context.is_some())
+                .then_some(&self.hoa_state),
+        }
+    }
+    /// Test fingerprint of the committed state; the same JSON the research
+    /// layer digests (`apac_research::decode::metadata_sha256`).
+    #[cfg(test)]
+    pub(crate) fn metadata_sha256(&self) -> String {
+        let state = self.metadata_state();
+        let drc = state.drc;
+        let mut value = serde_json::json!({"channels":drc.channels,"configuration":drc.configuration,"previous_nodes":drc.previous_nodes});
+        if !drc.previous_sequences.is_empty() {
+            value["previous_sequences"] = serde_json::json!(drc.previous_sequences);
+        }
+        if drc.shared_syntax_used {
+            value["shared_drc_syntax_profile"] =
+                serde_json::json!(crate::frame::HOA_SHARED_DRC_PROFILE);
+        }
+        if let Some(graph) = &drc.scene_graph {
+            value["scene_graph"] = serde_json::json!(graph);
+        }
+        if let Some(components) = state.components {
+            value["components"] = serde_json::json!(components);
+        } else if let Some(hoa) = state.hoa {
+            value["hoa"] = serde_json::json!(hoa);
         }
         crate::model::sha256(&serde_json::to_vec(&value).expect("finite metadata"))
     }
@@ -614,6 +639,13 @@ impl SqDecoder {
     }
 }
 
+/// Borrowed decoder state: DRC history plus the composite or HOA state.
+#[doc(hidden)]
+pub struct MetadataState<'a> {
+    pub drc: &'a DrcState,
+    pub components: Option<&'a crate::frame::stream::StreamState>,
+    pub hoa: Option<&'a crate::frame::HoaState>,
+}
 #[derive(Default)]
 #[doc(hidden)]
 pub struct FrameStateCounts {

@@ -25,6 +25,28 @@ pub struct SqDecodeOptions {
     pub frames: Option<u64>,
 }
 
+/// `metadata_after_processing_sha256`: the SHA-256 of the committed DRC, scene
+/// graph and composite/HOA state as a key-sorted JSON object.
+pub(crate) fn metadata_sha256(decoder: &SqDecoder) -> String {
+    let state = decoder.metadata_state();
+    let drc = state.drc;
+    let mut value = json!({"channels":drc.channels,"configuration":drc.configuration,"previous_nodes":drc.previous_nodes});
+    if !drc.previous_sequences.is_empty() {
+        value["previous_sequences"] = json!(drc.previous_sequences);
+    }
+    if drc.shared_syntax_used {
+        value["shared_drc_syntax_profile"] = json!(apac_core::frame::HOA_SHARED_DRC_PROFILE);
+    }
+    if let Some(graph) = &drc.scene_graph {
+        value["scene_graph"] = json!(graph);
+    }
+    if let Some(components) = state.components {
+        value["components"] = json!(components);
+    } else if let Some(hoa) = state.hoa {
+        value["hoa"] = json!(hoa);
+    }
+    sha256(&serde_json::to_vec(&value).expect("finite metadata"))
+}
 pub fn decode_sq(input: &Path, destination: &Path, limit: u64) -> Result<Value> {
     decode_sq_with_options(input, destination, SqDecodeOptions::default(), limit)
 }
@@ -150,7 +172,7 @@ fn decode_with_access(
             break;
         }
         if access.is_some() && range.frames != 0 && raw / 1024 == range.raw_start / 1024 {
-            state_before_output = Some(decoder.metadata_sha256());
+            state_before_output = Some(metadata_sha256(&decoder));
         }
         if fast && synthesis_start.is_none_or(|start| packet_index < start) {
             let timer = Instant::now();
@@ -573,7 +595,7 @@ fn decode_with_access(
             "prefix_numeric_elements":numeric_prefix_elements,"prefix_bounded_elements":bounded_prefix_elements,
             "synthesized_packets":decoded_packets,"synthesis_start_packet":first_synthesis_packet,
             "external_warmup_packets":warmup_packets,"metadata_before_output_sha256":state_before_output,
-            "metadata_after_processing_sha256":decoder.metadata_sha256(),
+            "metadata_after_processing_sha256":metadata_sha256(&decoder),
             "timings_seconds":{"initial_verification":preparation_seconds,"read_and_final_verification":read_seconds,
                 "prefix_scan":scan_seconds,"full_decode_parse":full_parse_seconds,"synthesis":render_seconds,
                 "packet_decode_and_synthesis":synthesis_seconds,"total":total_timer.elapsed().as_secs_f64()}});

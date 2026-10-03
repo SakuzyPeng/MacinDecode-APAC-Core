@@ -20,6 +20,11 @@ impl Output {
         self.text.push('\n');
     }
 
+    /// Marks the next item as compiled only into test builds.
+    pub fn test_only(&mut self) {
+        self.text.push_str("#[cfg(test)]\n");
+    }
+
     /// `static NAME: [TYPE; N] = [...]`, wrapping long rows. Returns `NAME`.
     pub fn array<T: Display>(
         &mut self,

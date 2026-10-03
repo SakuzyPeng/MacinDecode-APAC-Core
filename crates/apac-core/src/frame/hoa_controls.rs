@@ -6,7 +6,6 @@ use super::{
 use crate::config::{CookieReport, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 
 pub const PROFILE: &str = "apac-hoa-spatial-controls-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-spatial-controls-math-v1";
@@ -83,59 +82,19 @@ impl HoaSpatialControls {
     }
 }
 
-#[derive(Deserialize)]
-struct Grid {
-    method: usize,
-    subbands: usize,
-    long_ends: Vec<usize>,
-}
-#[derive(Deserialize)]
-struct Format {
-    format_profile: String,
-    format_sha256: String,
-    mean_coefficients_f32: Vec<u32>,
-    tables: Vec<Grid>,
-}
-fn format() -> &'static Format {
-    static DATA: OnceLock<Format> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let f: Format = serde_json::from_str(include_str!(
-            "../../../../data/hoa-spatial-controls-format-v1.json"
-        ))
-        .expect("spatial control tables");
-        assert_eq!(f.format_profile, "apac-hoa-spatial-controls-format-v1");
-        assert_eq!(f.mean_coefficients_f32.len(), 121);
-        assert_eq!(f.tables.len(), 48);
-        assert!(
-            f.mean_coefficients_f32
-                .iter()
-                .all(|&w| f32::from_bits(w).is_finite())
-        );
-        for (i, g) in f.tables.iter().enumerate() {
-            assert_eq!((g.method, g.subbands), (i / 16, i % 16 + 1));
-            assert_eq!(g.long_ends.len(), g.subbands);
-            assert_eq!(g.long_ends.last(), Some(&1024));
-            assert!(g.long_ends[0] > 0 && g.long_ends.windows(2).all(|w| w[0] < w[1]));
-        }
-        f
-    })
-}
+/// Generated from `data/hoa-spatial-controls-format-v1.json` by the build script.
 pub fn format_sha256() -> &'static str {
-    &format().format_sha256
+    crate::tables::HOA_CONTROLS_FORMAT_SHA256
 }
+/// SHA-256 of `data/hoa-frame-configuration-state-v2.json`, computed at build time.
 pub fn frame_state_sha256() -> &'static str {
-    static HASH: OnceLock<String> = OnceLock::new();
-    HASH.get_or_init(|| {
-        crate::model::sha256(include_bytes!(
-            "../../../../data/hoa-frame-configuration-state-v2.json"
-        ))
-    })
+    crate::tables::HOA_FRAME_CONFIGURATION_STATE_SHA256
 }
 pub(super) fn mean(index: usize) -> f64 {
-    f64::from(f32::from_bits(format().mean_coefficients_f32[index]))
+    f64::from(f32::from_bits(crate::tables::HOA_CONTROL_MEANS[index]))
 }
 pub(super) fn boundaries(count: usize, method: usize) -> &'static [usize] {
-    &format().tables[method * 16 + count - 1].long_ends
+    crate::tables::HOA_CONTROL_GRIDS[method * 16 + count - 1].long_ends
 }
 
 /// Retain inactive component descriptors so flag_c=false can restore their shape.

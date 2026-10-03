@@ -4,13 +4,9 @@ use crate::config::ParseError;
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
+/// SHA-256 of `data/hoa-transports-format-v1.json`, computed at build time.
 pub fn format_sha256() -> &'static str {
-    static HASH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    HASH.get_or_init(|| {
-        crate::model::sha256(include_bytes!(
-            "../../../../data/hoa-transports-format-v1.json"
-        ))
-    })
+    crate::tables::HOA_TRANSPORT_FORMAT_SHA256
 }
 
 #[cfg(test)]

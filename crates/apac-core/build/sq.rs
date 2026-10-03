@@ -11,8 +11,15 @@ struct Book {
 }
 
 /// Emits a codebook's arrays plus its trie; returns (codebook expr, trie expr).
-fn book(out: &mut Output, name: &str, book: &Book) -> (String, String) {
+/// Codebooks that only tests read are compiled into test builds only.
+fn book(out: &mut Output, name: &str, book: &Book, test_only: bool) -> (String, String) {
+    if test_only {
+        out.test_only();
+    }
     let codes = out.array(false, &format!("{name}_CODES"), "u32", &book.codes);
+    if test_only {
+        out.test_only();
+    }
     let bits = out.array(false, &format!("{name}_BITS"), "usize", &book.bits);
     let nodes = trie_build::build(&book.codes, &book.bits);
     let trie = out.array(
@@ -113,17 +120,19 @@ struct SqBooks {
 /// SQ spectral and scale-factor codebooks; trie 0 is the scale-factor book.
 pub fn codebooks(out: &mut Output) {
     let books: SqBooks = data_json("sq-codebooks.json");
-    let (scalefactor, scalefactor_trie) = book(out, "SQ_SCALEFACTOR", &books.scalefactor);
+    let (scalefactor, scalefactor_trie) = book(out, "SQ_SCALEFACTOR", &books.scalefactor, true);
     let mut spectral = Vec::new();
     let mut tries = vec![scalefactor_trie];
     for (i, b) in books.spectral.iter().enumerate() {
-        let (codebook, trie) = book(out, &format!("SQ_SPECTRAL_{}", i + 1), b);
+        let (codebook, trie) = book(out, &format!("SQ_SPECTRAL_{}", i + 1), b, true);
         spectral.push(codebook);
         tries.push(trie);
     }
+    out.test_only();
     out.raw(&format!(
         "pub static SQ_SCALEFACTOR: crate::tables::Codebook = {scalefactor};"
     ));
+    out.test_only();
     out.array(true, "SQ_SPECTRAL", "crate::tables::Codebook", spectral);
     out.array(true, "SQ_TRIES", "crate::tables::Trie", tries);
     out.array(true, "SQ_LONG_OFFSETS", "usize", &books.long_offsets);
@@ -152,8 +161,8 @@ pub fn cac(out: &mut Output) {
     let books: CacBooks = data_json("cac-codebooks.json");
     assert_eq!(books.gain.codes.len(), 35);
     assert_eq!(books.repeat.codes.len(), 44);
-    let (gain, gain_trie) = book(out, "CAC_GAIN", &books.gain);
-    let (repeat, repeat_trie) = book(out, "CAC_REPEAT", &books.repeat);
+    let (gain, gain_trie) = book(out, "CAC_GAIN", &books.gain, false);
+    let (repeat, repeat_trie) = book(out, "CAC_REPEAT", &books.repeat, false);
     out.raw(&format!(
         "pub static CAC_GAIN: crate::tables::Codebook = {gain};"
     ));

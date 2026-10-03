@@ -258,3 +258,343 @@ fn bwe2_constants_match_the_json_loader() {
         math.autocorrelation_loading_f64
     );
 }
+
+fn file_sha256(name: &str) -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .join(name);
+    crate::model::sha256(&std::fs::read(path).unwrap())
+}
+
+#[test]
+fn shared_configuration_rates_offsets_and_profiles_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct Rate {
+        sample_rate: u64,
+        sfb_rate: u64,
+        long: String,
+        short: String,
+        tns_long_limit: usize,
+        tns_short_limit: usize,
+    }
+    #[derive(Deserialize)]
+    struct Limit {
+        r#type: u8,
+        maximum_channels: u64,
+    }
+    #[derive(Deserialize)]
+    struct Profile {
+        profile: u8,
+        levels: Vec<Vec<Limit>>,
+        layout_tags: Vec<u32>,
+    }
+    #[derive(Deserialize)]
+    struct Format {
+        format_profile: String,
+        format_sha256: String,
+        rates: Vec<Rate>,
+        offset_arrays: BTreeMap<String, Vec<usize>>,
+        profiles: Vec<Profile>,
+    }
+    let format: Format = serde_json::from_str(&data("hoa-shared-config-format-v1.json")).unwrap();
+    assert_eq!(
+        format.format_profile,
+        crate::frame::HOA_SHARED_CONFIG_PROFILE
+    );
+    assert_eq!(super::SFB_FORMAT_SHA256, format.format_sha256);
+    // The former offsets() lookup: two legacy keys name the SQ tables.
+    let offsets = |key: &str| -> &[usize] {
+        match key {
+            "legacy-long" => &super::SQ_LONG_OFFSETS,
+            "legacy-short" => &super::SQ_SHORT_OFFSETS,
+            _ => &format.offset_arrays[key],
+        }
+    };
+    assert_eq!(super::SFB_RATES.len(), format.rates.len());
+    for (actual, expected) in super::SFB_RATES.iter().zip(&format.rates) {
+        assert_eq!(
+            (actual.sample_rate, actual.sfb_rate),
+            (expected.sample_rate, expected.sfb_rate)
+        );
+        assert_eq!(
+            (actual.tns_long_limit, actual.tns_short_limit),
+            (expected.tns_long_limit, expected.tns_short_limit)
+        );
+        assert_eq!(actual.long, offsets(&expected.long));
+        assert_eq!(actual.short, offsets(&expected.short));
+    }
+    assert_eq!(super::SFB_PROFILES.len(), format.profiles.len());
+    for (actual, expected) in super::SFB_PROFILES.iter().zip(&format.profiles) {
+        assert_eq!(actual.profile, expected.profile);
+        assert_eq!(actual.layout_tags, expected.layout_tags.as_slice());
+        assert_eq!(actual.levels.len(), expected.levels.len());
+        for (a, e) in actual.levels.iter().zip(&expected.levels) {
+            let a: Vec<_> = a.iter().map(|l| (l.kind, l.maximum_channels)).collect();
+            let e: Vec<_> = e.iter().map(|l| (l.r#type, l.maximum_channels)).collect();
+            assert_eq!(a, e);
+        }
+    }
+}
+
+#[test]
+fn shared_drc_codes_and_profile_limits_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct Code {
+        width: usize,
+        code: u16,
+        value: i32,
+    }
+    #[derive(Deserialize)]
+    struct Tables {
+        format_profile: String,
+        format_sha256: String,
+        clipping: Vec<Code>,
+        slopes: Vec<Code>,
+    }
+    let tables: Tables = serde_json::from_str(&data("hoa-shared-drc-format-v1.json")).unwrap();
+    assert_eq!(tables.format_profile, crate::frame::HOA_SHARED_DRC_PROFILE);
+    assert_eq!(
+        crate::frame::hoa_shared_drc_format_sha256(),
+        tables.format_sha256
+    );
+    let codes = |c: &[super::DrcCode]| {
+        c.iter()
+            .map(|c| (c.width, c.code, c.value))
+            .collect::<Vec<_>>()
+    };
+    let legacy = |c: &[Code]| {
+        c.iter()
+            .map(|c| (c.width, c.code, c.value))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(codes(&super::DRC_CLIPPING), legacy(&tables.clipping));
+    assert_eq!(codes(&super::DRC_SLOPES), legacy(&tables.slopes));
+
+    #[derive(Deserialize)]
+    struct Entry {
+        profile_id: u8,
+        maximum_output_channels_by_level: Vec<u64>,
+    }
+    #[derive(Deserialize)]
+    struct Table {
+        profiles: Vec<Entry>,
+    }
+    let table: Table = serde_json::from_str(&data("hoa-profile-levels-v1.json")).unwrap();
+    let actual: Vec<_> = super::HOA_PROFILE_LIMITS
+        .iter()
+        .map(|e| (e.profile_id, e.maximum_output_channels_by_level.to_vec()))
+        .collect();
+    let expected: Vec<_> = table
+        .profiles
+        .into_iter()
+        .map(|e| (e.profile_id, e.maximum_output_channels_by_level))
+        .collect();
+    assert_eq!(actual, expected);
+}
+
+#[test]
+fn hoa_ambient_and_control_tables_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct Ambient {
+        format_sha256: String,
+        tables_sha256: String,
+        decoder_matrices_f64: [[u64; 16]; 3],
+    }
+    let ambient: Ambient =
+        serde_json::from_str(&data("hoa-static-ambient-tables-v1.json")).unwrap();
+    assert_eq!(
+        crate::frame::hoa_ambient_format_sha256(),
+        ambient.format_sha256
+    );
+    assert_eq!(
+        crate::frame::hoa_ambient_math_sha256(),
+        ambient.tables_sha256
+    );
+    assert_eq!(super::HOA_AMBIENT_MATRICES, ambient.decoder_matrices_f64);
+
+    #[derive(Deserialize)]
+    struct Grid {
+        long_ends: Vec<usize>,
+    }
+    #[derive(Deserialize)]
+    struct Controls {
+        format_sha256: String,
+        mean_coefficients_f32: Vec<u32>,
+        tables: Vec<Grid>,
+    }
+    let controls: Controls =
+        serde_json::from_str(&data("hoa-spatial-controls-format-v1.json")).unwrap();
+    assert_eq!(
+        crate::frame::hoa_spatial_controls_format_sha256(),
+        controls.format_sha256
+    );
+    assert_eq!(
+        super::HOA_CONTROL_MEANS,
+        controls.mean_coefficients_f32.as_slice()
+    );
+    assert_eq!(super::HOA_CONTROL_GRIDS.len(), controls.tables.len());
+    for (actual, expected) in super::HOA_CONTROL_GRIDS.iter().zip(&controls.tables) {
+        assert_eq!(actual.long_ends, expected.long_ends.as_slice());
+    }
+    assert_eq!(
+        crate::frame::hoa_frame_configuration_state_sha256(),
+        file_sha256("hoa-frame-configuration-state-v2.json")
+    );
+}
+
+#[test]
+fn hoa_dynamic_and_salient_grids_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct Dynamic {
+        format_sha256: String,
+        long_ends: [[usize; 8]; 3],
+        short_ends: [[usize; 8]; 3],
+    }
+    #[derive(Deserialize)]
+    struct SubbandTable {
+        long_ends: [Vec<usize>; 3],
+        short_ends: [Vec<usize>; 3],
+    }
+    #[derive(Deserialize)]
+    struct Extended {
+        format_sha256: String,
+        tables: Vec<SubbandTable>,
+    }
+    let dynamic: Dynamic = serde_json::from_str(&data("hoa-dynamic-format-v1.json")).unwrap();
+    let extended: Extended = serde_json::from_str(&data("hoa-dynamic-format-v2.json")).unwrap();
+    assert_eq!(
+        crate::frame::hoa_dynamic_format_sha256(8),
+        dynamic.format_sha256
+    );
+    assert_eq!(
+        crate::frame::hoa_dynamic_format_sha256(1),
+        extended.format_sha256
+    );
+    assert_eq!(super::HOA_DYNAMIC_LONG_ENDS, dynamic.long_ends);
+    assert_eq!(super::HOA_DYNAMIC_SHORT_ENDS, dynamic.short_ends);
+    assert_eq!(super::HOA_DYNAMIC_SUBBANDS.len(), extended.tables.len());
+    for (actual, expected) in super::HOA_DYNAMIC_SUBBANDS.iter().zip(&extended.tables) {
+        for method in 0..3 {
+            assert_eq!(
+                actual.long_ends[method],
+                expected.long_ends[method].as_slice()
+            );
+            assert_eq!(
+                actual.short_ends[method],
+                expected.short_ends[method].as_slice()
+            );
+        }
+    }
+    assert_eq!(
+        crate::frame::hoa_dynamic_domains_format_sha256(),
+        file_sha256("hoa-dynamic-domains-format-v1.json")
+    );
+
+    #[derive(Deserialize)]
+    struct Grid {
+        long_ends: Vec<usize>,
+        short_ends: Vec<usize>,
+    }
+    #[derive(Deserialize)]
+    struct Subbands {
+        format_sha256: String,
+        tables: Vec<Grid>,
+    }
+    #[derive(Deserialize)]
+    struct MethodGrid {
+        #[serde(flatten)]
+        grid: Grid,
+    }
+    #[derive(Deserialize)]
+    struct Partition {
+        format_sha256: String,
+        tables: Vec<MethodGrid>,
+    }
+    let subbands: Subbands =
+        serde_json::from_str(&data("hoa-salient-subbands-format-v1.json")).unwrap();
+    let partition: Partition =
+        serde_json::from_str(&data("hoa-salient-subbands-format-v2.json")).unwrap();
+    assert_eq!(
+        crate::frame::hoa_salient_subbands_format_sha256(0),
+        subbands.format_sha256
+    );
+    assert_eq!(
+        crate::frame::hoa_salient_subbands_format_sha256(1),
+        partition.format_sha256
+    );
+    let pairs = |grids: &[super::HoaSubbandGrid]| {
+        grids
+            .iter()
+            .map(|g| (g.long_ends.to_vec(), g.short_ends.to_vec()))
+            .collect::<Vec<_>>()
+    };
+    let legacy = |grids: Vec<&Grid>| {
+        grids
+            .into_iter()
+            .map(|g| (g.long_ends.clone(), g.short_ends.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        pairs(&super::HOA_SALIENT_SUBBANDS),
+        legacy(subbands.tables.iter().collect())
+    );
+    assert_eq!(
+        pairs(&super::HOA_SALIENT_PARTITIONS),
+        legacy(partition.tables.iter().map(|t| &t.grid).collect())
+    );
+}
+
+#[test]
+fn hoa_source_layouts_and_file_identities_match_the_json_loader() {
+    #[derive(Deserialize)]
+    struct LayoutEntry {
+        tag: u32,
+        channel_labels: Vec<u32>,
+        lfe_indices: Vec<usize>,
+        matrix_id: String,
+        matrix_columns: usize,
+        matrix_available: bool,
+    }
+    #[derive(Deserialize)]
+    struct Format {
+        format_profile: String,
+        format_sha256: String,
+        layouts: Vec<LayoutEntry>,
+        matrices: BTreeMap<String, Vec<u32>>,
+        accepted_layout_tags: Vec<u32>,
+    }
+    let format: Format = serde_json::from_str(&data("hoa-source-layout-format-v1.json")).unwrap();
+    assert_eq!(
+        format.format_profile,
+        crate::frame::HOA_SOURCE_LAYOUT_PROFILE
+    );
+    assert_eq!(
+        crate::frame::hoa_source_layout_format_sha256(),
+        format.format_sha256
+    );
+    assert_eq!(
+        super::HOA_SOURCE_ACCEPTED_TAGS,
+        format.accepted_layout_tags.as_slice()
+    );
+    assert_eq!(super::HOA_SOURCE_LAYOUTS.len(), format.layouts.len());
+    for (actual, expected) in super::HOA_SOURCE_LAYOUTS.iter().zip(&format.layouts) {
+        assert_eq!(actual.tag, expected.tag);
+        assert_eq!(actual.channel_labels, expected.channel_labels.as_slice());
+        assert_eq!(actual.lfe_indices, expected.lfe_indices.as_slice());
+        assert_eq!(actual.matrix_id, expected.matrix_id);
+        assert_eq!(
+            actual.matrix,
+            format.matrices[&expected.matrix_id].as_slice()
+        );
+        assert_eq!(actual.matrix_columns, expected.matrix_columns);
+        assert_eq!(actual.matrix_available, expected.matrix_available);
+    }
+    assert_eq!(
+        crate::frame::hoa_transport_format_sha256(),
+        file_sha256("hoa-transports-format-v1.json")
+    );
+    assert_eq!(
+        crate::frame::hoa_static_remapping_format_sha256(),
+        file_sha256("hoa-static-remapping-format-v1.json")
+    );
+}

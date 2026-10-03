@@ -6,13 +6,9 @@ use serde::{Deserialize, Serialize};
 pub const PROFILE: &str = "apac-hoa-static-remapping-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-remapping-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-static-remapping-state-v1";
+/// SHA-256 of `data/hoa-static-remapping-format-v1.json`, computed at build time.
 pub fn format_sha256() -> &'static str {
-    static HASH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    HASH.get_or_init(|| {
-        crate::model::sha256(include_bytes!(
-            "../../../../data/hoa-static-remapping-format-v1.json"
-        ))
-    })
+    crate::tables::HOA_REMAPPING_FORMAT_SHA256
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

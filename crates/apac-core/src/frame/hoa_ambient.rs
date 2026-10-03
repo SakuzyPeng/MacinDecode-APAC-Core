@@ -3,7 +3,6 @@ use super::{ChannelPacketReport, hoa::RecoverySlotSpectrum};
 use crate::config::ParseError;
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 
 pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-ambient-counts-math-v1";
 pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-ambient-counts-state-v1";
@@ -40,52 +39,26 @@ pub struct StaticAmbientData {
     pub channels_after_transform: Vec<AmbientSpectrum>,
 }
 
-#[derive(Deserialize)]
-struct Tables {
-    numeric_profile: String,
-    format_profile: String,
-    format_sha256: String,
-    tables_sha256: String,
-    decoder_matrices_f64: [[u64; 16]; 3],
-}
-fn tables() -> &'static Tables {
-    static DATA: OnceLock<Tables> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let value: Tables = serde_json::from_str(include_str!(
-            "../../../../data/hoa-static-ambient-tables-v1.json"
-        ))
-        .expect("built-in static ambient tables");
-        assert_eq!(value.numeric_profile, NUMERIC_PROFILE);
-        assert_eq!(value.format_profile, "apac-hoa-ambient-transform-format-v1");
-        assert!(
-            value
-                .decoder_matrices_f64
-                .iter()
-                .flatten()
-                .all(|&word| f64::from_bits(word).abs() == 0.5)
-        );
-        value
-    })
-}
+/// Generated from `data/hoa-static-ambient-tables-v1.json` by the build script.
 pub fn format_sha256() -> &'static str {
-    &tables().format_sha256
+    crate::tables::HOA_AMBIENT_FORMAT_SHA256
 }
 pub fn math_sha256() -> &'static str {
-    &tables().tables_sha256
+    crate::tables::HOA_AMBIENT_MATH_SHA256
 }
 
 pub(super) fn matrix_coefficient(index: u8, row: usize, column: usize) -> f64 {
     if index == 3 {
         return f64::from(u8::from(row == column));
     }
-    f64::from_bits(tables().decoder_matrices_f64[usize::from(index)][row * 4 + column])
+    f64::from_bits(crate::tables::HOA_AMBIENT_MATRICES[usize::from(index)][row * 4 + column])
 }
 
 fn transform(input: [f32; 4], index: u8, output: usize) -> f32 {
     if index == 3 {
         return input[output];
     }
-    let matrix = &tables().decoder_matrices_f64[usize::from(index)];
+    let matrix = &crate::tables::HOA_AMBIENT_MATRICES[usize::from(index)];
     let (mut sum, mut correction) = (0.0_f64, 0.0_f64);
     for (j, value) in input.into_iter().enumerate() {
         let product = f64::from(value) * f64::from_bits(matrix[output * 4 + j]);

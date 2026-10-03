@@ -505,23 +505,9 @@ impl HoaConfiguration {
     }
 }
 
+/// Generated from `data/hoa-profile-levels-v1.json` by the build script.
 fn profile_channel_limit(profile: u8, level: u8) -> Option<u64> {
-    #[derive(Deserialize)]
-    struct Entry {
-        profile_id: u8,
-        maximum_output_channels_by_level: Vec<u64>,
-    }
-    #[derive(Deserialize)]
-    struct Table {
-        profiles: Vec<Entry>,
-    }
-    static TABLE: std::sync::OnceLock<Table> = std::sync::OnceLock::new();
-    TABLE
-        .get_or_init(|| {
-            serde_json::from_str(include_str!("../../../../data/hoa-profile-levels-v1.json"))
-                .expect("HOA profile limits")
-        })
-        .profiles
+    crate::tables::HOA_PROFILE_LIMITS
         .iter()
         .find(|e| e.profile_id == profile)?
         .maximum_output_channels_by_level

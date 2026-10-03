@@ -48,20 +48,17 @@ pub struct SpectrumReport {
 
 pub(super) use crate::tables::{Codebook, Trie};
 /// The codebooks themselves are read by tests; decoding uses the tries.
-#[cfg_attr(not(test), allow(dead_code))]
+#[cfg(test)]
 pub(super) struct Tables {
     pub spectral: &'static [Codebook],
     pub scalefactor: &'static Codebook,
-    pub long_offsets: &'static [usize],
-    pub short_offsets: &'static [usize],
 }
 /// Generated from `data/sq-codebooks.json` by the build script.
+#[cfg(test)]
 pub(super) fn tables() -> &'static Tables {
     static TABLES: Tables = Tables {
         spectral: &crate::tables::SQ_SPECTRAL,
         scalefactor: &crate::tables::SQ_SCALEFACTOR,
-        long_offsets: &crate::tables::SQ_LONG_OFFSETS,
-        short_offsets: &crate::tables::SQ_SHORT_OFFSETS,
     };
     &TABLES
 }

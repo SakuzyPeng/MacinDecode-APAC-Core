@@ -7,7 +7,6 @@ use crate::config::{CookieReport, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::OnceLock;
 
 pub const PROFILE: &str = "apac-hoa-shared-drc-syntax-v1";
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -28,32 +27,10 @@ pub struct DrcGainSequence {
     pub encoded_times: Vec<i32>,
     pub nodes: Vec<DrcNode>,
 }
-#[derive(Deserialize)]
-struct Code {
-    width: usize,
-    code: u16,
-    value: i32,
-}
-#[derive(Deserialize)]
-struct Tables {
-    format_profile: String,
-    format_sha256: String,
-    clipping: Vec<Code>,
-    slopes: Vec<Code>,
-}
+use crate::tables::DrcCode as Code;
+/// Generated from `data/hoa-shared-drc-format-v1.json` by the build script.
 pub fn format_sha256() -> &'static str {
-    &tables().format_sha256
-}
-fn tables() -> &'static Tables {
-    static TABLES: OnceLock<Tables> = OnceLock::new();
-    TABLES.get_or_init(|| {
-        let tables: Tables = serde_json::from_str(include_str!(
-            "../../../../data/hoa-shared-drc-format-v1.json"
-        ))
-        .expect("shared DRC tables");
-        assert_eq!(tables.format_profile, PROFILE);
-        tables
-    })
+    crate::tables::DRC_SHARED_FORMAT_SHA256
 }
 fn default_delta(rate: u64) -> u16 {
     // The reference rounds rate/2000 to an integer, then chooses the strictly
@@ -283,8 +260,11 @@ pub(super) fn read_sequence(
         }
         if p.interpolation == "spline" {
             for i in 0..count {
-                slopes
-                    .push(symbol(parser, &format!("{root}.slopes[{i}]"), &tables().slopes)? as u8);
+                slopes.push(symbol(
+                    parser,
+                    &format!("{root}.slopes[{i}]"),
+                    &crate::tables::DRC_SLOPES,
+                )? as u8);
             }
         }
         if !p.full_frame {
@@ -358,7 +338,7 @@ pub(super) fn read_sequence(
             gain += symbol(
                 parser,
                 &format!("{root}.gain_deltas[{i}]"),
-                &tables().clipping,
+                &crate::tables::DRC_CLIPPING,
             )?;
         } else {
             let delta = super::drc::gain_delta(&mut parser.bits)?;

@@ -7,7 +7,6 @@ use super::{
 use crate::config::ParseError;
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
 pub const SUBBAND_PROFILE: &str = "apac-hoa-dynamic-subbands-v1";
@@ -18,121 +17,33 @@ pub const DOMAINS_STATE_PROFILE: &str = "apac-hoa-dynamic-domains-state-v1";
 #[cfg(test)]
 #[path = "hoa_dynamic_domains_tests.rs"]
 mod domains_tests;
+/// SHA-256 of `data/hoa-dynamic-domains-format-v1.json`, computed at build time.
 pub fn domains_format_sha256() -> &'static str {
-    static HASH: OnceLock<String> = OnceLock::new();
-    HASH.get_or_init(|| {
-        crate::model::sha256(include_bytes!(
-            "../../../../data/hoa-dynamic-domains-format-v1.json"
-        ))
-    })
+    crate::tables::HOA_DYNAMIC_DOMAINS_FORMAT_SHA256
 }
 
-#[derive(Deserialize)]
-struct Format {
-    format_profile: String,
-    format_sha256: String,
-    internal_slots: usize,
-    output_coefficients: usize,
-    subbands: usize,
-    long_ends: [[usize; 8]; 3],
-    short_ends: [[usize; 8]; 3],
-}
-fn format() -> &'static Format {
-    static DATA: OnceLock<Format> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let value: Format =
-            serde_json::from_str(include_str!("../../../../data/hoa-dynamic-format-v1.json"))
-                .expect("built-in dynamic selection boundaries");
-        assert_eq!(value.format_profile, "apac-hoa-dynamic-selection-format-v1");
-        assert_eq!(
-            (
-                value.internal_slots,
-                value.output_coefficients,
-                value.subbands
-            ),
-            (9, 16, 8)
-        );
-        for (long, short) in value.long_ends.iter().zip(value.short_ends.iter()) {
-            assert_eq!(long[7], 1024);
-            assert!(long.windows(2).all(|w| w[0] < w[1]));
-            assert!(
-                long.iter()
-                    .zip(short)
-                    .all(|(&a, &b)| a % 8 == 0 && a / 8 == b)
-            );
-        }
-        value
-    })
-}
-#[derive(Deserialize)]
-struct SubbandTable {
-    subbands: usize,
-    long_ends: [Vec<usize>; 3],
-    short_ends: [Vec<usize>; 3],
-}
-#[derive(Deserialize)]
-struct ExtendedFormat {
-    format_profile: String,
-    format_sha256: String,
-    base_format_sha256: String,
-    internal_slots: usize,
-    output_coefficients: usize,
-    wire_mapping_groups: usize,
-    tables: Vec<SubbandTable>,
-}
-fn extended_format() -> &'static ExtendedFormat {
-    static DATA: OnceLock<ExtendedFormat> = OnceLock::new();
-    DATA.get_or_init(|| {
-        let value: ExtendedFormat =
-            serde_json::from_str(include_str!("../../../../data/hoa-dynamic-format-v2.json"))
-                .expect("built-in effective subbands");
-        assert_eq!(value.format_profile, "apac-hoa-dynamic-selection-format-v2");
-        assert_eq!(value.base_format_sha256, format().format_sha256);
-        assert_eq!(
-            (
-                value.internal_slots,
-                value.output_coefficients,
-                value.wire_mapping_groups,
-                value.tables.len()
-            ),
-            (9, 16, 8, 7)
-        );
-        for (i, table) in value.tables.iter().enumerate() {
-            assert_eq!(table.subbands, i + 1);
-            for (long, short) in table.long_ends.iter().zip(&table.short_ends) {
-                assert_eq!((long.len(), short.len()), (i + 1, i + 1));
-                assert_eq!(long.last(), Some(&1024));
-                assert!(long[0] > 0 && long.windows(2).all(|w| w[0] < w[1]));
-                assert!(
-                    long.iter()
-                        .zip(short)
-                        .all(|(&a, &b)| a % 8 == 0 && a / 8 == b)
-                );
-            }
-        }
-        value
-    })
-}
+/// Generated from `data/hoa-dynamic-format-v1.json` (eight subbands) and
+/// `data/hoa-dynamic-format-v2.json` (one to seven) by the build script.
 pub fn format_sha256(count: usize) -> &'static str {
     if count == 8 {
-        &format().format_sha256
+        crate::tables::HOA_DYNAMIC_FORMAT_SHA256
     } else {
-        &extended_format().format_sha256
+        crate::tables::HOA_DYNAMIC_EXTENDED_FORMAT_SHA256
     }
 }
 pub(super) fn boundaries(count: usize, method: usize, short: bool) -> &'static [usize] {
     if count == 8 {
         if short {
-            &format().short_ends[method]
+            &crate::tables::HOA_DYNAMIC_SHORT_ENDS[method]
         } else {
-            &format().long_ends[method]
+            &crate::tables::HOA_DYNAMIC_LONG_ENDS[method]
         }
     } else {
-        let table = &extended_format().tables[count - 1];
+        let table = &crate::tables::HOA_DYNAMIC_SUBBANDS[count - 1];
         if short {
-            &table.short_ends[method]
+            table.short_ends[method]
         } else {
-            &table.long_ends[method]
+            table.long_ends[method]
         }
     }
 }

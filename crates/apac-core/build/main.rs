@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod emit;
+mod formats;
 mod sq;
 #[path = "../src/tables/trie_build.rs"]
 mod trie_build;
@@ -49,6 +50,15 @@ fn main() {
     sq::cac(&mut out);
     sq::tns(&mut out);
     sq::bwe2(&mut out);
+    formats::shared_config(&mut out);
+    formats::shared_drc(&mut out);
+    formats::hoa_profiles(&mut out);
+    formats::hoa_ambient(&mut out);
+    formats::hoa_controls(&mut out);
+    let dynamic = formats::hoa_dynamic(&mut out);
+    formats::hoa_salient_subbands(&mut out, &dynamic);
+    formats::hoa_source(&mut out);
+    formats::file_identities(&mut out);
     let path = PathBuf::from(std::env::var_os("OUT_DIR").expect("out dir")).join("tables.rs");
     out.finish(&path);
 }

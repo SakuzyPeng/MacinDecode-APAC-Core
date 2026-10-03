@@ -6,59 +6,15 @@ use crate::{
     model::{ChannelDescription, ChannelLayout},
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, sync::OnceLock};
 
 pub const PROFILE: &str = "apac-hoa-source-layout-format-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-source-layout-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-source-layout-state-v1";
 
-#[derive(Deserialize)]
-struct LayoutEntry {
-    tag: u32,
-    channel_labels: Vec<u32>,
-    lfe_indices: Vec<usize>,
-    matrix_id: String,
-    matrix_rows: usize,
-    matrix_columns: usize,
-    matrix_available: bool,
-}
-#[derive(Deserialize)]
-struct Format {
-    format_profile: String,
-    format_sha256: String,
-    layouts: Vec<LayoutEntry>,
-    matrices: BTreeMap<String, Vec<u32>>,
-    accepted_layout_tags: Vec<u32>,
-}
-fn format() -> &'static Format {
-    static FORMAT: OnceLock<Format> = OnceLock::new();
-    FORMAT.get_or_init(|| {
-        let value: Format = serde_json::from_str(include_str!(
-            "../../../../data/hoa-source-layout-format-v1.json"
-        ))
-        .expect("source layout format");
-        assert_eq!(value.format_profile, PROFILE);
-        for entry in &value.layouts {
-            assert_eq!(entry.channel_labels.len(), (entry.tag & 0xffff) as usize);
-            assert_eq!(
-                entry.matrix_rows + entry.lfe_indices.len(),
-                entry.channel_labels.len()
-            );
-            assert_eq!(
-                value.matrices[&entry.matrix_id].len(),
-                entry.matrix_rows * entry.matrix_columns
-            );
-            assert!(
-                value.matrices[&entry.matrix_id]
-                    .iter()
-                    .all(|&bits| f32::from_bits(bits).is_finite())
-            );
-        }
-        value
-    })
-}
+use crate::tables::HoaSourceLayout as LayoutEntry;
+/// Generated from `data/hoa-source-layout-format-v1.json` by the build script.
 pub fn format_sha256() -> &'static str {
-    &format().format_sha256
+    crate::tables::HOA_SOURCE_FORMAT_SHA256
 }
 pub(super) fn descriptions(layout: &ChannelLayout, channels: u32) -> Vec<ChannelDescription> {
     if layout.tag == 0 {
@@ -68,13 +24,12 @@ pub(super) fn descriptions(layout: &ChannelLayout, channels: u32) -> Vec<Channel
         190 => (0..channels).map(|i| (2 << 16) | i).collect(),
         191 => (0..channels).map(|i| (3 << 16) | i).collect(),
         147 => (0..channels).map(|i| (1 << 16) | i).collect(),
-        _ => format()
-            .layouts
+        _ => crate::tables::HOA_SOURCE_LAYOUTS
             .iter()
             .find(|e| e.tag == layout.tag)
             .map_or_else(
                 || (0..channels).map(|i| (1 << 16) | i).collect(),
-                |e| e.channel_labels.clone(),
+                |e| e.channel_labels.to_vec(),
             ),
     };
     labels
@@ -132,13 +87,12 @@ impl SourceLayout {
         }
     }
     fn entry(&self) -> Option<&'static LayoutEntry> {
-        format()
-            .layouts
+        crate::tables::HOA_SOURCE_LAYOUTS
             .iter()
             .find(|entry| entry.tag == self.layout.tag)
     }
     pub fn rejection(&self, coefficients: usize) -> Option<String> {
-        if !format().accepted_layout_tags.iter().any(|&tag| {
+        if !crate::tables::HOA_SOURCE_ACCEPTED_TAGS.iter().any(|&tag| {
             let exact = tag == 0 || tag == (1 << 16) || tag & 0xffff != 0 || tag == 0xffff0000;
             if exact {
                 self.layout.tag == tag
@@ -193,7 +147,7 @@ impl SourceLayout {
         }
         let labels: Vec<_> = self
             .entry()
-            .map(|e| e.channel_labels.clone())
+            .map(|e| e.channel_labels.to_vec())
             .unwrap_or_else(|| self.layout.descriptions.iter().map(|d| d.label).collect());
         (0..usize::from(self.channels))
             .map(|i| {
@@ -267,7 +221,7 @@ impl SourceLayout {
             .collect();
         if self.parameter == 0 {
             let entry = self.entry().ok_or_else(error)?;
-            let matrix = &format().matrices[&entry.matrix_id];
+            let matrix = entry.matrix;
             let mut row = 0;
             for (channel, destination) in output.iter_mut().take(n).enumerate() {
                 if entry.lfe_indices.contains(&channel) {
@@ -326,7 +280,7 @@ impl SourceLayout {
             parameter_0: self.parameter,
             operation: self.operation().into(),
             matrix_id: (self.parameter == 0)
-                .then(|| self.entry().expect("qualified matrix").matrix_id.clone()),
+                .then(|| self.entry().expect("qualified matrix").matrix_id.into()),
             channels,
         }
     }

@@ -1,4 +1,5 @@
 //! Shared sampling-rate buckets and bounded SFB/TNS format tables.
+use crate::prelude::*;
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::OnceLock};
 

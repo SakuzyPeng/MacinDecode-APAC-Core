@@ -1,6 +1,7 @@
 //! Decoder eligibility is narrower than successful cookie syntax parsing.
 //! The scene whitelist is the verified neutral, single-source stereo route.
 use crate::config::{ConfigField, CookieReport};
+use crate::prelude::*;
 use serde_json::{Value, json};
 
 #[derive(Debug, Clone)]

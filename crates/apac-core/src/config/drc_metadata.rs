@@ -4,6 +4,7 @@ use super::{
     drc::Downmix,
     parser::{PResult, Parser},
 };
+use crate::prelude::*;
 
 impl Parser<'_> {
     fn drc_id_list(&mut self, p: &str, width: usize) -> PResult<()> {

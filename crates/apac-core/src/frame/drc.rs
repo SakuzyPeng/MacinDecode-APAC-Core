@@ -2,6 +2,7 @@
 //! integers; parsing does not select a DRC instruction or apply audio gains.
 use super::{Bwe2Report, FrameContext, Parser, packet_config, parse_bwe2};
 use crate::config::{self, ConfigField, CookieReport, ParseError, ParseStatus, bits::BitReader};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 

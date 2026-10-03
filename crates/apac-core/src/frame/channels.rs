@@ -8,6 +8,7 @@ use super::{
     packet_config::{self, PacketConfiguration},
     tns,
 };
+use crate::prelude::*;
 use crate::{
     config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader},
     frame::MAX_PACKET_BUFFER,

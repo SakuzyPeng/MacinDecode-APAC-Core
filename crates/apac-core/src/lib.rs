@@ -1,3 +1,15 @@
+//! Independent APAC decoding core.
+//!
+//! The crate is `no_std` with `alloc`. During the restructuring it still links
+//! `std` explicitly: every remaining `std::` path marks a dependency that
+//! phase 6 removes before `extern crate std` goes away.
+#![no_std]
+
+extern crate alloc;
+extern crate std;
+
+mod prelude;
+
 mod bwe2_math;
 mod channel_layout;
 pub mod config;

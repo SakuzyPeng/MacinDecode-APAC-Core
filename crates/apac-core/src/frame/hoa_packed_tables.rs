@@ -1,4 +1,5 @@
 //! Lossless storage decoding. These are table encodings, not APAC payload syntax.
+use crate::prelude::*;
 pub(super) const CODEBOOK_ENCODING: &str = "preorder-tree-msb-hex-v1";
 pub(super) const MATRIX_ENCODING: &str = "micro21-msb-hex-v1";
 

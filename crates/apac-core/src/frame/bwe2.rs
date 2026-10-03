@@ -1,5 +1,6 @@
 //! Bounded two-channel BWE2 syntax, after TNS and before core alignment.
 use super::{FrameContext, IcsInfo, Parser, TnsReport, parse_tns};
+use crate::prelude::*;
 use crate::{
     bwe2_math,
     config::{ConfigField, ParseError, bits::BitReader},

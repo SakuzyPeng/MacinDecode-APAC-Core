@@ -1,5 +1,6 @@
 //! Atomic multi-component synthesis using the unchanged per-output transforms.
 use super::{ChannelState, FrameStateCounts};
+use crate::prelude::*;
 use crate::{
     error::{Error, Result},
     frame::{

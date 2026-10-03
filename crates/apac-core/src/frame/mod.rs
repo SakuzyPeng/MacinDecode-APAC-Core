@@ -1,4 +1,5 @@
 //! Bounded stereo SQ prefixes, ASP framing, raw spectra, CAC, TNS and BWE2 before core alignment.
+use crate::prelude::*;
 mod auxiliary;
 pub use auxiliary::{AuxiliaryPayload, SceneGraphPayload, TrimmingDeclaration};
 mod channels;

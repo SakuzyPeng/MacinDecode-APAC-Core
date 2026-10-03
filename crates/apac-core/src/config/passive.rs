@@ -4,6 +4,7 @@ use super::{
     bits::BitReader,
     parser::{PResult, Parser, Stop},
 };
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 

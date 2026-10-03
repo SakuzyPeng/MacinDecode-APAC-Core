@@ -1,4 +1,5 @@
 //! Independent APAC cookie syntax inspection. No Apple APIs are used here.
+use crate::prelude::*;
 pub(crate) mod bits;
 mod drc;
 mod drc_metadata;

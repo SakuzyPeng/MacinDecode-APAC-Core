@@ -1,6 +1,7 @@
 //! Bounded syntax for the channel-bed scene forms observed in the reference corpus.
 //! Unassigned control names are deliberately numeric, rather than guessed DSP semantics.
 use super::parser::{PResult, Parser};
+use crate::prelude::*;
 
 impl Parser<'_> {
     fn scene_extension(&mut self, prefix: &str) -> PResult<()> {

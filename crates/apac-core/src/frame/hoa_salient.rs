@@ -6,6 +6,7 @@ use super::{
     spectrum::{Codebook, Trie},
 };
 use crate::config::{ConfigField, ParseError};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::OnceLock;

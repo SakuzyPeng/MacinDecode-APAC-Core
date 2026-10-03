@@ -1,5 +1,6 @@
 //! Repository storage shares order-dependent tables across quantization widths.
 //! The expanded format and its digest retain their original wire identities.
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 

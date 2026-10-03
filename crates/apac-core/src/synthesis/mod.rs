@@ -1,5 +1,6 @@
 //! Independent SQ mathematics: fixed IEEE constants, Float64 synthesis and overlap.
 //! Ordinary products and sums round separately; only final PCM is cast to Float32.
+use crate::prelude::*;
 #[cfg(test)]
 mod access_tests;
 #[cfg(test)]

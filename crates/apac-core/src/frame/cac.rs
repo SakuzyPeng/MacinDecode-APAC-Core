@@ -2,6 +2,7 @@
 use super::spectrum::{Codebook, Trie};
 use super::{FrameContext, IcsInfo, Parser, SpectrumReport, parse_spectrum};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::OnceLock;

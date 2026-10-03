@@ -5,6 +5,7 @@ use super::{
     hoa_ambient::{AmbientTransform, StaticAmbientData},
 };
 use crate::config::ParseError;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 

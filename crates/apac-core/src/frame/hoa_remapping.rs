@@ -1,5 +1,6 @@
 //! Immutable, bounded core-carrier remapping from cookie wire links.
 use crate::config::CookieReport;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub const PROFILE: &str = "apac-hoa-static-remapping-v1";

@@ -1,5 +1,6 @@
 //! Fixed IEEE constants for the independent SQ mathematical profile.
 //! Generated offline from formulas; no runtime transcendental functions.
+use crate::prelude::*;
 use serde::Deserialize;
 use std::{collections::BTreeMap, sync::OnceLock};
 

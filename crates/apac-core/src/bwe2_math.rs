@@ -1,4 +1,5 @@
 //! Fixed BWE2 mathematics. Ordinary Float64 operations never fuse or reassociate.
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, sync::OnceLock};
 
@@ -573,7 +574,7 @@ mod tests {
         }
         optimized.sort_unstable();
         reference.sort_unstable();
-        println!(
+        std::println!(
             "BWE2_BENCH {}",
             serde_json::json!({"size":768,"optimized_ns":optimized[4],"direct_ns":reference[4],
             "speedup":reference[4] as f64/optimized[4] as f64,"numeric_profile":PROFILE,"compiler":env!("APAC_BUILD_RUSTC")})

@@ -1,5 +1,6 @@
 //! Source-layout recovery after spatial reconstruction and before dynamic selection.
 use super::{hoa::RecoverySlotSpectrum, hoa_additive::Sum};
+use crate::prelude::*;
 use crate::{
     config::{CookieReport, ParseError},
     model::{ChannelDescription, ChannelLayout},

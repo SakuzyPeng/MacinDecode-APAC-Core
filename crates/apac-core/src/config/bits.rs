@@ -1,4 +1,5 @@
 use super::ParseError;
+use crate::prelude::*;
 
 /// MSB-first bounded reader; positions always refer to the original input.
 pub struct BitReader<'a> {

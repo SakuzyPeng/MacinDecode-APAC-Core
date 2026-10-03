@@ -3,6 +3,7 @@ use super::{
     parser::{PResult, Parser},
     passive::PositionSyntax,
 };
+use crate::prelude::*;
 
 impl Parser<'_> {
     pub(super) fn passive_values(&mut self, p: &str, widths: &[usize]) -> PResult<()> {

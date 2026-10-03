@@ -1,6 +1,7 @@
 //! HOA carrier ordering and bounded opaque extension elements.
 use super::{ChannelPacketReport, Parser};
 use crate::config::ParseError;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub fn format_sha256() -> &'static str {

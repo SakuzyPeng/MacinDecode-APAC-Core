@@ -1,6 +1,7 @@
 //! SQ spectra before CAC, TNS and synthesis. No native APIs or FFT are used.
 use super::{FrameContext, FrameReport, Parser, parse_frame};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::OnceLock;

@@ -4,6 +4,7 @@ use super::{
     hoa::{HoaConfiguration, HoaPath, HoaState, SalientComponentConfiguration},
 };
 use crate::config::{CookieReport, ParseError};
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 

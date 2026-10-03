@@ -1,5 +1,6 @@
 //! Compression configuration boundaries only. Renderer payloads are not decoded.
 use super::parser::{PResult, Parser};
+use crate::prelude::*;
 impl Parser<'_> {
     pub(super) fn metadata_compression(&mut self, p: &str, kind: u64, bytes: usize) -> PResult<()> {
         let start = self.pos();

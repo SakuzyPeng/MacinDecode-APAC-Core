@@ -1,6 +1,7 @@
 //! Static ambient selection and exact-rational FOA transforms.
 use super::{ChannelPacketReport, hoa::RecoverySlotSpectrum};
 use crate::config::ParseError;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 

@@ -3,6 +3,7 @@ use super::{
     parser::{PResult, Parser},
     passive::PositionSyntax,
 };
+use crate::prelude::*;
 
 impl Parser<'_> {
     pub(super) fn renderer_data(&mut self, p: &str) -> PResult<()> {

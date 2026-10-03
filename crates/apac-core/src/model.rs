@@ -1,4 +1,5 @@
 //! Layout types and identities shared by the decoder and its reports.
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 

@@ -6,6 +6,7 @@ use super::{
     drc::{self, DrcContext, DrcState},
     packet_config,
 };
+use crate::prelude::*;
 use crate::{
     config::{self, CookieReport, ParseError, ParseStatus, bits::BitReader},
     model::{ChannelLayout, SCHEMA_VERSION, sha256},

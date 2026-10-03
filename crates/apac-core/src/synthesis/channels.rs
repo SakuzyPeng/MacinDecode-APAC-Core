@@ -1,5 +1,6 @@
 //! Atomic dynamic-channel synthesis; the existing per-channel math is unchanged.
 use super::{ChannelState, FrameStateCounts};
+use crate::prelude::*;
 use crate::{
     error::{Error, Result},
     frame::{ChannelFrameContext, ChannelPacketReport, DrcState, parse_channel_packet_with_state},

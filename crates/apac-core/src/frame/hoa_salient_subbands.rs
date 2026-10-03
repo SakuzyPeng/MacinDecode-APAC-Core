@@ -1,4 +1,5 @@
 //! Per-component spatial grids; lower counts share the verified dynamic tables.
+use crate::prelude::*;
 use serde::Deserialize;
 use std::sync::OnceLock;
 

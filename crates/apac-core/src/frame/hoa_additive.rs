@@ -4,6 +4,7 @@ use super::{
     hoa::{HoaConfiguration, RecoverySlotSpectrum},
 };
 use crate::config::ParseError;
+use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-additive-math-v1";

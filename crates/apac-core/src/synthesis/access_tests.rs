@@ -75,10 +75,7 @@ fn failed_scans_preserve_all_state_and_exact_decoder_error() {
             let packet = bytes(&row[key]);
             let expected = sequential.decode_frame(&packet).unwrap_err();
             let actual = fast.scan_frame(&packet).err().unwrap();
-            assert_eq!(
-                serde_json::to_value(actual).unwrap(),
-                serde_json::to_value(expected).unwrap()
-            );
+            assert_eq!(actual, expected);
             assert_eq!(before, fast.metadata_sha256());
             assert!(
                 fast.channels
@@ -89,10 +86,7 @@ fn failed_scans_preserve_all_state_and_exact_decoder_error() {
         for end in 0..first.len() {
             let expected = sequential.decode_frame(&first[..end]).unwrap_err();
             let actual = fast.scan_frame(&first[..end]).err().unwrap();
-            assert_eq!(
-                serde_json::to_value(actual).unwrap(),
-                serde_json::to_value(expected).unwrap()
-            );
+            assert_eq!(actual, expected);
             assert_eq!(before, fast.metadata_sha256());
         }
     }

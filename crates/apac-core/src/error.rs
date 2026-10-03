@@ -1,95 +1,38 @@
+//! Decoder errors: the stage that failed, its message and, when known, the
+//! bit position in the packet or cookie.
+use crate::config::ParseError;
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use std::fmt;
+use core::fmt;
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, DecodeError>;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Error {
-    pub operation: String,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DecodeError {
+    /// The failing stage, e.g. "SQ synthesis" or "HOA packet".
+    pub operation: &'static str,
     pub message: String,
-    pub os_status: Option<i32>,
-    pub os_status_fourcc: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bit_offset: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub packet_index: Option<u64>,
-    #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
-    pub file_position: Option<Box<FilePosition>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FilePosition {
-    pub byte_offset: u64,
-    pub chunk_type: String,
-}
-
-impl Error {
-    pub fn new(operation: impl Into<String>, message: impl Into<String>) -> Self {
+impl DecodeError {
+    pub fn new(operation: &'static str, message: impl Into<String>) -> Self {
         Self {
-            operation: operation.into(),
+            operation,
             message: message.into(),
-            os_status: None,
-            os_status_fourcc: None,
             bit_offset: None,
-            packet_index: None,
-            file_position: None,
         }
-    }
-    pub fn native(operation: impl Into<String>, status: i32) -> Self {
-        let bytes = status.to_be_bytes();
-        let fourcc = bytes
-            .iter()
-            .all(|b| (32..=126).contains(b))
-            .then(|| String::from_utf8_lossy(&bytes).into_owned());
-        Self {
-            operation: operation.into(),
-            message: format!("AudioToolbox returned OSStatus {status}"),
-            os_status: Some(status),
-            os_status_fourcc: fourcc,
-            bit_offset: None,
-            packet_index: None,
-            file_position: None,
-        }
-    }
-    pub fn io(operation: impl Into<String>, error: impl fmt::Display) -> Self {
-        Self::new(operation, error.to_string())
     }
 }
-impl fmt::Display for Error {
+impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: {}", self.operation, self.message)
     }
 }
-impl std::error::Error for Error {}
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
-        Self::io("filesystem", e)
-    }
-}
-impl From<serde_json::Error> for Error {
-    fn from(e: serde_json::Error) -> Self {
-        Self::io("JSON", e)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn old_errors_and_optional_container_coordinates_round_trip() {
-        let legacy = serde_json::json!({"operation":"test","message":"bad","os_status":null,"os_status_fourcc":null});
-        let mut error: Error = serde_json::from_value(legacy.clone()).unwrap();
-        assert!(error.file_position.is_none());
-        assert_eq!(serde_json::to_value(&error).unwrap(), legacy);
-        error.file_position = Some(Box::new(FilePosition {
-            byte_offset: 123,
-            chunk_type: "pakt".into(),
-        }));
-        let value = serde_json::to_value(&error).unwrap();
-        assert_eq!(value["byte_offset"], 123);
-        assert_eq!(value["chunk_type"], "pakt");
-        let roundtrip: Error = serde_json::from_value(value).unwrap();
-        assert_eq!(roundtrip.file_position.unwrap().byte_offset, 123);
+impl std::error::Error for DecodeError {}
+impl From<ParseError> for DecodeError {
+    fn from(error: ParseError) -> Self {
+        let mut result = Self::new("parse-cookie", error.to_string());
+        result.bit_offset = Some(error.bit_offset);
+        result
     }
 }

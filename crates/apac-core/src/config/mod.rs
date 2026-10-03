@@ -100,15 +100,20 @@ pub struct ParseError {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub element_index: Option<usize>,
     pub bit_offset: usize,
-    pub kind: String,
-    pub message: String,
+    /// A fixed error class such as "truncated" or "max-sfb".
+    pub kind: &'static str,
+    pub message: Cow<'static, str>,
 }
 impl ParseError {
-    pub fn new(bit_offset: usize, kind: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn new(
+        bit_offset: usize,
+        kind: &'static str,
+        message: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self {
             element_index: None,
             bit_offset,
-            kind: kind.into(),
+            kind,
             message: message.into(),
         }
     }
@@ -123,13 +128,6 @@ impl fmt::Display for ParseError {
     }
 }
 impl std::error::Error for ParseError {}
-impl From<ParseError> for crate::error::Error {
-    fn from(error: ParseError) -> Self {
-        let mut result = Self::new("parse-cookie", error.to_string());
-        result.bit_offset = Some(error.bit_offset);
-        result
-    }
-}
 
 pub fn parse_cookie(data: &[u8]) -> Result<CookieReport, ParseError> {
     Ok(parse_cookie_and_config(data)?.0)

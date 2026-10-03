@@ -240,7 +240,11 @@ impl Parser<'_> {
     pub fn pos(&self) -> usize {
         self.bits.position()
     }
-    pub fn invalid<T>(&self, name: &str, message: impl Into<String>) -> PResult<T> {
+    pub fn invalid<T>(
+        &self,
+        name: &'static str,
+        message: impl Into<Cow<'static, str>>,
+    ) -> PResult<T> {
         Err(ParseError::new(self.pos(), name, message).into())
     }
     pub fn stop<T>(&self, reason: impl Into<String>) -> PResult<T> {

@@ -154,7 +154,8 @@ fn decode_with_access(
         }
         if fast && synthesis_start.is_none_or(|start| packet_index < start) {
             let timer = Instant::now();
-            let counts = decoder.scan_frame(&bytes).map_err(|mut e| {
+            let counts = decoder.scan_frame(&bytes).map_err(|e| {
+                let mut e = Error::from(e);
                 e.packet_index = Some(packet_index);
                 e
             })?;
@@ -170,7 +171,8 @@ fn decode_with_access(
         }
         first_synthesis_packet.get_or_insert(packet_index);
         let timer = Instant::now();
-        let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|mut e| {
+        let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|e| {
+            let mut e = Error::from(e);
             e.packet_index = Some(packet_index);
             e
         })?;

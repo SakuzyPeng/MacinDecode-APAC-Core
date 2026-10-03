@@ -19,7 +19,7 @@ mod hoa_tests;
 mod shared_tests;
 mod stream;
 use crate::{
-    error::{Error, Result},
+    error::{DecodeError, Result},
     frame::{DrcState, FrameContext, PacketReport, parse_packet_with_state},
 };
 pub const ACCESS_PROFILE: &str = "apac-sq-access-v1";
@@ -121,13 +121,13 @@ impl ChannelState {
     }
     fn render(&mut self, spectrum: &[f32], block: u8) -> Result<Vec<f32>> {
         if spectrum.len() != 1024 || spectrum.iter().any(|v| !v.is_finite()) {
-            return Err(Error::new(
+            return Err(DecodeError::new(
                 "SQ synthesis",
                 "requires 1024 finite coefficients",
             ));
         }
         if block > 3 {
-            return Err(Error::new("SQ synthesis", "unsupported window type"));
+            return Err(DecodeError::new("SQ synthesis", "unsupported window type"));
         }
         let mut time = vec![0.; 2048];
         if block == 2 {
@@ -173,7 +173,7 @@ impl ChannelState {
             })
             .collect();
         if output.iter().any(|v| !v.is_finite()) || time.iter().any(|v| !v.is_finite()) {
-            return Err(Error::new("SQ synthesis", "nonfinite PCM"));
+            return Err(DecodeError::new("SQ synthesis", "nonfinite PCM"));
         }
         self.overlap.copy_from_slice(&time[1024..]);
         Ok(output)
@@ -205,7 +205,7 @@ impl SqDecoder {
         let decoded_context = crate::frame::DecodedFrameContext::from_config(config)?;
         if let crate::frame::DecodedFrameContext::Stream(stream) = decoded_context {
             if let Some(reason) = stream.rejection() {
-                return Err(Error::new(
+                return Err(DecodeError::new(
                     "SQ decoder",
                     format!("unsupported configuration: {reason}"),
                 ));
@@ -235,7 +235,7 @@ impl SqDecoder {
         } else {
             context.packet_rejection()
         } {
-            return Err(Error::new(
+            return Err(DecodeError::new(
                 "SQ decoder",
                 format!("unsupported configuration: {reason}"),
             ));
@@ -350,7 +350,7 @@ impl SqDecoder {
                 };
                 match validation.decode_frame_report(packet) {
                     Err(error) => Err(error),
-                    Ok(_) => Err(Error::new(
+                    Ok(_) => Err(DecodeError::new(
                         "SQ access",
                         "state scan disagreed with the complete decoder",
                     )),
@@ -584,13 +584,13 @@ impl SqDecoder {
         let mut next_drc = self.drc.clone();
         let decoded =
             parse_packet_with_state(&self.context, packet, &mut next_drc).map_err(|e| {
-                let mut error = Error::new("SQ spectrum", e.to_string());
+                let mut error = DecodeError::new("SQ spectrum", e.to_string());
                 error.bit_offset = Some(e.bit_offset);
                 error
             })?;
         if !decoded.packet_complete {
             let frame = decoded.frame();
-            let mut error = Error::new(
+            let mut error = DecodeError::new(
                 "SQ decoder",
                 format!("unsupported frame: {}", frame.stop_reason),
             );
@@ -698,7 +698,7 @@ fn render_packet(
                 })
                 .collect();
             if samples.iter().any(|v| !v.is_finite()) {
-                return Err(Error::new("SQ synthesis", "nonfinite PCM"));
+                return Err(DecodeError::new("SQ synthesis", "nonfinite PCM"));
             }
             state.overlap.fill(0.);
             samples

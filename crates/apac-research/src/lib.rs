@@ -10,5 +10,5 @@ pub mod packets;
 pub mod parse_packets;
 pub mod signal;
 
-pub use apac_core::error;
+pub mod error;
 use apac_core::research_support::{bwe2_math, channel_layout, frame, numeric, synthesis};

@@ -186,7 +186,7 @@ fn limits_truncation_and_sfb_counts_report_the_actual_location() {
         let mut bits = Bits::default();
         bits.fields(&[(0, 2), (1, 1), (0, 1), (block, 2), (value, width)]);
         let error = parse_frame(&context(), &bits.opaque()).unwrap_err();
-        assert_eq!((error.kind.as_str(), error.bit_offset), ("max-sfb", 6));
+        assert_eq!((error.kind, error.bit_offset), ("max-sfb", 6));
     }
     let mut bits = Bits::default();
     bits.fields(&[(0, 2), (1, 1), (0, 1), (2, 2), (14, 4), (0x55, 7)]);

@@ -136,7 +136,8 @@ pub fn parse_packet_with_state(
                 error.message = format!(
                     "embedded preroll at relative bit {}: {}",
                     error.bit_offset, error.message
-                );
+                )
+                .into();
                 error.bit_offset += start;
                 error
             })?;

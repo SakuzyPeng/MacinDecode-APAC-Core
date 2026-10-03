@@ -792,7 +792,7 @@ pub fn parse_drc_with_state(
     if let Some((start, end)) = frame.preroll {
         let inner = parse_drc_with_state(context, &packet[start / 8..end / 8], &mut next).map_err(
             |mut e| {
-                e.bit_offset += start as usize;
+                e.bit_offset += start;
                 e
             },
         )?;

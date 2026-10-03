@@ -96,12 +96,7 @@ fn hoa_failed_scan_matches_first_error_and_keeps_every_state() {
         ] {
             let expected = sequential.decode_frame(&packet).unwrap_err();
             let actual = fast.scan_frame(&packet).err().unwrap();
-            assert_eq!(
-                serde_json::to_value(actual).unwrap(),
-                serde_json::to_value(expected).unwrap(),
-                "{}",
-                row["name"]
-            );
+            assert_eq!(actual, expected, "{}", row["name"]);
             assert_eq!(snapshot(&fast), before);
         }
         fast.scan_frame(&good).unwrap();
@@ -129,11 +124,7 @@ fn hoa_failed_scan_matches_first_error_and_keeps_every_state() {
             let packet = bytes(value);
             let expected = full.decode_frame(&packet).unwrap_err();
             let actual = scan.scan_frame(&packet).err().unwrap();
-            assert_eq!(
-                serde_json::to_value(actual).unwrap(),
-                serde_json::to_value(expected).unwrap(),
-                "{name}"
-            );
+            assert_eq!(actual, expected, "{name}");
             assert_eq!(snapshot(&scan), before, "{name}");
         }
     }
@@ -172,12 +163,7 @@ fn hoa_scans_reject_frozen_component_numeric_and_late_state_errors() {
                 let packet = bytes(value);
                 let expected = full.decode_frame(&packet).unwrap_err();
                 let actual = scan.scan_frame(&packet).err().unwrap();
-                assert_eq!(
-                    serde_json::to_value(actual).unwrap(),
-                    serde_json::to_value(expected).unwrap(),
-                    "{} {key}",
-                    row["name"]
-                );
+                assert_eq!(actual, expected, "{} {key}", row["name"]);
                 assert_eq!(snapshot(&scan), before);
             }
         }

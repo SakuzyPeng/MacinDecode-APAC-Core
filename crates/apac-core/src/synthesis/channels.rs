@@ -2,7 +2,7 @@
 use super::{ChannelState, FrameStateCounts};
 use crate::prelude::*;
 use crate::{
-    error::{Error, Result},
+    error::{DecodeError, Result},
     frame::{ChannelFrameContext, ChannelPacketReport, DrcState, parse_channel_packet_with_state},
 };
 pub(super) const BACKEND: &str = "rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1";
@@ -17,12 +17,12 @@ pub(super) fn decode(
     let mut next_state = state.clone();
     let decoded =
         parse_channel_packet_with_state(context, packet, &mut next_state).map_err(|e| {
-            let mut error = Error::new("SQ channels", e.to_string());
+            let mut error = DecodeError::new("SQ channels", e.to_string());
             error.bit_offset = Some(e.bit_offset);
             error
         })?;
     if !decoded.packet_complete {
-        let mut e = Error::new(
+        let mut e = DecodeError::new(
             "SQ decoder",
             format!("unsupported frame: {}", decoded.frame.stop_reason),
         );
@@ -82,7 +82,7 @@ pub(super) fn render_core(
             .map_or(hoa.channels_after_hoa.len(), |s| s.channels.len())
             != channels
         {
-            return Err(Error::new(
+            return Err(DecodeError::new(
                 "HOA synthesis",
                 "restored coefficients do not match the output dimension",
             ));
@@ -109,7 +109,10 @@ pub(super) fn render_core(
         for (local, &global) in element.configuration.output_channels.iter().enumerate() {
             let index = usize::from(global);
             if index >= states.len() || std::mem::replace(&mut occupied[index], true) {
-                return Err(Error::new("SQ channels", "invalid output channel map"));
+                return Err(DecodeError::new(
+                    "SQ channels",
+                    "invalid output channel map",
+                ));
             }
             let samples = if element.present {
                 states[index].render(
@@ -130,7 +133,7 @@ pub(super) fn render_core(
                     })
                     .collect();
                 if samples.iter().any(|v| !v.is_finite()) {
-                    return Err(Error::new(
+                    return Err(DecodeError::new(
                         "SQ channels",
                         "nonfinite absent-element overlap",
                     ));
@@ -144,7 +147,10 @@ pub(super) fn render_core(
         }
     }
     if occupied.iter().any(|v| !*v) {
-        return Err(Error::new("SQ channels", "incomplete output channel map"));
+        return Err(DecodeError::new(
+            "SQ channels",
+            "incomplete output channel map",
+        ));
     }
     Ok((output, counts))
 }

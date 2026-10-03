@@ -10,7 +10,7 @@ pub(super) const AMBIENT_COUNTS_BACKEND: &str = "rust_hoa_ambient_counts_sq_drc_
 pub(super) const COUNTS_BACKEND: &str = "rust_hoa_salient_counts_sq_drc_off_f64_fft_v1";
 use super::{ChannelState, FrameStateCounts, channels};
 use crate::{
-    error::{Error, Result},
+    error::{DecodeError, Result},
     frame::{DrcState, HoaFrameContext, HoaState, parse_hoa_packet_with_state},
 };
 pub(super) const COMPONENT_ORDERS_BACKEND: &str = "rust_hoa_component_orders_sq_drc_off_f64_fft_v1";
@@ -33,12 +33,12 @@ pub(super) fn decode(
     let mut next_hoa = hoa.clone();
     let report = parse_hoa_packet_with_state(context, packet, &mut next_drc, &mut next_hoa)
         .map_err(|e| {
-            let mut error = Error::new("HOA packet", e.to_string());
+            let mut error = DecodeError::new("HOA packet", e.to_string());
             error.bit_offset = Some(e.bit_offset);
             error
         })?;
     if !report.packet.packet_complete || !report.hoa().hoa_complete {
-        let mut error = Error::new(
+        let mut error = DecodeError::new(
             "HOA decoder",
             format!("unsupported frame: {}", report.packet.frame.stop_reason),
         );

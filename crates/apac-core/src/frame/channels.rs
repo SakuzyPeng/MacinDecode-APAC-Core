@@ -296,7 +296,7 @@ fn finish(
 }
 fn element_error(mut error: ParseError, index: usize) -> ParseError {
     error.element_index = Some(index);
-    error.message = format!("element {index}: {}", error.message);
+    error.message = format!("element {index}: {}", error.message).into();
     error
 }
 
@@ -695,7 +695,7 @@ fn parse_impl(
         .map_err(|mut e| {
             let local = e.bit_offset;
             e.bit_offset += start;
-            e.message = format!("embedded preroll at local bit {local}: {}", e.message);
+            e.message = format!("embedded preroll at local bit {local}: {}", e.message).into();
             e
         })?;
         parser

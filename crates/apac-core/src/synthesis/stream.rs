@@ -2,7 +2,7 @@
 use super::{ChannelState, FrameStateCounts};
 use crate::prelude::*;
 use crate::{
-    error::{Error, Result},
+    error::{DecodeError, Result},
     frame::{
         DrcState, ScanWorkspace, StreamFrameContext, StreamPacketReport,
         stream::{self, StreamState},
@@ -28,12 +28,12 @@ pub(super) fn decode(
         &mut ScanWorkspace::default(),
     )
     .map_err(|e| {
-        let mut error = Error::new("SQ stream", e.to_string());
+        let mut error = DecodeError::new("SQ stream", e.to_string());
         error.bit_offset = Some(e.bit_offset);
         error
     })?;
     if !report.packet_complete {
-        let mut error = Error::new(
+        let mut error = DecodeError::new(
             "SQ decoder",
             format!("unsupported frame: {}", report.frame.stop_reason),
         );
@@ -73,7 +73,10 @@ fn render(
     for component in &packet.components {
         let source_channels = component.configuration.source_channels;
         if source + source_channels > states.len() {
-            return Err(Error::new("SQ stream", "invalid component synthesis range"));
+            return Err(DecodeError::new(
+                "SQ stream",
+                "invalid component synthesis range",
+            ));
         }
         let (pcm, part) = super::channels::render_core(
             &mut states[source..source + source_channels],
@@ -89,7 +92,10 @@ fn render(
                 || range.source_start + range.channels > source_channels
                 || used[first..end].iter().any(|&v| v)
             {
-                return Err(Error::new("SQ stream", "invalid component output interval"));
+                return Err(DecodeError::new(
+                    "SQ stream",
+                    "invalid component output interval",
+                ));
             }
             used[first..end].fill(true);
             for frame in 0..1024 {
@@ -100,7 +106,7 @@ fn render(
         }
     }
     if used.iter().any(|&b| !b) || source != states.len() {
-        return Err(Error::new("SQ stream", "uncovered component output"));
+        return Err(DecodeError::new("SQ stream", "uncovered component output"));
     }
     Ok((output, counts))
 }

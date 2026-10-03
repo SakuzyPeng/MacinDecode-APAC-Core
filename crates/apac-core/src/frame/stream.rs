@@ -521,7 +521,7 @@ pub fn parse_with_state(
         )
         .map_err(|mut e| {
             e.bit_offset += start;
-            e.message = format!("embedded preroll: {}", e.message);
+            e.message = format!("embedded preroll: {}", e.message).into();
             e
         })?;
         parser
@@ -559,7 +559,7 @@ pub fn parse_with_state(
             scratch,
         )
         .map_err(|mut error| {
-            error.message = format!("component {declared_index}: {}", error.message);
+            error.message = format!("component {declared_index}: {}", error.message).into();
             error
         })?;
         let end = core.frame.stop_bit_offset;

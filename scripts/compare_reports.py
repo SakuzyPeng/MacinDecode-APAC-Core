@@ -15,8 +15,9 @@ from pathlib import Path
 VOLATILE = {
     'created_at', 'finished_at', 'started_at', 'started_utc', 'finished_utc',
     'tested_worktree_dirty', 'code_commit', 'source_sha256',
-    'binary_sha256', 'presence_binary_sha256', 'test_binary_sha256', 'compiler',
-    'environment', 'failure_directory', 'debug_assertions', 'hostname',
+    'binary_sha256', 'tool_sha256', 'presence_binary_sha256', 'test_binary_sha256', 'compiler',
+    'environment', 'platform', 'architecture', 'python',
+    'failure_directory', 'debug_assertions', 'hostname',
     'stderr_tail', 'seconds', 'elapsed', 'elapsed_seconds', 'timing', 'timings',
 }
 VOLATILE_SUFFIXES = ('_seconds', '_ms', '_ns', '_path', '_directory')
@@ -48,6 +49,8 @@ def diff(a, b, where, out, limit):
         out.append(f'{where}: type {type(a).__name__} != {type(b).__name__}')
     elif isinstance(a, dict):
         for key in sorted(set(a) | set(b)):
+            if len(out) >= limit:
+                return
             if key not in a or key not in b:
                 out.append(f'{where}.{key}: only in {"right" if key not in a else "left"}')
             else:
@@ -73,8 +76,10 @@ def main():
     parser.add_argument('left', type=Path)
     parser.add_argument('right', type=Path)
     parser.add_argument('--ignore', nargs='*', default=[], help='additional volatile keys')
-    parser.add_argument('--limit', type=int, default=50, help='differences printed per file')
+    parser.add_argument('--limit', type=int, default=50, help='positive limit on differences printed per file')
     args = parser.parse_args()
+    if args.limit <= 0:
+        parser.error('--limit must be positive')
     extra = set(args.ignore)
     left, right = files(args.left), files(args.right)
     if args.left.is_file() and args.right.is_file():

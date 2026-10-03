@@ -21,7 +21,7 @@ fn sha<T: Serialize>(value: &T) -> String {
 }
 
 fn hex(text: &str) -> Option<Vec<u8>> {
-    if text.is_empty() || text.len() % 2 != 0 {
+    if text.is_empty() || !text.len().is_multiple_of(2) {
         return None;
     }
     (0..text.len())
@@ -53,10 +53,8 @@ fn packets(fixture: &Map<String, Value>) -> Vec<(String, Vec<u8>)> {
                 }
             }
             Value::Array(items) => {
-                let decoded: Option<Vec<_>> = items
-                    .iter()
-                    .map(|v| v.as_str().and_then(hex))
-                    .collect();
+                let decoded: Option<Vec<_>> =
+                    items.iter().map(|v| v.as_str().and_then(hex)).collect();
                 if let Some(decoded) = decoded.filter(|d| !d.is_empty()) {
                     for (i, bytes) in decoded.into_iter().enumerate() {
                         out.push((format!("{key}[{i}]"), bytes));
@@ -205,7 +203,10 @@ fn frozen_fixtures_keep_identical_reports_and_pcm() {
         serde_json::from_str(&std::fs::read_to_string(&path).expect("golden file")).unwrap();
     let expected = expected["fixtures"].as_object().expect("fixtures");
     let mut mismatches = Vec::new();
-    for key in expected.keys().chain(actual.keys().filter(|k| !expected.contains_key(*k))) {
+    for key in expected
+        .keys()
+        .chain(actual.keys().filter(|k| !expected.contains_key(*k)))
+    {
         if expected.get(key) != actual.get(key) {
             mismatches.push(key.clone());
         }

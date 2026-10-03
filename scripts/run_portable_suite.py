@@ -78,11 +78,17 @@ def main():
     parser.add_argument('--skip', nargs='*', default=[], help='validator names to leave out')
     parser.add_argument('--jobs', type=int, default=1, help='validators run concurrently')
     args = parser.parse_args()
+    names = [n for n in (args.only or (FAST if args.fast else list(SUITE))) if n not in args.skip]
+    if 'validate_layouts' in names:
+        if not args.presence_binary:
+            parser.error('--presence-binary is required for validate_layouts; '
+                         'use --skip validate_layouts to omit it explicitly')
+        if not args.presence_binary.is_file():
+            parser.error('--presence-binary is not a file: ' + str(args.presence_binary))
     if args.out.exists():
         raise SystemExit('output directory exists: ' + str(args.out))
     args.out.mkdir(parents=True)
     binary = args.binary.resolve()
-    names = [n for n in (args.only or (FAST if args.fast else list(SUITE))) if n not in args.skip]
 
     def run(name):
         flag, extra = SUITE[name]
@@ -90,8 +96,6 @@ def main():
         command = [sys.executable, '-B', str(ROOT / 'scripts' / (name + '.py')),
                    '--binary', str(binary), flag, str(report)]
         if 'presence' in extra:
-            if not args.presence_binary:
-                return dict(name=name, skipped='missing --presence-binary')
             command += ['--presence-binary', str(args.presence_binary.resolve())]
         start = time.monotonic()
         done = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
@@ -103,7 +107,7 @@ def main():
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         summary = list(pool.map(run, names))
     (args.out / 'summary.json').write_text(json.dumps(summary, indent=2) + '\n')
-    return 0 if all(r.get('returncode', 0) == 0 for r in summary) else 1
+    return 0 if all(r['returncode'] == 0 for r in summary) else 1
 
 
 if __name__ == '__main__':

@@ -863,6 +863,18 @@ python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --native --ou
 
 Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
 
+重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。
+
+```sh
+cargo +1.98.0 test --offline --test golden_decode
+cargo +1.98.0 build --offline --bin apac-tool --example layout_presence
+python3 -B scripts/run_portable_suite.py --binary target/debug/apac-tool \
+  --presence-binary target/debug/examples/layout_presence --jobs 2 --out reports/portable-suite-new
+python3 -B scripts/compare_reports.py reports/portable-suite-before reports/portable-suite-new --limit 50
+```
+
+`compare_reports.py` 支持 JSON、JSONL 或报告目录，忽略时间、源码／二进制构建指纹、编译器及运行环境字段，保留 PCM、常量和向量摘要等结果差异。比较相同退出 0，有差异退出 1；`--limit` 必须为正整数，只限制每个文件打印的差异数，非正值退出 2。可用 `--ignore` 显式追加忽略的字段名。
+
 旧 `data/sq-sine-windows.json` 是 `26A428` 的 Float32 窗值观测，仅保留为历史诊断资料，不进入默认合成路径。下面的苹果核对与混合参考属于独立诊断，失败仍返回非零退出码，不用来改写数学模型的通过结果。
 
 系数的逐位核对可重新运行：

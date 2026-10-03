@@ -4,7 +4,6 @@ use super::{ChannelPacketReport, Parser, hoa::RecoverySlotSpectrum};
 use crate::config::{ConfigField, ParseError};
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
 #[cfg(test)]
 #[path = "hoa_salient_format.rs"]
@@ -50,7 +49,8 @@ mod expanded_orders_tests;
 #[path = "hoa_partial_tests.rs"]
 mod partial_tests;
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientState {
     pub(super) history: Vec<Vec<Vec<f64>>>,
     previous_frame_sha256: Option<String>,
@@ -99,7 +99,8 @@ impl SalientState {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientDescriptor {
     pub component_index: usize,
     pub subband_index: usize,
@@ -114,63 +115,117 @@ pub struct SalientDescriptor {
     pub restored: Vec<f64>,
     /// For mixed frames, quantized/sign arrays are compact and follow these ACN indices.
     /// Legacy pure-salient arrays retain their historical shape.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub coded_coefficient_indices: Option<Vec<usize>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub ambient_omitted_coefficients: Option<Vec<usize>>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientSpatialData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub unrounded_subbands: Option<bool>,
     pub history_frame_sha256: Option<String>,
     /// Boundaries in the native frequency-major ordering, before short-window inverse transpose.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub subband_ends: Vec<usize>,
     /// Exclusive frequency-line ends in one window, not band widths.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub lines_per_window: Vec<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub component_subbands: Option<Vec<SalientSubbandInfo>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub subband_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub format_sha256: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub partition_method: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub partition_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub component_orders: Option<Vec<SalientComponentOrderInfo>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub order1_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub component_count: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub count_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub quantization_bits: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub quantization_profile: Option<String>,
     pub descriptors: Vec<SalientDescriptor>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientSubbandInfo {
     pub component_index: usize,
     pub subband_count: usize,
     pub subband_ends: Vec<usize>,
     pub lines_per_window: Vec<usize>,
 }
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientComponentOrderInfo {
     pub component_index: usize,
     pub order: u8,
     pub coefficient_count: usize,
     pub numeric_profile: String,
     pub format_sha256: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub quantization_bits: Option<u8>,
 }
 pub(super) fn component_information(

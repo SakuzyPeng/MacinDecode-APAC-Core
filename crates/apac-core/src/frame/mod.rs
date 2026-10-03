@@ -136,7 +136,6 @@ use crate::{
     config::{self, ConfigField, Diagnostic, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{SCHEMA_VERSION, sha256},
 };
-use serde::Serialize;
 use std::collections::BTreeMap;
 
 /// Largest single packet accepted by every parser and packet store.
@@ -144,17 +143,21 @@ pub const MAX_PACKET_BUFFER: usize = 16 * 1024 * 1024;
 
 /// Immutable configuration-derived context. An unsupported context still permits
 /// reporting the ASP frame type when its enclosing configuration is verified.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct FrameContext {
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     drc: drc::DrcContext,
     cookie_sha256: String,
     sample_rate_hz: Option<u64>,
+    // Reported by `parse-packets`; decoding reads the configuration instead.
+    #[cfg_attr(not(feature = "serde"), allow(dead_code))]
     channels: Option<u64>,
+    #[cfg_attr(not(feature = "serde"), allow(dead_code))]
     frame_samples: Option<u64>,
     asp_frame_header: bool,
     unsupported_reason: Option<String>,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     packet_configuration: packet_config::PacketConfiguration,
 }
 impl FrameContext {
@@ -249,14 +252,16 @@ impl FrameContext {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct UnparsedRange {
     pub bit_offset: usize,
     pub bit_length: usize,
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct FrameReport {
     pub schema_version: u32,
     pub cookie_sha256: String,
@@ -270,10 +275,10 @@ pub struct FrameReport {
     pub stop_reason: String,
     pub stop_bit_offset: usize,
     /// The first channel element is absent: no core payload follows.
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub cpe_absent: bool,
     /// The embedded ASP preroll frame's bit range, when one is present.
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub preroll: Option<(usize, usize)>,
     /// Only the first present core payload's start is known, never its end.
     pub payload_bit_offset: Option<usize>,

@@ -9,7 +9,6 @@ use crate::{
     config::{self, FieldExt, ParseError},
     model::ChannelLayout,
 };
-use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
@@ -24,7 +23,8 @@ pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
 /// One salient component's actual descriptor shape, in cookie order.
 ///
 /// This does not describe the overall recovery domain or output layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientComponentConfiguration {
     pub order: u8,
     pub subband_count: usize,
@@ -474,10 +474,11 @@ fn profile_channel_limit(profile: u8, level: u8) -> Option<u64> {
         .copied()
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaFrameContext {
     pub(crate) transport: ChannelFrameContext,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub(super) configuration: HoaConfiguration,
 }
 impl HoaFrameContext {
@@ -909,24 +910,44 @@ impl HoaFrameContext {
 }
 
 /// Ambient keeps its global SD mode; salient also retains descriptor history.
-#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaState {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub frame_configuration: Option<super::hoa_controls::HoaFrameConfiguration>,
     pub last_global_coding_mode: u8,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub salient: Option<Box<super::hoa_salient::SalientState>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub last_ambient_transform: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub last_dynamic_mapping: Option<Vec<Vec<u8>>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaSpatialData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub controls: Option<super::HoaSpatialControls>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub frame_configuration: Option<super::HoaFrameConfigurationReport>,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -934,22 +955,31 @@ pub struct HoaSpatialData {
     pub coding_mode: Option<u8>,
     pub effective_global_coding_mode: u8,
     pub ambient_indices: Vec<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub salient: Option<super::hoa_salient::SalientSpatialData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub ambient: Option<StaticAmbientData>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaCoefficientSpectrum {
     pub acn_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct RecoverySlotSpectrum {
     pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaMixedMapping {
     pub ambient_transport_channels: Vec<u8>,
     pub salient_transport_channels: Vec<u8>,
@@ -957,41 +987,75 @@ pub struct HoaMixedMapping {
     pub unused_transport_channels: Vec<u8>,
     pub descriptor_numeric_profile: String,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaFrameInfo {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub static_remapping: Option<super::HoaStaticRemapping>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub source_layout: Option<super::HoaSourceLayoutData>,
     pub numeric_profile: String,
     pub order: u8,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub full_order: Option<bool>,
     pub channel_order: String,
     pub normalization: String,
     pub coefficient_count: usize,
     pub core_channels: usize,
     pub transport_channels: usize,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub transport_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub transport_format_sha256: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub transport_element_count: Option<usize>,
     pub common_window: Option<u8>,
     pub spatial: Option<HoaSpatialData>,
     pub hoa_complete: bool,
     pub spectral_stage: String,
     pub channels_after_hoa: Vec<HoaCoefficientSpectrum>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub mixed: Option<HoaMixedMapping>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub output_order: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub output_coefficient_count: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub dynamic_selection: Option<super::hoa_dynamic::DynamicSelectionData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub additive: Option<super::hoa_additive::HoaAdditiveData>,
 }
 impl Default for HoaFrameInfo {
@@ -1023,9 +1087,10 @@ impl Default for HoaFrameInfo {
         }
     }
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaPacketReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub packet: ChannelPacketReport,
 }
 impl HoaPacketReport {

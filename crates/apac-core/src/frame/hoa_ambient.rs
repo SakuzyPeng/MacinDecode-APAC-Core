@@ -2,15 +2,15 @@
 use super::{ChannelPacketReport, hoa::RecoverySlotSpectrum};
 use crate::config::ParseError;
 use crate::prelude::*;
-use serde::Serialize;
 
 pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-ambient-counts-math-v1";
 pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-ambient-counts-state-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-static-ambient-state-v1";
 
-#[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
-#[serde(tag = "mode", rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(tag = "mode", rename_all = "snake_case"))]
 pub enum AmbientTransform {
     #[default]
     Disabled,
@@ -20,14 +20,16 @@ pub enum AmbientTransform {
     PerFrame,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AmbientSpectrum {
     pub transport_slot: u8,
     pub acn_index: u8,
     pub scaled: Vec<f32>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StaticAmbientData {
     pub explicit_selection: bool,
     pub selection: Vec<u8>,

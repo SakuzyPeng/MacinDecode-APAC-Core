@@ -9,7 +9,7 @@ description = "APAC research reports, packet bundles, containers and CLI drivers
 clap = ["dep:clap"]
 
 [dependencies]
-apac-core.workspace = true
+apac-core = { workspace = true, features = ["serde"] }
 clap = { workspace = true, optional = true }
 serde.workspace = true
 serde_json.workspace = true

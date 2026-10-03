@@ -6,16 +6,17 @@ use super::{
 use crate::config::{DrcDeclaration, Field, FieldExt, ParseError};
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-shared-drc-syntax-v1";
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcSequenceParameters {
     pub sequence_index: usize,
     pub gain_set_index: usize,
     pub parameters: DrcParameters,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcGainSequence {
     pub sequence_index: usize,
     pub gain_set_index: usize,

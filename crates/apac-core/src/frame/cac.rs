@@ -4,18 +4,19 @@ use super::{FrameContext, IcsInfo, Parser, SpectrumReport, parse_spectrum};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-cac-math-v1";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CacRun {
     pub gain_index: u8,
     pub repeat_code: u8,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CacData {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -23,15 +24,17 @@ pub struct CacData {
     /// Group-major, one gain index for each active SFB, shared by its windows.
     pub gain_indices: Vec<Vec<u8>>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CacChannelSpectrum {
     pub channel_index: u8,
     /// Window-major Float32 spectrum, after CAC and before TNS.
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct CacReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub spectrum: SpectrumReport,
     pub shared_ics: bool,
     /// Stage completion only; does not change whole-frame completion semantics.

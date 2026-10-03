@@ -5,7 +5,6 @@ use super::{
 };
 use crate::config::{FieldExt, HoaAsc, ParseError};
 use crate::prelude::*;
-use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-spatial-controls-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-spatial-controls-math-v1";
@@ -30,7 +29,8 @@ pub(super) fn state_profile(controls: HoaSpatialControls) -> &'static str {
 #[path = "hoa_controls_tests.rs"]
 mod tests;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaSpatialControls {
     pub flag_a: bool,
     pub flag_b: bool,
@@ -89,14 +89,16 @@ pub(super) fn boundaries(count: usize, method: usize) -> &'static [usize] {
 }
 
 /// Retain inactive component descriptors so flag_c=false can restore their shape.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaFrameConfiguration {
     pub salient_components: usize,
     pub component_configurations: Vec<SalientComponentConfiguration>,
     pub ambient_indices: Vec<u8>,
     pub explicit_ambient_selection: bool,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaFrameConfigurationReport {
     pub present: bool,
     pub start_bit_offset: usize,

@@ -11,19 +11,20 @@ use crate::{
     config::{self, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub const PROFILE: &str = "apac-hoa-multiple-asc-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-multiple-asc-state-v1";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamOutputRange {
     pub source_start: usize,
     pub output_start: usize,
     pub channels: usize,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -34,16 +35,26 @@ pub struct StreamComponentConfiguration {
     /// Coded source dimension; a bounded output route can omit a whole component.
     pub source_channels: usize,
     pub layout: ChannelLayout,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub hoa_coefficient_count: Option<usize>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub declaration_aliases: Vec<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub alias_of: Option<usize>,
     pub parameter_0: u64,
     pub parameter_1: u64,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct AdditionalComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -397,35 +408,45 @@ impl StreamFrameContext {
             .sum()
     }
 }
-#[derive(Debug, Clone, Serialize, Default)]
+#[derive(Debug, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamState {
     hoa: Vec<Option<HoaState>>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamComponentReport {
     pub configuration: StreamComponentConfiguration,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub core_complete: bool,
     pub elements: Vec<ElementReport>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub hoa: Option<HoaFrameInfo>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<StreamPacketReport>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamPacketReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
     pub packet_complete: bool,
     pub packet_state_profile: String,
     pub channel_count: u32,
     pub components: Vec<StreamComponentReport>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub additional_components: Vec<AdditionalComponentConfiguration>,
     pub embedded_preroll: Option<StreamPreroll>,
     pub packet_tail: Option<PacketTail>,

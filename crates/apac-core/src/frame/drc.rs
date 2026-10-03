@@ -6,7 +6,6 @@ use crate::config::{
 };
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
-use serde::Serialize;
 
 pub const RULES_VERSION: &str = "apac-drc-payload-v1";
 const ROOT: &str = "ancillary.loudness_drc";
@@ -55,7 +54,8 @@ pub fn codebook_sha256() -> String {
     crate::model::sha256(&bytes)
 }
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcParameters {
     pub coefficient_location: u8,
     pub gain_sequences: u8,
@@ -68,16 +68,29 @@ pub struct DrcParameters {
     pub frame_samples: u16,
     pub time_delta_min: u16,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcConfiguration {
     pub parameters: DrcParameters,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub shared_parameters: Option<Vec<super::DrcSequenceParameters>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub shared_coefficient_index: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub shared_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub shared_format_sha256: Option<String>,
     /// Declaration only, including instructions, characteristics and filters.
     /// Coordinates refer to `source`, not necessarily the current packet.
@@ -298,22 +311,28 @@ impl DrcContext {
         }
     }
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcNode {
     pub gain_eighth_db: i32,
     pub time: i32,
     pub gain_bit_offset: usize,
     pub gain_bit_length: usize,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub slope_index: Option<u8>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcTimeDelta {
     pub value: u32,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcGainExtension {
     pub extension_type: u8,
     pub start_bit_offset: usize,
@@ -321,7 +340,8 @@ pub struct DrcGainExtension {
     pub payload_bits: usize,
     pub payload_sha256: String,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcPayload {
     pub start_bit_offset: usize,
     pub header_end_bit_offset: usize,
@@ -336,18 +356,31 @@ pub struct DrcPayload {
     pub encoded_times: Vec<i32>,
     pub nodes: Vec<DrcNode>,
     pub extension_present: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub sequences: Option<Vec<super::DrcGainSequence>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub configuration_changed: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub shared_syntax_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub gain_extensions: Option<Vec<DrcGainExtension>>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DrcReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub bwe2: Bwe2Report,
     pub drc_rules_version: String,
     pub drc_codebook_sha256: String,

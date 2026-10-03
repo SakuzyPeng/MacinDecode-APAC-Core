@@ -1,6 +1,5 @@
 //! Layout types and identities shared by the decoder and its reports.
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 pub const SCHEMA_VERSION: u32 = 1;
@@ -8,13 +7,15 @@ pub const SCHEMA_VERSION: u32 = 1;
 pub fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChannelDescription {
     pub label: u32,
     pub flags: u32,
     pub coordinates: [f32; 3],
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChannelLayout {
     pub tag: u32,
     pub bitmap: u32,

@@ -1,16 +1,19 @@
 //! Recorded syntax: field events and derived values for research reports.
 //!
-//! Values render exactly as the former `serde_json::Value` did. Structured
-//! values go through `serde_json::to_value`, whose maps sort their keys.
+//! Values render exactly as the former `serde_json::Value` did. With the
+//! `serde` feature, structured values go through `serde_json::to_value`, whose
+//! maps sort their keys; the core writer covers scalars and digests without it.
 use crate::config::passive::PositionSyntax;
 use crate::frame::{Bwe2Data, ElementBwe2Data, TnsChannel};
 use crate::prelude::*;
 use core::fmt::{self, Write};
+#[cfg(feature = "serde")]
 use serde::{Serialize, Serializer, ser::SerializeMap};
 
 /// One recorded syntax element. Coordinates are bits from the start of the
 /// cookie or packet that was parsed.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ConfigField {
     pub name: String,
     pub bit_offset: usize,
@@ -181,6 +184,7 @@ fn write_json_str(out: &mut impl Write, text: &str) -> fmt::Result {
     out.write_char('"')
 }
 
+#[cfg(feature = "serde")]
 impl Serialize for FieldValue {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         fn sorted<T: Serialize, S: Serializer>(
@@ -237,6 +241,7 @@ macro_rules! eq_integer {
 }
 eq_integer!(u8, u16, u32, u64, usize, i32, i64);
 /// Compare by rendering, as the recorded value would print.
+#[cfg(feature = "serde")]
 impl PartialEq<serde_json::Value> for FieldValue {
     fn eq(&self, other: &serde_json::Value) -> bool {
         serde_json::to_value(self).is_ok_and(|value| value == *other)

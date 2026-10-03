@@ -15,19 +15,20 @@ use crate::{
     frame::MAX_PACKET_BUFFER,
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub const STATE_PROFILE: &str = "apac-channel-state-v1";
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum ElementKind {
     Sce,
     Cpe,
     Lfe,
     Extension,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ElementConfiguration {
     pub element_index: usize,
     pub kind: ElementKind,
@@ -35,10 +36,14 @@ pub struct ElementConfiguration {
     /// Absolute output channel indices in the declared tagged layout.
     pub output_channels: Vec<u8>,
     /// HOA salient carriers have no direct output-channel mapping.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub transport_channels: Option<Vec<u8>>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ChannelFrameContext {
     pub(crate) cookie_sha256: String,
     pub(crate) sample_rate_hz: u64,
@@ -48,15 +53,15 @@ pub struct ChannelFrameContext {
     pub(crate) elements: Vec<ElementConfiguration>,
     pub(crate) maximum_preroll_bytes: u64,
     pub(crate) rejection: Option<String>,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     asp_header: bool,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     hoa: Option<super::hoa::HoaConfiguration>,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     configuration: PacketConfiguration,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     drc: DrcContext,
-    #[serde(skip)]
+    #[cfg_attr(feature = "serde", serde(skip))]
     auxiliary: super::auxiliary::AuxiliaryConfiguration,
 }
 impl ChannelFrameContext {
@@ -229,7 +234,8 @@ impl ChannelFrameContext {
         }
     }
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ElementReport {
     pub configuration: ElementConfiguration,
     pub present: bool,
@@ -251,24 +257,35 @@ pub struct ElementReport {
     pub bwe2_complete: bool,
     pub bwe2: Option<ElementBwe2Data>,
     pub channels_after_bwe2: Vec<Bwe2ChannelSpectrum>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub extension: Option<super::HoaExtensionData>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ChannelPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<ChannelPacketReport>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ChannelPacketReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
     pub packet_complete: bool,
     pub packet_state_profile: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub channel_layout_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub hoa: Option<super::hoa::HoaFrameInfo>,
     pub channel_count: u8,
     pub channel_labels: Vec<String>,

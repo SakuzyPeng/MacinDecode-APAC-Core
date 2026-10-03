@@ -6,7 +6,6 @@ use super::{
 };
 use crate::config::ParseError;
 use crate::prelude::*;
-use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
 pub const SUBBAND_PROFILE: &str = "apac-hoa-dynamic-subbands-v1";
@@ -48,8 +47,9 @@ pub(super) fn boundaries(count: usize, method: usize, short: bool) -> &'static [
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum DynamicSelectionEncoding {
     IndexList,
     Bitmap,
@@ -57,7 +57,8 @@ pub enum DynamicSelectionEncoding {
     Prefix,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DynamicBandMapping {
     pub subband_index: usize,
     pub target_acn_indices: Vec<u8>,
@@ -65,13 +66,15 @@ pub struct DynamicBandMapping {
     pub end_bit_offset: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct InternalAmbientSpectrum {
     pub transport_slot: u8,
     pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct InternalAmbientData {
     pub explicit_selection: bool,
     pub selection: Vec<u8>,
@@ -105,26 +108,48 @@ impl From<StaticAmbientData> for InternalAmbientData {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DynamicSelectionData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub domain_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub configured_subband_count: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub wire_mapping_groups: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub unrounded_subbands: Option<bool>,
     pub encoding: DynamicSelectionEncoding,
     pub method: u8,
     pub subband_ends: Vec<usize>,
     pub lines_per_window: Vec<usize>,
     /// The first N of the eight validated wire mappings are effective.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub active_subband_count: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub subband_profile: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub format_sha256: Option<String>,
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -136,7 +161,10 @@ pub struct DynamicSelectionData {
     pub salient_transport_channels: Vec<u8>,
     pub unused_transport_channels: Vec<u8>,
     pub before_selection: Vec<RecoverySlotSpectrum>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub internal_ambient: Option<InternalAmbientData>,
 }
 

@@ -3,7 +3,6 @@ use super::{ChannelPacketReport, Parser};
 use crate::config::ParseError;
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
 /// SHA-256 of `data/hoa-transports-format-v1.json`, computed at build time.
 pub fn format_sha256() -> &'static str {
@@ -14,7 +13,8 @@ pub fn format_sha256() -> &'static str {
 #[path = "hoa_transport_tests.rs"]
 mod tests;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaExtensionData {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,

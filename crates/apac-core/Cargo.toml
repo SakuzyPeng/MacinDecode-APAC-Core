@@ -5,12 +5,23 @@ edition.workspace = true
 build = "build/main.rs"
 description = "Independent APAC configuration, frame parsing and SQ/HOA synthesis"
 
+[features]
+# Serialize the report and state types; serde_json only reproduces the
+# key-sorted rendering of structured syntax values.
+serde = ["dep:serde", "dep:serde_json"]
+
 [dependencies]
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"], optional = true }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
+sha2 = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+# Unit tests compare against the serialized reports.
+apac-core = { path = ".", features = ["serde"] }
 serde.workspace = true
 serde_json.workspace = true
-sha2.workspace = true
 
 [build-dependencies]
 serde.workspace = true
 serde_json.workspace = true
-sha2.workspace = true
+sha2 = { version = "0.10", default-features = false }

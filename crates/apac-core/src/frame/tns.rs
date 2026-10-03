@@ -3,17 +3,23 @@ use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-tns-math-v1";
 
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TnsFilter {
     pub length: usize,
     pub order: usize,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub encoded_order: Option<usize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub order_profile: Option<String>,
     pub direction: Option<bool>,
     pub compression: Option<bool>,
@@ -29,7 +35,8 @@ pub struct TnsFilter {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TnsWindow {
     pub window_index: usize,
     pub resolution: Option<usize>,
@@ -37,7 +44,8 @@ pub struct TnsWindow {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TnsChannel {
     pub channel_index: u8,
     pub present: bool,
@@ -46,14 +54,16 @@ pub struct TnsChannel {
     pub end_bit_offset: usize,
     pub windows: Vec<TnsWindow>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TnsChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TnsReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub cac: CacReport,
     /// Only the TNS stage is complete; component and packet ends remain unknown.
     pub tns_complete: bool,

@@ -1,6 +1,5 @@
 //! Fixed BWE2 mathematics. Ordinary Float64 operations never fuse or reassociate.
 use crate::prelude::*;
-use serde::Serialize;
 
 pub const PROFILE: &str = "apac-bwe2-math-v2";
 pub(crate) struct Constants {
@@ -286,7 +285,8 @@ fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
         })
         .collect()
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Analysis {
     pub conditioned_lsf: [f64; 16],
     pub source_lpc: [f64; 17],

@@ -16,7 +16,6 @@ mod passive_metadata;
 mod passive_renderer;
 mod scenes;
 
-use serde::Serialize;
 use std::{collections::BTreeMap, fmt};
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
@@ -29,15 +28,17 @@ use parser::InBand;
 pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
 pub use passive::PositionSyntax;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum ParseStatus {
     Complete,
     Partial,
     Unsupported,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct UnknownRange {
     pub bit_offset: usize,
     pub bit_length: usize,
@@ -47,7 +48,8 @@ pub struct UnknownRange {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Diagnostic {
     pub bit_offset: usize,
     pub message: String,
@@ -63,9 +65,13 @@ pub struct Recording {
     pub diagnostics: Vec<Diagnostic>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ParseError {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub element_index: Option<usize>,
     pub bit_offset: usize,
     /// A fixed error class such as "truncated" or "max-sfb".

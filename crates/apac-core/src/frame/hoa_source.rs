@@ -5,7 +5,6 @@ use crate::{
     config::{Component, ParseError},
     model::{ChannelDescription, ChannelLayout},
 };
-use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-source-layout-format-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-source-layout-math-v1";
@@ -284,24 +283,35 @@ impl SourceLayout {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaSourceChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaSourceLayoutData {
     pub format_profile: String,
     pub format_sha256: String,
     pub numeric_profile: String,
     pub layout: ChannelLayout,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub normalization: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub coefficient_indices: Option<Vec<u32>>,
     pub parameter_0: u8,
     pub operation: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub matrix_id: Option<String>,
     pub channels: Vec<HoaSourceChannelSpectrum>,
 }

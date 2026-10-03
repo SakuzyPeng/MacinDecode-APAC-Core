@@ -3,22 +3,24 @@ use super::{FrameContext, FrameReport, Parser, parse_frame};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
-use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct IcsInfo {
     pub block_type: u8,
     pub max_sfb: usize,
     pub window_groups: Vec<u32>,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Section {
     pub group: usize,
     pub start_band: usize,
     pub end_band: usize,
     pub codebook: u8,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ChannelSpectrum {
     pub channel_index: u8,
     pub ics: IcsInfo,
@@ -33,16 +35,20 @@ pub struct ChannelSpectrum {
     pub spectral_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SpectrumReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
     /// True only for two decoded SQ streams; absent CPEs are separately reported.
     pub spectrum_complete: bool,
     pub spectral_stage: String,
     pub channels: Vec<ChannelSpectrum>,
     /// Absent in older reports; new outputs identify their deterministic model.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub numeric_profile: Option<String>,
 }
 

@@ -4,28 +4,38 @@ use super::{
 };
 use crate::config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader};
 use crate::prelude::*;
-use serde::Serialize;
 
 pub const STATE_PROFILE: &str = "apac-asp-state-v1";
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct PacketTail {
     pub core_end_bit_offset: usize,
     pub ancillary_start_bit_offset: usize,
     pub scene_update_present: Option<bool>,
     pub neutral_scene_restatement: bool,
     pub trimming_present: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub trimming: Option<super::TrimmingDeclaration>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub custom_data: Option<super::AuxiliaryPayload>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub scene_graph: Option<super::SceneGraphPayload>,
     pub ancillary_end_bit_offset: usize,
     pub packet_end_bit_offset: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct EmbeddedPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -33,21 +43,34 @@ pub struct EmbeddedPreroll {
     pub report: Box<PacketReport>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct PacketReport {
-    #[serde(flatten)]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub bwe2: Bwe2Report,
     pub packet_complete: bool,
     pub packet_state_profile: String,
     pub packet_tail: Option<PacketTail>,
     pub embedded_preroll: Option<EmbeddedPreroll>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub drc: Option<super::drc::DrcPayload>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub drc_complete: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub drc_history_sufficient: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
     pub drc_processing_applied: Option<bool>,
 }
 impl PacketReport {

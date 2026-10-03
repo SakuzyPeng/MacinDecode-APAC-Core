@@ -208,8 +208,10 @@ pub fn parse_packet_with_state(
                     .map_or("unsupported audio scene update", |d| d.message.as_str());
                 return partial(result, parser, reason);
             }
-            let rejected =
-                packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
+            let rejected = packet_config::neutral_scene(
+                &config::AudioScenes::from_fields(&scene.fields),
+                "packet",
+            );
             if !rejected.is_empty() {
                 return partial(
                     result,

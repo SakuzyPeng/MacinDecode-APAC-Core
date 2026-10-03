@@ -197,8 +197,12 @@ pub struct SqDecoder {
 }
 impl SqDecoder {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self> {
-        let context = FrameContext::from_cookie(cookie)?;
-        let decoded_context = crate::frame::DecodedFrameContext::from_cookie(cookie)?;
+        Self::from_config(&crate::config::Config::parse(cookie)?)
+    }
+    /// Build the decoder from a configuration parsed once by the caller.
+    pub fn from_config(config: &crate::config::Config) -> Result<Self> {
+        let context = FrameContext::from_config(config);
+        let decoded_context = crate::frame::DecodedFrameContext::from_config(config)?;
         if let crate::frame::DecodedFrameContext::Stream(stream) = decoded_context {
             if let Some(reason) = stream.rejection() {
                 return Err(Error::new(

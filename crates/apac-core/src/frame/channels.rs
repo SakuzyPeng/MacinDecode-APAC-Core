@@ -10,12 +10,11 @@ use super::{
 };
 use crate::prelude::*;
 use crate::{
-    config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader},
+    config::{self, Diagnostic, FieldExt, ParseError, ParseStatus, bits::BitReader},
     frame::MAX_PACKET_BUFFER,
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::BTreeMap;
 
 pub const STATE_PROFILE: &str = "apac-channel-state-v1";
@@ -61,33 +60,21 @@ pub struct ChannelFrameContext {
 }
 impl ChannelFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
-        let parsed = config::parse_cookie(cookie)?;
-        Self::from_report(parsed)
+        Ok(Self::from_config(&config::Config::parse(cookie)?))
     }
-    pub(super) fn from_report(parsed: config::CookieReport) -> Result<Self, ParseError> {
-        let count = parsed
-            .derived
-            .get("channels")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+    pub fn from_config(config: &config::Config) -> Self {
+        let count = config.global.channels.unwrap_or(0);
         let layout = crate::channel_layout::layout(count);
         let (family, level, types, labels, capacity) =
             layout.as_ref().map_or((0, 0, &[][..], &[][..], 0), |l| {
                 (l.family, l.level, l.types, l.labels, l.preroll_bytes)
             });
-        let configuration = PacketConfiguration::for_layout(&parsed, count, family, level, types);
-        let drc = DrcContext::for_channels(&parsed, count);
-        let field = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == name)
-                .map(|f| &f.value)
-        };
-        let asp_header = field("box.version_flags") == Some(&json!(0))
-            && field("bitstream_version") == Some(&json!(0x800))
-            && field("global.flag_a") == Some(&json!(false))
-            && field("global.flag_c") == Some(&json!(false));
+        let configuration = PacketConfiguration::for_layout(config, count, family, level, types);
+        let drc = DrcContext::for_channels(config, count);
+        let asp_header = config.version_flags.is(0)
+            && config.bitstream_version.is(0x800)
+            && config.global.flag_a.is(false)
+            && config.global.flag_c.is(false);
         let rejection = if types.is_empty() {
             Some(format!(
                 "unsupported declared channel count {count}; expected 1, 2, 6, 8, 12 or 24"
@@ -116,14 +103,10 @@ impl ChannelFrameContext {
                 }
             })
             .collect();
-        Ok(Self {
-            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_report(&parsed),
-            cookie_sha256: parsed.cookie_sha256,
-            sample_rate_hz: parsed
-                .derived
-                .get("sample_rate_hz")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0),
+        Self {
+            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_config(config),
+            cookie_sha256: config.cookie_sha256.clone(),
+            sample_rate_hz: config.global.sample_rate_hz.unwrap_or(0),
             channel_count: count as u8,
             layout: (!types.is_empty()).then(|| {
                 ChannelLayout::tagged((family as u32) << 16 | count as u32, count as u32, None)
@@ -136,7 +119,7 @@ impl ChannelFrameContext {
             hoa: None,
             configuration,
             drc,
-        })
+        }
     }
     pub(super) fn hoa_transport(
         cookie_sha256: String,
@@ -781,8 +764,10 @@ fn parse_impl(
             if !scene.is_complete() {
                 return finish(result, parser, "unsupported audio scene update");
             }
-            let rejected =
-                packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
+            let rejected = packet_config::neutral_scene(
+                &config::AudioScenes::from_fields(&scene.fields),
+                "packet",
+            );
             if !rejected.is_empty() {
                 return finish(
                     result,

@@ -66,27 +66,17 @@ pub fn parse_packets_with_depth(
         return Err(Error::new("parse-packets", "packet count must be positive"));
     }
     let mut bundle = PacketBundle::open(directory)?;
-    let context = FrameContext::from_cookie(bundle.cookie()).map_err(|e| {
-        let mut error = Error::new("frame context (cookie)", e.to_string());
-        error.bit_offset = Some(e.bit_offset);
-        error
-    })?;
-    let depth = if depth == ParseDepth::Hoa
-        && crate::config::parse_cookie(bundle.cookie())?
-            .fields
-            .iter()
-            .any(|f| {
-                (f.name == "global.component_count" && f.value.as_u64().is_some_and(|n| n > 1))
-                    || (f.name == "global.additional_asc_present" && f.value == json!(true))
-            }) {
+    // The bundle parsed its cookie when it opened, so context construction
+    // below can only reject, not fail to parse.
+    let config = bundle.config().clone();
+    let context = FrameContext::from_config(&config);
+    let depth = if depth == ParseDepth::Hoa && config.is_composite() {
         ParseDepth::Stream
     } else {
         depth
     };
     let stream_context = if depth == ParseDepth::Stream {
-        Some(crate::frame::StreamFrameContext::from_cookie(
-            bundle.cookie(),
-        )?)
+        Some(crate::frame::StreamFrameContext::from_config(&config)?)
     } else {
         None
     };
@@ -95,14 +85,12 @@ pub fn parse_packets_with_depth(
         .map(|c| c.initial_state())
         .unwrap_or_default();
     let channel_context = if depth == ParseDepth::Channels {
-        Some(crate::frame::ChannelFrameContext::from_cookie(
-            bundle.cookie(),
-        )?)
+        Some(crate::frame::ChannelFrameContext::from_config(&config))
     } else {
         None
     };
     let hoa_context = if depth == ParseDepth::Hoa {
-        Some(crate::frame::HoaFrameContext::from_cookie(bundle.cookie())?)
+        Some(crate::frame::HoaFrameContext::from_config(&config))
     } else {
         None
     };

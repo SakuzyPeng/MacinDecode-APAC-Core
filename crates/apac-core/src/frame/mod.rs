@@ -132,7 +132,7 @@ pub use tns::math_sha256 as tns_math_sha256;
 pub use tns::{TnsChannel, TnsChannelSpectrum, TnsFilter, TnsReport, TnsWindow, parse_tns};
 
 use crate::{
-    config::{self, ConfigField, Diagnostic, ParseError, ParseStatus, bits::BitReader},
+    config::{self, ConfigField, Diagnostic, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{SCHEMA_VERSION, sha256},
 };
 use serde::{Deserialize, Serialize};
@@ -159,24 +159,19 @@ pub struct FrameContext {
 }
 impl FrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
-        let parsed = config::parse_cookie(cookie)?;
-        let field = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == name)
-                .map(|f| &f.value)
-        };
-        let uint = |name| field(name).and_then(Value::as_u64);
-        let flag = |name| field(name).and_then(Value::as_bool);
-        let sample_rate_hz = parsed.derived.get("sample_rate_hz").and_then(Value::as_u64);
-        let channels = parsed.derived.get("channels").and_then(Value::as_u64);
-        let frame_samples = parsed.derived.get("frame_samples").and_then(Value::as_u64);
-        let asp_frame_header = uint("box.version_flags") == Some(0)
-            && uint("bitstream_version") == Some(0x0800)
-            && flag("global.flag_a") == Some(false)
-            && flag("global.flag_c") == Some(false)
-            && uint("global.component_count").is_some_and(|n| n > 0);
+        Ok(Self::from_config(&config::Config::parse(cookie)?))
+    }
+    pub fn from_config(config: &config::Config) -> Self {
+        let global = &config.global;
+        let component = config.component(0);
+        let sample_rate_hz = global.sample_rate_hz;
+        let channels = global.channels;
+        let frame_samples = global.frame_samples;
+        let asp_frame_header = config.version_flags.get() == Some(0)
+            && config.bitstream_version.get() == Some(0x0800)
+            && global.flag_a.get() == Some(false)
+            && global.flag_c.get() == Some(false)
+            && global.component_count.get().is_some_and(|n| n > 0);
         let checks = [
             (
                 asp_frame_header,
@@ -192,36 +187,35 @@ impl FrameContext {
             ),
             (channels == Some(2), "prefix requires two declared channels"),
             (
-                uint("global.component_count") == Some(1),
+                global.component_count.get() == Some(1),
                 "prefix requires one ASC",
             ),
             (
-                uint("components[0].type") == Some(0),
+                component.kind.get() == Some(0),
                 "prefix requires a channel ASC",
             ),
             (
-                flag("components[0].lbr_flag") == Some(false),
+                component.lbr_flag.get() == Some(false),
                 "LBR configuration flag is unsupported or missing",
             ),
             (
-                uint("components[0].lowest_channel_index") == Some(0),
+                component.lowest_channel_index.get() == Some(0),
                 "ASC must start at channel zero",
             ),
             (
-                uint("components[0].tce_count") == Some(1),
+                component.tce_count.get() == Some(1),
                 "prefix requires one TCE",
             ),
             (
-                uint("components[0].tce[0].type") == Some(1),
+                component.tce_types.first().copied().get() == Some(1),
                 "prefix requires a CPE",
             ),
             (
-                flag("global.additional_asc_present") == Some(false),
+                global.additional_asc_present.get() == Some(false),
                 "additional ASC branch is unsupported or missing",
             ),
             (
-                uint("components[0].parameter_0") == Some(0)
-                    && uint("components[0].parameter_1") == Some(0),
+                component.parameter_0.get() == Some(0) && component.parameter_1.get() == Some(0),
                 "nonzero or missing common component parameters are unverified",
             ),
         ];
@@ -229,16 +223,16 @@ impl FrameContext {
             .into_iter()
             .find(|(ok, _)| !ok)
             .map(|(_, reason)| reason.into());
-        Ok(Self {
-            drc: drc::DrcContext::from_cookie(&parsed),
-            packet_configuration: packet_config::PacketConfiguration::from_cookie(&parsed),
-            cookie_sha256: parsed.cookie_sha256,
+        Self {
+            drc: drc::DrcContext::from_config(config),
+            packet_configuration: packet_config::PacketConfiguration::from_config(config),
+            cookie_sha256: config.cookie_sha256.clone(),
             sample_rate_hz,
             channels,
             frame_samples,
             asp_frame_header,
             unsupported_reason,
-        })
+        }
     }
     pub fn is_supported(&self) -> bool {
         self.unsupported_reason.is_none()

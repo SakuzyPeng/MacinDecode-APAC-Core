@@ -6,7 +6,7 @@ use super::{
 };
 use crate::prelude::*;
 use crate::{
-    config::{self, ParseError},
+    config::{self, FieldExt, ParseError},
     model::ChannelLayout,
 };
 use serde::{Deserialize, Serialize};
@@ -71,42 +71,30 @@ pub(super) struct HoaConfiguration {
     pub preroll_bytes: u64,
 }
 impl HoaConfiguration {
-    fn selected(parsed: &config::CookieReport) -> Self {
-        let value = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == name)
-                .and_then(|f| f.value.as_u64())
-        };
-        let controls = super::HoaSpatialControls::from_cookie(parsed);
+    fn selected(config: &config::Config) -> Self {
+        let component = config.component(0);
+        let hoa = &component.hoa;
+        let controls = super::HoaSpatialControls::from_declaration(hoa);
         // Unsupported values select a bounded diagnostic shape, then fail the
         // exact field checks below. No untrusted dimension is used to allocate.
-        let dynamic = parsed.fields.iter().any(|f| {
-            f.name == "components[0].hoa.dynamic_selection_config_present" && f.value == json!(true)
-        });
-        let full_order = parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "components[0].hoa.full_order" && f.value == json!(true));
-        let partial_count = parsed
-            .derived
-            .get("components[0].hoa.coefficient_count")
-            .and_then(|v| v.as_u64())
+        let dynamic = hoa.dynamic_selection_config_present.is(true);
+        let full_order = hoa.full_order.is(true);
+        let partial_count = hoa
+            .coefficient_count
             .filter(|&n| (1..=121).contains(&n))
             .unwrap_or(16) as u8;
         let order = if !full_order {
             (partial_count - 1).isqrt()
         } else {
-            match value("components[0].hoa.order") {
+            match hoa.order.get() {
                 Some(order @ 0..=10) => order as u8,
                 _ => 3,
             }
         };
-        let declared_salient = value("components[0].hoa.max_salient_components").unwrap_or(0);
+        let declared_salient = hoa.max_salient_components.get().unwrap_or(0);
         let salient = declared_salient != 0;
-        let declared_ambient = value("components[0].hoa.ambient_components_encoded").unwrap_or(0)
-            + u64::from(!salient);
+        let declared_ambient =
+            hoa.ambient_components_encoded.get().unwrap_or(0) + u64::from(!salient);
         let path = if salient && declared_ambient != 0 {
             HoaPath::Mixed
         } else if salient {
@@ -120,17 +108,16 @@ impl HoaConfiguration {
             partial_count
         };
         let source_layout = super::hoa_source::SourceLayout::selected(
-            parsed,
+            component,
             recovery_slots,
             dynamic,
             controls.parameter_0,
         );
         let channels = source_layout.channels;
-        let transport_types: Vec<u8> = parsed
-            .fields
+        let transport_types: Vec<u8> = hoa
+            .tce_types
             .iter()
-            .filter(|f| f.name.starts_with("components[0].hoa.tce[") && f.name.ends_with("].type"))
-            .map(|f| f.value.as_u64().unwrap_or(u64::MAX).min(255) as u8)
+            .map(|f| f.value.min(255) as u8)
             .collect();
         let transport_channels = transport_types
             .iter()
@@ -147,53 +134,39 @@ impl HoaConfiguration {
         // Keep the diagnostic shape bounded; exact cookie checks reject excess counts.
         let salient_components = declared_salient.min(u64::from(recovery_slots)) as u8;
         let ambient_components = declared_ambient.min(u64::from(recovery_slots)) as u8;
-        let flag = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .any(|f| f.name == name && f.value == json!(true))
-        };
-        let explicit_ambient_selection = flag("components[0].hoa.ambient_selection_present");
-        let transform_present = flag("components[0].hoa.parameter_3_present");
+        let explicit_ambient_selection = hoa.ambient_selection_present.is(true);
+        let transform_present = hoa.parameter_3_present.is(true);
         let mut ambient_selection: Vec<u8> = (0..recovery_slots).collect();
-        if let Some(indices) = parsed
-            .derived
-            .get("components[0].hoa.ambient_selection")
-            .and_then(|v| v.as_array())
-        {
-            for (slot, value) in ambient_selection.iter_mut().zip(indices) {
-                *slot = value
-                    .as_u64()
-                    .and_then(|v| u8::try_from(v).ok())
-                    .unwrap_or(u8::MAX);
+        if let Some(indices) = &hoa.ambient_selection {
+            for (slot, &value) in ambient_selection.iter_mut().zip(indices) {
+                *slot = u8::try_from(value).unwrap_or(u8::MAX);
             }
         }
-        let ambient_transform = match parsed
-            .derived
-            .get("components[0].hoa.parameter_3")
-            .and_then(|v| v.as_u64())
-        {
+        let ambient_transform = match hoa.parameter_3 {
             Some(value @ 1..=3) => AmbientTransform::Fixed {
                 index: (value - 1) as u8,
             },
             Some(4) => AmbientTransform::PerFrame,
             _ => AmbientTransform::Disabled,
         };
+        let global = &config.global;
+        let ancillary = &config.ancillary;
         Self {
             order,
             full_order,
             controls,
-            profile_id: value("global.profile_id").unwrap_or(5) as u8,
-            level_id: value("global.level_id").unwrap_or(0) as u8,
+            profile_id: global.profile_id.get().unwrap_or(5) as u8,
+            level_id: global.level_id.get().unwrap_or(0) as u8,
             channels,
             source_layout: std::sync::Arc::new(source_layout),
-            static_remapping: super::HoaStaticRemapping::selected(parsed, channels)
+            static_remapping: super::HoaStaticRemapping::selected(hoa, channels)
                 .map(std::sync::Arc::new),
             recovery_slots,
             dynamic_method: dynamic
-                .then(|| value("components[0].hoa.dynamic_selection.parameter").unwrap_or(3) as u8),
+                .then(|| hoa.dynamic_selection_parameter.get().unwrap_or(3) as u8),
             dynamic_subbands: dynamic.then(|| {
-                (value("components[0].hoa.dynamic_selection.subbands_minus_one")
+                (hoa.dynamic_selection_subbands_minus_one
+                    .get()
                     .unwrap_or(7)
                     .min(7)
                     + 1) as u8
@@ -202,13 +175,11 @@ impl HoaConfiguration {
             transport_types,
             core_channels: salient_components + ambient_components,
             salient_components,
-            quantization_bits: value("components[0].hoa.parameter_2_minus_six")
-                .unwrap_or(0)
-                .min(3) as u8
-                + 6,
+            quantization_bits: hoa.parameter_2_minus_six.get().unwrap_or(0).min(3) as u8 + 6,
             salient_configurations: (0..salient_components)
                 .map(|i| {
-                    let order = match value(&format!("components[0].hoa.salient[{i}].order")) {
+                    let declared = hoa.salient.get(usize::from(i));
+                    let order = match declared.and_then(|s| s.order.get()) {
                         Some(component_order)
                             if salient && (1..=u64::from(order)).contains(&component_order) =>
                         {
@@ -223,16 +194,15 @@ impl HoaConfiguration {
                         } else {
                             usize::from(recovery_slots)
                         },
-                        subband_count: (value(&format!(
-                            "components[0].hoa.salient[{i}].subbands_minus_one"
-                        ))
-                        .unwrap_or(3)
-                        .min(15)
+                        subband_count: (declared
+                            .and_then(|s| s.subbands_minus_one.get())
+                            .unwrap_or(3)
+                            .min(15)
                             + 1) as usize,
                     }
                 })
                 .collect(),
-            salient_partition_method: match value("components[0].hoa.parameter_1") {
+            salient_partition_method: match hoa.parameter_1.get() {
                 Some(method @ 1..=3) if !salient || method <= 2 => method as u8,
                 _ => 0,
             },
@@ -245,37 +215,27 @@ impl HoaConfiguration {
                 || transform_present
                 || controls.flag_b
                 || (!salient && ambient_components != channels),
-            ambient_combination: if flag("components[0].hoa.flag_d") {
+            ambient_combination: if hoa.flag_d.is(true) {
                 super::AmbientCombination::Add
             } else {
                 super::AmbientCombination::Replace
             },
-            sample_rate_hz: parsed
-                .derived
-                .get("sample_rate_hz")
-                .and_then(|v| v.as_u64())
+            sample_rate_hz: global
+                .sample_rate_hz
                 .filter(|&rate| super::sfb::index(rate).is_some())
                 .unwrap_or(48000),
-            shared_configuration: parsed
-                .derived
-                .get("sample_rate_hz")
-                .and_then(|v| v.as_u64())
-                .is_some_and(super::sfb::extended)
-                || flag("global.flag_a")
-                || value("global.parameter_b").is_some_and(|v| v < 2)
-                || value("components[0].parameter_0").is_some_and(|v| v != 0)
-                || value("components[0].parameter_1").is_some_and(|v| v != 0)
-                || flag("ancillary.custom_data_present")
-                || flag("ancillary.scene_graph_present")
-                || flag("ancillary.metadata_present")
-                || parsed.fields.iter().any(|f| {
-                    f.name.starts_with("extensions[")
-                        && (f.name.ends_with("opaque_payload")
-                            || f.name.ends_with("extra_payload")
-                            || f.name.ends_with("padding")
-                                && f.value.as_u64().is_some_and(|v| v != 0))
+            shared_configuration: global.sample_rate_hz.is_some_and(super::sfb::extended)
+                || global.flag_a.is(true)
+                || global.parameter_b.get().is_some_and(|v| v < 2)
+                || component.parameter_0.get().is_some_and(|v| v != 0)
+                || component.parameter_1.get().is_some_and(|v| v != 0)
+                || ancillary.custom_data_present.is(true)
+                || ancillary.scene_graph_present.is(true)
+                || ancillary.metadata_present.is(true)
+                || config.extensions.iter().any(|e| {
+                    e.opaque_payload || e.extra_payload || e.padding.is_some_and(|v| v != 0)
                 }),
-            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_report(parsed),
+            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_config(config),
             preroll_bytes,
         }
     }
@@ -523,11 +483,13 @@ pub struct HoaFrameContext {
 }
 impl HoaFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
-        let parsed = config::parse_cookie(cookie)?;
-        Self::from_report(parsed)
+        Ok(Self::from_config(&config::Config::parse(cookie)?))
     }
-    pub(super) fn from_report(parsed: config::CookieReport) -> Result<Self, ParseError> {
-        let mut shape = HoaConfiguration::selected(&parsed);
+    pub fn from_config(config: &config::Config) -> Self {
+        let mut shape = HoaConfiguration::selected(config);
+        let global = &config.global;
+        let component = config.component(0);
+        let hoa = &component.hoa;
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
@@ -560,48 +522,61 @@ impl HoaFrameContext {
         if shape.transport_channels == 0 || shape.transport_channels > shape.channels {
             rejected.push("HOA requires 1..output-count transport channels".into());
         }
-        for (name, value) in [
-            ("box.version_flags", 0),
-            ("bitstream_version", 0x800),
-            ("global.profile_id", u64::from(shape.profile_id)),
-            ("global.level_id", u64::from(shape.level_id)),
+        for (name, field, value) in [
+            ("box.version_flags", config.version_flags, 0),
+            ("bitstream_version", config.bitstream_version, 0x800),
+            (
+                "global.profile_id",
+                global.profile_id,
+                u64::from(shape.profile_id),
+            ),
+            (
+                "global.level_id",
+                global.level_id,
+                u64::from(shape.level_id),
+            ),
             (
                 "global.sample_rate_index",
+                global.sample_rate_index,
                 super::sfb::index(shape.sample_rate_hz).expect("qualified rate") as u64,
             ),
-            ("global.frame_size_index", 0),
-            ("global.channel_count", channels),
+            ("global.frame_size_index", global.frame_size_index, 0),
+            ("global.channel_count", global.channel_count, channels),
             (
                 "global.parameter_b",
-                parsed
-                    .fields
-                    .iter()
-                    .find(|f| f.name == "global.parameter_b")
-                    .and_then(|f| f.value.as_u64())
-                    .unwrap_or(2)
-                    .min(2),
+                global.parameter_b,
+                global.parameter_b.get().unwrap_or(2).min(2),
             ),
-            ("global.component_count", 1),
-            ("components[0].lowest_channel_index", 0),
-            ("components[0].type", 2),
+            ("global.component_count", global.component_count, 1),
+            (
+                "components[0].lowest_channel_index",
+                component.lowest_channel_index,
+                0,
+            ),
+            ("components[0].type", component.kind, 2),
             (
                 "components[0].hoa.parameter_0",
+                hoa.parameter_0,
                 u64::from(shape.controls.parameter_0),
             ),
             (
                 "components[0].hoa.parameter_1",
+                hoa.parameter_1,
                 u64::from(shape.salient_partition_method),
             ),
             (
                 "components[0].hoa.parameter_2_minus_six",
+                hoa.parameter_2_minus_six,
                 u64::from(shape.quantization_bits - 6),
             ),
             (
                 "components[0].hoa.max_salient_components",
+                hoa.max_salient_components,
                 u64::from(shape.salient_components),
             ),
             (
                 "components[0].hoa.ambient_components_encoded",
+                hoa.ambient_components_encoded,
                 if salient {
                     u64::from(shape.ambient_components)
                 } else {
@@ -610,74 +585,86 @@ impl HoaFrameContext {
             ),
             (
                 "components[0].hoa.tce_count",
+                hoa.tce_count,
                 shape.transport_types.len() as u64,
             ),
         ] {
-            packet_config::check(&parsed.fields, name, json!(value), "cookie", &mut rejected);
+            packet_config::check(name, field, value, "cookie", &mut rejected);
         }
         if shape.full_order {
             packet_config::check(
-                &parsed.fields,
                 "components[0].hoa.order",
-                json!(shape.order),
+                hoa.order,
+                u64::from(shape.order),
                 "cookie",
                 &mut rejected,
             );
         } else {
             packet_config::check(
-                &parsed.fields,
                 "components[0].hoa.coefficient_count_minus_one",
-                json!(shape.recovery_slots - 1),
+                hoa.coefficient_count_minus_one,
+                u64::from(shape.recovery_slots - 1),
                 "cookie",
                 &mut rejected,
             );
         }
-        for name in ["global.flag_c", "global.additional_asc_present"] {
-            packet_config::check(&parsed.fields, name, json!(false), "cookie", &mut rejected);
+        for (name, field) in [
+            ("global.flag_c", global.flag_c),
+            (
+                "global.additional_asc_present",
+                global.additional_asc_present,
+            ),
+        ] {
+            packet_config::check(name, field, false, "cookie", &mut rejected);
         }
         packet_config::check(
-            &parsed.fields,
             "components[0].hoa.flag_d",
-            json!(shape.controls.flag_d),
+            hoa.flag_d,
+            shape.controls.flag_d,
             "cookie",
             &mut rejected,
         );
         packet_config::check(
-            &parsed.fields,
             "components[0].hoa.dynamic_selection_config_present",
-            json!(shape.dynamic_method.is_some()),
+            hoa.dynamic_selection_config_present,
+            shape.dynamic_method.is_some(),
             "cookie",
             &mut rejected,
         );
         if let Some(method) = shape.dynamic_method {
             if method > 2 {
-                let position = parsed
-                    .fields
-                    .iter()
-                    .find(|f| f.name == "components[0].hoa.dynamic_selection.parameter")
-                    .map_or(0, |f| f.bit_offset);
+                let position = hoa.dynamic_selection_parameter.map_or(0, |f| f.bit_offset);
                 rejected.push(format!("components[0].hoa.dynamic_selection.parameter={method} at cookie bit {position} (expected 0..2)"));
             }
             // All 1..=8 counts retain eight wire mappings. The new counts and
             // capacities were checked with hash-bound native instances.
             packet_config::check(
-                &parsed.fields,
                 "components[0].hoa.dynamic_selection.subbands_minus_one",
-                json!(shape.dynamic_subbands.expect("dynamic bands") - 1),
+                hoa.dynamic_selection_subbands_minus_one,
+                u64::from(shape.dynamic_subbands.expect("dynamic bands") - 1),
                 "cookie",
                 &mut rejected,
             );
         }
         if salient && shape.full_order {
             for (i, component) in shape.salient_configurations.iter().enumerate() {
-                for (field, value) in [
-                    ("subbands_minus_one", component.subband_count - 1),
-                    ("order", usize::from(component.order)),
+                let declared = hoa.salient.get(i);
+                for (field, declared, value) in [
+                    (
+                        "subbands_minus_one",
+                        declared.and_then(|s| s.subbands_minus_one),
+                        component.subband_count - 1,
+                    ),
+                    (
+                        "order",
+                        declared.and_then(|s| s.order),
+                        usize::from(component.order),
+                    ),
                 ] {
                     packet_config::check(
-                        &parsed.fields,
-                        &format!("components[0].hoa.salient[{i}].{field}"),
-                        json!(value),
+                        format_args!("components[0].hoa.salient[{i}].{field}"),
+                        declared,
+                        value as u64,
                         "cookie",
                         &mut rejected,
                     );
@@ -686,27 +673,20 @@ impl HoaFrameContext {
         }
         if shape.ambient_components == 0 {
             packet_config::check(
-                &parsed.fields,
                 "components[0].hoa.ambient_selection_present",
-                json!(false),
+                hoa.ambient_selection_present,
+                false,
                 "cookie",
                 &mut rejected,
             );
         }
         let indices = shape.ambient_indices();
-        let declared = parsed
-            .derived
-            .get("components[0].hoa.ambient_selection")
-            .and_then(|v| v.as_array());
+        let declared = hoa.ambient_selection.as_ref();
         if declared.is_none_or(|v| v.len() != indices.len())
             || indices.iter().any(|&v| v >= shape.recovery_slots)
             || indices.windows(2).any(|w| w[0] >= w[1])
         {
-            let position = parsed
-                .fields
-                .iter()
-                .find(|f| f.name == "components[0].hoa.ambient_selection_present")
-                .map_or(0, |f| f.bit_offset);
+            let position = hoa.ambient_selection_present.map_or(0, |f| f.bit_offset);
             rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.recovery_slots));
         }
         for (i, &kind) in shape.transport_types.iter().enumerate() {
@@ -714,66 +694,50 @@ impl HoaFrameContext {
                 rejected.push(format!("components[0].hoa.tce[{i}].type={kind} is not a supported HOA transport element"));
             }
             packet_config::check(
-                &parsed.fields,
-                &format!("components[0].hoa.tce[{i}].type"),
-                json!(kind),
+                format_args!("components[0].hoa.tce[{i}].type"),
+                hoa.tce_types.get(i).copied(),
+                u64::from(kind),
                 "cookie",
                 &mut rejected,
             );
         }
-        let field = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == name)
-                .map(|f| &f.value)
-        };
-        let scene = field("ancillary.audio_scenes_present") == Some(&json!(true));
-        let drc = DrcContext::for_channels(&parsed, channels);
+        let ancillary = &config.ancillary;
+        let scene = ancillary.audio_scenes_present.is(true);
+        let drc = DrcContext::for_channels(config, channels);
         shape.shared_configuration |= drc
             .configuration
             .as_ref()
             .is_some_and(|c| c.shared_parameters.is_some());
         if scene {
             rejected.extend(packet_config::neutral_scene(
-                &parsed.fields,
+                &ancillary.audio_scenes,
                 "cookie",
-                drc.present,
             ));
         } else {
             packet_config::check(
-                &parsed.fields,
                 "ancillary.audio_scenes_present",
-                json!(false),
+                ancillary.audio_scenes_present,
+                false,
                 "cookie",
                 &mut rejected,
             );
         }
-        if !parsed.is_complete() {
-            rejected.push(format!(
-                "cookie status={:?} at cookie bit {} (expected complete)",
-                parsed.status,
-                parsed
-                    .unknown_ranges
-                    .first()
-                    .map_or(parsed.cookie_bytes * 8, |v| v.bit_offset)
-            ));
-        }
+        rejected.extend(config.status_rejection());
         let configuration = PacketConfiguration {
             scene_present: scene,
             rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
             syntax_rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
         };
         let transport = ChannelFrameContext::hoa_transport(
-            parsed.cookie_sha256,
+            config.cookie_sha256.clone(),
             configuration,
             drc,
             shape.clone(),
         );
-        Ok(Self {
+        Self {
             transport,
             configuration: shape,
-        })
+        }
     }
     pub fn is_supported(&self) -> bool {
         self.transport.is_supported()
@@ -1233,22 +1197,17 @@ pub enum DecodedFrameContext {
 }
 impl DecodedFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
-        let parsed = config::parse_cookie(cookie)?;
-        if parsed.fields.iter().any(|f| {
-            (f.name == "global.component_count" && f.value.as_u64().is_some_and(|n| n > 1))
-                || (f.name == "global.additional_asc_present" && f.value == json!(true))
-        }) {
-            return super::StreamFrameContext::from_cookie(cookie)
+        Self::from_config(&config::Config::parse(cookie)?)
+    }
+    pub fn from_config(config: &config::Config) -> Result<Self, ParseError> {
+        if config.is_composite() {
+            return super::StreamFrameContext::from_config(config)
                 .map(|c| Self::Stream(Box::new(c)));
         }
-        if parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "components[0].type" && f.value == json!(2))
-        {
-            HoaFrameContext::from_cookie(cookie).map(Self::Hoa)
+        if config.component(0).kind.is(2) {
+            Ok(Self::Hoa(HoaFrameContext::from_config(config)))
         } else {
-            ChannelFrameContext::from_cookie(cookie).map(Self::Channels)
+            Ok(Self::Channels(ChannelFrameContext::from_config(config)))
         }
     }
     pub fn rejection(&self) -> Option<&str> {

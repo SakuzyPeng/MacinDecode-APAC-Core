@@ -3,7 +3,7 @@ use super::{
     Parser,
     drc::{DrcNode, DrcParameters, DrcTimeDelta},
 };
-use crate::config::{CookieReport, ParseError};
+use crate::config::{DrcDeclaration, Field, FieldExt, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -38,35 +38,21 @@ fn default_delta(rate: u64) -> u16 {
     let rounded = ((rate + 1000) / 2000) as u32;
     (1u32 << (32 - rounded.leading_zeros())) as u16
 }
-pub(super) fn coefficient_index(report: &CookieReport) -> Option<usize> {
-    let count = report
-        .fields
-        .iter()
-        .find(|f| f.name == "ancillary.loudness_drc.coefficient_count")?
-        .value
-        .as_u64()?;
-    (0..count as usize).find(|i| {
-        report.fields.iter().any(|f| {
-            f.name == format!("ancillary.loudness_drc.coefficients[{i}].location")
-                && f.value == json!(1)
-        })
+pub(super) fn coefficient_index(declaration: &DrcDeclaration) -> Option<usize> {
+    let count = declaration.coefficient_count.get()?;
+    (0..count as usize).find(|&i| {
+        declaration
+            .coefficients
+            .get(i)
+            .is_some_and(|c| c.location.is(1))
     })
 }
-pub(super) fn empty_parameters(report: &CookieReport) -> DrcParameters {
-    let index = coefficient_index(report);
+pub(super) fn empty_parameters(declaration: &DrcDeclaration) -> DrcParameters {
+    let index = coefficient_index(declaration);
     let frames = index
-        .and_then(|i| {
-            report.fields.iter().find(|f| {
-                f.name == format!("ancillary.loudness_drc.coefficients[{i}].frame_size_minus_one")
-            })
-        })
-        .and_then(|f| f.value.as_u64())
+        .and_then(|i| declaration.coefficients[i].frame_size_minus_one.get())
         .map_or(1024, |v| v as u16 + 1);
-    let rate = report
-        .derived
-        .get("sample_rate_hz")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(48000);
+    let rate = declaration.sample_rate_hz.unwrap_or(48000);
     DrcParameters {
         coefficient_location: u8::from(index.is_some()),
         gain_sequences: 0,
@@ -81,69 +67,83 @@ pub(super) fn empty_parameters(report: &CookieReport) -> DrcParameters {
     }
 }
 pub(super) fn parameters(
-    report: &CookieReport,
+    declaration: &DrcDeclaration,
     channels: u64,
 ) -> Result<Vec<DrcSequenceParameters>, String> {
     const ROOT: &str = "ancillary.loudness_drc";
-    let value = |name: &str| {
-        report
-            .fields
-            .iter()
-            .find(|f| f.name == name)
-            .map(|f| &f.value)
-    };
-    let uint = |name: &str| {
-        value(name)
-            .and_then(|v| v.as_u64())
-            .ok_or_else(|| format!("missing DRC field {name}"))
-    };
-    let flag = |name: &str| {
-        value(name)
-            .and_then(|v| v.as_bool())
-            .ok_or_else(|| format!("missing DRC flag {name}"))
-    };
-    if !report.is_complete() {
+    fn uint(field: Field<u64>, name: impl FnOnce() -> String) -> Result<u64, String> {
+        field
+            .get()
+            .ok_or_else(|| format!("missing DRC field {}", name()))
+    }
+    fn flag(field: Field<bool>, name: impl FnOnce() -> String) -> Result<bool, String> {
+        field
+            .get()
+            .ok_or_else(|| format!("missing DRC flag {}", name()))
+    }
+    let d = declaration;
+    if !d.complete {
         return Err("shared DRC requires a complete matching configuration".into());
     }
-    if !flag(&format!("{ROOT}.header_present"))? || !flag(&format!("{ROOT}.config_present"))? {
+    if !flag(d.header_present, || format!("{ROOT}.header_present"))?
+        || !flag(d.config_present, || format!("{ROOT}.config_present"))?
+    {
         return Ok(vec![]);
     }
-    if uint(&format!("{ROOT}.base_channel_count"))? != channels {
+    if uint(d.base_channel_count, || {
+        format!("{ROOT}.base_channel_count")
+    })? != channels
+    {
         return Err("shared DRC channel count disagrees with the stream".into());
     }
-    let Some(index) = coefficient_index(report) else {
+    let Some(index) = coefficient_index(d) else {
         return Ok(vec![]);
     };
     let coefficient = format!("{ROOT}.coefficients[{index}]");
-    let count = uint(&format!("{coefficient}.gain_sequence_count"))? as usize;
-    let sets = uint(&format!("{coefficient}.gain_set_count"))? as usize;
+    let declared = &d.coefficients[index];
+    let count = uint(declared.gain_sequence_count, || {
+        format!("{coefficient}.gain_sequence_count")
+    })? as usize;
+    let sets = uint(declared.gain_set_count, || {
+        format!("{coefficient}.gain_set_count")
+    })? as usize;
     if count > 63 || sets > 63 {
         return Err("shared DRC exceeds its 6-bit sequence/set counts".into());
     }
-    let frames = if flag(&format!("{coefficient}.frame_size_present"))? {
-        uint(&format!("{coefficient}.frame_size_minus_one"))? + 1
+    let frames = if flag(declared.frame_size_present, || {
+        format!("{coefficient}.frame_size_present")
+    })? {
+        uint(declared.frame_size_minus_one, || {
+            format!("{coefficient}.frame_size_minus_one")
+        })? + 1
     } else {
         1024
     };
     if !(1..=32768).contains(&frames) {
         return Err("DRC frame size exceeds its 15-bit syntax".into());
     }
-    let rate = report
-        .derived
-        .get("sample_rate_hz")
-        .and_then(|v| v.as_u64())
-        .ok_or("missing DRC sample rate")?;
+    let rate = d.sample_rate_hz.ok_or("missing DRC sample rate")?;
     let mut sequences = vec![None; count];
     for set in 0..sets {
         let root = format!("{coefficient}.gain_sets[{set}]");
-        let profile = uint(&format!("{root}.coding_profile"))? as u8;
+        let declared = declared.gain_sets.get(set);
+        let field = |read: fn(&crate::config::DrcGainSet) -> Field<u64>| declared.and_then(read);
+        let bit = |read: fn(&crate::config::DrcGainSet) -> Field<bool>| declared.and_then(read);
+        let profile = uint(field(|s| s.coding_profile), || {
+            format!("{root}.coding_profile")
+        })? as u8;
         let bands = if profile == 3 {
             1
         } else {
-            uint(&format!("{root}.band_count"))? as usize
+            uint(field(|s| s.band_count), || format!("{root}.band_count"))? as usize
         };
-        let dt = if flag(&format!("{root}.time_delta_min_present"))? {
-            uint(&format!("{root}.time_delta_min_minus_one"))? as u16 + 1
+        let dt = if flag(bit(|s| s.time_delta_min_present), || {
+            format!("{root}.time_delta_min_present")
+        })? {
+            uint(field(|s| s.time_delta_min_minus_one), || {
+                format!("{root}.time_delta_min_minus_one")
+            })? as u16
+                + 1
         } else {
             default_delta(rate)
         };
@@ -156,22 +156,25 @@ pub(super) fn parameters(
             gain_sets: sets as u8,
             bands: bands as u8,
             coding_profile: profile,
-            interpolation: if flag(&format!("{root}.interpolation_type"))? {
+            interpolation: if flag(bit(|s| s.interpolation_type), || {
+                format!("{root}.interpolation_type")
+            })? {
                 "linear"
             } else {
                 "spline"
             }
             .into(),
-            full_frame: flag(&format!("{root}.full_frame"))?,
-            time_alignment: flag(&format!("{root}.time_alignment"))?,
+            full_frame: flag(bit(|s| s.full_frame), || format!("{root}.full_frame"))?,
+            time_alignment: flag(bit(|s| s.time_alignment), || {
+                format!("{root}.time_alignment")
+            })?,
             frame_samples: frames as u16,
             time_delta_min: dt,
         };
         for band in 0..bands {
-            let sequence = report
-                .derived
-                .get(&format!("{root}.bands[{band}].sequence_index"))
-                .and_then(|v| v.as_u64())
+            let sequence = declared
+                .and_then(|s| s.band_sequence_indices.get(band))
+                .copied()
                 .ok_or("missing DRC gain sequence reference")? as usize;
             if sequence >= count {
                 return Err("DRC sequence reference exceeds its declaration".into());

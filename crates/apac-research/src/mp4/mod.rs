@@ -150,6 +150,7 @@ pub(crate) struct Mp4Reader {
     structure: Structure,
     info: FileInfo,
     cookie: Vec<u8>,
+    config: config::Config,
     index: Index,
     brands: Value,
     track_id: u32,
@@ -215,14 +216,19 @@ impl Mp4Reader {
             return Err(url.error("external or unsupported data reference"));
         }
         let (cookie, sample_entry_rate, cookie_atom) = cookie(&mut file, &structure)?;
-        let context = DecodedFrameContext::from_cookie(&cookie).map_err(|e| {
-            let mut e: Error = e.into();
-            e.file_position = Some(Box::new(FilePosition {
-                byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
-                chunk_type: "dapa".into(),
-            }));
-            e
-        })?;
+        let (parsed, context) = config::Config::parse(&cookie)
+            .and_then(|parsed| {
+                let context = DecodedFrameContext::from_config(&parsed)?;
+                Ok((parsed, context))
+            })
+            .map_err(|e| {
+                let mut e: Error = e.into();
+                e.file_position = Some(Box::new(FilePosition {
+                    byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
+                    chunk_type: "dapa".into(),
+                }));
+                e
+            })?;
         // Preserve the decoder's established configuration rejection operation.
         if let Some(reason) = context.rejection() {
             return Err(Error::new(
@@ -234,8 +240,7 @@ impl Mp4Reader {
         if sample_entry_rate != 0 && rate != sample_entry_rate {
             return Err(cookie_atom.error("cookie sample rate disagrees with sample entry"));
         }
-        let parsed = config::parse_cookie(&cookie)?;
-        if parsed.derived.get("frame_samples").and_then(Value::as_u64) != Some(1024) {
+        if parsed.frame_samples() != Some(1024) {
             return Err(cookie_atom.error("requires 1024-frame cookie"));
         }
         let channels = context.channel_count();
@@ -314,6 +319,7 @@ impl Mp4Reader {
             structure,
             info,
             cookie,
+            config: parsed,
             index,
             brands,
             track_id,
@@ -341,6 +347,9 @@ impl Mp4Reader {
     }
     pub(crate) fn info(&self) -> &FileInfo {
         &self.info
+    }
+    pub(crate) fn config(&self) -> &config::Config {
+        &self.config
     }
     pub(crate) fn cookie(&self) -> &[u8] {
         &self.cookie

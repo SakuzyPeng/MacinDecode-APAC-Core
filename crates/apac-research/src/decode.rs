@@ -82,7 +82,7 @@ fn decode_with_access(
         options.start_frame,
         options.frames.unwrap_or((table.valid_frames as u64).max(1)),
     )?;
-    let mut decoder = SqDecoder::from_cookie(bundle.cookie())?;
+    let mut decoder = SqDecoder::from_config(bundle.config())?;
     let channels = decoder.channel_count();
     let backend = decoder.backend();
     let state_profile = decoder.state_profile();

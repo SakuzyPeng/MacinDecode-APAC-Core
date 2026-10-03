@@ -1,5 +1,5 @@
 //! Immutable, bounded core-carrier remapping from cookie wire links.
-use crate::config::CookieReport;
+use crate::config::HoaAsc;
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -22,30 +22,26 @@ pub struct HoaStaticRemapping {
     pub ignored_tail: Vec<u8>,
 }
 impl HoaStaticRemapping {
-    pub(super) fn selected(parsed: &CookieReport, output: u8) -> Option<Self> {
-        let mapping = parsed
-            .derived
-            .get("components[0].hoa.remapping_core_to_transport")?
-            .as_array()?;
-        let core_to_transport: Option<Vec<_>> = mapping
+    pub(super) fn selected(hoa: &HoaAsc, output: u8) -> Option<Self> {
+        let core_to_transport: Option<Vec<_>> = hoa
+            .remapping_core_to_transport
+            .as_ref()?
             .iter()
-            .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()))
+            .map(|&n| u8::try_from(n).ok())
             .collect();
-        let fields = |prefix: &str| {
-            parsed
-                .fields
+        let fields = |values: &[u64]| {
+            values
                 .iter()
-                .filter(|f| f.name.starts_with(prefix))
-                .filter_map(|f| f.value.as_u64().and_then(|n| u8::try_from(n).ok()))
+                .filter_map(|&n| u8::try_from(n).ok())
                 .collect()
         };
         Some(Self {
             format_profile: PROFILE.into(),
             format_sha256: format_sha256().into(),
             wire_index_width: (u8::BITS - output.saturating_sub(1).leading_zeros()) as usize,
-            wire_indices: fields("components[0].hoa.remapping["),
+            wire_indices: fields(&hoa.remapping),
             core_to_transport: core_to_transport?,
-            ignored_tail: fields("components[0].hoa.remapping_tail["),
+            ignored_tail: fields(&hoa.remapping_tail),
         })
     }
 }

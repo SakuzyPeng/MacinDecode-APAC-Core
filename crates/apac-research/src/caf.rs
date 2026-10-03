@@ -172,6 +172,7 @@ pub(crate) struct CafReader {
     structure: Structure,
     info: FileInfo,
     cookie: Vec<u8>,
+    config: config::Config,
     layout_source: &'static str,
     edit_count: u32,
     next: u64,
@@ -236,7 +237,7 @@ impl CafReader {
         let kuki = chunks[b"kuki"];
         let mut cookie = vec![0; kuki.bytes as usize];
         read(&mut file, b"kuki", kuki.offset, &mut cookie)?;
-        let parsed = config::parse_cookie(&cookie).map_err(|e| {
+        let parsed = config::Config::parse(&cookie).map_err(|e| {
             let mut e: Error = e.into();
             e.file_position = Some(Box::new(FilePosition {
                 byte_offset: kuki.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
@@ -244,13 +245,8 @@ impl CafReader {
             }));
             e
         })?;
-        let output_layout = if parsed.fields.iter().any(|f| {
-            f.name.ends_with(".type")
-                && f.name.starts_with("components[")
-                && !f.name.contains("tce[")
-                && f.value == json!(2)
-        }) {
-            let context = crate::frame::DecodedFrameContext::from_cookie(&cookie)?;
+        let output_layout = if parsed.has_hoa_component() {
+            let context = crate::frame::DecodedFrameContext::from_config(&parsed)?;
             if let Some(reason) = context.rejection() {
                 return Err(Error::new(
                     "SQ decoder",
@@ -276,12 +272,12 @@ impl CafReader {
             )
         };
         let layout_tag = output_layout.tag;
-        for (key, want) in [
-            ("sample_rate_hz", rate as u64),
-            ("channels", u64::from(channels)),
-            ("frame_samples", 1024),
+        for (key, value, want) in [
+            ("sample_rate_hz", parsed.sample_rate_hz(), rate as u64),
+            ("channels", parsed.channels(), u64::from(channels)),
+            ("frame_samples", parsed.frame_samples(), 1024),
         ] {
-            if parsed.derived.get(key).and_then(Value::as_u64) != Some(want) {
+            if value != Some(want) {
                 return Err(invalid(
                     b"kuki",
                     kuki.offset,
@@ -289,19 +285,8 @@ impl CafReader {
                 ));
             }
         }
-        if parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "global.component_count" && f.value == json!(1))
-            && !parsed
-                .fields
-                .iter()
-                .any(|f| f.name == "global.additional_asc_present" && f.value == json!(true))
-            && parsed
-                .derived
-                .get("components[0].layout_tag")
-                .and_then(Value::as_u64)
-                != Some(u64::from(layout_tag))
+        if parsed.is_single_component()
+            && parsed.component_layout_tag(0) != Some(u64::from(layout_tag))
         {
             return Err(invalid(
                 b"kuki",
@@ -417,6 +402,7 @@ impl CafReader {
             structure,
             info,
             cookie,
+            config: parsed,
             layout_source,
             edit_count: u32::from_be_bytes(raw),
             next: 0,
@@ -445,6 +431,9 @@ impl CafReader {
     }
     pub(crate) fn info(&self) -> &FileInfo {
         &self.info
+    }
+    pub(crate) fn config(&self) -> &config::Config {
+        &self.config
     }
     pub(crate) fn cookie(&self) -> &[u8] {
         &self.cookie

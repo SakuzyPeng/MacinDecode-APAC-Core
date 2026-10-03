@@ -4,6 +4,9 @@ pub(crate) mod bits;
 mod drc;
 mod drc_metadata;
 mod hoa;
+mod model;
+#[cfg(test)]
+mod model_tests;
 mod parser;
 pub(crate) mod passive;
 mod passive_compression;
@@ -18,6 +21,8 @@ use std::{collections::BTreeMap, fmt};
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 
+pub(crate) use model::*;
+pub use model::{Config, Field, Located};
 pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -28,7 +33,7 @@ pub enum ParseStatus {
     Unsupported,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConfigField {
     pub name: String,
     pub bit_offset: usize,

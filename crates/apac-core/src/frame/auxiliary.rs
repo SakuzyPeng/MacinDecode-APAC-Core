@@ -1,6 +1,6 @@
 //! Bounded passive payloads; no renderer, transcode output, or audio processing.
 use super::Parser;
-use crate::config::{CookieReport, ParseError};
+use crate::config::{Config, FieldExt, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -53,33 +53,17 @@ pub(crate) struct AuxiliaryConfiguration {
     graph: Option<SceneGraphState>,
 }
 impl AuxiliaryConfiguration {
-    pub fn from_report(report: &CookieReport) -> Self {
-        let flag = |name| {
-            report
-                .fields
-                .iter()
-                .any(|f| f.name == name && f.value == json!(true))
-        };
+    pub fn from_config(config: &Config) -> Self {
+        let ancillary = &config.ancillary;
         Self {
-            present: flag("ancillary.custom_data_present"),
-            variable_parameter: flag("ancillary.custom_data.flag_a"),
-            graph: report
-                .derived
-                .get("ancillary.scene_graph.syntax")
-                .map(|value| SceneGraphState {
-                    positions: serde_json::from_value(value.clone())
-                        .expect("verified position syntax"),
-                    history_sha256: crate::model::sha256(
-                        &serde_json::to_vec(
-                            &report
-                                .fields
-                                .iter()
-                                .filter(|f| f.name.starts_with("ancillary.scene_graph."))
-                                .collect::<Vec<_>>(),
-                        )
-                        .expect("finite graph declaration"),
-                    ),
-                }),
+            present: ancillary.custom_data_present.is(true),
+            variable_parameter: ancillary.custom_data_flag_a.is(true),
+            graph: ancillary.scene_graph.as_ref().map(|graph| SceneGraphState {
+                positions: graph.positions.clone(),
+                history_sha256: crate::model::sha256(
+                    &serde_json::to_vec(&graph.trace).expect("finite graph declaration"),
+                ),
+            }),
         }
     }
 }

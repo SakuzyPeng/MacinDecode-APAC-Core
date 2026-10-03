@@ -244,6 +244,7 @@ pub struct PacketBatch {
 pub struct PacketBundle {
     manifest: PacketManifest,
     cookie: Vec<u8>,
+    config: config::Config,
     frames_per_packet: Option<u64>,
     data: BufReader<File>,
     index: BufReader<File>,
@@ -365,23 +366,22 @@ impl PacketBundle {
         if cookie.len() != expected.bytes || sha256(&cookie) != expected.sha256 {
             return Err(invalid("cookie length or SHA-256 mismatch"));
         }
-        let parsed = config::parse_cookie(&cookie)?;
-        for (name, expected) in [
-            ("sample_rate_hz", format.sample_rate),
-            ("channels", f64::from(format.channels)),
+        let parsed = config::Config::parse(&cookie)?;
+        for (name, value, expected) in [
+            (
+                "sample_rate_hz",
+                parsed.sample_rate_hz(),
+                format.sample_rate,
+            ),
+            ("channels", parsed.channels(), f64::from(format.channels)),
         ] {
-            if parsed
-                .derived
-                .get(name)
-                .and_then(|v| v.as_f64())
-                .is_some_and(|v| v != expected)
-            {
+            if value.is_some_and(|v| v as f64 != expected) {
                 return Err(invalid(format!(
                     "cookie-derived {name} disagrees with manifest"
                 )));
             }
         }
-        let cookie_frames = parsed.derived.get("frame_samples").and_then(|v| v.as_u64());
+        let cookie_frames = parsed.frame_samples();
         if format.frames_per_packet != 0
             && cookie_frames.is_some_and(|v| v != u64::from(format.frames_per_packet))
         {
@@ -407,6 +407,7 @@ impl PacketBundle {
         let mut bundle = Self {
             manifest,
             cookie,
+            config: parsed,
             frames_per_packet,
             data: BufReader::new(data),
             index: BufReader::new(index),
@@ -460,6 +461,10 @@ impl PacketBundle {
     }
     pub fn cookie(&self) -> &[u8] {
         &self.cookie
+    }
+    /// The cookie's typed configuration, parsed once when the bundle opened.
+    pub fn config(&self) -> &config::Config {
+        &self.config
     }
     pub fn raw_start(&self) -> u64 {
         self.raw_start

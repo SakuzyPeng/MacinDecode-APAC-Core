@@ -8,7 +8,7 @@ use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub(crate) struct PositionSyntax {
     pub parent_dynamic: bool,
     pub range_dynamic: bool,

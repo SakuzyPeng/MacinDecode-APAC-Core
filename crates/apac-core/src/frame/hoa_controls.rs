@@ -3,7 +3,7 @@ use super::{
     Parser,
     hoa::{HoaConfiguration, HoaPath, HoaState, SalientComponentConfiguration},
 };
-use crate::config::{CookieReport, ParseError};
+use crate::config::{FieldExt, HoaAsc, ParseError};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -54,25 +54,16 @@ impl Default for HoaSpatialControls {
     }
 }
 impl HoaSpatialControls {
-    pub(super) fn from_cookie(parsed: &CookieReport) -> Self {
-        let field = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == format!("components[0].hoa.{name}"))
-        };
-        let flag = |name| field(name).and_then(|f| f.value.as_bool()).unwrap_or(false);
+    pub(super) fn from_declaration(hoa: &HoaAsc) -> Self {
+        let flag = |field: crate::config::Field<bool>| field.get().unwrap_or(false);
         Self {
-            flag_a: flag("flag_a"),
-            flag_b: flag("flag_b"),
-            flag_c: flag("flag_c"),
-            flag_d: flag("flag_d"),
-            flag_e: flag("flag_e"),
-            flag_f: flag("flag_f"),
-            parameter_0: field("parameter_0")
-                .and_then(|f| f.value.as_u64())
-                .unwrap_or(3)
-                .min(3) as u8,
+            flag_a: flag(hoa.flag_a),
+            flag_b: flag(hoa.flag_b),
+            flag_c: flag(hoa.flag_c),
+            flag_d: flag(hoa.flag_d),
+            flag_e: flag(hoa.flag_e),
+            flag_f: flag(hoa.flag_f),
+            parameter_0: hoa.parameter_0.get().unwrap_or(3).min(3) as u8,
         }
     }
     pub(super) fn extended(self, mixed: bool) -> bool {

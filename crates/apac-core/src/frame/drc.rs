@@ -1,7 +1,10 @@
 //! Bounded APAC UniDRC gain payloads. Gain values are exact eighth-decibel
 //! integers; parsing does not select a DRC instruction or apply audio gains.
 use super::{Bwe2Report, FrameContext, Parser, packet_config, parse_bwe2};
-use crate::config::{self, ConfigField, CookieReport, ParseError, ParseStatus, bits::BitReader};
+use crate::config::{
+    self, AudioScenes, Config, ConfigField, DrcDeclaration, FieldExt, ParseError, ParseStatus,
+    bits::BitReader,
+};
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -92,84 +95,147 @@ pub(super) struct DrcContext {
     pub configuration: Option<DrcConfiguration>,
     pub rejection: Option<String>,
 }
-fn value<'a>(fields: &'a [ConfigField], name: &str) -> Option<&'a Value> {
-    fields.iter().find(|f| f.name == name).map(|f| &f.value)
-}
 impl DrcConfiguration {
-    fn from_report(report: &CookieReport, source: &str, channels: u64) -> Result<Self, String> {
+    fn from_declaration(
+        declaration: &DrcDeclaration,
+        source: &str,
+        channels: u64,
+    ) -> Result<Self, String> {
+        // Only whether every check passes matters here: a deviation selects the
+        // shared declaration model below rather than rejecting.
         let mut rejected = Vec::new();
-        let mut expect = |name: String, expected: Value| {
-            packet_config::check(&report.fields, &name, expected, source, &mut rejected);
-        };
-        for (suffix, expected) in [
-            ("header_present", json!(true)),
-            ("config_present", json!(true)),
-            ("coefficient_count", json!(1)),
-            ("base_channel_count", json!(channels)),
+        let d = declaration;
+        let coefficient = d.coefficients.first();
+        let set = coefficient.and_then(|c| c.gain_sets.first());
+        packet_config::check(
+            format_args!("{ROOT}.header_present"),
+            d.header_present,
+            true,
+            source,
+            &mut rejected,
+        );
+        packet_config::check(
+            format_args!("{ROOT}.config_present"),
+            d.config_present,
+            true,
+            source,
+            &mut rejected,
+        );
+        for (suffix, field, expected) in [
+            ("coefficient_count", d.coefficient_count, 1),
+            ("base_channel_count", d.base_channel_count, channels),
         ] {
-            expect(format!("{ROOT}.{suffix}"), expected);
+            packet_config::check(
+                format_args!("{ROOT}.{suffix}"),
+                field,
+                expected,
+                source,
+                &mut rejected,
+            );
         }
-        for (suffix, expected) in [
-            ("location", json!(1)),
-            ("gain_sequence_count", json!(1)),
-            ("gain_set_count", json!(1)),
+        for (suffix, field) in [
+            ("location", coefficient.and_then(|c| c.location)),
+            (
+                "gain_sequence_count",
+                coefficient.and_then(|c| c.gain_sequence_count),
+            ),
+            ("gain_set_count", coefficient.and_then(|c| c.gain_set_count)),
         ] {
-            expect(format!("{COEFF}.{suffix}"), expected);
+            packet_config::check(
+                format_args!("{COEFF}.{suffix}"),
+                field,
+                1,
+                source,
+                &mut rejected,
+            );
         }
-        if value(&report.fields, &format!("{COEFF}.frame_size_present")) == Some(&json!(true)) {
-            expect(format!("{COEFF}.frame_size_minus_one"), json!(1023));
+        let frame_size_present = coefficient.and_then(|c| c.frame_size_present);
+        if frame_size_present.is(true) {
+            packet_config::check(
+                format_args!("{COEFF}.frame_size_minus_one"),
+                coefficient.and_then(|c| c.frame_size_minus_one),
+                1023,
+                source,
+                &mut rejected,
+            );
         } else {
-            expect(format!("{COEFF}.frame_size_present"), json!(false));
+            packet_config::check(
+                format_args!("{COEFF}.frame_size_present"),
+                frame_size_present,
+                false,
+                source,
+                &mut rejected,
+            );
         }
-        for (suffix, expected) in [
-            ("coding_profile", json!(0)),
-            ("band_count", json!(1)),
-            ("interpolation_type", json!(true)),
-            ("full_frame", json!(false)),
-            ("time_alignment", json!(false)),
-            ("time_delta_min_present", json!(true)),
-            ("time_delta_min_minus_one", json!(63)),
+        for (suffix, field, expected) in [
+            ("coding_profile", set.and_then(|s| s.coding_profile), 0),
+            ("band_count", set.and_then(|s| s.band_count), 1),
         ] {
-            expect(format!("{SET}.{suffix}"), expected);
+            packet_config::check(
+                format_args!("{SET}.{suffix}"),
+                field,
+                expected,
+                source,
+                &mut rejected,
+            );
         }
+        for (suffix, field, expected) in [
+            (
+                "interpolation_type",
+                set.and_then(|s| s.interpolation_type),
+                true,
+            ),
+            ("full_frame", set.and_then(|s| s.full_frame), false),
+            ("time_alignment", set.and_then(|s| s.time_alignment), false),
+            (
+                "time_delta_min_present",
+                set.and_then(|s| s.time_delta_min_present),
+                true,
+            ),
+        ] {
+            packet_config::check(
+                format_args!("{SET}.{suffix}"),
+                field,
+                expected,
+                source,
+                &mut rejected,
+            );
+        }
+        packet_config::check(
+            format_args!("{SET}.time_delta_min_minus_one"),
+            set.and_then(|s| s.time_delta_min_minus_one),
+            63,
+            source,
+            &mut rejected,
+        );
         // Preserve legacy metadata identities for the original qualified sets.
         // Other declarations use the shared syntax model. This decoder's off
         // policy never selects or applies a set, unlike native mandatory sets.
-        for field in report.fields.iter().filter(|f| {
-            f.name.starts_with(&format!("{ROOT}.instructions[")) && f.name.ends_with(".effect")
-        }) {
-            if !field
-                .value
-                .as_u64()
-                .is_some_and(|v| [2, 5, 32].contains(&v))
-            {
-                rejected.push(format!(
-                    "{}={} at {source} bit {} (expected qualified off-policy effects 2/5/32)",
-                    field.name, field.value, field.bit_offset
-                ));
-            }
-        }
-        let shared_declarations = report.fields.iter().any(|f| {
-            f.value == json!(true)
-                && (f.name == format!("{ROOT}.channel_layout_present")
-                    || f.name == format!("{ROOT}.downmix_instructions_present")
-                    || f.name == format!("{ROOT}.loudness_eq_present")
-                    || f.name == format!("{ROOT}.eq_present")
-                    || f.name == format!("{ROOT}.scene_extension_present")
-                    || f.name == format!("{ROOT}.loudness.extensions_present")
-                    || f.name.ends_with(".downmix_id_present")
-                    || f.name.ends_with(".requires_eq")
-                    || f.name.ends_with(".depends_on_set_present"))
-        });
-        let shared_parameters = if rejected.is_empty() && !shared_declarations {
-            None
-        } else {
-            Some(super::drc_shared::parameters(report, channels)?)
-        };
+        let unqualified_effect = d
+            .instruction_effects
+            .iter()
+            .any(|v| ![2, 5, 32].contains(v));
+        let shared_declarations = [
+            d.channel_layout_present,
+            d.downmix_instructions_present,
+            d.loudness_eq_present,
+            d.eq_present,
+            d.scene_extension_present,
+            d.loudness_extensions_present,
+        ]
+        .iter()
+        .any(|f| f.is(true))
+            || d.nested_declarations;
+        let shared_parameters =
+            if rejected.is_empty() && !unqualified_effect && !shared_declarations {
+                None
+            } else {
+                Some(super::drc_shared::parameters(d, channels)?)
+            };
         Ok(Self {
             shared_coefficient_index: shared_parameters
                 .as_ref()
-                .and_then(|_| super::drc_shared::coefficient_index(report)),
+                .and_then(|_| super::drc_shared::coefficient_index(d)),
             shared_profile: shared_parameters
                 .as_ref()
                 .map(|_| super::drc_shared::PROFILE.into()),
@@ -182,7 +248,7 @@ impl DrcConfiguration {
                 .map(|s| s.parameters.clone())
                 .unwrap_or_else(|| {
                     if shared_parameters.is_some() {
-                        super::drc_shared::empty_parameters(report)
+                        super::drc_shared::empty_parameters(d)
                     } else {
                         DrcParameters {
                             coefficient_location: 1,
@@ -200,35 +266,22 @@ impl DrcConfiguration {
                 }),
             shared_parameters,
             source: source.into(),
-            source_sha256: report.cookie_sha256.clone(),
+            source_sha256: d.source_sha256.clone(),
             loudness_metadata_source: source.into(),
-            loudness_metadata_source_sha256: report.cookie_sha256.clone(),
-            loudness_metadata: report
-                .fields
-                .iter()
-                .filter(|f| f.name.starts_with(&format!("{ROOT}.loudness.")))
-                .cloned()
-                .collect(),
-            fields: report
-                .fields
-                .iter()
-                .filter(|f| {
-                    f.name.starts_with(&format!("{ROOT}."))
-                        && !f.name.starts_with(&format!("{ROOT}.loudness."))
-                })
-                .cloned()
-                .collect(),
+            loudness_metadata_source_sha256: d.source_sha256.clone(),
+            loudness_metadata: d.loudness_metadata.clone(),
+            fields: d.fields.clone(),
         })
     }
 }
 impl DrcContext {
-    pub fn from_cookie(report: &CookieReport) -> Self {
-        Self::for_channels(report, 2)
+    pub fn from_config(config: &Config) -> Self {
+        Self::for_channels(config, 2)
     }
-    pub(super) fn for_channels(report: &CookieReport, channels: u64) -> Self {
-        let present = value(&report.fields, "ancillary.loudness_drc_present") == Some(&json!(true));
+    pub(super) fn for_channels(config: &Config, channels: u64) -> Self {
+        let present = config.ancillary.loudness_drc_present.is(true);
         let configuration = if present {
-            DrcConfiguration::from_report(report, "cookie", channels).map(Some)
+            DrcConfiguration::from_declaration(&config.ancillary.drc, "cookie", channels).map(Some)
         } else {
             Ok(None)
         };
@@ -497,13 +550,12 @@ pub(super) fn read_payload(
                 .map_or("unsupported DRC header", |d| &d.message),
         ));
     }
-    let header_present =
-        value(&header.fields, &format!("{ROOT}.header_present")) == Some(&json!(true));
-    let config_present =
-        value(&header.fields, &format!("{ROOT}.config_present")) == Some(&json!(true));
+    let declaration = DrcDeclaration::from_report(&header);
+    let header_present = declaration.header_present.is(true);
+    let config_present = declaration.config_present.is(true);
     let mut configuration_changed = false;
     if config_present {
-        let next = DrcConfiguration::from_report(&header, "packet", state.channels)
+        let next = DrcConfiguration::from_declaration(&declaration, "packet", state.channels)
             .map_err(|message| ParseError::new(start, "drc-configuration", message))?;
         if state.configuration.as_ref().is_some_and(|previous| {
             previous.parameters != next.parameters
@@ -518,12 +570,7 @@ pub(super) fn read_payload(
         let previous = state.configuration.as_mut().ok_or_else(|| {
             ParseError::new(start, "drc-history", "header reuses missing configuration")
         })?;
-        previous.loudness_metadata = header
-            .fields
-            .iter()
-            .filter(|f| f.name.starts_with(&format!("{ROOT}.loudness.")))
-            .cloned()
-            .collect();
+        previous.loudness_metadata = declaration.loudness_metadata;
         previous.loudness_metadata_source = "packet".into();
         previous.loudness_metadata_source_sha256 = parser.report.packet_sha256.clone();
     }
@@ -770,7 +817,8 @@ pub fn parse_drc_with_state(
         let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
         parser.bits.skip(end - parser.bits.position())?;
         parser.report.fields.extend(scene.fields.iter().cloned());
-        let rejected = packet_config::neutral_scene(&scene.fields, "packet", context.drc.present);
+        let rejected =
+            packet_config::neutral_scene(&AudioScenes::from_fields(&scene.fields), "packet");
         if !scene.is_complete() || !rejected.is_empty() {
             return Err(ParseError::new(
                 end,

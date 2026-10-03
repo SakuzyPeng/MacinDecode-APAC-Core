@@ -2,7 +2,7 @@
 use super::{hoa::RecoverySlotSpectrum, hoa_additive::Sum};
 use crate::prelude::*;
 use crate::{
-    config::{CookieReport, ParseError},
+    config::{Component, ParseError},
     model::{ChannelDescription, ChannelLayout},
 };
 use serde::{Deserialize, Serialize};
@@ -50,12 +50,13 @@ pub(super) struct SourceLayout {
     pub parameter: u8,
 }
 impl SourceLayout {
-    pub fn selected(parsed: &CookieReport, recovery: u8, dynamic: bool, parameter: u8) -> Self {
-        let get = |key: &str| parsed.derived.get(key).and_then(|v| v.as_u64());
-        let channels = get("components[0].channels")
+    pub fn selected(component: &Component, recovery: u8, dynamic: bool, parameter: u8) -> Self {
+        let channels = component
+            .channels
             .filter(|&n| (1..=121).contains(&n))
             .unwrap_or(u64::from(recovery)) as u8;
-        let tag = get("components[0].layout_tag")
+        let tag = component
+            .layout_tag
             .and_then(|v| u32::try_from(v).ok())
             .unwrap_or((190 << 16) | u32::from(channels));
         let mut layout = ChannelLayout::tagged(
@@ -64,14 +65,11 @@ impl SourceLayout {
             (tag >> 16 == 190).then(|| "HOA ACN/SN3D".into()),
         );
         if tag == 0
-            && let Some(labels) = parsed
-                .derived
-                .get("components[0].channel_labels")
-                .and_then(|v| v.as_array())
+            && let Some(labels) = &component.hoa.channel_labels
         {
             layout.descriptions = labels
                 .iter()
-                .filter_map(|v| v.as_u64().and_then(|v| u32::try_from(v).ok()))
+                .filter_map(|&v| u32::try_from(v).ok())
                 .map(|label| ChannelDescription {
                     label,
                     flags: 0,

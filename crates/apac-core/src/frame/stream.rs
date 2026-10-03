@@ -8,11 +8,10 @@ use super::{
 };
 use crate::prelude::*;
 use crate::{
-    config::{self, CookieReport, ParseError, ParseStatus, bits::BitReader},
+    config::{self, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::collections::BTreeMap;
 
 pub const PROFILE: &str = "apac-hoa-multiple-asc-v1";
@@ -75,198 +74,80 @@ pub struct StreamFrameContext {
     rejection: Option<String>,
 }
 
-/// A private eligibility view reuses existing single-component core checks.
-/// Original wire fields and offsets remain in the unmodified public cookie report.
-fn component_view(parsed: &CookieReport, index: usize, kind: u8, channels: u64) -> CookieReport {
-    let prefix = format!("components[{index}]");
-    let prefix_dot = format!("{prefix}.");
-    let mut view = CookieReport {
-        schema_version: parsed.schema_version,
-        cookie_bytes: parsed.cookie_bytes,
-        cookie_sha256: parsed.cookie_sha256.clone(),
-        status: parsed.status.clone(),
-        fields: parsed
-            .fields
-            .iter()
-            .filter(|f| {
-                (!f.name.starts_with("components[") || f.name.starts_with(&prefix_dot))
-                    && !f.name.starts_with("extensions[")
-                    && !f.name.starts_with("ancillary.")
-            })
-            .map(|f| {
-                let mut field = f.clone();
-                if field.name.starts_with(&prefix_dot) {
-                    field.name = field.name.replacen(&prefix, "components[0]", 1);
-                }
-                field
-            })
-            .collect(),
-        derived: parsed
-            .derived
-            .iter()
-            .filter(|(k, _)| {
-                (!k.starts_with("components[") || k.starts_with(&prefix_dot))
-                    && !k.starts_with("ancillary.")
-                    && !k.starts_with("extensions[")
-            })
-            .map(|(k, v)| (k.replacen(&prefix, "components[0]", 1), v.clone()))
-            .collect(),
-        // The original report owns raw unknown bytes. An eligibility view only
-        // needs their coordinates and the original incomplete status.
-        unknown_ranges: parsed
-            .unknown_ranges
-            .iter()
-            .map(|r| crate::config::UnknownRange {
-                bit_offset: r.bit_offset,
-                bit_length: r.bit_length,
-                first_byte_skip_bits: r.first_byte_skip_bits,
-                raw_hex: String::new(),
-                reason: r.reason.clone(),
-            })
-            .collect(),
-        diagnostics: parsed.diagnostics.clone(),
-    };
-    let mut set = |name: &str, value: serde_json::Value| {
-        if let Some(f) = view.fields.iter_mut().find(|f| f.name == name) {
-            f.value = value;
-        } else {
-            view.fields.push(crate::config::ConfigField {
-                name: name.into(),
-                value,
-                bit_offset: 0,
-                bit_length: 0,
-            });
-        }
-    };
-    set("global.component_count", json!(1));
-    set("global.channel_count", json!(channels));
-    set("components[0].lowest_channel_index", json!(0));
-    for name in [
-        "global.flag_a",
-        "global.flag_c",
-        "global.additional_asc_present",
-        "ancillary.scene_graph_present",
-        "ancillary.audio_scenes_present",
-        "ancillary.loudness_drc_present",
-        "ancillary.metadata_present",
-        "ancillary.custom_data_present",
-    ] {
-        set(name, json!(false));
-    }
-    set("global.parameter_b", json!(2));
-    set("components[0].parameter_0", json!(0));
-    set("components[0].parameter_1", json!(0));
-    if kind == 0 {
-        if let Some(layout) = crate::channel_layout::layout(channels) {
-            set("global.profile_id", json!(31));
-            set("global.level_id", json!(layout.level));
-        }
-        set("global.sample_rate_index", json!(3));
-        view.derived.insert("sample_rate_hz".into(), json!(48000));
-    }
-    view.derived.insert("channels".into(), json!(channels));
-    view
-}
 impl StreamFrameContext {
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
-        let parsed = config::parse_cookie(cookie)?;
-        let uint = |name: &str| {
-            parsed
-                .fields
-                .iter()
-                .find(|f| f.name == name)
-                .and_then(|f| f.value.as_u64())
-        };
-        let channels = parsed
-            .derived
-            .get("channels")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0)
-            .min(255) as u32;
-        let rate = parsed
-            .derived
-            .get("sample_rate_hz")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(48000);
-        let count = uint("global.component_count").unwrap_or(0) as usize;
+        Self::from_config(&config::Config::parse(cookie)?)
+    }
+    pub fn from_config(config: &config::Config) -> Result<Self, ParseError> {
+        let global = &config.global;
+        let channels = global.channels.unwrap_or(0).min(255) as u32;
+        let rate = global.sample_rate_hz.unwrap_or(48000);
+        let count = global.component_count.get().unwrap_or(0) as usize;
         let mut rejected = Vec::new();
-        if !parsed.is_complete() {
+        if !config.is_complete() {
             rejected.push("multiple-ASC cookie syntax is incomplete".into());
         }
         if super::sfb::index(rate).is_none() {
             rejected.push("unsupported shared sample rate".into());
         }
-        for (name, value) in [
-            ("box.version_flags", 0),
-            ("bitstream_version", 0x800),
-            ("global.frame_size_index", 0),
+        for (name, field, value) in [
+            ("box.version_flags", config.version_flags, 0),
+            ("bitstream_version", config.bitstream_version, 0x800),
+            ("global.frame_size_index", global.frame_size_index, 0),
             (
                 "global.parameter_b",
-                uint("global.parameter_b").unwrap_or(2).min(2),
+                global.parameter_b,
+                global.parameter_b.get().unwrap_or(2).min(2),
             ),
         ] {
-            packet_config::check(&parsed.fields, name, json!(value), "cookie", &mut rejected);
+            packet_config::check(name, field, value, "cookie", &mut rejected);
         }
         packet_config::check(
-            &parsed.fields,
             "global.flag_c",
-            json!(false),
+            global.flag_c,
+            false,
             "cookie",
             &mut rejected,
         );
-        let additional = parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "global.additional_asc_present" && f.value == json!(true));
-        let additional_information: Vec<AdditionalComponentConfiguration> =
-            (0..uint("global.additional_component_count")
-                .unwrap_or(0)
-                .min(255) as usize)
-                .map(|i| {
-                    let p = format!("additional_components[{i}]");
-                    AdditionalComponentConfiguration {
-                        component_index: i,
-                        component_type: uint(&format!("{p}.type")).unwrap_or(0) as u8,
-                        lowest_channel_index: uint(&format!("{p}.lowest_channel_index"))
-                            .unwrap_or(0) as u8,
-                        channels: parsed
-                            .derived
-                            .get(&format!("{p}.channels"))
-                            .and_then(|v| v.as_u64())
-                            .unwrap_or(0) as usize,
-                        parameter_0: uint(&format!("{p}.parameter_0")).unwrap_or(0),
-                        parameter_1: uint(&format!("{p}.parameter_1")).unwrap_or(0),
-                    }
-                })
-                .collect();
+        let additional = global.additional_asc_present.is(true);
+        let additional_information: Vec<AdditionalComponentConfiguration> = (0..global
+            .additional_component_count
+            .get()
+            .unwrap_or(0)
+            .min(255)
+            as usize)
+            .map(|i| {
+                let declared = config.additional_components.get(i);
+                let uint = |read: fn(&config::AdditionalComponent) -> config::Field<u64>| {
+                    declared.and_then(read).get().unwrap_or(0)
+                };
+                AdditionalComponentConfiguration {
+                    component_index: i,
+                    component_type: uint(|c| c.kind) as u8,
+                    lowest_channel_index: uint(|c| c.lowest_channel_index) as u8,
+                    channels: declared.and_then(|c| c.channels).unwrap_or(0) as usize,
+                    parameter_0: uint(|c| c.parameter_0),
+                    parameter_1: uint(|c| c.parameter_1),
+                }
+            })
+            .collect();
         if count == 0 || (count < 2 && !additional) {
             rejected.push("stream context requires multiple or additional components".into());
         }
-        let profile = uint("global.profile_id").unwrap_or(255) as u8;
-        let level = uint("global.level_id").unwrap_or(255) as u8;
-        let drc = DrcContext::for_channels(&parsed, u64::from(channels));
+        let profile = global.profile_id.get().unwrap_or(255) as u8;
+        let level = global.level_id.get().unwrap_or(255) as u8;
+        let drc = DrcContext::for_channels(config, u64::from(channels));
         if let Some(reason) = &drc.rejection {
             rejected.push(reason.clone());
         }
-        let scene = parsed
-            .fields
-            .iter()
-            .any(|f| f.name == "ancillary.audio_scenes_present" && f.value == json!(true));
+        let scene = config.ancillary.audio_scenes_present.is(true);
         let mut components = Vec::new();
         let mut hoa_found = false;
         for index in 0..count {
-            let prefix = format!("components[{index}]");
-            let kind = uint(&format!("{prefix}.type")).unwrap_or(255) as u8;
-            let n = parsed
-                .derived
-                .get(&format!("{prefix}.channels"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-            let tag = parsed
-                .derived
-                .get(&format!("{prefix}.layout_tag"))
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32;
+            let declared = config.component(index);
+            let kind = declared.kind.get().unwrap_or(255) as u8;
+            let n = declared.channels.unwrap_or(0);
+            let tag = declared.layout_tag.unwrap_or(0) as u32;
             if !matches!(kind, 0 | 2) || n == 0 || n > 121 {
                 rejected.push(format!("unqualified component {index} type/dimension"));
                 continue;
@@ -274,9 +155,9 @@ impl StreamFrameContext {
             if !super::sfb::supports_component(profile, level, kind, n, tag) {
                 rejected.push(format!("profile/level does not admit component {index}"));
             }
-            let view = component_view(&parsed, index, kind, n);
+            let view = config.component_view(index, kind, n);
             let (mut core, coefficients, hoa_context) = if kind == 2 {
-                let hoa = HoaFrameContext::from_report(view)?;
+                let hoa = HoaFrameContext::from_config(&view);
                 hoa_found = true;
                 (
                     hoa.transport.clone(),
@@ -284,7 +165,7 @@ impl StreamFrameContext {
                     Some(Box::new(hoa)),
                 )
             } else {
-                (ChannelFrameContext::from_report(view)?, None, None)
+                (ChannelFrameContext::from_config(&view), None, None)
             };
             core.sample_rate_hz = rate;
             if let Some(reason) = core.rejection() {
@@ -297,8 +178,8 @@ impl StreamFrameContext {
             let information = StreamComponentConfiguration {
                 component_index: index,
                 component_type: kind,
-                declared_lowest_channel_index: uint(&format!("{prefix}.lowest_channel_index"))
-                    .unwrap_or(0) as u8,
+                declared_lowest_channel_index: declared.lowest_channel_index.get().unwrap_or(0)
+                    as u8,
                 output_start: 0,
                 output_channels: 0,
                 output_ranges: vec![],
@@ -307,19 +188,12 @@ impl StreamFrameContext {
                 hoa_coefficient_count: coefficients,
                 declaration_aliases: (0..count)
                     .filter(|&i| {
-                        parsed
-                            .derived
-                            .get(&format!("components[{i}].effective_component_index"))
-                            == Some(&json!(index))
+                        config.component(i).effective_component_index == Some(index as u64)
                     })
                     .collect(),
-                alias_of: parsed
-                    .derived
-                    .get(&format!("{prefix}.effective_component_index"))
-                    .and_then(|v| v.as_u64())
-                    .map(|i| i as usize),
-                parameter_0: uint(&format!("{prefix}.parameter_0")).unwrap_or(0),
-                parameter_1: uint(&format!("{prefix}.parameter_1")).unwrap_or(0),
+                alias_of: declared.effective_component_index.map(|i| i as usize),
+                parameter_0: declared.parameter_0.get().unwrap_or(0),
+                parameter_1: declared.parameter_1.get().unwrap_or(0),
             };
             components.push(Component {
                 information,
@@ -349,9 +223,8 @@ impl StreamFrameContext {
         let mut mapping = vec![None; channels as usize];
         if scene {
             rejected.extend(packet_config::neutral_scene_sources(
-                &parsed.fields,
+                &config.ancillary.audio_scenes,
                 "cookie",
-                drc.present,
                 scene_sources,
             ));
             // Scene source chunks follow the active descriptor list. Scatter
@@ -456,8 +329,8 @@ impl StreamFrameContext {
         }
         let information = components.iter().map(|c| c.information.clone()).collect();
         Ok(Self {
-            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_report(&parsed),
-            cookie_sha256: parsed.cookie_sha256,
+            auxiliary: super::auxiliary::AuxiliaryConfiguration::from_config(config),
+            cookie_sha256: config.cookie_sha256.clone(),
             sample_rate_hz: rate,
             channels,
             layout,
@@ -746,9 +619,8 @@ pub fn parse_with_state(
             }
             if !update.is_complete()
                 || !packet_config::neutral_scene_sources(
-                    &update.fields,
+                    &config::AudioScenes::from_fields(&update.fields),
                     "packet",
-                    context.drc.present,
                     context.scene_sources,
                 )
                 .is_empty()

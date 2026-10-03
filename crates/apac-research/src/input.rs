@@ -50,6 +50,13 @@ impl Input {
             Self::Mp4(v) => v.info(),
         }
     }
+    pub(super) fn config(&self) -> &crate::config::Config {
+        match self {
+            Self::Bundle(v) => v.config(),
+            Self::Caf(v) => v.config(),
+            Self::Mp4(v) => v.config(),
+        }
+    }
     pub(super) fn cookie(&self) -> &[u8] {
         match self {
             Self::Bundle(v) => v.cookie(),

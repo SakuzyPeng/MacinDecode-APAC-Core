@@ -15,6 +15,17 @@ target/debug/apac-tool --help
 
 当前机器所需依赖已缓存，可以离线构建。新机器首次构建可使用 `cargo build`。项目关闭开发构建的调试符号和增量编译，所有构建产物使用当前目录的 `target/`。
 
+代码是一个 Cargo workspace，默认成员是 `apac-tool`，因此在根目录运行的 `cargo build` 只构建命令行工具；测试和检查请加 `--workspace` 或 `-p <crate>`：
+
+| crate | 内容 |
+| --- | --- |
+| `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口 |
+| `crates/apac-research` | `parse-packets`／`decode-sq` 报告驱动、CAF／MP4 读取、包目录、导出限额、PCM 比较和测试信号 |
+| `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
+| `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |
+
+`native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
+
 ## 命令
 
 输出结果写 stdout，进度和错误写 stderr。除索引文件外，导出命令的 `--out` 必须指定一个**不存在的新目录**；工具不覆盖现有结果。
@@ -223,7 +234,7 @@ python3 -B scripts/validate_bwe2.py --binary target/release/apac-tool \
 # 原生可选诊断，不作为便携数学真值
 python3 -B scripts/validate_bwe2.py --binary target/debug/apac-tool --native-only --output reports/bwe2-native.json
 # 每个实际运行平台显式执行 release 性能门槛
-cargo test --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_fast_as_direct_dft -- --exact --ignored --nocapture
+cargo test -p apac-core --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_fast_as_direct_dft -- --exact --ignored --nocapture
 ```
 
 BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式求值，不复用生产 FFT、Levinson、LSF 因子求值或三角近似。数学容差仍为 `atol=1e-6, rtol=1e-5`；跨构建另要求所有阶段摘要逐位相同。`data/bwe2-vectors-v2.json` 在原矩阵之外加入 96 个频谱用例和 96 个 PCM 序列，覆盖易发生相消的内部 LSF 索引组合、长短窗、两档复制范围、左右声道和分数步长增益。原生采用明确的分层验收：参数／边界精确，使用相同原生 LPC 输入后的变换、复制和增益控制通过原容差；完整原生路径与输入隔离路径的浮点差异均另行保留，不把苹果 Float32/FMA 的 LPC 舍入接入默认模型。
@@ -299,7 +310,7 @@ python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
 **7.1.4／22.2 的独立验收**：新增 2,076 个数学序列、208 个三种输入及范围访问用例；单独用紧凑验收程序检查 131,328 个存在位组合，只输出摘要。旧矩阵的布局枚举和向量身份保持不变。生产解码无需 Python 或苹果文件。
 
 ```sh
-cargo +1.98.0 build --offline --examples
+cargo +1.98.0 build --offline --workspace --bins --examples
 python3 -B scripts/generate_layout_manifest.py --check
 python3 -B scripts/validate_layouts.py --binary target/debug/apac-tool \
   --presence-binary target/debug/examples/layout_presence --report reports/layouts-math.json
@@ -364,7 +375,7 @@ python3 -B scripts/validate_hoa.py --binary target/release/apac-tool \
   --reference-report reports/hoa-math.json --report reports/hoa-release.json
 ```
 
-HOA 验证只运行新增用例和受影响接口的精简回归，不要求重跑旧完整矩阵。真实媒体在开发和发布时都只取有 DRC、无 DRC各一份代表。先用 `cargo +1.98.0 test --offline --release --lib --no-run --message-format=json` 构建，再将输出中的库测试 `executable` 路径传给 `scripts/validate_hoa_media.py --test-binary PATH --with-drc INPUT --without-drc INPUT --report REPORT`。该工具逐包完整解码、核验输入并仅保留 PCM 摘要，不落盘整曲 PCM；报告绑定代码、源码、测试二进制、工具链和输入摘要。`scripts/validate_hoa_native.py` 可复核已有的哈希约束只读 HOA 跟踪，无需重复跟踪已确认的 SQ 工具。
+HOA 验证只运行新增用例和受影响接口的精简回归，不要求重跑旧完整矩阵。真实媒体在开发和发布时都只取有 DRC、无 DRC各一份代表。先用 `cargo +1.98.0 test --offline -p apac-research --release --lib --no-run --message-format=json` 构建，再将输出中的库测试 `executable` 路径传给 `scripts/validate_hoa_media.py --test-binary PATH --with-drc INPUT --without-drc INPUT --report REPORT`。该工具逐包完整解码、核验输入并仅保留 PCM 摘要，不落盘整曲 PCM；报告绑定代码、源码、测试二进制、工具链和输入摘要。`scripts/validate_hoa_native.py` 可复核已有的哈希约束只读 HOA 跟踪，无需重复跟踪已确认的 SQ 工具。
 
 **默认 salient HOA**：接受二／三阶、5 个声明 salient 槽位、零 ambient，每个分量默认 4 个空间子带（1–16 扩展见下文）、与输出相同的阶数、6 位描述量化。完整读取 9／16 个传输 SCE；空间恢复只使用前 5 个核心分量，输出为 9／16 个 ACN 系数。`elements[].configuration.transport_channels` 记录载波槽位，`output_channels` 为空，避免误认为传输槽位与输出系数一一对应。未使用的传输槽位也必须通过语法与数值检查。
 
@@ -866,8 +877,8 @@ Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL
 重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。
 
 ```sh
-cargo +1.98.0 test --offline --test golden_decode
-cargo +1.98.0 build --offline --bin apac-tool --example layout_presence
+cargo +1.98.0 test --offline -p apac-research --test golden_decode
+cargo +1.98.0 build --offline --workspace --bins --examples
 python3 -B scripts/run_portable_suite.py --binary target/debug/apac-tool \
   --presence-binary target/debug/examples/layout_presence --jobs 2 --out reports/portable-suite-new
 python3 -B scripts/compare_reports.py reports/portable-suite-before reports/portable-suite-new --limit 50
@@ -931,8 +942,8 @@ python3 -B scripts/check_synthesis_reference.py \
 ## 验证
 
 ```sh
-cargo test --offline
-cargo clippy --offline --all-targets -- -D warnings
+cargo test --offline --workspace
+cargo clippy --offline --workspace --all-targets -- -D warnings
 python3 -B -m unittest discover -s scripts -p 'test_*.py'
 ```
 
@@ -956,8 +967,8 @@ python3 scripts/validate_configs.py \
   --collection artifacts/demo/configs/index.json \
   --hoa-baseline reports/drc-validation-phase3.json \
   --output reports/hoa-validation-new.json
-cargo check --offline --target x86_64-unknown-linux-gnu
-cargo check --offline --target x86_64-pc-windows-msvc
+cargo check --offline --workspace --target x86_64-unknown-linux-gnu
+cargo check --offline --workspace --target x86_64-pc-windows-msvc
 ```
 
 配置验收默认预期 64 份配置、3 份首批目标，可通过 `--expected-configs` / `--expected-targets` 调整。指定 `--hoa-baseline` 时，从第三阶段报告的 ASC 类型 2 停止点固定两份目标，要求当前集合与基线哈希一致，并强制全部 64 份 complete。`--drc-baseline` 继续要求原有 50 份 DRC 目标及 12 份完整配置通过，同时允许其余两份 HOA 从原停止点升级为 complete。两个基线参数互斥。

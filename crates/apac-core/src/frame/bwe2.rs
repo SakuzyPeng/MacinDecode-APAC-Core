@@ -1,14 +1,15 @@
 //! Bounded two-channel BWE2 syntax, after TNS and before core alignment.
 use super::{FrameContext, IcsInfo, Parser, TnsReport, parse_tns};
 use crate::prelude::*;
+use crate::record::FieldValue;
 use crate::{
     bwe2_math,
     config::{ConfigField, ParseError, bits::BitReader},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = bwe2_math::PROFILE;
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Bwe2Parameters {
     pub lsf_indices: [u16; 2],
     pub gain_indices: Vec<u8>,
@@ -16,21 +17,21 @@ pub struct Bwe2Parameters {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Bwe2ChannelData {
     pub channel_index: u8,
     pub active: bool,
     pub parameter_source_channel: Option<u8>,
     pub parameters: Option<Bwe2Parameters>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Bwe2Data {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub control_bits: [bool; 2],
     pub channels: Vec<Bwe2ChannelData>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Bwe2Region {
     pub window_index: usize,
     pub source_start_line: usize,
@@ -39,7 +40,7 @@ pub struct Bwe2Region {
     pub target_end_line: usize,
     pub repetitions: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Bwe2ChannelSpectrum {
     pub channel_index: u8,
     pub regions: Vec<Bwe2Region>,
@@ -48,7 +49,7 @@ pub struct Bwe2ChannelSpectrum {
     pub analysis: Option<bwe2_math::Analysis>,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Bwe2Report {
     #[serde(flatten)]
     pub tns: TnsReport,
@@ -60,7 +61,7 @@ pub struct Bwe2Report {
     pub bwe2: Option<Bwe2Data>,
     pub channels_after_bwe2: Vec<Bwe2ChannelSpectrum>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ElementBwe2Data {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -242,7 +243,7 @@ pub fn parse_bwe2(context: &FrameContext, packet: &[u8]) -> Result<Bwe2Report, P
             name: "components[0].bwe2".into(),
             bit_offset: parsed.start_bit_offset,
             bit_length: parsed.end_bit_offset - parsed.start_bit_offset,
-            value: serde_json::to_value(&parsed).expect("BWE2 parameters"),
+            value: FieldValue::Bwe2(Box::new(parsed.clone())),
         });
         tns.cac.spectrum.frame = Parser {
             bits,

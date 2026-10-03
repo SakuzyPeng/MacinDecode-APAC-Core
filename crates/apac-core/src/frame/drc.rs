@@ -5,7 +5,8 @@ use crate::config::{
     self, Config, ConfigField, DrcDeclaration, FieldExt, ParseError, ParseStatus, bits::BitReader,
 };
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::record::{DigestUnit, FieldValue};
+use serde::Serialize;
 use serde_json::{Value, json};
 
 pub const RULES_VERSION: &str = "apac-drc-payload-v1";
@@ -55,7 +56,7 @@ pub fn codebook_sha256() -> String {
     crate::model::sha256(&bytes)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DrcParameters {
     pub coefficient_location: u8,
     pub gain_sequences: u8,
@@ -68,7 +69,7 @@ pub struct DrcParameters {
     pub frame_samples: u16,
     pub time_delta_min: u16,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcConfiguration {
     pub parameters: DrcParameters,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -298,7 +299,7 @@ impl DrcContext {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcNode {
     pub gain_eighth_db: i32,
     pub time: i32,
@@ -307,13 +308,13 @@ pub struct DrcNode {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slope_index: Option<u8>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcTimeDelta {
     pub value: u32,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcGainExtension {
     pub extension_type: u8,
     pub start_bit_offset: usize,
@@ -321,7 +322,7 @@ pub struct DrcGainExtension {
     pub payload_bits: usize,
     pub payload_sha256: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcPayload {
     pub start_bit_offset: usize,
     pub header_end_bit_offset: usize,
@@ -345,7 +346,7 @@ pub struct DrcPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gain_extensions: Option<Vec<DrcGainExtension>>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcReport {
     #[serde(flatten)]
     pub bwe2: Bwe2Report,
@@ -457,7 +458,7 @@ pub(super) fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, Pa
         }
     })
 }
-fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: Value) {
+fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: FieldValue) {
     if !parser.capture {
         return;
     }
@@ -514,7 +515,11 @@ fn gain_extensions(
                 name: format!("{root}.opaque_payload"),
                 bit_offset: payload_start,
                 bit_length: length,
-                value: json!({"bits":length,"sha256":sha}),
+                value: FieldValue::Digest {
+                    unit: DigestUnit::Bits,
+                    count: length,
+                    sha256: sha.clone(),
+                },
             });
         }
         entries.push(DrcGainExtension {
@@ -627,13 +632,18 @@ pub(super) fn read_payload(
                 ));
             }
         }
-        field(parser, "node_count", position, json!(count));
+        field(parser, "node_count", position, FieldValue::from(count));
         frame_end = parser.flag(&format!("{ROOT}.frame_end"))?;
         let mut previous = -1;
         for i in 0..count - usize::from(frame_end) {
             let position = parser.bits.position();
             let value = time_delta(&mut parser.bits, (frames / dt) as u32)?;
-            field(parser, &format!("time_deltas[{i}]"), position, json!(value));
+            field(
+                parser,
+                &format!("time_deltas[{i}]"),
+                position,
+                FieldValue::from(value),
+            );
             let next = i32::try_from(i64::from(previous) + i64::from(value) * i64::from(dt))
                 .map_err(|_| {
                     ParseError::new(
@@ -689,7 +699,12 @@ pub(super) fn read_payload(
             gain = if negative { -magnitude } else { magnitude };
         } else {
             let delta = gain_delta(&mut parser.bits)?;
-            field(parser, &format!("gain_deltas[{i}]"), position, json!(delta));
+            field(
+                parser,
+                &format!("gain_deltas[{i}]"),
+                position,
+                FieldValue::from(delta),
+            );
             gain = gain.checked_add(delta).ok_or_else(|| {
                 ParseError::new(position, "drc-gain-range", "gain accumulator overflow")
             })?;
@@ -772,12 +787,12 @@ pub fn parse_drc_with_state(
     if let Some((start, end)) = frame
         .derived
         .get("asp.preroll.start_bit")
-        .and_then(Value::as_u64)
+        .and_then(FieldValue::as_u64)
         .zip(
             frame
                 .derived
                 .get("asp.preroll.end_bit")
-                .and_then(Value::as_u64),
+                .and_then(FieldValue::as_u64),
         )
     {
         let inner = parse_drc_with_state(

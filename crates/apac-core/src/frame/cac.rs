@@ -3,19 +3,19 @@ use super::spectrum::{Codebook, Trie};
 use super::{FrameContext, IcsInfo, Parser, SpectrumReport, parse_spectrum};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::FieldValue;
+use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-cac-math-v1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CacRun {
     pub gain_index: u8,
     pub repeat_code: u8,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CacData {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -23,13 +23,13 @@ pub struct CacData {
     /// Group-major, one gain index for each active SFB, shared by its windows.
     pub gain_indices: Vec<Vec<u8>>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CacChannelSpectrum {
     pub channel_index: u8,
     /// Window-major Float32 spectrum, after CAC and before TNS.
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CacReport {
     #[serde(flatten)]
     pub spectrum: SpectrumReport,
@@ -155,7 +155,7 @@ pub(super) fn read_data_at(
                     name: format!("{prefix}.runs[{i}].{name}"),
                     bit_offset: offset,
                     bit_length: length,
-                    value: json!(value),
+                    value: FieldValue::from(value),
                 });
             }
         }

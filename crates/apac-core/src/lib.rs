@@ -17,6 +17,7 @@ pub mod error;
 pub mod frame;
 pub mod model;
 mod numeric;
+pub mod record;
 pub mod synthesis;
 mod tables;
 

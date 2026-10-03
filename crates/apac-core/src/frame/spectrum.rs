@@ -2,23 +2,23 @@
 use super::{FrameContext, FrameReport, Parser, parse_frame};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::FieldValue;
+use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct IcsInfo {
     pub block_type: u8,
     pub max_sfb: usize,
     pub window_groups: Vec<u32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Section {
     pub group: usize,
     pub start_band: usize,
     pub end_band: usize,
     pub codebook: u8,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ChannelSpectrum {
     pub channel_index: u8,
     pub ics: IcsInfo,
@@ -33,7 +33,7 @@ pub struct ChannelSpectrum {
     pub spectral_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SpectrumReport {
     #[serde(flatten)]
     pub frame: FrameReport,
@@ -231,7 +231,7 @@ impl Parser<'_> {
                                 ),
                                 bit_offset: start,
                                 bit_length: self.bits.position() - start,
-                                value: json!(delta),
+                                value: FieldValue::from(delta),
                             });
                         }
                         *slot = Some(sf);
@@ -289,7 +289,7 @@ impl Parser<'_> {
                 name: format!("{prefix}.spectral_codewords"),
                 bit_offset: spectral_bit_offset,
                 bit_length: end_bit_offset - spectral_bit_offset,
-                value: json!({"ordering":"group_band_window_line"}),
+                value: FieldValue::Ordering("group_band_window_line"),
             });
         }
         Ok(ChannelSpectrum {

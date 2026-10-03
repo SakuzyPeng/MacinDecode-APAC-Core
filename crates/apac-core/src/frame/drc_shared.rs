@@ -5,17 +5,17 @@ use super::{
 };
 use crate::config::{DrcDeclaration, Field, FieldExt, ParseError};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::FieldValue;
+use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-shared-drc-syntax-v1";
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct DrcSequenceParameters {
     pub sequence_index: usize,
     pub gain_set_index: usize,
     pub parameters: DrcParameters,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct DrcGainSequence {
     pub sequence_index: usize,
     pub gain_set_index: usize,
@@ -202,7 +202,7 @@ fn symbol(parser: &mut Parser<'_>, name: &str, table: &[Code]) -> Result<i32, Pa
                     name: name.into(),
                     bit_offset: start,
                     bit_length: width,
-                    value: json!(entry.value),
+                    value: FieldValue::from(entry.value),
                 });
             }
             return Ok(entry.value);
@@ -258,7 +258,7 @@ pub(super) fn read_sequence(
                 name: format!("{root}.node_count"),
                 bit_offset: at,
                 bit_length: parser.bits.position() - at,
-                value: json!(count),
+                value: FieldValue::from(count),
             });
         }
         if p.interpolation == "spline" {
@@ -298,7 +298,7 @@ pub(super) fn read_sequence(
                     name: format!("{root}.time_deltas[{i}]"),
                     bit_offset: at,
                     bit_length: parser.bits.position() - at,
-                    value: json!(value),
+                    value: FieldValue::from(value),
                 });
             }
             deltas.push(DrcTimeDelta {
@@ -351,7 +351,7 @@ pub(super) fn read_sequence(
                     name: format!("{root}.gain_deltas[{i}]"),
                     bit_offset: at,
                     bit_length: parser.bits.position() - at,
-                    value: json!(delta),
+                    value: FieldValue::from(delta),
                 });
             }
         }

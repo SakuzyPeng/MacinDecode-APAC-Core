@@ -4,7 +4,7 @@ use super::{
     bits::BitReader,
 };
 use crate::prelude::*;
-use serde_json::{Value, json};
+use crate::record::{DigestUnit, FieldValue};
 
 pub(super) enum Stop {
     Invalid(ParseError),
@@ -109,7 +109,7 @@ pub(crate) fn parse_drc_header_at(
     p.bits.skip(offset)?;
     p.report
         .derived
-        .insert("sample_rate_hz".into(), json!(rate));
+        .insert("sample_rate_hz".into(), FieldValue::from(rate));
     match p.drc_header(channels, true) {
         Ok(()) => {}
         Err(Stop::Invalid(error)) => return Err(error),
@@ -197,7 +197,7 @@ impl Parser<'_> {
             reason,
         });
     }
-    pub fn record(&mut self, name: &str, start: usize, value: Value) -> PResult<()> {
+    pub fn record(&mut self, name: &str, start: usize, value: FieldValue) -> PResult<()> {
         if self.report.fields.len() >= 16384 {
             return self.invalid("field-limit", "more than 16384 fields");
         }
@@ -212,13 +212,13 @@ impl Parser<'_> {
     pub fn take(&mut self, name: &str, width: usize) -> PResult<u64> {
         let start = self.pos();
         let value = self.bits.read(width)?;
-        self.record(name, start, json!(value))?;
+        self.record(name, start, FieldValue::from(value))?;
         Ok(value)
     }
     pub fn flag(&mut self, name: &str) -> PResult<bool> {
         let start = self.pos();
         let value = self.bits.read(1)? != 0;
-        self.record(name, start, json!(value))?;
+        self.record(name, start, FieldValue::from(value))?;
         Ok(value)
     }
     pub fn esc(&mut self, name: &str, widths: [usize; 3]) -> PResult<u64> {
@@ -244,7 +244,7 @@ impl Parser<'_> {
                 break;
             }
         }
-        self.record(name, start, json!(value))?;
+        self.record(name, start, FieldValue::from(value))?;
         Ok(value)
     }
     pub fn count(&self, value: u64, minimum_bits: usize) -> PResult<usize> {
@@ -331,8 +331,10 @@ impl Parser<'_> {
         let (profile, level) = (profile.value, level.value);
         self.report
             .derived
-            .insert("profile_id".into(), json!(profile));
-        self.report.derived.insert("level_id".into(), json!(level));
+            .insert("profile_id".into(), FieldValue::from(profile));
+        self.report
+            .derived
+            .insert("level_id".into(), FieldValue::from(level));
         self.config.global.flag_a = Some(self.flag_at("global.flag_a")?);
         let sr = self.take_at("global.sample_rate_index", 6)?;
         self.config.global.sample_rate_index = Some(sr);
@@ -343,7 +345,7 @@ impl Parser<'_> {
         if let Some(&rate) = RATES.get(sr as usize) {
             self.report
                 .derived
-                .insert("sample_rate_hz".into(), json!(rate));
+                .insert("sample_rate_hz".into(), FieldValue::from(rate));
             self.config.global.sample_rate_hz = Some(u64::from(rate));
         } else if sr <= 15 {
             return self.stop("sample-rate index retains prior decoder state; a standalone cookie does not supply that rate context");
@@ -361,7 +363,7 @@ impl Parser<'_> {
         }
         self.report
             .derived
-            .insert("frame_samples".into(), json!(1024));
+            .insert("frame_samples".into(), FieldValue::from(1024));
         self.config.global.frame_samples = Some(1024);
         let channels = self.take_at("global.channel_count", 8)?;
         self.config.global.channel_count = Some(channels);
@@ -371,7 +373,7 @@ impl Parser<'_> {
         }
         self.report
             .derived
-            .insert("channels".into(), json!(channels));
+            .insert("channels".into(), FieldValue::from(channels));
         self.config.global.channels = Some(channels);
         // These wire fields have confirmed boundaries; their operational names remain unassigned.
         self.config.global.parameter_b = Some(self.take_at("global.parameter_b", 8)?);
@@ -415,9 +417,10 @@ impl Parser<'_> {
                         "duplicate component start has a different type or extent",
                     );
                 }
-                self.report
-                    .derived
-                    .insert(format!("{prefix}.effective_component_index"), json!(first));
+                self.report.derived.insert(
+                    format!("{prefix}.effective_component_index"),
+                    FieldValue::from(first),
+                );
                 self.component_mut().effective_component_index = Some(first as u64);
             } else {
                 for c in start..start + component_channels {
@@ -431,9 +434,10 @@ impl Parser<'_> {
                     ParseError::new(self.pos(), "overflow", "component channel sum overflow")
                 })?;
             }
-            self.report
-                .derived
-                .insert(format!("{prefix}.channels"), json!(component_channels));
+            self.report.derived.insert(
+                format!("{prefix}.channels"),
+                FieldValue::from(component_channels),
+            );
             self.component_mut().channels = Some(component_channels);
         }
         if total != channels {
@@ -491,9 +495,10 @@ impl Parser<'_> {
                     .min()
                     .unwrap_or(channels);
                 let span = if count == 1 { channels } else { end - start };
-                self.report
-                    .derived
-                    .insert(format!("additional_components[{i}].channels"), json!(span));
+                self.report.derived.insert(
+                    format!("additional_components[{i}].channels"),
+                    FieldValue::from(span),
+                );
                 self.config.additional_components[i].channels = Some(span);
             }
             (0..count)
@@ -520,7 +525,7 @@ impl Parser<'_> {
             if value > u64::from(u32::MAX) {
                 self.report.derived.insert(
                     format!("{root}.parameter_1_reference_u32"),
-                    json!(value as u32),
+                    FieldValue::from(value as u32),
                 );
             }
         }
@@ -561,7 +566,7 @@ impl Parser<'_> {
         self.record(
             name,
             start,
-            json!({"bytes":bytes,"sha256":crate::model::sha256(&data)}),
+            FieldValue::digest(DigestUnit::Bytes, bytes, &data),
         )
     }
     fn custom_data(&mut self) -> PResult<()> {
@@ -639,7 +644,7 @@ impl Parser<'_> {
         } else {
             self.report.derived.insert(
                 format!("{prefix}.layout_tag"),
-                json!((family << 16) | channels),
+                FieldValue::from((family << 16) | channels),
             );
             self.component_mut().layout_tag = Some((family << 16) | channels);
         }
@@ -702,7 +707,7 @@ impl Parser<'_> {
                 )?;
                 self.report.derived.insert(
                     format!("{prefix}.content_origin.values[{field}]"),
-                    json!(raw as i64 - 1),
+                    FieldValue::from(raw as i64 - 1),
                 );
             }
             let padding = end - self.pos();

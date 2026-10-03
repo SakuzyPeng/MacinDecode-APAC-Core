@@ -4,6 +4,7 @@ use super::{
     passive::PositionSyntax,
 };
 use crate::prelude::*;
+use crate::record::{DigestUnit, FieldValue};
 
 impl Parser<'_> {
     pub(super) fn passive_values(&mut self, p: &str, widths: &[usize]) -> PResult<()> {
@@ -154,7 +155,7 @@ impl Parser<'_> {
                 self.record(
                     &format!("{p}.label"),
                     start,
-                    serde_json::json!({"bytes":text.len(),"sha256":crate::model::sha256(&text)}),
+                    FieldValue::digest(DigestUnit::Bytes, text.len(), &text),
                 )?;
                 self.take(&format!("{p}.layout_encoded"), 4)?;
                 let count = self.drc_count(&format!("{p}.speaker_count"), 8, 33)?;

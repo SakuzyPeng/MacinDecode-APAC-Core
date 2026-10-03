@@ -4,11 +4,11 @@ use super::{
 };
 use crate::config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub const STATE_PROFILE: &str = "apac-asp-state-v1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PacketTail {
     pub core_end_bit_offset: usize,
     pub ancillary_start_bit_offset: usize,
@@ -25,7 +25,7 @@ pub struct PacketTail {
     pub packet_end_bit_offset: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct EmbeddedPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -33,7 +33,7 @@ pub struct EmbeddedPreroll {
     pub report: Box<PacketReport>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PacketReport {
     #[serde(flatten)]
     pub bwe2: Bwe2Report,
@@ -59,7 +59,8 @@ impl PacketReport {
     }
     pub fn cpe_absent(&self) -> bool {
         self.frame().fields.iter().any(|f| {
-            f.name == "components[0].tce[0].present" && f.value == serde_json::json!(false)
+            f.name == "components[0].tce[0].present"
+                && f.value == crate::record::FieldValue::Bool(false)
         })
     }
 }

@@ -52,8 +52,14 @@ fn bounded_asp_lengths_and_escape_tiers() {
         for fill in [0, 7] {
             let report = header(size, 131070, fill).unwrap();
             let start = if size < 65535 { 24 } else { 40 };
-            assert_eq!(report.derived["asp.preroll.start_bit"], start);
-            assert_eq!(report.derived["asp.preroll.end_bit"], start + size * 8);
+            assert_eq!(
+                report.derived["asp.preroll.start_bit"].as_u64(),
+                Some(start)
+            );
+            assert_eq!(
+                report.derived["asp.preroll.end_bit"].as_u64(),
+                Some(start + size * 8)
+            );
         }
     }
     for size in [0, 4097, 65535, 131070] {

@@ -1,6 +1,5 @@
 //! Hand-constructed syntax vectors, not copies of media cookies or vendor binaries.
 use apac_core::config::{CookieReport, MAX_COOKIE_BYTES, ParseStatus, parse_cookie};
-use serde_json::json;
 
 struct Writer {
     data: Vec<u8>,
@@ -170,7 +169,7 @@ fn count_ranges_channel_totals_and_remapping_are_checked() {
     for i in 0..8 {
         assert_eq!(
             field(&parsed, &format!("components[0].remapping[{i}]")).value,
-            json!(i)
+            i
         );
     }
     let mut wrong = bytes.clone();

@@ -8,7 +8,7 @@ mod hoa;
 mod legacy_tests;
 mod model;
 #[cfg(test)]
-mod model_tests;
+pub(crate) mod model_tests;
 mod parser;
 pub(crate) mod passive;
 mod passive_compression;
@@ -17,17 +17,18 @@ mod passive_renderer;
 mod scenes;
 
 use crate::model::{SCHEMA_VERSION, sha256};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde::Serialize;
 use std::{collections::BTreeMap, fmt};
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 
+pub use crate::record::{ConfigField, DigestUnit, FieldValue};
 pub(crate) use model::*;
 pub use model::{Config, Field, Located};
 pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
+pub use passive::PositionSyntax;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ParseStatus {
     Complete,
@@ -35,15 +36,7 @@ pub enum ParseStatus {
     Unsupported,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ConfigField {
-    pub name: String,
-    pub bit_offset: usize,
-    pub bit_length: usize,
-    pub value: Value,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct UnknownRange {
     pub bit_offset: usize,
     pub bit_length: usize,
@@ -53,13 +46,13 @@ pub struct UnknownRange {
     pub reason: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Diagnostic {
     pub bit_offset: usize,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct CookieReport {
     pub schema_version: u32,
     pub cookie_bytes: usize,
@@ -67,7 +60,7 @@ pub struct CookieReport {
     pub status: ParseStatus,
     /// Syntax coverage, not a claim of support for decoding audio or scene rendering.
     pub fields: Vec<ConfigField>,
-    pub derived: BTreeMap<String, Value>,
+    pub derived: BTreeMap<String, FieldValue>,
     pub unknown_ranges: Vec<UnknownRange>,
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -89,7 +82,7 @@ impl CookieReport {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ParseError {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub element_index: Option<usize>,

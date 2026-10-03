@@ -150,10 +150,6 @@ fn hoa_report_marks_identity_without_inventing_absent_integer_streams() {
         r.hoa().channels_after_hoa[0].scaled,
         r.packet.elements[0].channels_after_bwe2[0].scaled
     );
-    let mut json = serde_json::to_value(&r.packet).unwrap();
-    json.as_object_mut().unwrap().remove("hoa");
-    let legacy: crate::frame::ChannelPacketReport = serde_json::from_value(json).unwrap();
-    assert!(legacy.hoa.is_none());
 }
 
 #[test]
@@ -322,8 +318,7 @@ fn old_hoa_json_does_not_gain_mixed_fields() {
                 assert!(d.get("ambient_omitted_coefficients").is_none());
             }
         }
-        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
-        assert!(restored.hoa().mixed.is_none());
+        assert!(report.hoa().mixed.is_none());
     }
 }
 
@@ -490,9 +485,7 @@ fn additive_history_transform_mapping_and_output_overlap_are_atomic() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();
-        let value = serde_json::to_value(&report).unwrap();
-        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        let restored = crate::frame::parse_hoa_packet(&context, &first).unwrap();
         assert_eq!(
             restored.hoa().additive.as_ref().unwrap().combination,
             crate::frame::AmbientCombination::Add
@@ -561,9 +554,7 @@ fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        let report = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"])).unwrap();
-        let value = serde_json::to_value(&report).unwrap();
-        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        let restored = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"])).unwrap();
         assert_eq!(
             restored
                 .hoa()
@@ -645,9 +636,7 @@ fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
             snapshot(&d),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        let parsed = crate::frame::parse_hoa_packet(&ctx, &first).unwrap();
-        let value = serde_json::to_value(parsed).unwrap();
-        let restored: crate::frame::HoaPacketReport = serde_json::from_value(value).unwrap();
+        let restored = crate::frame::parse_hoa_packet(&ctx, &first).unwrap();
         assert_eq!(
             restored
                 .hoa()
@@ -773,9 +762,7 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
             snapshot(&decoder),
             snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
         );
-        let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();
-        let json = serde_json::to_value(report).unwrap();
-        let restored: crate::frame::HoaPacketReport = serde_json::from_value(json).unwrap();
+        let restored = crate::frame::parse_hoa_packet(&context, &first).unwrap();
         assert!(
             restored
                 .hoa()

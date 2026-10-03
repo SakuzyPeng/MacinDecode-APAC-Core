@@ -5,7 +5,7 @@ use super::{
     parser::{PResult, Parser},
 };
 use crate::prelude::*;
-use serde_json::json;
+use crate::record::{DigestUnit, FieldValue};
 
 const ROOT: &str = "ancillary.loudness_drc";
 
@@ -77,7 +77,7 @@ impl Parser<'_> {
             }
             self.report
                 .derived
-                .insert(format!("{ROOT}.sample_rate_hz"), json!(rate));
+                .insert(format!("{ROOT}.sample_rate_hz"), FieldValue::from(rate));
         }
         let explicit_layout = self.flag_at(&format!("{ROOT}.channel_layout_present"))?;
         self.config.ancillary.drc.channel_layout_present = Some(explicit_layout);
@@ -240,7 +240,7 @@ impl Parser<'_> {
             let frames = frames.value + 1;
             self.report
                 .derived
-                .insert(format!("{p}.frame_samples"), json!(frames));
+                .insert(format!("{p}.frame_samples"), FieldValue::from(frames));
         }
         // The APAC header calls the coefficients reader with coefficient version 1.
         let left_count = self.drc_characteristics(&format!("{p}.left_characteristics"))?;
@@ -290,7 +290,7 @@ impl Parser<'_> {
                 let delta = delta.value + 1;
                 self.report
                     .derived
-                    .insert(format!("{q}.time_delta_min"), json!(delta));
+                    .insert(format!("{q}.time_delta_min"), FieldValue::from(delta));
             }
             if profile == 3 {
                 if next_sequence >= sequences {
@@ -299,9 +299,10 @@ impl Parser<'_> {
                         "constant gain sequence exceeds declared count",
                     );
                 }
-                self.report
-                    .derived
-                    .insert(format!("{q}.bands[0].sequence_index"), json!(next_sequence));
+                self.report.derived.insert(
+                    format!("{q}.bands[0].sequence_index"),
+                    FieldValue::from(next_sequence),
+                );
                 self.drc_gain_set_mut()
                     .band_sequence_indices
                     .push(next_sequence);
@@ -336,7 +337,7 @@ impl Parser<'_> {
                 next_sequence = sequence + 1;
                 self.report
                     .derived
-                    .insert(format!("{band}.sequence_index"), json!(sequence));
+                    .insert(format!("{band}.sequence_index"), FieldValue::from(sequence));
                 self.drc_gain_set_mut().band_sequence_indices.push(sequence);
                 if self.flag(&format!("{band}.characteristic_present"))? {
                     if self.flag(&format!("{band}.characteristic_format"))? {
@@ -479,9 +480,10 @@ impl Parser<'_> {
                 );
             }
         }
-        self.report
-            .derived
-            .insert(format!("{p}.channel_gain_set_indices"), json!(indices));
+        self.report.derived.insert(
+            format!("{p}.channel_gain_set_indices"),
+            FieldValue::from(indices),
+        );
         if special || ducking {
             return Ok(Instruction { id, dependency });
         }
@@ -490,7 +492,7 @@ impl Parser<'_> {
             let q = format!("{p}.groups[{group}]");
             self.report
                 .derived
-                .insert(format!("{q}.gain_set_index"), json!(set));
+                .insert(format!("{q}.gain_set_index"), FieldValue::from(set));
             for band in 0..coefficient.bands[set] {
                 let b = format!("{q}.bands[{band}]");
                 if self.flag(&format!("{b}.parameter_a_present"))? {
@@ -598,7 +600,7 @@ impl Parser<'_> {
             self.record(
                 &format!("{q}.payload"),
                 start,
-                json!({"bits":length,"sha256":crate::model::sha256(&data)}),
+                FieldValue::digest(DigestUnit::Bits, length, &data),
             )?;
         }
         self.invalid("drc-extension-count", "too many DRC extensions")

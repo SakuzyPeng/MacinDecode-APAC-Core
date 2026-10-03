@@ -120,12 +120,9 @@ fn sq_ics_and_grouping_end_before_the_first_channel_stream() {
                 assert_eq!(report.payload_bit_offset, Some(if short { 17 } else { 12 }));
                 assert_eq!(report.stop_bit_offset, stop);
                 let groups = report.derived["components[0].tce[0].left_ics.window_groups"]
-                    .as_array()
+                    .as_u64s()
                     .unwrap();
-                assert_eq!(
-                    groups.iter().map(|v| v.as_u64().unwrap()).sum::<u64>(),
-                    if short { 8 } else { 1 }
-                );
+                assert_eq!(groups.iter().sum::<u64>(), if short { 8 } else { 1 });
                 assert_eq!(
                     groups.len(),
                     if short {
@@ -568,10 +565,6 @@ mod spectrum_tests {
             let bytes = b.opaque();
             let parsed = parse_spectrum(&context(), &bytes).unwrap();
             assert_eq!(parsed.numeric_profile.as_deref(), Some("apac-sq-math-v1"));
-            let mut legacy = serde_json::to_value(&parsed).unwrap();
-            legacy.as_object_mut().unwrap().remove("numeric_profile");
-            let legacy: apac_core::frame::SpectrumReport = serde_json::from_value(legacy).unwrap();
-            assert!(legacy.numeric_profile.is_none());
             check_coverage(&bytes, &parsed.frame);
             assert_eq!(parsed.frame.payload_bit_offset, Some(12));
             assert_eq!(parsed.frame.stop_bit_offset, end);

@@ -4,11 +4,11 @@ use super::{
     parser::{PResult, Parser, Stop},
 };
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::{DigestUnit, FieldValue};
+use serde::Serialize;
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub(crate) struct PositionSyntax {
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+pub struct PositionSyntax {
     pub parent_dynamic: bool,
     pub range_dynamic: bool,
     pub position_precision: usize,
@@ -91,10 +91,9 @@ impl Parser<'_> {
             self.position(&format!("{p}.positions[{i}]"), shape, true)?;
         }
         validate_graph(&shapes, self.pos())?;
-        self.report.derived.insert(
-            format!("{p}.syntax"),
-            serde_json::to_value(&shapes).expect("integer position syntax"),
-        );
+        self.report
+            .derived
+            .insert(format!("{p}.syntax"), FieldValue::Positions(shapes.clone()));
         self.config.ancillary.scene_graph = Some(super::SceneGraph {
             positions: shapes,
             trace: Vec::new(),
@@ -121,7 +120,7 @@ impl Parser<'_> {
         self.record(
             p,
             start,
-            json!({"bits":count,"sha256":crate::model::sha256(&bytes)}),
+            FieldValue::digest(DigestUnit::Bits, count, &bytes),
         )
     }
 }

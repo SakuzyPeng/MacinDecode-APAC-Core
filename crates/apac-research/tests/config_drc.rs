@@ -1,6 +1,5 @@
 //! Independent hand-written wire vectors; no media cookies are embedded here.
 use apac_core::config::{CookieReport, ParseStatus, parse_cookie};
-use serde_json::json;
 
 const DRC: &str = "ancillary.loudness_drc";
 
@@ -263,7 +262,7 @@ fn nested_drc_values_groups_loudness_and_outer_extension_are_preserved() {
     );
     assert_eq!(
         r.derived[&format!("{DRC}.instructions[0].channel_gain_set_indices")],
-        json!([1, 0])
+        apac_core::config::FieldValue::from(vec![1i64, 0])
     );
     assert_eq!(
         r.derived[&format!("{DRC}.instructions[0].groups[0].gain_set_index")],

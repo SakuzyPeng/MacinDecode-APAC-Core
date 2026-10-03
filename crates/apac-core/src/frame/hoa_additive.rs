@@ -5,12 +5,12 @@ use super::{
 };
 use crate::config::ParseError;
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-additive-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-additive-state-v1";
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AmbientCombination {
     #[default]
@@ -19,14 +19,14 @@ pub enum AmbientCombination {
 }
 
 /// Diagnostic Float64 ambient contribution; never rounded and fed back into recovery.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AmbientContribution {
     pub transport_slot: u8,
     pub recovery_index: u8,
     pub scaled: Vec<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaAdditiveData {
     pub combination: AmbientCombination,
     pub numeric_profile: String,

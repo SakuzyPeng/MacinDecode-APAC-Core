@@ -2,11 +2,12 @@
 use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::record::FieldValue;
+use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-tns-math-v1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TnsFilter {
     pub length: usize,
     pub order: usize,
@@ -28,7 +29,7 @@ pub struct TnsFilter {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TnsWindow {
     pub window_index: usize,
     pub resolution: Option<usize>,
@@ -36,7 +37,7 @@ pub struct TnsWindow {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TnsChannel {
     pub channel_index: u8,
     pub present: bool,
@@ -45,12 +46,12 @@ pub struct TnsChannel {
     pub end_bit_offset: usize,
     pub windows: Vec<TnsWindow>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TnsChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TnsReport {
     #[serde(flatten)]
     pub cac: CacReport,
@@ -280,7 +281,7 @@ pub fn parse_tns(context: &FrameContext, packet: &[u8]) -> Result<TnsReport, Par
                 name: format!("components[0].tce[0].tns[{}]", channel.channel_index),
                 bit_offset: parameters.start_bit_offset,
                 bit_length: parameters.end_bit_offset - parameters.start_bit_offset,
-                value: serde_json::to_value(&parameters).expect("finite TNS parameters"),
+                value: FieldValue::Tns(Box::new(parameters.clone())),
             });
             channels_after_tns.push(TnsChannelSpectrum {
                 channel_index: channel.channel_index,

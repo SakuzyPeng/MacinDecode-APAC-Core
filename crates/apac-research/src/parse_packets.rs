@@ -361,7 +361,8 @@ pub fn parse_packets_with_depth(
                         left += u64::from(!cac.spectrum.channels.is_empty());
                         right += u64::from(cac.spectrum.channels.len() == 2);
                         absent += u64::from(cac.spectrum.frame.fields.iter().any(|f| {
-                            f.name == "components[0].tce[0].present" && f.value == json!(false)
+                            f.name == "components[0].tce[0].present"
+                                && f.value == apac_core::config::FieldValue::Bool(false)
                         }));
                         cac_complete += u64::from(cac.cac_complete);
                         shared_ics += u64::from(cac.shared_ics);

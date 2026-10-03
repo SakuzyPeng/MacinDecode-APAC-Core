@@ -6,6 +6,7 @@ use super::{
     parser::{PResult, Parser},
 };
 use crate::prelude::*;
+use crate::record::FieldValue;
 
 impl Parser<'_> {
     fn scene_extension(&mut self, prefix: &str) -> PResult<()> {
@@ -73,7 +74,11 @@ impl Parser<'_> {
                 }
             }
             if terminated {
-                self.record(&format!("{prefix}.terminator"), start, serde_json::json!(0))?;
+                self.record(
+                    &format!("{prefix}.terminator"),
+                    start,
+                    FieldValue::from(0u64),
+                )?;
                 break;
             }
             let Some(ch) = character else {
@@ -82,7 +87,7 @@ impl Parser<'_> {
             self.record(
                 &format!("{prefix}.characters[{}]", text.len()),
                 start,
-                serde_json::json!(ch.to_string()),
+                FieldValue::from(ch.to_string()),
             )?;
             text.push(ch);
             if text.len() > 256 {
@@ -92,7 +97,7 @@ impl Parser<'_> {
         self.flag(&format!("{prefix}.flag"))?;
         self.report
             .derived
-            .insert(prefix.to_string(), serde_json::json!(text));
+            .insert(prefix.to_string(), FieldValue::from(text));
         Ok(())
     }
 

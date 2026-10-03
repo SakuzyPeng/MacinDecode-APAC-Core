@@ -9,8 +9,7 @@ use crate::{
     config::{self, FieldExt, ParseError},
     model::ChannelLayout,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde::Serialize;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
@@ -25,7 +24,7 @@ pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
 /// One salient component's actual descriptor shape, in cookie order.
 ///
 /// This does not describe the overall recovery domain or output layout.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct SalientComponentConfiguration {
     pub order: u8,
     pub subband_count: usize,
@@ -687,7 +686,7 @@ impl HoaFrameContext {
             || indices.windows(2).any(|w| w[0] >= w[1])
         {
             let position = hoa.ambient_selection_present.map_or(0, |f| f.bit_offset);
-            rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", json!(indices), shape.ambient_components, shape.recovery_slots));
+            rejected.push(format!("components[0].hoa.ambient_selection={} at cookie bit {position} (expected {} strictly increasing distinct indices below {})", crate::record::FieldValue::from(indices), shape.ambient_components, shape.recovery_slots));
         }
         for (i, &kind) in shape.transport_types.iter().enumerate() {
             if !matches!(kind, 0 | 1 | 3 | 6) {
@@ -910,7 +909,7 @@ impl HoaFrameContext {
 }
 
 /// Ambient keeps its global SD mode; salient also retains descriptor history.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
 pub struct HoaState {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub frame_configuration: Option<super::hoa_controls::HoaFrameConfiguration>,
@@ -923,7 +922,7 @@ pub struct HoaState {
     pub last_dynamic_mapping: Option<Vec<Vec<u8>>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaSpatialData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub controls: Option<super::HoaSpatialControls>,
@@ -940,17 +939,17 @@ pub struct HoaSpatialData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ambient: Option<StaticAmbientData>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaCoefficientSpectrum {
     pub acn_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RecoverySlotSpectrum {
     pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaMixedMapping {
     pub ambient_transport_channels: Vec<u8>,
     pub salient_transport_channels: Vec<u8>,
@@ -958,7 +957,7 @@ pub struct HoaMixedMapping {
     pub unused_transport_channels: Vec<u8>,
     pub descriptor_numeric_profile: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaFrameInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub static_remapping: Option<super::HoaStaticRemapping>,
@@ -1024,7 +1023,7 @@ impl Default for HoaFrameInfo {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaPacketReport {
     #[serde(flatten)]
     pub packet: ChannelPacketReport,

@@ -4,7 +4,7 @@ use serde_json::Value;
 use std::collections::BTreeSet;
 
 /// Every hex cookie in the frozen fixtures: values under keys ending in `cookie`.
-pub(super) fn corpus() -> Vec<Vec<u8>> {
+pub(crate) fn corpus() -> Vec<Vec<u8>> {
     fn hex(text: &str) -> Option<Vec<u8>> {
         if text.is_empty() || !text.len().is_multiple_of(2) {
             return None;

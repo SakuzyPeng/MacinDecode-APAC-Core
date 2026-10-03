@@ -97,14 +97,14 @@ fn report(cookie: &[u8], packet: &[u8]) -> Value {
             .map(|f| f.value.clone())
     };
     let stream = field("global.component_count").is_some_and(|v| v.as_u64() > Some(1))
-        || field("global.additional_asc_present") == Some(json!(true));
+        || field("global.additional_asc_present").is_some_and(|v| v == true);
     if stream {
         return match frame::StreamFrameContext::from_cookie(cookie) {
             Ok(c) => outcome(frame::parse_stream_packet(&c, packet)),
             Err(e) => json!({"context_error": e.to_string()}),
         };
     }
-    if field("components[0].type") == Some(json!(2)) {
+    if field("components[0].type").is_some_and(|v| v == 2) {
         return match frame::HoaFrameContext::from_cookie(cookie) {
             Ok(c) => outcome(frame::parse_hoa_packet(&c, packet)),
             Err(e) => json!({"context_error": e.to_string()}),

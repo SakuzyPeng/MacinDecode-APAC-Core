@@ -173,9 +173,9 @@ fn numeric_failure_still_precedes_a_broken_dynamic_map() {
             .map(|c| c.subband_count)
             .collect::<Vec<_>>(),
     );
-    let mut encoded = serde_json::to_value(salient).unwrap();
-    encoded["history"][0][0][0] = serde_json::json!(f64::MAX);
-    state.salient = Some(Box::new(serde_json::from_value(encoded).unwrap()));
+    let mut salient = salient;
+    salient.history[0][0][0] = f64::MAX;
+    state.salient = Some(Box::new(salient));
     let saved = state.clone();
     let error = parse_hoa_packet_with_state(
         &context,

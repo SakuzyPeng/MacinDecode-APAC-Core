@@ -2,10 +2,10 @@
 use super::Parser;
 use crate::config::{Config, FieldExt, ParseError};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::{DigestUnit, FieldValue};
+use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct TrimmingDeclaration {
     pub profile: String,
     pub start_bit_offset: usize,
@@ -68,12 +68,12 @@ impl AuxiliaryConfiguration {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SceneGraphState {
     positions: Vec<crate::config::passive::PositionSyntax>,
     history_sha256: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct SceneGraphPayload {
     pub profile: String,
     pub start_bit_offset: usize,
@@ -131,7 +131,7 @@ pub(crate) fn read_graph(
         processing_applied: false,
     }))
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AuxiliaryPayload {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -194,7 +194,11 @@ pub(crate) fn read(
                 name: "ancillary.custom_data.payload".into(),
                 bit_offset: start,
                 bit_length: payload * 8,
-                value: json!({"bytes":payload,"sha256":digest}),
+                value: FieldValue::Digest {
+                    unit: DigestUnit::Bytes,
+                    count: payload,
+                    sha256: digest.clone(),
+                },
             });
         }
         result.payload_bytes = payload;

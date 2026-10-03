@@ -11,19 +11,19 @@ use crate::{
     config::{self, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub const PROFILE: &str = "apac-hoa-multiple-asc-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-multiple-asc-state-v1";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StreamOutputRange {
     pub source_start: usize,
     pub output_start: usize,
     pub channels: usize,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StreamComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -43,7 +43,7 @@ pub struct StreamComponentConfiguration {
     pub parameter_0: u64,
     pub parameter_1: u64,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AdditionalComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -401,7 +401,7 @@ impl StreamFrameContext {
 pub struct StreamState {
     hoa: Vec<Option<HoaState>>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StreamComponentReport {
     pub configuration: StreamComponentConfiguration,
     pub start_bit_offset: usize,
@@ -411,13 +411,13 @@ pub struct StreamComponentReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hoa: Option<HoaFrameInfo>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StreamPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<StreamPacketReport>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct StreamPacketReport {
     #[serde(flatten)]
     pub frame: FrameReport,

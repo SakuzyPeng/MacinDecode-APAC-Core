@@ -9,16 +9,17 @@ use super::{
     tns,
 };
 use crate::prelude::*;
+use crate::record::FieldValue;
 use crate::{
     config::{self, Diagnostic, FieldExt, ParseError, ParseStatus, bits::BitReader},
     frame::MAX_PACKET_BUFFER,
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub const STATE_PROFILE: &str = "apac-channel-state-v1";
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ElementKind {
     Sce,
@@ -26,7 +27,7 @@ pub enum ElementKind {
     Lfe,
     Extension,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ElementConfiguration {
     pub element_index: usize,
     pub kind: ElementKind,
@@ -228,7 +229,7 @@ impl ChannelFrameContext {
         }
     }
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ElementReport {
     pub configuration: ElementConfiguration,
     pub present: bool,
@@ -253,13 +254,13 @@ pub struct ElementReport {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub extension: Option<super::HoaExtensionData>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ChannelPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<ChannelPacketReport>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ChannelPacketReport {
     #[serde(flatten)]
     pub frame: FrameReport,
@@ -411,7 +412,7 @@ fn read_element(
                     name: format!("{prefix}.tns[{channel_index}]"),
                     bit_offset: data.start_bit_offset,
                     bit_length: data.end_bit_offset - data.start_bit_offset,
-                    value: serde_json::to_value(&data).expect("finite TNS"),
+                    value: FieldValue::Tns(Box::new(data.clone())),
                 });
             }
             let scaled = if evaluate || tns::effective(&data) {
@@ -485,7 +486,7 @@ fn extensions(
                 ),
                 bit_offset: data.start_bit_offset,
                 bit_length: data.end_bit_offset - data.start_bit_offset,
-                value: serde_json::to_value(&data).expect("finite BWE2 data"),
+                value: FieldValue::ElementBwe2(Box::new(data.clone())),
             });
         }
         element.bwe2 = Some(data);

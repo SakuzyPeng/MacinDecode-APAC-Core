@@ -1,7 +1,7 @@
 //! Immutable, bounded core-carrier remapping from cookie wire links.
 use crate::config::HoaAsc;
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-static-remapping-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-remapping-math-v1";
@@ -11,7 +11,7 @@ pub fn format_sha256() -> &'static str {
     crate::tables::HOA_REMAPPING_FORMAT_SHA256
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaStaticRemapping {
     pub format_profile: String,
     pub format_sha256: String,

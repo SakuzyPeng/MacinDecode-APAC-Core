@@ -2,7 +2,8 @@
 use super::{ChannelPacketReport, Parser};
 use crate::config::ParseError;
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
+use crate::record::FieldValue;
+use serde::Serialize;
 
 /// SHA-256 of `data/hoa-transports-format-v1.json`, computed at build time.
 pub fn format_sha256() -> &'static str {
@@ -13,7 +14,7 @@ pub fn format_sha256() -> &'static str {
 #[path = "hoa_transport_tests.rs"]
 mod tests;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaExtensionData {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -94,7 +95,7 @@ pub(super) fn read(parser: &mut Parser<'_>, prefix: &str) -> Result<HoaExtension
                 name: format!("{prefix}.extension.payload_sha256"),
                 bit_offset: start,
                 bit_length: end - start,
-                value: serde_json::json!(sha256),
+                value: FieldValue::from(sha256.clone()),
             });
         }
         payload_hash = Some(sha256);

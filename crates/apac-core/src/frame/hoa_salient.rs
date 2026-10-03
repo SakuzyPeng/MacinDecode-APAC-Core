@@ -3,8 +3,8 @@
 use super::{ChannelPacketReport, Parser, hoa::RecoverySlotSpectrum};
 use crate::config::{ConfigField, ParseError};
 use crate::prelude::*;
-use serde::{Deserialize, Serialize};
-use serde_json::json;
+use crate::record::FieldValue;
+use serde::Serialize;
 
 #[cfg(test)]
 #[path = "hoa_salient_format.rs"]
@@ -50,9 +50,9 @@ mod expanded_orders_tests;
 #[path = "hoa_partial_tests.rs"]
 mod partial_tests;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct SalientState {
-    history: Vec<Vec<Vec<f64>>>,
+    pub(super) history: Vec<Vec<Vec<f64>>>,
     previous_frame_sha256: Option<String>,
 }
 impl SalientState {
@@ -99,7 +99,7 @@ impl SalientState {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SalientDescriptor {
     pub component_index: usize,
     pub subband_index: usize,
@@ -120,7 +120,7 @@ pub struct SalientDescriptor {
     pub ambient_omitted_coefficients: Option<Vec<usize>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SalientSpatialData {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unrounded_subbands: Option<bool>,
@@ -156,14 +156,14 @@ pub struct SalientSpatialData {
     pub descriptors: Vec<SalientDescriptor>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SalientSubbandInfo {
     pub component_index: usize,
     pub subband_count: usize,
     pub subband_ends: Vec<usize>,
     pub lines_per_window: Vec<usize>,
 }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SalientComponentOrderInfo {
     pub component_index: usize,
     pub order: u8,
@@ -311,7 +311,7 @@ fn huffman_for_bits(
             name: name.into(),
             bit_offset: start,
             bit_length: parser.bits.position() - start,
-            value: json!(value),
+            value: FieldValue::from(value),
         });
     }
     Ok(value)

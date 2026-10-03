@@ -2,7 +2,6 @@
 //! the oracle for the typed configuration the parser builds directly.
 use super::*;
 use crate::prelude::*;
-use serde_json::Value;
 
 impl Config {
     /// Centralized name-based extraction from a recorded cookie report.
@@ -66,8 +65,10 @@ impl Config {
                 .derived
                 .get("ancillary.scene_graph.syntax")
                 .map(|syntax| SceneGraph {
-                    positions: serde_json::from_value(syntax.clone())
-                        .expect("verified position syntax"),
+                    positions: match syntax {
+                        FieldValue::Positions(positions) => positions.clone(),
+                        other => panic!("position syntax {other:?}"),
+                    },
                     trace: report
                         .fields
                         .iter()
@@ -313,7 +314,7 @@ impl DrcDeclaration {
             scene_extension_present: r.flag(&format!("{ROOT}.scene_extension_present")),
             loudness_extensions_present: r.flag(&format!("{ROOT}.loudness.extensions_present")),
             nested_declarations: fields.iter().any(|f| {
-                f.value == Value::Bool(true)
+                f.value == FieldValue::Bool(true)
                     && (f.name.ends_with(".downmix_id_present")
                         || f.name.ends_with(".requires_eq")
                         || f.name.ends_with(".depends_on_set_present"))
@@ -339,7 +340,7 @@ impl DrcDeclaration {
 struct Lookup<'a> {
     index: BTreeMap<&'a str, &'a ConfigField>,
     report_fields: &'a [ConfigField],
-    derived: Option<&'a BTreeMap<String, Value>>,
+    derived: Option<&'a BTreeMap<String, FieldValue>>,
     complete: bool,
     sha256: &'a str,
 }
@@ -368,7 +369,7 @@ impl<'a> Lookup<'a> {
     fn has(&self, name: &str) -> bool {
         self.index.contains_key(name)
     }
-    fn located<T>(&self, name: &str, read: impl Fn(&Value) -> Option<T>) -> Field<T> {
+    fn located<T>(&self, name: &str, read: impl Fn(&FieldValue) -> Option<T>) -> Field<T> {
         let field = self.index.get(name)?;
         Some(Located {
             value: read(&field.value)?,
@@ -376,10 +377,10 @@ impl<'a> Lookup<'a> {
         })
     }
     fn u64(&self, name: &str) -> Field<u64> {
-        self.located(name, Value::as_u64)
+        self.located(name, FieldValue::as_u64)
     }
     fn flag(&self, name: &str) -> Field<bool> {
-        self.located(name, Value::as_bool)
+        self.located(name, FieldValue::as_bool)
     }
     fn located_u64_matching(&self, matches: impl Fn(&str) -> bool) -> Vec<Located<u64>> {
         self.report_fields
@@ -402,7 +403,10 @@ impl<'a> Lookup<'a> {
         self.derived?.get(key)?.as_u64()
     }
     fn derived_u64_array(&self, key: &str) -> Option<Vec<u64>> {
-        let values = self.derived?.get(key)?.as_array()?;
-        values.iter().map(Value::as_u64).collect()
+        match self.derived?.get(key)? {
+            FieldValue::U64s(values) => Some(values.clone()),
+            FieldValue::I64s(values) => values.iter().map(|&v| u64::try_from(v).ok()).collect(),
+            _ => None,
+        }
     }
 }

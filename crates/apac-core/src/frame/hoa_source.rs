@@ -5,7 +5,7 @@ use crate::{
     config::{Component, ParseError},
     model::{ChannelDescription, ChannelLayout},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub const PROFILE: &str = "apac-hoa-source-layout-format-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-source-layout-math-v1";
@@ -284,12 +284,12 @@ impl SourceLayout {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaSourceChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct HoaSourceLayoutData {
     pub format_profile: String,
     pub format_sha256: String,

@@ -6,7 +6,6 @@
 //! mismatching value. Derived values carry no position.
 use super::{ConfigField, CookieReport, ParseError, ParseStatus, passive::PositionSyntax};
 use crate::prelude::*;
-use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Located<T> {
@@ -451,7 +450,10 @@ impl DrcDeclaration {
         const ROOT: &str = "ancillary.loudness_drc";
         self.complete = report.is_complete();
         self.source_sha256 = report.cookie_sha256.clone();
-        self.sample_rate_hz = report.derived.get("sample_rate_hz").and_then(Value::as_u64);
+        self.sample_rate_hz = report
+            .derived
+            .get("sample_rate_hz")
+            .and_then(crate::record::FieldValue::as_u64);
         self.loudness_metadata = report
             .fields
             .iter()

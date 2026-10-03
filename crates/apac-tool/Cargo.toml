@@ -1,0 +1,23 @@
+[package]
+name = "apac-tool"
+version.workspace = true
+edition.workspace = true
+description = "AudioToolbox reference tools for Apple Positional Audio Codec research"
+
+[[bin]]
+name = "apac-tool"
+path = "src/main.rs"
+
+[dependencies]
+apac-core.workspace = true
+apac-research = { workspace = true, features = ["clap"] }
+clap.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apac-native.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

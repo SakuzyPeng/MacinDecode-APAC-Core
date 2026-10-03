@@ -35,10 +35,10 @@ LIMIT = 128 * 1024 * 1024
 
 
 def source_digest():
-    paths = [ROOT / p for p in ('Cargo.toml', 'Cargo.lock', 'build.rs')]
-    paths += list((ROOT / 'src').rglob('*.rs')) + list((ROOT / 'scripts').glob('*.py'))
+    paths = [ROOT / p for p in ('Cargo.toml', 'Cargo.lock')]
+    paths += list((ROOT / 'crates').glob('*/Cargo.toml'))
+    paths += list((ROOT / 'crates').rglob('*.rs')) + list((ROOT / 'scripts').glob('*.py'))
     paths += list((ROOT / 'data').glob('*.json'))
-    paths += list((ROOT / 'examples').glob('*.rs'))
     digest = hashlib.sha256()
     # WindowsPath ordering folds case; sort portable relative strings instead.
     for path in sorted(paths, key=lambda p: p.relative_to(ROOT).as_posix()):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stream one DRC and one non-DRC HOA source; retain digests, not full-song PCM.
 
-Build the release library test executable with cargo test --lib --release
+Build the release library test executable with cargo test -p apac-research --lib --release
 --no-run --message-format=json, then pass its compiler-artifact executable.
 The script runs only the explicitly ignored HOA streaming test.
 """
@@ -47,7 +47,7 @@ def main():
                            APAC_HOA_MEDIA_REPORT=str(result))
                 begin = time.monotonic()
                 proc = subprocess.run(
-                    [str(binary), 'synthesis::hoa_tests::hoa_media_stream_digest',
+                    [str(binary), 'decode::hoa_media_tests::hoa_media_stream_digest',
                      '--exact', '--ignored', '--nocapture'],
                     env=env, capture_output=True, text=True, encoding='utf-8',
                 )

@@ -1,0 +1,16 @@
+[package]
+name = "apac-research"
+version.workspace = true
+edition.workspace = true
+build = "build.rs"
+description = "APAC research reports, packet bundles, containers and CLI drivers"
+
+[features]
+clap = ["dep:clap"]
+
+[dependencies]
+apac-core.workspace = true
+clap = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

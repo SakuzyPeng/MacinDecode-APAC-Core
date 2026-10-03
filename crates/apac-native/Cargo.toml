@@ -1,0 +1,16 @@
+[package]
+name = "apac-native"
+version.workspace = true
+edition.workspace = true
+description = "macOS AudioToolbox reference tools for APAC research"
+build = "build.rs"
+
+[dependencies]
+apac-core.workspace = true
+apac-research.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[build-dependencies]
+cc.workspace = true

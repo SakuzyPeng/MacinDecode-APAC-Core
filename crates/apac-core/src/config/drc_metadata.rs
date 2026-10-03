@@ -85,6 +85,7 @@ impl Parser<'_> {
             self.drc_additional_ids(&format!("{q}.drc"), 6)?;
             self.take(&format!("{q}.purpose"), 16)?;
             if self.flag(&format!("{q}.depends_on_set_present"))? {
+                self.config.ancillary.drc.nested_declarations = true;
                 self.take(&format!("{q}.depends_on_set_id"), 6)?;
             } else {
                 self.flag(&format!("{q}.no_independent_use"))?;

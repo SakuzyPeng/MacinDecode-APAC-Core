@@ -198,7 +198,7 @@ pub fn parse_packet_with_state(
         let present = parser.flag("ancillary.audio_scenes_update_present")?;
         scene_update = Some(present);
         if present {
-            let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
+            let (scene, scenes, end) = config::parse_scene_at(packet, parser.bits.position())?;
             parser.bits.skip(end - parser.bits.position())?;
             parser.report.fields.extend(scene.fields.iter().cloned());
             if !scene.is_complete() {
@@ -208,10 +208,7 @@ pub fn parse_packet_with_state(
                     .map_or("unsupported audio scene update", |d| d.message.as_str());
                 return partial(result, parser, reason);
             }
-            let rejected = packet_config::neutral_scene(
-                &config::AudioScenes::from_fields(&scene.fields),
-                "packet",
-            );
+            let rejected = packet_config::neutral_scene(&scenes, "packet");
             if !rejected.is_empty() {
                 return partial(
                     result,

@@ -1,6 +1,9 @@
 //! APAC's UniDRC header (internal version 8, header payload type 4).
 //! Wire values remain encoded unless a conversion has independent evidence.
-use super::parser::{PResult, Parser};
+use super::{
+    DrcCoefficients, DrcGainSet,
+    parser::{PResult, Parser},
+};
 use crate::prelude::*;
 use serde_json::json;
 
@@ -51,10 +54,14 @@ impl Parser<'_> {
     pub(super) fn drc_header(&mut self, channels: u64, _allow_reuse: bool) -> PResult<()> {
         // SetClientInfo selects internal version 8 for APAC's feature profile.
         // This is contextual syntax, not an additional version field in the cookie.
-        if !self.flag(&format!("{ROOT}.header_present"))? {
+        let header = self.flag_at(&format!("{ROOT}.header_present"))?;
+        self.config.ancillary.drc.header_present = Some(header);
+        if !header.value {
             return Ok(());
         }
-        if !self.flag(&format!("{ROOT}.config_present"))? {
+        let config = self.flag_at(&format!("{ROOT}.config_present"))?;
+        self.config.ancillary.drc.config_present = Some(config);
+        if !config.value {
             return self.drc_loudness();
         }
         if self.flag(&format!("{ROOT}.sample_rate_present"))? {
@@ -72,11 +79,15 @@ impl Parser<'_> {
                 .derived
                 .insert(format!("{ROOT}.sample_rate_hz"), json!(rate));
         }
-        let explicit_layout = self.flag(&format!("{ROOT}.channel_layout_present"))?;
-        let base_channels = self.take(
+        let explicit_layout = self.flag_at(&format!("{ROOT}.channel_layout_present"))?;
+        self.config.ancillary.drc.channel_layout_present = Some(explicit_layout);
+        let explicit_layout = explicit_layout.value;
+        let base_channels = self.take_at(
             &format!("{ROOT}.base_channel_count"),
             if explicit_layout { 7 } else { 10 },
         )?;
+        self.config.ancillary.drc.base_channel_count = Some(base_channels);
+        let base_channels = base_channels.value;
         if explicit_layout && self.flag(&format!("{ROOT}.layout.signalling_present"))? {
             let layout = self.take(&format!("{ROOT}.layout.defined_layout"), 8)?;
             if layout == 0 {
@@ -103,7 +114,9 @@ impl Parser<'_> {
             );
         }
         let mut downmixes = Vec::new();
-        if self.flag(&format!("{ROOT}.downmix_instructions_present"))? {
+        let downmix = self.flag_at(&format!("{ROOT}.downmix_instructions_present"))?;
+        self.config.ancillary.drc.downmix_instructions_present = Some(downmix);
+        if downmix.value {
             let count = self.drc_count(&format!("{ROOT}.downmix_instruction_count"), 7, 23)?;
             for i in 0..count {
                 let p = format!("{ROOT}.downmix_instructions[{i}]");
@@ -126,7 +139,12 @@ impl Parser<'_> {
                 }
             }
         }
+        let bit_offset = self.pos();
         let count = self.drc_count(&format!("{ROOT}.coefficient_count"), 3, 20)?;
+        self.config.ancillary.drc.coefficient_count = Some(super::Located {
+            value: count as u64,
+            bit_offset,
+        });
         let mut coefficients = Vec::with_capacity(count);
         for i in 0..count {
             let entry = self.drc_coefficients(&format!("{ROOT}.coefficients[{i}]"))?;
@@ -156,13 +174,19 @@ impl Parser<'_> {
                 next = target.dependency;
             }
         }
-        if self.flag(&format!("{ROOT}.loudness_eq_present"))? {
+        let present = self.flag_at(&format!("{ROOT}.loudness_eq_present"))?;
+        self.config.ancillary.drc.loudness_eq_present = Some(present);
+        if present.value {
             self.drc_loudness_eq(&format!("{ROOT}.loudness_eq"), channels as usize)?;
         }
-        if self.flag(&format!("{ROOT}.eq_present"))? {
+        let present = self.flag_at(&format!("{ROOT}.eq_present"))?;
+        self.config.ancillary.drc.eq_present = Some(present);
+        if present.value {
             self.drc_eq(&format!("{ROOT}.eq"), channels as usize, &downmixes)?;
         }
-        if self.flag(&format!("{ROOT}.scene_extension_present"))? {
+        let present = self.flag_at(&format!("{ROOT}.scene_extension_present"))?;
+        self.config.ancillary.drc.scene_extension_present = Some(present);
+        if present.value {
             self.drc_extensions(&format!("{ROOT}.config_extensions"))?;
         }
         self.drc_loudness()?;
@@ -198,9 +222,22 @@ impl Parser<'_> {
     }
 
     fn drc_coefficients(&mut self, p: &str) -> PResult<Coefficients> {
-        let location = self.take(&format!("{p}.location"), 4)?;
-        if self.flag(&format!("{p}.frame_size_present"))? {
-            let frames = self.take(&format!("{p}.frame_size_minus_one"), 15)? + 1;
+        let location = self.take_at(&format!("{p}.location"), 4)?;
+        self.config
+            .ancillary
+            .drc
+            .coefficients
+            .push(DrcCoefficients {
+                location: Some(location),
+                ..DrcCoefficients::default()
+            });
+        let location = location.value;
+        let frame_size = self.flag_at(&format!("{p}.frame_size_present"))?;
+        self.drc_coefficients_mut().frame_size_present = Some(frame_size);
+        if frame_size.value {
+            let frames = self.take_at(&format!("{p}.frame_size_minus_one"), 15)?;
+            self.drc_coefficients_mut().frame_size_minus_one = Some(frames);
+            let frames = frames.value + 1;
             self.report
                 .derived
                 .insert(format!("{p}.frame_samples"), json!(frames));
@@ -221,18 +258,36 @@ impl Parser<'_> {
                 }
             }
         }
-        let sequences = self.take(&format!("{p}.gain_sequence_count"), 6)?;
+        let sequences = self.take_at(&format!("{p}.gain_sequence_count"), 6)?;
+        self.drc_coefficients_mut().gain_sequence_count = Some(sequences);
+        let sequences = sequences.value;
+        let bit_offset = self.pos();
         let sets = self.drc_count(&format!("{p}.gain_set_count"), 6, 6)?;
+        self.drc_coefficients_mut().gain_set_count = Some(super::Located {
+            value: sets as u64,
+            bit_offset,
+        });
         let mut bands_per_set = Vec::with_capacity(sets);
         let mut next_sequence = 0;
         for i in 0..sets {
             let q = format!("{p}.gain_sets[{i}]");
-            let profile = self.take(&format!("{q}.coding_profile"), 2)?;
-            for field in ["interpolation_type", "full_frame", "time_alignment"] {
-                self.flag(&format!("{q}.{field}"))?;
-            }
-            if self.flag(&format!("{q}.time_delta_min_present"))? {
-                let delta = self.take(&format!("{q}.time_delta_min_minus_one"), 11)? + 1;
+            let profile = self.take_at(&format!("{q}.coding_profile"), 2)?;
+            self.drc_coefficients_mut().gain_sets.push(DrcGainSet {
+                coding_profile: Some(profile),
+                ..DrcGainSet::default()
+            });
+            let profile = profile.value;
+            self.drc_gain_set_mut().interpolation_type =
+                Some(self.flag_at(&format!("{q}.interpolation_type"))?);
+            self.drc_gain_set_mut().full_frame = Some(self.flag_at(&format!("{q}.full_frame"))?);
+            self.drc_gain_set_mut().time_alignment =
+                Some(self.flag_at(&format!("{q}.time_alignment"))?);
+            let delta_present = self.flag_at(&format!("{q}.time_delta_min_present"))?;
+            self.drc_gain_set_mut().time_delta_min_present = Some(delta_present);
+            if delta_present.value {
+                let delta = self.take_at(&format!("{q}.time_delta_min_minus_one"), 11)?;
+                self.drc_gain_set_mut().time_delta_min_minus_one = Some(delta);
+                let delta = delta.value + 1;
                 self.report
                     .derived
                     .insert(format!("{q}.time_delta_min"), json!(delta));
@@ -247,11 +302,19 @@ impl Parser<'_> {
                 self.report
                     .derived
                     .insert(format!("{q}.bands[0].sequence_index"), json!(next_sequence));
+                self.drc_gain_set_mut()
+                    .band_sequence_indices
+                    .push(next_sequence);
                 next_sequence += 1;
                 bands_per_set.push(1);
                 continue;
             }
+            let bit_offset = self.pos();
             let bands = self.drc_count(&format!("{q}.band_count"), 4, 2)?;
+            self.drc_gain_set_mut().band_count = Some(super::Located {
+                value: bands as u64,
+                bit_offset,
+            });
             if bands == 0 {
                 return self.invalid("drc-band-count", "gain set has no bands");
             }
@@ -274,6 +337,7 @@ impl Parser<'_> {
                 self.report
                     .derived
                     .insert(format!("{band}.sequence_index"), json!(sequence));
+                self.drc_gain_set_mut().band_sequence_indices.push(sequence);
                 if self.flag(&format!("{band}.characteristic_present"))? {
                     if self.flag(&format!("{band}.characteristic_format"))? {
                         self.take(&format!("{band}.characteristic_code"), 7)?;
@@ -321,6 +385,7 @@ impl Parser<'_> {
         let location = self.take(&format!("{p}.location"), 4)?;
         let channels = self.drc_downmix_target(p, channels, downmixes, 3)?;
         let effect = self.take(&format!("{p}.effect"), 16)?;
+        self.config.ancillary.drc.instruction_effects.push(effect);
         let special = effect & 0x8000 != 0;
         let ducking = effect & 0xc00 != 0 && !special;
         if special && effect & 0xc00 != 0 {
@@ -341,13 +406,14 @@ impl Parser<'_> {
         let dependency = if special {
             None
         } else if self.flag(&format!("{p}.depends_on_set_present"))? {
+            self.config.ancillary.drc.nested_declarations = true;
             Some(self.take(&format!("{p}.depends_on_set_id"), 6)?)
         } else {
             self.flag(&format!("{p}.no_independent_use"))?;
             None
         };
-        if !special {
-            self.flag(&format!("{p}.requires_eq"))?;
+        if !special && self.flag(&format!("{p}.requires_eq"))? {
+            self.config.ancillary.drc.nested_declarations = true;
         }
         let coefficient = coefficients.iter().find(|c| c.location == location);
         if coefficient.is_none() && !special && !ducking {
@@ -473,6 +539,7 @@ impl Parser<'_> {
         if !self.flag(&format!("{p}.downmix_id_present"))? {
             return Ok(channels);
         }
+        self.config.ancillary.drc.nested_declarations = true;
         let id = self.take(&format!("{p}.downmix_id"), 7)?;
         let apply = self.flag(&format!("{p}.apply_to_downmix"))?;
         let mut additional = 0;
@@ -588,10 +655,20 @@ impl Parser<'_> {
                 }
             }
         }
-        if self.flag(&format!("{p}.extensions_present"))? {
+        let extensions = self.flag_at(&format!("{p}.extensions_present"))?;
+        self.config.ancillary.drc.loudness_extensions_present = Some(extensions);
+        if extensions.value {
             self.drc_extensions(&format!("{p}.extensions"))?;
         }
         Ok(())
+    }
+    fn drc_coefficients_mut(&mut self) -> &mut DrcCoefficients {
+        let coefficients = &mut self.config.ancillary.drc.coefficients;
+        coefficients.last_mut().expect("DRC coefficients declared")
+    }
+    fn drc_gain_set_mut(&mut self) -> &mut DrcGainSet {
+        let sets = &mut self.drc_coefficients_mut().gain_sets;
+        sets.last_mut().expect("DRC gain set declared")
     }
 
     fn drc_composition_loudness(&mut self, p: &str) -> PResult<()> {

@@ -4,6 +4,8 @@ pub(crate) mod bits;
 mod drc;
 mod drc_metadata;
 mod hoa;
+#[cfg(test)]
+mod legacy_tests;
 mod model;
 #[cfg(test)]
 mod model_tests;
@@ -124,6 +126,11 @@ impl From<ParseError> for crate::error::Error {
 }
 
 pub fn parse_cookie(data: &[u8]) -> Result<CookieReport, ParseError> {
+    Ok(parse_cookie_and_config(data)?.0)
+}
+
+/// The recorded report and the typed configuration from a single parse.
+pub fn parse_cookie_and_config(data: &[u8]) -> Result<(CookieReport, Config), ParseError> {
     if data.len() > MAX_COOKIE_BYTES {
         return Err(ParseError::new(0, "input-limit", "cookie exceeds 8 MiB"));
     }

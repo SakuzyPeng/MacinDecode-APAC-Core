@@ -1,7 +1,7 @@
 //! HOA ASC configuration. Output channels come from the serialized layout;
 //! they are distinct from HOA coefficients and internal transport channels.
 use super::{
-    ParseError,
+    HoaSalientDeclaration, ParseError,
     parser::{PResult, Parser},
 };
 use crate::prelude::*;
@@ -54,21 +54,30 @@ impl Parser<'_> {
         total: u64,
     ) -> PResult<u64> {
         let p = format!("{component}.hoa");
-        let full_order = self.flag(&format!("{p}.full_order"))?;
-        self.flag(&format!("{p}.flag_a"))?;
-        let conditional = self.flag(&format!("{p}.flag_b"))?;
+        let full_order = self.flag_at(&format!("{p}.full_order"))?;
+        self.hoa_mut().full_order = Some(full_order);
+        let full_order = full_order.value;
+        self.hoa_mut().flag_a = Some(self.flag_at(&format!("{p}.flag_a"))?);
+        let conditional = self.flag_at(&format!("{p}.flag_b"))?;
+        self.hoa_mut().flag_b = Some(conditional);
+        let conditional = conditional.value;
         if conditional {
-            self.flag(&format!("{p}.flag_c"))?;
+            self.hoa_mut().flag_c = Some(self.flag_at(&format!("{p}.flag_c"))?);
         }
-        for field in ["flag_d", "flag_e", "flag_f"] {
-            self.flag(&format!("{p}.{field}"))?;
-        }
-        if self.flag(&format!("{p}.dynamic_selection_config_present"))? {
-            self.take(&format!("{p}.dynamic_selection.parameter"), 2)?;
-            let bands = self.esc(
+        self.hoa_mut().flag_d = Some(self.flag_at(&format!("{p}.flag_d"))?);
+        self.hoa_mut().flag_e = Some(self.flag_at(&format!("{p}.flag_e"))?);
+        self.hoa_mut().flag_f = Some(self.flag_at(&format!("{p}.flag_f"))?);
+        let dynamic = self.flag_at(&format!("{p}.dynamic_selection_config_present"))?;
+        self.hoa_mut().dynamic_selection_config_present = Some(dynamic);
+        if dynamic.value {
+            self.hoa_mut().dynamic_selection_parameter =
+                Some(self.take_at(&format!("{p}.dynamic_selection.parameter"), 2)?);
+            let bands = self.esc_at(
                 &format!("{p}.dynamic_selection.subbands_minus_one"),
                 [4, 6, 8],
-            )? + 1;
+            )?;
+            self.hoa_mut().dynamic_selection_subbands_minus_one = Some(bands);
+            let bands = bands.value + 1;
             if bands > 8 {
                 return self.invalid(
                     "hoa-subband-count",
@@ -79,17 +88,22 @@ impl Parser<'_> {
                 .derived
                 .insert(format!("{p}.dynamic_selection.subbands"), json!(bands));
         }
-        self.take(&format!("{p}.parameter_0"), 2)?;
-        self.take(&format!("{p}.parameter_1"), 2)?;
-        let value = self.take(&format!("{p}.parameter_2_minus_six"), 2)? + 6;
+        self.hoa_mut().parameter_0 = Some(self.take_at(&format!("{p}.parameter_0"), 2)?);
+        self.hoa_mut().parameter_1 = Some(self.take_at(&format!("{p}.parameter_1"), 2)?);
+        let value = self.take_at(&format!("{p}.parameter_2_minus_six"), 2)?;
+        self.hoa_mut().parameter_2_minus_six = Some(value);
+        let value = value.value + 6;
         self.report
             .derived
             .insert(format!("{p}.parameter_2"), json!(value));
         let (order, coefficients) = if full_order {
-            let order = self.esc(&format!("{p}.order"), [4, 6, 8])?;
-            (order, self.hoa_square(order)?)
+            let order = self.esc_at(&format!("{p}.order"), [4, 6, 8])?;
+            self.hoa_mut().order = Some(order);
+            (order.value, self.hoa_square(order.value)?)
         } else {
-            let count = self.esc(&format!("{p}.coefficient_count_minus_one"), [7, 12, 17])? + 1;
+            let count = self.esc_at(&format!("{p}.coefficient_count_minus_one"), [7, 12, 17])?;
+            self.hoa_mut().coefficient_count_minus_one = Some(count);
+            let count = count.value + 1;
             if count > 121 {
                 return self.invalid("hoa-coefficient-count", "HOA coefficient count exceeds 121");
             }
@@ -102,17 +116,22 @@ impl Parser<'_> {
         self.report
             .derived
             .insert(format!("{p}.coefficient_count"), json!(coefficients));
-        let salient = self.esc(&format!("{p}.max_salient_components"), [4, 6, 8])?;
+        self.hoa_mut().coefficient_count = Some(coefficients);
+        let salient = self.esc_at(&format!("{p}.max_salient_components"), [4, 6, 8])?;
+        self.hoa_mut().max_salient_components = Some(salient);
+        let salient = salient.value;
         if salient > coefficients {
             return self.invalid(
                 "hoa-component-count",
                 "salient component count exceeds HOA coefficients",
             );
         }
-        let ambient = self.take(
+        let ambient = self.take_at(
             &format!("{p}.ambient_components_encoded"),
             index_width(coefficients),
-        )? + u64::from(salient == 0);
+        )?;
+        self.hoa_mut().ambient_components_encoded = Some(ambient);
+        let ambient = ambient.value + u64::from(salient == 0);
         if ambient > coefficients {
             return self.invalid(
                 "hoa-component-count",
@@ -138,7 +157,12 @@ impl Parser<'_> {
         )?;
         for i in 0..salient {
             let q = format!("{p}.salient[{i}]");
-            let bands = self.esc(&format!("{q}.subbands_minus_one"), [4, 6, 8])? + 1;
+            let bands = self.esc_at(&format!("{q}.subbands_minus_one"), [4, 6, 8])?;
+            self.hoa_mut().salient.push(HoaSalientDeclaration {
+                subbands_minus_one: Some(bands),
+                order: None,
+            });
+            let bands = bands.value + 1;
             if bands > 16 {
                 return self.invalid(
                     "hoa-subband-count",
@@ -149,8 +173,10 @@ impl Parser<'_> {
                 .derived
                 .insert(format!("{q}.subbands"), json!(bands));
             let count = if full_order {
-                let suborder = self.take(&format!("{q}.order"), index_width(order + 1))?;
-                self.hoa_square(suborder)?
+                let suborder = self.take_at(&format!("{q}.order"), index_width(order + 1))?;
+                let declared = self.hoa_mut().salient.last_mut().expect("salient declared");
+                declared.order = Some(suborder);
+                self.hoa_square(suborder.value)?
             } else {
                 coefficients
             };
@@ -166,7 +192,9 @@ impl Parser<'_> {
         }
         let ambient_count = self.count(ambient, 0)?;
         let mut selected: Vec<u64> = (0..ambient).collect();
-        if self.flag(&format!("{p}.ambient_selection_present"))? {
+        let explicit = self.flag_at(&format!("{p}.ambient_selection_present"))?;
+        self.hoa_mut().ambient_selection_present = Some(explicit);
+        if explicit.value {
             let mut limit = coefficients;
             for i in (0..ambient_count).rev() {
                 let value =
@@ -187,17 +215,26 @@ impl Parser<'_> {
         self.report
             .derived
             .insert(format!("{p}.ambient_selection"), json!(selected));
-        if (ambient > 3 || conditional) && self.flag(&format!("{p}.parameter_3_present"))? {
-            let value = self.take(&format!("{p}.parameter_3_minus_one"), 2)? + 1;
-            self.report
-                .derived
-                .insert(format!("{p}.parameter_3"), json!(value));
+        self.hoa_mut().ambient_selection = Some(selected);
+        if ambient > 3 || conditional {
+            let present = self.flag_at(&format!("{p}.parameter_3_present"))?;
+            self.hoa_mut().parameter_3_present = Some(present);
+            if present.value {
+                let value = self.take(&format!("{p}.parameter_3_minus_one"), 2)? + 1;
+                self.report
+                    .derived
+                    .insert(format!("{p}.parameter_3"), json!(value));
+                self.hoa_mut().parameter_3 = Some(value);
+            }
         }
-        let tces = self.esc(&format!("{p}.tce_count"), [5, 10, 16])?;
-        let tces = self.count(tces, 3)?;
+        let tces = self.esc_at(&format!("{p}.tce_count"), [5, 10, 16])?;
+        self.hoa_mut().tce_count = Some(tces);
+        let tces = self.count(tces.value, 3)?;
         let mut transported = 0u64;
         for i in 0..tces {
-            let kind = self.take(&format!("{p}.tce[{i}].type"), 3)?;
+            let kind = self.take_at(&format!("{p}.tce[{i}].type"), 3)?;
+            self.hoa_mut().tce_types.push(kind);
+            let kind = kind.value;
             let channels = match kind {
                 0 | 3 | 4 => 1,
                 1 => 2,
@@ -229,6 +266,7 @@ impl Parser<'_> {
             self.report
                 .derived
                 .insert(format!("{component}.channel_labels"), json!(labels));
+            self.hoa_mut().channel_labels = Some(labels);
             self.report
                 .derived
                 .insert(format!("{p}.layout_channels"), json!(channels));
@@ -246,10 +284,11 @@ impl Parser<'_> {
         };
         // Check the shared ASC bounds before a remapping branch can stop parsing.
         self.component_range(start, channels, total)?;
-        self.report.derived.insert(
-            format!("{component}.layout_tag"),
-            json!(if custom { 0 } else { (family << 16) | channels }),
-        );
+        let tag = if custom { 0 } else { (family << 16) | channels };
+        self.report
+            .derived
+            .insert(format!("{component}.layout_tag"), json!(tag));
+        self.component_mut().layout_tag = Some(tag);
         if matches!(family, 190 | 191) {
             self.report
                 .derived
@@ -278,6 +317,7 @@ impl Parser<'_> {
             let mut links = Vec::with_capacity(count);
             for i in 0..count {
                 let value = self.take(&format!("{p}.remapping[{i}]"), width)?;
+                self.hoa_mut().remapping.push(value);
                 if value >= core {
                     return self.invalid(
                         "hoa-remapping",
@@ -296,11 +336,14 @@ impl Parser<'_> {
             self.report
                 .derived
                 .insert(format!("{p}.remapping_core_to_transport"), json!(effective));
+            self.hoa_mut().remapping_core_to_transport =
+                Some(effective.iter().map(|&v| v as u64).collect());
             // The fixed cookie core prefix is active. The serialized output
             // tail is consumed even if its values exceed the active domain.
             let tail = self.count(channels - core, width)?;
             for i in 0..tail {
-                self.take(&format!("{p}.remapping_tail[{i}]"), width)?;
+                let value = self.take(&format!("{p}.remapping_tail[{i}]"), width)?;
+                self.hoa_mut().remapping_tail.push(value);
             }
         }
         Ok(channels)

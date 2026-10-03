@@ -1,7 +1,6 @@
 //! Passive scene-position syntax. Coordinates remain encoded; no spatial renderer.
 use super::{
     CookieReport, ParseError, ParseStatus,
-    bits::BitReader,
     parser::{PResult, Parser, Stop},
 };
 use crate::prelude::*;
@@ -94,8 +93,12 @@ impl Parser<'_> {
         validate_graph(&shapes, self.pos())?;
         self.report.derived.insert(
             format!("{p}.syntax"),
-            serde_json::to_value(shapes).expect("integer position syntax"),
+            serde_json::to_value(&shapes).expect("integer position syntax"),
         );
+        self.config.ancillary.scene_graph = Some(super::SceneGraph {
+            positions: shapes,
+            trace: Vec::new(),
+        });
         Ok(())
     }
     pub(super) fn passive_bits(&mut self, p: &str, count: usize) -> PResult<()> {
@@ -154,11 +157,7 @@ pub(crate) fn graph_update(
     offset: usize,
     shapes: &mut [PositionSyntax],
 ) -> Result<(CookieReport, usize), ParseError> {
-    let mut parser = Parser {
-        data,
-        bits: BitReader::new(data),
-        report: CookieReport::new(data),
-    };
+    let mut parser = Parser::new(data);
     parser.bits.skip(offset)?;
     let mut next = shapes.to_vec();
     let result = (|| -> PResult<()> {

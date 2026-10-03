@@ -1,6 +1,10 @@
 //! Bounded syntax for the channel-bed scene forms observed in the reference corpus.
 //! Unassigned control names are deliberately numeric, rather than guessed DSP semantics.
-use super::parser::{PResult, Parser};
+use super::{
+    AudioScenes, SceneCategory, SceneControls, SceneGroup, SceneLanguageItem, SceneSelection,
+    SceneSources,
+    parser::{PResult, Parser},
+};
 use crate::prelude::*;
 
 impl Parser<'_> {
@@ -98,10 +102,11 @@ impl Parser<'_> {
             self.flag(&format!("{root}.flags[{i}]"))?;
         }
         self.take(&format!("{root}.parameter"), 2)?;
-        let count = self.take(&format!("{root}.composition_count"), 6)?;
-        let count = self.count(count, 29)?;
+        let count = self.take_at(&format!("{root}.composition_count"), 6)?;
+        self.config.ancillary.audio_scenes.composition_count = Some(count);
+        let count = self.count(count.value, 29)?;
         for i in 0..count {
-            self.scene_composition(&format!("{root}.compositions[{i}]"))?;
+            self.scene_composition(&format!("{root}.compositions[{i}]"), i == 0)?;
         }
         if self.flag(&format!("{root}.tag_present"))? {
             self.scene_tag(&format!("{root}.tag"))?;
@@ -109,23 +114,55 @@ impl Parser<'_> {
         self.scene_extension(root)
     }
 
-    fn scene_composition(&mut self, p: &str) -> PResult<()> {
-        self.flag(&format!("{p}.flag"))?;
+    /// Neutral routing reads the first composition, recorded in `scenes`.
+    fn scenes(&mut self, first: bool) -> Option<&mut AudioScenes> {
+        first.then_some(&mut self.config.ancillary.audio_scenes)
+    }
+    fn scene_composition(&mut self, p: &str, first: bool) -> PResult<()> {
+        let flag = self.flag_at(&format!("{p}.flag"))?;
+        if let Some(s) = self.scenes(first) {
+            s.flag = Some(flag);
+        }
         if self.flag(&format!("{p}.language_present"))? {
             self.scene_language(&format!("{p}.language"))?;
         }
         let nonlanguage = self.take(&format!("{p}.nonlanguage_item_count"), 6)?;
+        if let Some(s) = self.scenes(first) {
+            s.nonlanguage_item_count = Some(nonlanguage);
+        }
         let language = self.take(&format!("{p}.language_item_count"), 6)?;
+        if let Some(s) = self.scenes(first) {
+            s.language_item_count = Some(language);
+        }
         let selection = self.take(&format!("{p}.selection_item_count"), 6)?;
+        if let Some(s) = self.scenes(first) {
+            s.selection_item_count = Some(selection);
+        }
         let groups = self.take(&format!("{p}.group_count"), 5)?;
+        if let Some(s) = self.scenes(first) {
+            s.group_count = Some(groups);
+        }
         let presets = self.take(&format!("{p}.preset_count"), 4)?;
+        if let Some(s) = self.scenes(first) {
+            s.preset_count = Some(presets);
+        }
         let nonlanguage = self.count(nonlanguage, 7)?;
         for i in 0..nonlanguage {
             let prefix = format!("{p}.nonlanguage_items[{i}]");
             let count = self.take(&format!("{prefix}.source_count"), 6)?;
+            if let Some(s) = self.scenes(first) {
+                s.nonlanguage_items.push(SceneSources {
+                    source_count: Some(count),
+                    source_indices: Vec::new(),
+                });
+            }
             let count = self.count(count, 6)?;
             for j in 0..count {
-                self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
+                let index = self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
+                if let Some(s) = self.scenes(first) {
+                    let item = s.nonlanguage_items.last_mut().expect("item declared");
+                    item.source_indices.push(index);
+                }
             }
             if self.flag(&format!("{prefix}.tag_present"))? {
                 self.scene_tag(&format!("{prefix}.tag"))?;
@@ -135,24 +172,49 @@ impl Parser<'_> {
         for i in 0..language {
             let prefix = format!("{p}.language_items[{i}]");
             let count = self.drc_count(&format!("{prefix}.source_count"), 2, 6)?;
+            if let Some(s) = self.scenes(first) {
+                s.language_items.push(SceneLanguageItem {
+                    sources: SceneSources {
+                        source_count: Some(count as u64),
+                        source_indices: Vec::new(),
+                    },
+                    flag_a: None,
+                });
+            }
             for j in 0..count {
-                self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
+                let index = self.take(&format!("{prefix}.source_indices[{j}]"), 6)?;
+                if let Some(s) = self.scenes(first) {
+                    let item = s.language_items.last_mut().expect("item declared");
+                    item.sources.source_indices.push(index);
+                }
             }
             self.scene_language(&format!("{prefix}.language"))?;
-            self.flag(&format!("{prefix}.flag_a"))?;
+            let flag_a = self.flag(&format!("{prefix}.flag_a"))?;
+            if let Some(s) = self.scenes(first) {
+                s.language_items.last_mut().expect("item declared").flag_a = Some(flag_a);
+            }
             self.flag(&format!("{prefix}.flag_b"))?;
         }
         let selection = self.count(selection, 22)?;
         for i in 0..selection {
             let prefix = format!("{p}.selection_items[{i}]");
             let count = self.drc_count(&format!("{prefix}.language_item_count"), 6, 6)?;
+            if let Some(s) = self.scenes(first) {
+                s.selection_items.push(SceneSelection {
+                    language_item_count: Some(count as u64),
+                    language_item_indices: Vec::new(),
+                });
+            }
             if count == 0 {
                 return self.invalid("scene-reference", "language selection set is empty");
             }
             for j in 0..count {
-                if self.take(&format!("{prefix}.language_item_indices[{j}]"), 6)? as usize
-                    >= language
-                {
+                let index = self.take(&format!("{prefix}.language_item_indices[{j}]"), 6)?;
+                if let Some(s) = self.scenes(first) {
+                    let item = s.selection_items.last_mut().expect("selection declared");
+                    item.language_item_indices.push(index);
+                }
+                if index as usize >= language {
                     return self.invalid("scene-reference", "language item index is out of range");
                 }
             }
@@ -165,16 +227,29 @@ impl Parser<'_> {
         for i in 0..groups {
             let prefix = format!("{p}.groups[{i}]");
             let n = self.take(&format!("{prefix}.item_count"), 6)?;
+            if let Some(s) = self.scenes(first) {
+                s.groups.push(SceneGroup {
+                    item_count: Some(n),
+                    ..SceneGroup::default()
+                });
+            }
             let n = self.count(n, 6)?;
             for j in 0..n {
-                if self.take(&format!("{prefix}.item_indices[{j}]"), 6)? >= nonlanguage as u64 {
+                let index = self.take(&format!("{prefix}.item_indices[{j}]"), 6)?;
+                if let Some(group) = self.scene_group(first) {
+                    group.item_indices.push(index);
+                }
+                if index >= nonlanguage as u64 {
                     return self.invalid("scene-reference", "group item index is out of range");
                 }
             }
             let other = self.drc_count(&format!("{prefix}.selection_count"), 6, 6)?;
             for j in 0..other {
-                if self.take(&format!("{prefix}.selection_indices[{j}]"), 6)? as usize >= selection
-                {
+                let index = self.take(&format!("{prefix}.selection_indices[{j}]"), 6)?;
+                if let Some(group) = self.scene_group(first) {
+                    group.selection_indices.push(index);
+                }
+                if index as usize >= selection {
                     return self.invalid(
                         "scene-reference",
                         "language selection index is out of range",
@@ -182,7 +257,7 @@ impl Parser<'_> {
                 }
             }
             for preset in 0..presets {
-                self.scene_controls(&format!("{prefix}.controls[{preset}]"))?;
+                self.scene_controls(&format!("{prefix}.controls[{preset}]"), first)?;
             }
             if self.flag(&format!("{prefix}.tag_present"))? {
                 self.scene_tag(&format!("{prefix}.tag"))?;
@@ -214,19 +289,39 @@ impl Parser<'_> {
         // Keep the existing presence-field name; its payload is category metadata.
         if self.flag(&format!("{p}.selection_updates_present"))? {
             let count = self.drc_count(&format!("{p}.category_count"), 4, 8)?;
+            if let Some(s) = self.scenes(first) {
+                s.category_count = Some(count as u64);
+            }
             for i in 0..count {
                 let prefix = format!("{p}.categories[{i}]");
                 let members = self.drc_count(&format!("{prefix}.group_count"), 6, 6)?;
+                if let Some(s) = self.scenes(first) {
+                    s.categories.push(SceneCategory {
+                        group_count: Some(members as u64),
+                        ..SceneCategory::default()
+                    });
+                }
                 for j in 0..members {
-                    if self.take(&format!("{prefix}.group_indices[{j}]"), 6)? as usize >= groups {
+                    let index = self.take(&format!("{prefix}.group_indices[{j}]"), 6)?;
+                    if let Some(category) = self.scene_category(first) {
+                        category.group_indices.push(index);
+                    }
+                    if index as usize >= groups {
                         return self
                             .invalid("scene-reference", "category group index is out of range");
                     }
                 }
-                if self.flag(&format!("{prefix}.members_present"))? {
+                let members_present = self.flag(&format!("{prefix}.members_present"))?;
+                if let Some(category) = self.scene_category(first) {
+                    category.members_present = Some(members_present);
+                }
+                if members_present {
                     for preset in 0..presets {
-                        let selected =
-                            self.take(&format!("{prefix}.members[{preset}]"), 6)? as usize;
+                        let selected = self.take(&format!("{prefix}.members[{preset}]"), 6)?;
+                        if let Some(category) = self.scene_category(first) {
+                            category.members.push(selected);
+                        }
+                        let selected = selected as usize;
                         if selected >= members {
                             return self.invalid(
                                 "scene-reference",
@@ -243,8 +338,20 @@ impl Parser<'_> {
         self.scene_extension(p)
     }
 
-    fn scene_controls(&mut self, p: &str) -> PResult<()> {
+    fn scene_group(&mut self, first: bool) -> Option<&mut SceneGroup> {
+        self.scenes(first)?.groups.last_mut()
+    }
+    fn scene_category(&mut self, first: bool) -> Option<&mut SceneCategory> {
+        self.scenes(first)?.categories.last_mut()
+    }
+    fn scene_controls_mut(&mut self, first: bool) -> Option<&mut SceneControls> {
+        self.scene_group(first)?.controls.last_mut()
+    }
+    fn scene_controls(&mut self, p: &str, first: bool) -> PResult<()> {
         let primary = self.flag(&format!("{p}.primary_flag"))?;
+        if let Some(group) = self.scene_group(first) {
+            group.controls.push(SceneControls::default());
+        }
         if self.flag(&format!("{p}.range_0_present"))?
             && self.flag(&format!("{p}.range_0_explicit"))?
         {
@@ -259,11 +366,28 @@ impl Parser<'_> {
         }
         self.flag(&format!("{p}.secondary_flag"))?;
         let parameters = self.flag(&format!("{p}.parameters_present"))?;
+        if let Some(controls) = self.scene_controls_mut(first) {
+            controls.parameters_present = Some(parameters);
+        }
         if primary || parameters {
-            self.take(&format!("{p}.parameter_0"), 6)?;
+            let parameter_0 = self.take(&format!("{p}.parameter_0"), 6)?;
+            if let Some(controls) = self.scene_controls_mut(first) {
+                controls.parameter_0 = Some(parameter_0);
+            }
             for (i, width) in [9, 6, 6, 4, 1].into_iter().enumerate() {
-                if self.flag(&format!("{p}.parameter_{}_present", i + 1))? {
-                    self.take(&format!("{p}.parameter_{}", i + 1), width)?;
+                let present = self.flag(&format!("{p}.parameter_{}_present", i + 1))?;
+                if i == 0
+                    && let Some(controls) = self.scene_controls_mut(first)
+                {
+                    controls.parameter_1_present = Some(present);
+                }
+                if present {
+                    let value = self.take_at(&format!("{p}.parameter_{}", i + 1), width)?;
+                    if i == 0
+                        && let Some(controls) = self.scene_controls_mut(first)
+                    {
+                        controls.parameter_1 = Some(value);
+                    }
                 }
             }
         }

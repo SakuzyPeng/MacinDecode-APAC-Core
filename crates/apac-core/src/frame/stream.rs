@@ -612,18 +612,14 @@ pub fn parse_with_state(
         let present = parser.flag("ancillary.audio_scenes_update_present")?;
         scene = Some(present);
         if present {
-            let (update, end) = config::parse_scene_at(packet, parser.bits.position())?;
+            let (update, scenes, end) = config::parse_scene_at(packet, parser.bits.position())?;
             parser.bits.skip(end - parser.bits.position())?;
             if capture {
                 parser.report.fields.extend(update.fields.clone());
             }
             if !update.is_complete()
-                || !packet_config::neutral_scene_sources(
-                    &config::AudioScenes::from_fields(&update.fields),
-                    "packet",
-                    context.scene_sources,
-                )
-                .is_empty()
+                || !packet_config::neutral_scene_sources(&scenes, "packet", context.scene_sources)
+                    .is_empty()
             {
                 return finish(report, parser, "non-neutral audio scene update");
             }

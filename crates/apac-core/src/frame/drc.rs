@@ -2,8 +2,7 @@
 //! integers; parsing does not select a DRC instruction or apply audio gains.
 use super::{Bwe2Report, FrameContext, Parser, packet_config, parse_bwe2};
 use crate::config::{
-    self, AudioScenes, Config, ConfigField, DrcDeclaration, FieldExt, ParseError, ParseStatus,
-    bits::BitReader,
+    self, Config, ConfigField, DrcDeclaration, FieldExt, ParseError, ParseStatus, bits::BitReader,
 };
 use crate::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -534,7 +533,7 @@ pub(super) fn read_payload(
     rate: u64,
 ) -> Result<DrcPayload, ParseError> {
     let start = parser.bits.position();
-    let (header, header_end) =
+    let (header, declaration, header_end) =
         config::parse_drc_header_at(parser.bits.data(), start, rate, state.channels)?;
     parser.bits.skip(header_end - start)?;
     if parser.capture {
@@ -550,7 +549,6 @@ pub(super) fn read_payload(
                 .map_or("unsupported DRC header", |d| &d.message),
         ));
     }
-    let declaration = DrcDeclaration::from_report(&header);
     let header_present = declaration.header_present.is(true);
     let config_present = declaration.config_present.is(true);
     let mut configuration_changed = false;
@@ -814,11 +812,10 @@ pub fn parse_drc_with_state(
     if context.packet_configuration.scene_present
         && parser.flag("ancillary.audio_scenes_update_present")?
     {
-        let (scene, end) = config::parse_scene_at(packet, parser.bits.position())?;
+        let (scene, scenes, end) = config::parse_scene_at(packet, parser.bits.position())?;
         parser.bits.skip(end - parser.bits.position())?;
         parser.report.fields.extend(scene.fields.iter().cloned());
-        let rejected =
-            packet_config::neutral_scene(&AudioScenes::from_fields(&scene.fields), "packet");
+        let rejected = packet_config::neutral_scene(&scenes, "packet");
         if !scene.is_complete() || !rejected.is_empty() {
             return Err(ParseError::new(
                 end,

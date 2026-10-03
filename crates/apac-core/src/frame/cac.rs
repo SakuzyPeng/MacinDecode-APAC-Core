@@ -130,12 +130,12 @@ fn decode_runs(
 }
 
 fn read_data(parser: &mut Parser<'_>, ics: &IcsInfo) -> Result<CacData, ParseError> {
-    read_data_at(parser, ics, "components[0].tce[0].cac")
+    read_data_at(parser, ics, &"components[0].tce[0].cac")
 }
 pub(super) fn read_data_at(
     parser: &mut Parser<'_>,
     ics: &IcsInfo,
-    prefix: &str,
+    prefix: &dyn core::fmt::Display,
 ) -> Result<CacData, ParseError> {
     let start = parser.bits.position();
     let (runs, indices) = decode_runs(&mut parser.bits, ics.max_sfb * ics.window_groups.len())?;

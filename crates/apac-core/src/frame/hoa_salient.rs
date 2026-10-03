@@ -297,7 +297,7 @@ pub fn math_sha256() -> &'static str {
 
 fn huffman_for_bits(
     parser: &mut Parser<'_>,
-    name: &str,
+    name: impl core::fmt::Display,
     mode: usize,
     book: usize,
     coefficients: usize,
@@ -308,7 +308,7 @@ fn huffman_for_bits(
         .read(&mut parser.bits)? as u16;
     if parser.capture {
         parser.report.fields.push(ConfigField {
-            name: name.into(),
+            name: name.to_string(),
             bit_offset: start,
             bit_length: parser.bits.position() - start,
             value: FieldValue::from(value),
@@ -344,11 +344,11 @@ pub(super) fn read(
     for (component, &count) in counts.iter().enumerate() {
         let coefficients = dimensions[component];
         for band in 0..count {
-            let name = format!("hoa.salient[{component}].subbands[{band}]");
+            let name = format_args!("hoa.salient[{component}].subbands[{band}]");
             let start = parser.bits.position();
             let mode = match global_mode {
                 Some(mode) => mode,
-                None => parser.take(&format!("{name}.mode"), 3)? as u8,
+                None => parser.take(format_args!("{name}.mode"), 3)? as u8,
             };
             if mode > 5 {
                 return Err(ParseError::new(
@@ -391,24 +391,26 @@ pub(super) fn read(
                         if omitted.contains(&(i as u8)) {
                             continue;
                         }
-                        d.quantized[i] = parser
-                            .take(&format!("{name}.quantized[{i}]"), usize::from(precision))?
-                            as u16;
+                        d.quantized[i] = parser.take(
+                            format_args!("{name}.quantized[{i}]"),
+                            usize::from(precision),
+                        )? as u16;
                         *is_coded = true;
                     }
                 }
                 5 => {
                     d.azimuth_degrees =
-                        Some(parser.take(&format!("{name}.azimuth_degrees"), 9)? as u16);
-                    d.elevation_offset_degrees =
-                        Some(parser.take(&format!("{name}.elevation_offset_degrees"), 8)? as u8);
+                        Some(parser.take(format_args!("{name}.azimuth_degrees"), 9)? as u16);
+                    d.elevation_offset_degrees = Some(
+                        parser.take(format_args!("{name}.elevation_offset_degrees"), 8)? as u8,
+                    );
                     // The qualified configuration carries explicit first-order coefficients.
                     let explicit = if configuration.controls.flag_e { 4 } else { 0 };
                     d.quantized.truncate(explicit);
                     for (i, is_coded) in coded.iter_mut().enumerate().take(explicit) {
                         d.quantized[i] = huffman_for_bits(
                             parser,
-                            &format!("{name}.quantized[{i}]"),
+                            format_args!("{name}.quantized[{i}]"),
                             1,
                             0,
                             coefficients,
@@ -421,7 +423,7 @@ pub(super) fn read(
                     let m = &constants_for_bits(coefficients, precision).format.modes
                         [usize::from(mode)];
                     let selected = if mode == 4 {
-                        let c = parser.take(&format!("{name}.cluster"), 2)? as u8;
+                        let c = parser.take(format_args!("{name}.cluster"), 2)? as u8;
                         d.cluster = Some(c);
                         Some(usize::from(c))
                     } else {
@@ -440,7 +442,7 @@ pub(super) fn read(
                             }
                             d.quantized[i] = huffman_for_bits(
                                 parser,
-                                &format!("{name}.quantized[{i}]"),
+                                format_args!("{name}.quantized[{i}]"),
                                 usize::from(mode),
                                 book,
                                 coefficients,
@@ -449,7 +451,7 @@ pub(super) fn read(
                             coded[i] = true;
                             if m.signs {
                                 d.signs_positive[i] =
-                                    parser.flag(&format!("{name}.sign_positive[{i}]"))?;
+                                    parser.flag(format_args!("{name}.sign_positive[{i}]"))?;
                             }
                         }
                     }

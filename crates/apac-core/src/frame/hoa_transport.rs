@@ -26,10 +26,14 @@ pub struct HoaExtensionData {
     pub payload_sha256: Option<String>,
 }
 
-fn length(parser: &mut Parser<'_>, prefix: &str, widths: &[usize]) -> Result<usize, ParseError> {
+fn length(
+    parser: &mut Parser<'_>,
+    prefix: impl core::fmt::Display,
+    widths: &[usize],
+) -> Result<usize, ParseError> {
     let mut total = 0usize;
     for (index, &width) in widths.iter().enumerate() {
-        let value = parser.take(&format!("{prefix}[{index}]"), width)? as usize;
+        let value = parser.take(format_args!("{prefix}[{index}]"), width)? as usize;
         total += value;
         if value < (1 << width) - 1 {
             break;
@@ -57,16 +61,23 @@ fn end(parser: &Parser<'_>, start: usize, bytes: usize, limit: usize) -> Result<
     Ok(end)
 }
 
-pub(super) fn read(parser: &mut Parser<'_>, prefix: &str) -> Result<HoaExtensionData, ParseError> {
+pub(super) fn read(
+    parser: &mut Parser<'_>,
+    prefix: &dyn core::fmt::Display,
+) -> Result<HoaExtensionData, ParseError> {
     let start = parser.bits.position();
-    if parser.flag(&format!("{prefix}.extension.format_flag"))? {
+    if parser.flag(format_args!("{prefix}.extension.format_flag"))? {
         return Err(ParseError::new(
             start,
             "hoa-extension-format",
             "extension format flag is not supported by the bound format",
         ));
     }
-    let bytes = length(parser, &format!("{prefix}.extension.bytes"), &[7, 8, 16])?;
+    let bytes = length(
+        parser,
+        format_args!("{prefix}.extension.bytes"),
+        &[7, 8, 16],
+    )?;
     let limit = parser.bits.position() + parser.bits.remaining();
     let end = if bytes == 0 {
         parser.bits.position()
@@ -80,7 +91,7 @@ pub(super) fn read(parser: &mut Parser<'_>, prefix: &str) -> Result<HoaExtension
     if parser.bits.position() < end {
         parameter = Some(length(
             parser,
-            &format!("{prefix}.extension.payload_parameter"),
+            format_args!("{prefix}.extension.payload_parameter"),
             &[8, 8, 16],
         )? as u32);
         let start = parser.bits.position();

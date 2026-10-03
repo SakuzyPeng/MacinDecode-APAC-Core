@@ -140,7 +140,7 @@ fn extension_lengths_are_bounded_at_every_bit_and_preserve_the_following_payload
             for _ in 0..start {
                 parser.bits.read(1).unwrap();
             }
-            let decoded = read(&mut parser, "extension-test");
+            let decoded = read(&mut parser, &"extension-test");
             if limit < end {
                 assert!(
                     decoded.is_err(),

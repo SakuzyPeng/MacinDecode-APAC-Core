@@ -58,10 +58,15 @@ impl PacketReport {
         &mut self.bwe2.tns.cac.spectrum.frame
     }
     pub fn cpe_absent(&self) -> bool {
-        self.frame().fields.iter().any(|f| {
-            f.name == "components[0].tce[0].present"
-                && f.value == crate::record::FieldValue::Bool(false)
-        })
+        // The flag is what the recorded presence field says.
+        debug_assert_eq!(
+            self.frame().cpe_absent,
+            self.frame().fields.iter().any(|f| {
+                f.name == "components[0].tce[0].present"
+                    && f.value == crate::record::FieldValue::Bool(false)
+            })
+        );
+        self.frame().cpe_absent
     }
 }
 
@@ -125,20 +130,7 @@ pub fn parse_packet_with_state(
         .frame_mut()
         .unknown_ranges
         .retain(|r| !(r.bit_offset == position && r.bit_length == packet.len() * 8 - position));
-    let embedded_range = result
-        .frame()
-        .derived
-        .get("asp.preroll.start_bit")
-        .and_then(|v| v.as_u64())
-        .zip(
-            result
-                .frame()
-                .derived
-                .get("asp.preroll.end_bit")
-                .and_then(|v| v.as_u64()),
-        );
-    if let Some((start, end)) = embedded_range {
-        let (start, end) = (start as usize, end as usize);
+    if let Some((start, end)) = result.frame().preroll {
         let nested = parse_packet_with_state(context, &packet[start / 8..end / 8], &mut next_state)
             .map_err(|mut error| {
                 error.message = format!(

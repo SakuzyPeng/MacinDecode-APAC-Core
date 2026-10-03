@@ -109,10 +109,10 @@ pub struct HoaFrameConfigurationReport {
 fn width(count: usize) -> usize {
     usize::BITS as usize - count.saturating_sub(1).leading_zeros() as usize
 }
-fn escaped(parser: &mut Parser<'_>, name: &str) -> Result<usize, ParseError> {
+fn escaped(parser: &mut Parser<'_>, name: impl core::fmt::Display) -> Result<usize, ParseError> {
     let mut value = 0;
     for (i, w) in [4, 6, 8].into_iter().enumerate() {
-        let v = parser.take(&format!("{name}[{i}]"), w)? as usize;
+        let v = parser.take(format_args!("{name}[{i}]"), w)? as usize;
         value += v;
         if v < (1 << w) - 1 {
             break;
@@ -186,11 +186,11 @@ pub(super) fn effective_configuration(
             {
                 let bands = escaped(
                     parser,
-                    &format!("hoa.frame_configuration.components[{i}].subbands_minus_one"),
+                    format_args!("hoa.frame_configuration.components[{i}].subbands_minus_one"),
                 )? + 1;
                 let order = if cookie.full_order {
                     parser.take(
-                        &format!("hoa.frame_configuration.components[{i}].order"),
+                        format_args!("hoa.frame_configuration.components[{i}].order"),
                         width(usize::from(cookie.order) + 1),
                     )? as u8
                 } else {
@@ -222,7 +222,7 @@ pub(super) fn effective_configuration(
             let mut limit = n;
             for i in (0..ambient).rev() {
                 let value = parser.take(
-                    &format!("hoa.frame_configuration.ambient_selection[{i}]"),
+                    format_args!("hoa.frame_configuration.ambient_selection[{i}]"),
                     width(limit),
                 )? as usize;
                 if value >= limit

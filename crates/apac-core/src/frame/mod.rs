@@ -269,6 +269,12 @@ pub struct FrameReport {
     pub derived: BTreeMap<String, FieldValue>,
     pub stop_reason: String,
     pub stop_bit_offset: usize,
+    /// The first channel element is absent: no core payload follows.
+    #[serde(skip)]
+    pub cpe_absent: bool,
+    /// The embedded ASP preroll frame's bit range, when one is present.
+    #[serde(skip)]
+    pub preroll: Option<(usize, usize)>,
     /// Only the first present core payload's start is known, never its end.
     pub payload_bit_offset: Option<usize>,
     pub component_end_bit_offset: Option<usize>,
@@ -284,12 +290,12 @@ struct Parser<'a> {
 #[cfg(test)]
 mod asp_tests;
 impl Parser<'_> {
-    fn take(&mut self, name: &str, width: usize) -> Result<u64, ParseError> {
+    fn take(&mut self, name: impl core::fmt::Display, width: usize) -> Result<u64, ParseError> {
         let start = self.bits.position();
         let value = self.bits.read(width)?;
         if self.capture {
             self.report.fields.push(ConfigField {
-                name: name.into(),
+                name: name.to_string(),
                 bit_offset: start,
                 bit_length: width,
                 value: FieldValue::from(value),
@@ -297,27 +303,32 @@ impl Parser<'_> {
         }
         Ok(value)
     }
-    fn flag(&mut self, name: &str) -> Result<bool, ParseError> {
+    fn flag(&mut self, name: impl core::fmt::Display) -> Result<bool, ParseError> {
         let value = self.take(name, 1)? != 0;
         if self.capture {
             self.report.fields.last_mut().expect("recorded field").value = FieldValue::from(value);
         }
         Ok(value)
     }
-    fn derived(&mut self, name: impl Into<String>, value: FieldValue) {
-        let name = name.into();
-        if self.capture || name.starts_with("asp.") {
-            self.report.derived.insert(name, value);
-        }
-    }
-    fn member(&mut self, prefix: &str, suffix: &str, width: usize) -> Result<u64, ParseError> {
+    /// A derived value, kept only when recording.
+    fn derived(&mut self, name: impl core::fmt::Display, value: impl FnOnce() -> FieldValue) {
         if self.capture {
-            self.take(&format!("{prefix}.{suffix}"), width)
-        } else {
-            self.bits.read(width)
+            self.report.derived.insert(name.to_string(), value());
         }
     }
-    fn escaped(&mut self, name: &str, widths: &[usize]) -> Result<u64, ParseError> {
+    fn member(
+        &mut self,
+        prefix: impl core::fmt::Display,
+        suffix: &str,
+        width: usize,
+    ) -> Result<u64, ParseError> {
+        self.take(format_args!("{prefix}.{suffix}"), width)
+    }
+    fn escaped(
+        &mut self,
+        name: impl core::fmt::Display,
+        widths: &[usize],
+    ) -> Result<u64, ParseError> {
         let start = self.bits.position();
         let mut value = 0u64;
         for &width in widths {
@@ -331,7 +342,7 @@ impl Parser<'_> {
         }
         if self.capture {
             self.report.fields.push(ConfigField {
-                name: name.into(),
+                name: name.to_string(),
                 bit_offset: start,
                 bit_length: self.bits.position() - start,
                 value: FieldValue::from(value),
@@ -350,10 +361,9 @@ impl Parser<'_> {
         maximum: u64,
     ) -> Result<Option<&'static str>, ParseError> {
         if frame_type == 3 {
-            self.derived(
-                "asp.frame_type_profile",
-                FieldValue::from("apac-asp-boundaries-v1"),
-            );
+            self.derived("asp.frame_type_profile", || {
+                FieldValue::from("apac-asp-boundaries-v1")
+            });
         }
         if frame_type == 2 {
             if self.flag("asp.reconfiguration_present")? {
@@ -390,10 +400,9 @@ impl Parser<'_> {
                 }
                 let padding = (8 - self.bits.position() % 8) % 8;
                 if padding != 0 && self.take("asp.preroll.alignment_padding", padding)? != 0 {
-                    self.derived(
-                        "asp.alignment_profile",
-                        FieldValue::from("apac-asp-boundaries-v1"),
-                    );
+                    self.derived("asp.alignment_profile", || {
+                        FieldValue::from("apac-asp-boundaries-v1")
+                    });
                 }
                 let start = self.bits.position();
                 let bits = bytes as usize * 8;
@@ -419,32 +428,35 @@ impl Parser<'_> {
                     bit_length: bits - 2,
                     reason: "length-delimited embedded preroll payload is not parsed".into(),
                 });
-                self.derived("asp.preroll.start_bit", FieldValue::from(start));
-                self.derived("asp.preroll.end_bit", FieldValue::from(start + bits));
+                self.report.preroll = Some((start, start + bits));
+                self.derived("asp.preroll.start_bit", || FieldValue::from(start));
+                self.derived("asp.preroll.end_bit", || FieldValue::from(start + bits));
             }
         }
-        self.derived(
-            "core_frame_start_bit",
-            FieldValue::from(self.bits.position()),
-        );
+        let core_start = self.bits.position();
+        self.derived("core_frame_start_bit", || FieldValue::from(core_start));
         Ok(None)
     }
-    fn ics(&mut self, prefix: &str) -> Result<IcsInfo, ParseError> {
+    fn ics(&mut self, prefix: &dyn core::fmt::Display) -> Result<IcsInfo, ParseError> {
         self.ics_at_rate(prefix, 48000)
     }
-    fn ics_at_rate(&mut self, prefix: &str, rate: u64) -> Result<IcsInfo, ParseError> {
-        let block = self.take(&format!("{prefix}.block_type"), 2)?;
+    fn ics_at_rate(
+        &mut self,
+        prefix: &dyn core::fmt::Display,
+        rate: u64,
+    ) -> Result<IcsInfo, ParseError> {
+        let block = self.take(format_args!("{prefix}.block_type"), 2)?;
         self.ics_with_block_at_rate(prefix, block as u8, rate)
     }
     fn ics_with_block_at_rate(
         &mut self,
-        prefix: &str,
+        prefix: &dyn core::fmt::Display,
         block: u8,
         rate: u64,
     ) -> Result<IcsInfo, ParseError> {
         let short = block == 2;
         let start = self.bits.position();
-        let max_sfb = self.take(&format!("{prefix}.max_sfb"), if short { 4 } else { 6 })?;
+        let max_sfb = self.take(format_args!("{prefix}.max_sfb"), if short { 4 } else { 6 })?;
         if max_sfb as usize >= sfb::offsets(rate, short).len() {
             return Err(ParseError::new(
                 start,
@@ -453,7 +465,7 @@ impl Parser<'_> {
             ));
         }
         let grouping = if short {
-            self.take(&format!("{prefix}.scale_factor_grouping"), 7)?
+            self.take(format_args!("{prefix}.scale_factor_grouping"), 7)?
         } else {
             0
         };
@@ -467,15 +479,15 @@ impl Parser<'_> {
                 }
             }
         }
-        self.derived(format!("{prefix}.max_sfb"), FieldValue::from(max_sfb));
-        self.derived(
-            format!("{prefix}.window_groups"),
-            FieldValue::from(&groups[..]),
-        );
-        self.derived(
-            format!("{prefix}.active_group_count"),
-            FieldValue::from(if max_sfb == 0 { 0 } else { groups.len() }),
-        );
+        self.derived(format_args!("{prefix}.max_sfb"), || {
+            FieldValue::from(max_sfb)
+        });
+        self.derived(format_args!("{prefix}.window_groups"), || {
+            FieldValue::from(&groups[..])
+        });
+        self.derived(format_args!("{prefix}.active_group_count"), || {
+            FieldValue::from(if max_sfb == 0 { 0 } else { groups.len() })
+        });
         Ok(IcsInfo {
             block_type: block,
             max_sfb: max_sfb as usize,
@@ -541,6 +553,8 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
             derived: BTreeMap::new(),
             stop_reason: String::new(),
             stop_bit_offset: 0,
+            cpe_absent: false,
+            preroll: None,
             payload_bit_offset: None,
             component_end_bit_offset: None,
             unknown_ranges: vec![],
@@ -559,19 +573,19 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
         return parser.finish(reason, false, false);
     }
     let prefix = "components[0].tce[0]";
-    if !parser.flag(&format!("{prefix}.present"))? {
+    if !parser.flag(format_args!("{prefix}.present"))? {
+        parser.report.cpe_absent = true;
         return parser.finish("cpe_absent", true, false);
     }
-    let lrvq = parser.take(&format!("{prefix}.coding_type"), 1)? != 0;
-    parser.derived(
-        "coding_type",
-        FieldValue::from(if lrvq { "lrvq" } else { "sq" }),
-    );
+    let lrvq = parser.take(format_args!("{prefix}.coding_type"), 1)? != 0;
+    parser.derived("coding_type", || {
+        FieldValue::from(if lrvq { "lrvq" } else { "sq" })
+    });
     if lrvq {
         // TODO: LRVQ is disabled by the registered encoder's default route.
         // Keep the dispatch explicit without treating exploratory support as a milestone.
         return parser.finish("lrvq_prefix_deferred", false, false);
     }
-    parser.ics(&format!("{prefix}.left_ics"))?;
+    parser.ics(&format_args!("{prefix}.left_ics"))?;
     parser.finish("sq_left_channel_stream", true, true)
 }

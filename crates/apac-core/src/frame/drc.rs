@@ -458,7 +458,7 @@ pub(super) fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, Pa
         }
     })
 }
-fn field(parser: &mut Parser<'_>, name: &str, start: usize, value: FieldValue) {
+fn field(parser: &mut Parser<'_>, name: impl core::fmt::Display, start: usize, value: FieldValue) {
     if !parser.capture {
         return;
     }
@@ -484,7 +484,7 @@ fn gain_extensions(
         } else {
             format!("{ROOT}.gain_extensions[{}]", entries.len())
         };
-        let kind = parser.take(&format!("{root}.gain_extension_type"), 4)? as u8;
+        let kind = parser.take(format_args!("{root}.gain_extension_type"), 4)? as u8;
         if kind == 0 {
             break;
         }
@@ -495,8 +495,9 @@ fn gain_extensions(
                 "too many gain extension records",
             ));
         }
-        let width = parser.take(&format!("{root}.length_width_minus_four"), 3)? as usize + 4;
-        let length = parser.take(&format!("{root}.payload_bits_minus_one"), width)? as usize + 1;
+        let width = parser.take(format_args!("{root}.length_width_minus_four"), 3)? as usize + 4;
+        let length =
+            parser.take(format_args!("{root}.payload_bits_minus_one"), width)? as usize + 1;
         let payload_start = parser.bits.position();
         if length > parser.bits.remaining() {
             return Err(ParseError::new(
@@ -595,7 +596,7 @@ pub(super) fn read_payload(
             .collect::<Result<Vec<_>, _>>()?;
         let first = sequences.first();
         let extension_present = configuration.shared_coefficient_index.is_some()
-            && parser.flag(&format!("{ROOT}.gain_extension_present"))?;
+            && parser.flag(format_args!("{ROOT}.gain_extension_present"))?;
         let gain_extensions = gain_extensions(parser, extension_present)?;
         return Ok(DrcPayload {
             start_bit_offset: start,
@@ -616,7 +617,7 @@ pub(super) fn read_payload(
             configuration,
         });
     }
-    let mode = parser.take(&format!("{ROOT}.coding_mode"), 1)? as u8;
+    let mode = parser.take(format_args!("{ROOT}.coding_mode"), 1)? as u8;
     let (mut count, mut frame_end) = (1usize, true);
     let mut deltas = Vec::new();
     let mut times = Vec::new();
@@ -637,14 +638,14 @@ pub(super) fn read_payload(
             }
         }
         field(parser, "node_count", position, FieldValue::from(count));
-        frame_end = parser.flag(&format!("{ROOT}.frame_end"))?;
+        frame_end = parser.flag(format_args!("{ROOT}.frame_end"))?;
         let mut previous = -1;
         for i in 0..count - usize::from(frame_end) {
             let position = parser.bits.position();
             let value = time_delta(&mut parser.bits, (frames / dt) as u32)?;
             field(
                 parser,
-                &format!("time_deltas[{i}]"),
+                format_args!("time_deltas[{i}]"),
                 position,
                 FieldValue::from(value),
             );
@@ -698,14 +699,14 @@ pub(super) fn read_payload(
     for (i, time) in times.into_iter().enumerate() {
         let position = parser.bits.position();
         if i == 0 {
-            let negative = parser.flag(&format!("{ROOT}.initial_gain_negative"))?;
-            let magnitude = parser.take(&format!("{ROOT}.initial_gain_magnitude"), 8)? as i32;
+            let negative = parser.flag(format_args!("{ROOT}.initial_gain_negative"))?;
+            let magnitude = parser.take(format_args!("{ROOT}.initial_gain_magnitude"), 8)? as i32;
             gain = if negative { -magnitude } else { magnitude };
         } else {
             let delta = gain_delta(&mut parser.bits)?;
             field(
                 parser,
-                &format!("gain_deltas[{i}]"),
+                format_args!("gain_deltas[{i}]"),
                 position,
                 FieldValue::from(delta),
             );
@@ -721,7 +722,7 @@ pub(super) fn read_payload(
             slope_index: None,
         });
     }
-    let extension_present = parser.flag(&format!("{ROOT}.gain_extension_present"))?;
+    let extension_present = parser.flag(format_args!("{ROOT}.gain_extension_present"))?;
     let gain_extensions = gain_extensions(parser, extension_present)?;
     let shared_syntax_profile = (configuration_changed
         || gain_extensions.is_some()
@@ -788,26 +789,13 @@ pub fn parse_drc_with_state(
         .retain(|r| r.bit_offset != position || r.bit_length != packet.len() * 8 - position);
     frame.diagnostics.clear();
     let mut next = state.clone();
-    if let Some((start, end)) = frame
-        .derived
-        .get("asp.preroll.start_bit")
-        .and_then(FieldValue::as_u64)
-        .zip(
-            frame
-                .derived
-                .get("asp.preroll.end_bit")
-                .and_then(FieldValue::as_u64),
-        )
-    {
-        let inner = parse_drc_with_state(
-            context,
-            &packet[start as usize / 8..end as usize / 8],
-            &mut next,
-        )
-        .map_err(|mut e| {
-            e.bit_offset += start as usize;
-            e
-        })?;
+    if let Some((start, end)) = frame.preroll {
+        let inner = parse_drc_with_state(context, &packet[start / 8..end / 8], &mut next).map_err(
+            |mut e| {
+                e.bit_offset += start as usize;
+                e
+            },
+        )?;
         if !inner.drc_complete {
             return Ok(out);
         }
@@ -886,6 +874,8 @@ mod tests {
             derived: Default::default(),
             stop_reason: String::new(),
             stop_bit_offset: 0,
+            cpe_absent: false,
+            preroll: None,
             payload_bit_offset: None,
             component_end_bit_offset: None,
             unknown_ranges: Vec::new(),

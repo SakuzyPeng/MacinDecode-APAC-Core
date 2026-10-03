@@ -191,7 +191,11 @@ pub(super) fn parameters(
         .map(|s| s.ok_or_else(|| "unassigned DRC gain sequence".into()))
         .collect()
 }
-fn symbol(parser: &mut Parser<'_>, name: &str, table: &[Code]) -> Result<i32, ParseError> {
+fn symbol(
+    parser: &mut Parser<'_>,
+    name: impl core::fmt::Display,
+    table: &[Code],
+) -> Result<i32, ParseError> {
     let start = parser.bits.position();
     let mut code = 0u16;
     for width in 1..=16 {
@@ -199,7 +203,7 @@ fn symbol(parser: &mut Parser<'_>, name: &str, table: &[Code]) -> Result<i32, Pa
         if let Some(entry) = table.iter().find(|e| e.width == width && e.code == code) {
             if parser.capture {
                 parser.report.fields.push(crate::config::ConfigField {
-                    name: name.into(),
+                    name: name.to_string(),
                     bit_offset: start,
                     bit_length: width,
                     value: FieldValue::from(entry.value),
@@ -218,10 +222,8 @@ pub(super) fn read_sequence(
     parser: &mut Parser<'_>,
     config: &DrcSequenceParameters,
 ) -> Result<DrcGainSequence, ParseError> {
-    let root = format!(
-        "ancillary.loudness_drc.sequences[{}]",
-        config.sequence_index
-    );
+    let index = config.sequence_index;
+    let root = format_args!("ancillary.loudness_drc.sequences[{index}]");
     let p = &config.parameters;
     let start = parser.bits.position();
     let frames = i32::from(p.frame_samples);
@@ -234,7 +236,7 @@ pub(super) fn read_sequence(
     let mode = if p.coding_profile == 3 {
         0
     } else {
-        parser.take(&format!("{root}.coding_mode"), 1)? as u8
+        parser.take(format_args!("{root}.coding_mode"), 1)? as u8
     };
     let mut count = 1;
     let mut slopes = vec![];
@@ -265,13 +267,13 @@ pub(super) fn read_sequence(
             for i in 0..count {
                 slopes.push(symbol(
                     parser,
-                    &format!("{root}.slopes[{i}]"),
+                    format_args!("{root}.slopes[{i}]"),
                     &crate::tables::DRC_SLOPES,
                 )? as u8);
             }
         }
         if !p.full_frame {
-            frame_end = parser.flag(&format!("{root}.frame_end"))?;
+            frame_end = parser.flag(format_args!("{root}.frame_end"))?;
         }
         let mut cursor = offset;
         for i in 0..count - usize::from(frame_end) {
@@ -326,21 +328,22 @@ pub(super) fn read_sequence(
         if p.coding_profile == 3 {
             gain = 0;
         } else if i == 0 {
-            let negative = parser.flag(&format!("{root}.initial_gain_negative"))?;
+            let negative = parser.flag(format_args!("{root}.initial_gain_negative"))?;
             if p.coding_profile == 0 {
-                let magnitude = parser.take(&format!("{root}.initial_gain_magnitude"), 8)? as i32;
+                let magnitude =
+                    parser.take(format_args!("{root}.initial_gain_magnitude"), 8)? as i32;
                 gain = if negative { -magnitude } else { magnitude };
             } else if negative {
                 gain = -1
                     - parser.take(
-                        &format!("{root}.initial_gain_magnitude"),
+                        format_args!("{root}.initial_gain_magnitude"),
                         if p.coding_profile == 1 { 10 } else { 8 },
                     )? as i32;
             }
         } else if p.coding_profile == 2 {
             gain += symbol(
                 parser,
-                &format!("{root}.gain_deltas[{i}]"),
+                format_args!("{root}.gain_deltas[{i}]"),
                 &crate::tables::DRC_CLIPPING,
             )?;
         } else {

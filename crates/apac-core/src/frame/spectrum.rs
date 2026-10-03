@@ -134,14 +134,14 @@ impl Parser<'_> {
         channel_index: u8,
     ) -> Result<ChannelSpectrum, ParseError> {
         self.stream_at(
-            &format!("components[0].tce[0].channels[{channel_index}]"),
+            &format_args!("components[0].tce[0].channels[{channel_index}]"),
             ics,
             channel_index,
         )
     }
     pub(super) fn stream_at(
         &mut self,
-        prefix: &str,
+        prefix: &dyn core::fmt::Display,
         ics: IcsInfo,
         channel_index: u8,
     ) -> Result<ChannelSpectrum, ParseError> {
@@ -149,7 +149,7 @@ impl Parser<'_> {
     }
     pub(super) fn stream_buffer(
         &mut self,
-        prefix: &str,
+        prefix: &dyn core::fmt::Display,
         ics: IcsInfo,
         channel_index: u8,
         quantized: Vec<i32>,
@@ -158,7 +158,7 @@ impl Parser<'_> {
     }
     pub(super) fn stream_buffer_at_rate(
         &mut self,
-        prefix: &str,
+        prefix: &dyn core::fmt::Display,
         ics: IcsInfo,
         channel_index: u8,
         mut quantized: Vec<i32>,
@@ -364,13 +364,13 @@ pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumR
         report,
         capture: true,
     };
-    let left = parser.ics("components[0].tce[0].left_ics")?;
+    let left = parser.ics(&"components[0].tce[0].left_ics")?;
     let mut channels = vec![parser.stream(left, 0)?];
     let shared = parser.flag("components[0].tce[0].shared_ics")?;
     let reason = if shared {
         "shared_ics_cac_deferred"
     } else {
-        let right = parser.ics("components[0].tce[0].right_ics")?;
+        let right = parser.ics(&"components[0].tce[0].right_ics")?;
         channels.push(parser.stream(right, 1)?);
         "sq_spectra_before_tools"
     };

@@ -360,10 +360,7 @@ pub fn parse_packets_with_depth(
                         spectra += u64::from(cac.spectrum.spectrum_complete);
                         left += u64::from(!cac.spectrum.channels.is_empty());
                         right += u64::from(cac.spectrum.channels.len() == 2);
-                        absent += u64::from(cac.spectrum.frame.fields.iter().any(|f| {
-                            f.name == "components[0].tce[0].present"
-                                && f.value == apac_core::config::FieldValue::Bool(false)
-                        }));
+                        absent += u64::from(cac.spectrum.frame.cpe_absent);
                         cac_complete += u64::from(cac.cac_complete);
                         shared_ics += u64::from(cac.shared_ics);
                         tns_complete += u64::from(tns.tns_complete);

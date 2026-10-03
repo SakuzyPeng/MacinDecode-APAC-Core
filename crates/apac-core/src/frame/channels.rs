@@ -308,8 +308,8 @@ fn read_element(
     common_window: Option<u8>,
 ) -> Result<bool, ParseError> {
     let index = element.configuration.element_index;
-    let prefix = format!("components[0].tce[{index}]");
-    element.present = parser.flag(&format!("{prefix}.present"))?;
+    let prefix = format_args!("components[0].tce[{index}]");
+    element.present = parser.flag(format_args!("{prefix}.present"))?;
     if !element.present {
         element.end_bit_offset = Some(parser.bits.position());
         element.element_complete = true;
@@ -321,13 +321,14 @@ fn read_element(
         element.element_complete = true;
         return Ok(true);
     }
-    let coding = parser.take(&format!("{prefix}.coding_type"), 1)? as u8;
+    let coding = parser.take(format_args!("{prefix}.coding_type"), 1)? as u8;
     element.coding_type = Some(coding);
     if coding != 0 {
         return Ok(false);
     }
     let cpe = element.configuration.kind == ElementKind::Cpe;
-    let ics_name = format!("{prefix}.{}", if cpe { "left_ics" } else { "ics" });
+    let side = if cpe { "left_ics" } else { "ics" };
+    let ics_name = format_args!("{prefix}.{side}");
     let left = if let Some(block) = common_window {
         parser.ics_with_block_at_rate(&ics_name, block, context.sample_rate_hz)?
     } else {
@@ -339,25 +340,25 @@ fn read_element(
         scratch.quantized.pop().unwrap_or_default()
     };
     element.channels.push(parser.stream_buffer_at_rate(
-        &format!("{prefix}.channels[0]"),
+        &format_args!("{prefix}.channels[0]"),
         left.clone(),
         0,
         buffer,
         context.sample_rate_hz,
     )?);
     if cpe {
-        let shared = parser.flag(&format!("{prefix}.shared_ics"))?;
+        let shared = parser.flag(format_args!("{prefix}.shared_ics"))?;
         element.shared_ics = Some(shared);
         let right = if shared {
             left.clone()
         } else if let Some(block) = common_window {
             parser.ics_with_block_at_rate(
-                &format!("{prefix}.right_ics"),
+                &format_args!("{prefix}.right_ics"),
                 block,
                 context.sample_rate_hz,
             )?
         } else {
-            parser.ics_at_rate(&format!("{prefix}.right_ics"), context.sample_rate_hz)?
+            parser.ics_at_rate(&format_args!("{prefix}.right_ics"), context.sample_rate_hz)?
         };
         let buffer = if parser.capture {
             Vec::new()
@@ -365,14 +366,14 @@ fn read_element(
             scratch.quantized.pop().unwrap_or_default()
         };
         element.channels.push(parser.stream_buffer_at_rate(
-            &format!("{prefix}.channels[1]"),
+            &format_args!("{prefix}.channels[1]"),
             right,
             1,
             buffer,
             context.sample_rate_hz,
         )?);
         if shared {
-            let data = cac::read_data_at(parser, &left, &format!("{prefix}.cac"))?;
+            let data = cac::read_data_at(parser, &left, &format_args!("{prefix}.cac"))?;
             if parser.capture {
                 element.channels_after_cac =
                     cac::apply_channels_at_rate(&element.channels, &data, context.sample_rate_hz)?;
@@ -654,6 +655,8 @@ fn parse_impl(
         derived: BTreeMap::new(),
         stop_reason: String::new(),
         stop_bit_offset: 0,
+        cpe_absent: false,
+        preroll: None,
         payload_bit_offset: None,
         component_end_bit_offset: None,
         unknown_ranges: vec![],
@@ -680,16 +683,7 @@ fn parse_impl(
     }
     let mut next = state.clone();
     let mut next_hoa = hoa_state.clone();
-    if let Some(start) = parser
-        .report
-        .derived
-        .get("asp.preroll.start_bit")
-        .and_then(|v| v.as_u64())
-    {
-        let start = start as usize;
-        let end = parser.report.derived["asp.preroll.end_bit"]
-            .as_u64()
-            .unwrap() as usize;
+    if let Some((start, end)) = parser.report.preroll {
         let nested = parse_impl(
             context,
             &packet[start / 8..end / 8],
@@ -1107,6 +1101,8 @@ pub(super) fn parse_core_at(
         derived: BTreeMap::new(),
         stop_reason: String::new(),
         stop_bit_offset: start,
+        cpe_absent: false,
+        preroll: None,
         payload_bit_offset: Some(start),
         component_end_bit_offset: None,
         unknown_ranges: vec![],

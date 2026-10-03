@@ -36,6 +36,8 @@ fn header(size: u64, maximum: u64, fill: u64) -> Result<FrameReport, ParseError>
             derived: BTreeMap::new(),
             stop_reason: String::new(),
             stop_bit_offset: 0,
+            cpe_absent: false,
+            preroll: None,
             payload_bit_offset: None,
             component_end_bit_offset: None,
             unknown_ranges: vec![],

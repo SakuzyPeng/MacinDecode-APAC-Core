@@ -194,7 +194,7 @@ pub(super) fn read_and_apply(
                 for (slot, target) in targets.iter_mut().enumerate() {
                     let position = parser.bits.position();
                     let value = parser.take(
-                        &format!("hoa.dynamic_selection.bands[{band}].target[{slot}]"),
+                        format_args!("hoa.dynamic_selection.bands[{band}].target[{slot}]"),
                         width,
                     )? as usize;
                     if value >= outputs {
@@ -217,7 +217,7 @@ pub(super) fn read_and_apply(
             } else {
                 let mut selected = Vec::with_capacity(slots);
                 for acn in 0..outputs {
-                    if parser.flag(&format!(
+                    if parser.flag(format_args!(
                         "hoa.dynamic_selection.bands[{band}].selected[{acn}]"
                     ))? {
                         selected.push(acn as u8);

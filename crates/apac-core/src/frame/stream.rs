@@ -474,6 +474,8 @@ pub fn parse_with_state(
         derived: BTreeMap::new(),
         stop_reason: String::new(),
         stop_bit_offset: 0,
+        cpe_absent: false,
+        preroll: None,
         payload_bit_offset: None,
         component_end_bit_offset: None,
         unknown_ranges: vec![],
@@ -508,16 +510,7 @@ pub fn parse_with_state(
     }
     let mut next = state.clone();
     let mut next_drc = drc_state.clone();
-    if let Some(start) = parser
-        .report
-        .derived
-        .get("asp.preroll.start_bit")
-        .and_then(|v| v.as_u64())
-    {
-        let start = start as usize;
-        let end = parser.report.derived["asp.preroll.end_bit"]
-            .as_u64()
-            .unwrap() as usize;
+    if let Some((start, end)) = parser.report.preroll {
         let child = parse_with_state(
             context,
             &packet[start / 8..end / 8],

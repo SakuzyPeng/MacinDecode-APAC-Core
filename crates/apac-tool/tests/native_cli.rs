@@ -1,9 +1,9 @@
 #![cfg(target_os = "macos")]
 
-use apac_core::config::parse_cookie;
 use apac_native::collect::collect_configs;
 use apac_native::native::NativeFile;
 use apac_native::research::{self, FixtureOptions};
+use apac_research::config::parse_cookie;
 use apac_research::model::*;
 use apac_research::signal::{LayoutPreset, Signal};
 use serde_json::Value;

@@ -286,6 +286,9 @@ impl Config {
     pub fn cookie_sha256(&self) -> &str {
         &self.cookie_sha256
     }
+    pub fn cookie_bytes(&self) -> usize {
+        self.cookie_bytes
+    }
     /// Derived global sample rate, when the syntax reached a known index.
     pub fn sample_rate_hz(&self) -> Option<u64> {
         self.global.sample_rate_hz

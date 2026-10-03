@@ -1,7 +1,7 @@
 //! Synthetic syntax only: no real media cookie or packet is embedded here.
-use apac_core::config::{ParseStatus, parse_cookie};
 use apac_core::frame::{FrameContext, FrameReport, parse_frame, parse_packet};
 use apac_core::synthesis::SqDecoder;
+use apac_research::config::{ParseStatus, parse_cookie};
 use apac_research::packets::MAX_PACKET_BUFFER;
 use serde_json::json;
 

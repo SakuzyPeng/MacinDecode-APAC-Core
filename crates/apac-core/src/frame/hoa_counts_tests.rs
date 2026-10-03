@@ -93,7 +93,7 @@ fn actual_component_query_preserves_cookie_shapes_and_legacy_five_item_views() {
         let context = HoaFrameContext::from_cookie(&bytes(&f["cookie"])).unwrap();
         let components = context.salient_component_configurations();
         assert_eq!(components.len(), context.salient_components());
-        let parsed = crate::config::parse_cookie(&bytes(&f["cookie"])).unwrap();
+        let (_, parsed) = crate::config::parse_recorded(&bytes(&f["cookie"])).unwrap();
         for (index, component) in components.iter().enumerate() {
             let field = |suffix: &str| {
                 parsed

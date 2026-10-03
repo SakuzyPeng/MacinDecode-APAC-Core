@@ -1,5 +1,5 @@
 //! Hand-constructed syntax vectors, not copies of media cookies or vendor binaries.
-use apac_core::config::{CookieReport, MAX_COOKIE_BYTES, ParseStatus, parse_cookie};
+use apac_research::config::{CookieReport, MAX_COOKIE_BYTES, ParseStatus, parse_cookie};
 
 struct Writer {
     data: Vec<u8>,

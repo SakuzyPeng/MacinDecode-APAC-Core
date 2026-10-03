@@ -52,7 +52,7 @@ fn cookie_field_names_are_unique_across_the_corpus() {
     let cookies = corpus();
     assert!(cookies.len() > 100, "corpus has {} cookies", cookies.len());
     for cookie in &cookies {
-        let Ok(report) = parse_cookie(cookie) else {
+        let Ok((_, report)) = parse_recorded(cookie) else {
             continue;
         };
         let mut names = BTreeSet::new();
@@ -73,16 +73,20 @@ fn parsed_configuration_matches_the_report_oracle() {
     let mut partial = 0usize;
     let mut check = |data: &[u8]| {
         let unrecorded = Config::parse(data);
-        let recorded = parse_cookie_and_config(data);
+        let recorded = parse_recorded(data);
         assert_eq!(
             unrecorded.as_ref().err().map(ToString::to_string),
             recorded.as_ref().err().map(ToString::to_string)
         );
-        if let (Ok((report, config)), Ok(unrecorded)) = (recorded, unrecorded) {
-            assert_eq!(config, Config::from_report(&report), "{data:02x?}");
+        if let (Ok((config, recording)), Ok(unrecorded)) = (recorded, unrecorded) {
+            assert_eq!(
+                config,
+                Config::from_report(&config, &recording),
+                "{data:02x?}"
+            );
             assert_eq!(config, unrecorded, "{data:02x?}");
             checked += 1;
-            partial += usize::from(!report.is_complete());
+            partial += usize::from(config.status != ParseStatus::Complete);
         }
     };
     for (index, cookie) in corpus().into_iter().enumerate() {
@@ -111,7 +115,7 @@ fn parsed_configuration_matches_the_report_oracle() {
 fn in_band_scene_and_drc_syntax_match_the_report_oracle() {
     let (mut scenes, mut headers) = (0usize, 0usize);
     for (index, cookie) in corpus().into_iter().enumerate() {
-        let Ok(original) = parse_cookie(&cookie) else {
+        let Ok((_, original)) = parse_recorded(&cookie) else {
             continue;
         };
         let start = |prefix: &str| {

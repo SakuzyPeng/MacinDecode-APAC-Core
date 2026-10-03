@@ -70,7 +70,7 @@ fn global_frame_length_rejections_are_reference_implementation_boundaries() {
             cookie[at / 8] = (cookie[at / 8] & !(1 << (7 - at % 8)))
                 | (((index >> (5 - bit)) & 1) << (7 - at % 8));
         }
-        let report = crate::config::parse_cookie(&cookie).unwrap();
+        let (_, report) = crate::config::parse_recorded(&cookie).unwrap();
         assert!(
             report
                 .diagnostics

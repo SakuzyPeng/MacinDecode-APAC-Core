@@ -1,5 +1,3 @@
-#[cfg(test)]
-use super::CookieReport;
 use super::{
     AdditionalComponent, AudioScenes, Component, Config, ConfigField, Diagnostic, DrcDeclaration,
     Extension, Field, HoaAsc, Located, ParseError, ParseStatus, Recording, UnknownRange,
@@ -180,9 +178,10 @@ pub(crate) fn parse_drc_header_at(
         core::mem::take(&mut p.drc_syntax),
     );
     #[cfg(test)]
-    let oracle = p.recording.clone().map(|recording| {
-        DrcDeclaration::from_report(&CookieReport::assemble(&p.config, recording))
-    });
+    let oracle = p
+        .recording
+        .as_ref()
+        .map(|recording| DrcDeclaration::from_report(&p.config, recording));
     let update = p.in_band();
     #[cfg(test)]
     if let Some(oracle) = oracle {

@@ -238,7 +238,7 @@ fn known_cookie_duration_constrains_unspecified_packet_timing() {
     }
     let size = cookie.len() as u32;
     cookie[..4].copy_from_slice(&size.to_be_bytes());
-    let parsed = apac_core::config::parse_cookie(&cookie).unwrap();
+    let parsed = apac_research::config::parse_cookie(&cookie).unwrap();
     assert_eq!(parsed.status, apac_core::config::ParseStatus::Partial);
     assert_eq!(parsed.derived["frame_samples"], 1024);
     fs::write(t.0.join("cookie.bin"), &cookie).unwrap();

@@ -376,7 +376,7 @@ mod tests {
     fn corpus_fields_render_as_serde_json() {
         let mut fields = 0usize;
         for cookie in crate::config::model_tests::corpus() {
-            let Ok(report) = crate::config::parse_cookie(&cookie) else {
+            let Ok((_, report)) = crate::config::parse_recorded(&cookie) else {
                 continue;
             };
             for field in &report.fields {

@@ -1,5 +1,5 @@
 //! Independent hand-written wire vectors; no media cookies are embedded here.
-use apac_core::config::{CookieReport, ParseStatus, parse_cookie};
+use apac_research::config::{CookieReport, ParseStatus, parse_cookie};
 
 const DRC: &str = "ancillary.loudness_drc";
 

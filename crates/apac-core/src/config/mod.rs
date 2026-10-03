@@ -16,7 +16,6 @@ mod passive_metadata;
 mod passive_renderer;
 mod scenes;
 
-use crate::model::SCHEMA_VERSION;
 use serde::Serialize;
 use std::{collections::BTreeMap, fmt};
 
@@ -52,37 +51,6 @@ pub struct UnknownRange {
 pub struct Diagnostic {
     pub bit_offset: usize,
     pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct CookieReport {
-    pub schema_version: u32,
-    pub cookie_bytes: usize,
-    pub cookie_sha256: String,
-    pub status: ParseStatus,
-    /// Syntax coverage, not a claim of support for decoding audio or scene rendering.
-    pub fields: Vec<ConfigField>,
-    pub derived: BTreeMap<String, FieldValue>,
-    pub unknown_ranges: Vec<UnknownRange>,
-    pub diagnostics: Vec<Diagnostic>,
-}
-impl CookieReport {
-    pub fn is_complete(&self) -> bool {
-        self.status == ParseStatus::Complete
-    }
-    /// The report of one recorded parse.
-    pub fn assemble(config: &Config, recording: Recording) -> Self {
-        Self {
-            schema_version: SCHEMA_VERSION,
-            cookie_bytes: config.cookie_bytes,
-            cookie_sha256: config.cookie_sha256.clone(),
-            status: config.status.clone(),
-            fields: recording.fields,
-            derived: recording.derived,
-            unknown_ranges: recording.unknown_ranges,
-            diagnostics: recording.diagnostics,
-        }
-    }
 }
 
 /// The recorded syntax of one parse: field events in stream order, derived
@@ -128,16 +96,6 @@ impl fmt::Display for ParseError {
     }
 }
 impl std::error::Error for ParseError {}
-
-pub fn parse_cookie(data: &[u8]) -> Result<CookieReport, ParseError> {
-    Ok(parse_cookie_and_config(data)?.0)
-}
-
-/// The recorded report and the typed configuration from a single parse.
-pub fn parse_cookie_and_config(data: &[u8]) -> Result<(CookieReport, Config), ParseError> {
-    let (config, recording) = parse_recorded(data)?;
-    Ok((CookieReport::assemble(&config, recording), config))
-}
 
 /// The typed configuration and the recorded syntax from a single parse.
 pub fn parse_recorded(data: &[u8]) -> Result<(Config, Recording), ParseError> {

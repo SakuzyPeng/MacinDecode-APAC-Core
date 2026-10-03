@@ -1,5 +1,5 @@
 //! Hand-constructed HOA syntax vectors; no media cookies or vendor output.
-use apac_core::config::{CookieReport, ParseStatus, parse_cookie};
+use apac_research::config::{CookieReport, ParseStatus, parse_cookie};
 use serde_json::json;
 
 struct Wire {

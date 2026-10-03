@@ -5,9 +5,9 @@
 //! The recorded digests describe this implementation, not independent truth:
 //! they only prove that a refactor left the observable results unchanged.
 //! Regenerate deliberately with `APAC_GOLDEN_WRITE=1 cargo test --test golden_decode`.
-use apac_core::config::parse_cookie;
 use apac_core::frame;
 use apac_core::synthesis::SqDecoder;
+use apac_research::config::parse_cookie;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};

@@ -4,9 +4,10 @@ use super::*;
 use crate::prelude::*;
 
 impl Config {
-    /// Centralized name-based extraction from a recorded cookie report.
-    pub(crate) fn from_report(report: &CookieReport) -> Self {
-        let r = Lookup::new(report);
+    /// Centralized name-based extraction from a recorded parse; the cookie
+    /// digest, size and status come from the parse, as the cookie report took them.
+    pub(crate) fn from_report(config: &Config, report: &Recording) -> Self {
+        let r = Lookup::new(config, report);
         let global = Global {
             profile_id: r.u64("global.profile_id"),
             level_id: r.u64("global.level_id"),
@@ -84,9 +85,9 @@ impl Config {
             drc: DrcDeclaration::from_lookup(&r),
         };
         Self {
-            cookie_sha256: report.cookie_sha256.clone(),
-            cookie_bytes: report.cookie_bytes,
-            status: report.status.clone(),
+            cookie_sha256: config.cookie_sha256.clone(),
+            cookie_bytes: config.cookie_bytes,
+            status: config.status.clone(),
             first_unknown_bit: report.unknown_ranges.first().map(|u| u.bit_offset),
             version_flags: r.u64("box.version_flags"),
             bitstream_version: r.u64("bitstream_version"),
@@ -256,8 +257,8 @@ impl AudioScenes {
 
 impl DrcDeclaration {
     /// The DRC declaration of a cookie or of an in-band header report.
-    pub(crate) fn from_report(report: &CookieReport) -> Self {
-        Self::from_lookup(&Lookup::new(report))
+    pub(crate) fn from_report(config: &Config, report: &Recording) -> Self {
+        Self::from_lookup(&Lookup::new(config, report))
     }
     fn from_lookup(r: &Lookup<'_>) -> Self {
         const ROOT: &str = "ancillary.loudness_drc";
@@ -349,11 +350,11 @@ struct Lookup<'a> {
     sha256: &'a str,
 }
 impl<'a> Lookup<'a> {
-    fn new(report: &'a CookieReport) -> Self {
+    fn new(config: &'a Config, report: &'a Recording) -> Self {
         Self {
             derived: Some(&report.derived),
-            complete: report.is_complete(),
-            sha256: &report.cookie_sha256,
+            complete: config.status == ParseStatus::Complete,
+            sha256: &config.cookie_sha256,
             ..Self::fields(&report.fields)
         }
     }

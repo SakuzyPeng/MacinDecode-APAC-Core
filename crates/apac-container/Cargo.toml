@@ -7,3 +7,6 @@ description = "Restricted CAF and MP4 APAC input over any Read + Seek source"
 [dependencies]
 apac-core.workspace = true
 sha2.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

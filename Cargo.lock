@@ -57,6 +57,7 @@ name = "apac-container"
 version = "0.1.0"
 dependencies = [
  "apac-core",
+ "serde_json",
  "sha2",
 ]
 

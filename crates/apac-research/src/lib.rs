@@ -4,7 +4,6 @@ pub mod decode;
 pub mod implementation;
 mod input;
 pub mod model;
-mod mp4;
 pub mod output;
 pub mod packets;
 pub mod parse_packets;

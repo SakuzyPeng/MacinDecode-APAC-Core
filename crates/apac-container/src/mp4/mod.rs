@@ -9,22 +9,17 @@ mod tables;
 #[cfg(test)]
 mod tests;
 
-use crate::{
+use crate::{Error, Packet, PacketTable, Position, Result, Source, Track};
+use apac_core::{
     config::{self, MAX_COOKIE_BYTES},
-    error::{Error, FilePosition, Result},
-    frame::DecodedFrameContext,
-    model::*,
-    packets::ReplayRange,
+    research_support::frame::{self, DecodedFrameContext},
 };
 use boxes::{Atom, Structure, atom, invalid, read, scan, u32be, u64be};
-use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, fs::File, path::Path, time::SystemTime};
+use std::collections::BTreeMap;
 use tables::Index;
 
-pub(crate) const PROFILE: &str = "apac-mp4-input-v1";
-
-fn clock(file: &mut File, a: Atom, movie: bool) -> Result<(u32, u64)> {
+fn clock(file: &mut impl Source, a: Atom, movie: bool) -> Result<(u32, u64)> {
     let version = a.full(file, &[0, 1])?;
     a.exact(match (movie, version) {
         (true, 0) => 100,
@@ -51,7 +46,7 @@ fn clock(file: &mut File, a: Atom, movie: bool) -> Result<(u32, u64)> {
     }
     Ok((rate, duration))
 }
-fn track(file: &mut File, a: Atom) -> Result<(u32, u64)> {
+fn track(file: &mut impl Source, a: Atom) -> Result<(u32, u64)> {
     let flags = a.take::<4>(file, 0)?;
     let version = flags[0];
     if version > 1 || flags[1] != 0 || flags[2] != 0 || flags[3] & !7 != 0 || flags[3] & 1 == 0 {
@@ -74,7 +69,7 @@ fn track(file: &mut File, a: Atom) -> Result<(u32, u64)> {
     }
     Ok((id, duration))
 }
-fn edit(file: &mut File, a: Atom) -> Result<(u64, u64)> {
+fn edit(file: &mut impl Source, a: Atom) -> Result<(u64, u64)> {
     let version = a.full(file, &[0, 1])?;
     if u32be(&a.take::<4>(file, 4)?) != 1 {
         return Err(a.error("requires one edit list entry"));
@@ -98,7 +93,7 @@ fn edit(file: &mut File, a: Atom) -> Result<(u64, u64)> {
     }
     Ok((duration, start as u64))
 }
-fn cookie(file: &mut File, s: &Structure) -> Result<(Vec<u8>, u32, Atom)> {
+fn cookie(file: &mut impl Source, s: &Structure) -> Result<(Vec<u8>, u32, Atom)> {
     let stsd = s.get(b"stsd")?;
     stsd.full(file, &[0])?;
     if u32be(&stsd.take::<4>(file, 4)?) != 1 {
@@ -117,9 +112,7 @@ fn cookie(file: &mut File, s: &Structure) -> Result<(Vec<u8>, u32, Atom)> {
         return Err(entry.error("requires version 0 apac, data reference 1 and the observed 2-channel/16-bit placeholders"));
     }
     let rate = u32be(&fields[24..]);
-    if rate & 0xffff != 0
-        || (rate != 0 && crate::frame::sfb::index(u64::from(rate >> 16)).is_none())
-    {
+    if rate & 0xffff != 0 || (rate != 0 && frame::sfb::index(u64::from(rate >> 16)).is_none()) {
         return Err(entry.error("requires an integral supported sample rate"));
     }
     let mut found = None;
@@ -145,14 +138,54 @@ fn cookie(file: &mut File, s: &Structure) -> Result<(Vec<u8>, u32, Atom)> {
     Ok((bytes, rate >> 16, a))
 }
 
-pub(crate) struct Mp4Reader {
-    file: File,
+/// The file brands from `ftyp`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Brands {
+    pub major: String,
+    pub minor_version: u32,
+    pub compatible: Vec<String>,
+}
+
+/// A retained box: its header offset, payload offset and end.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BoxRange {
+    pub offset: u64,
+    pub data_offset: u64,
+    pub end: u64,
+}
+
+/// The structure, timeline, digests and verification state an MP4 input
+/// report shows.
+#[derive(Debug, Clone)]
+pub struct Mp4Summary {
+    pub brands: Brands,
+    pub track_id: u32,
+    /// The sample entry's rate; zero when the cookie alone defines it.
+    pub sample_entry_rate: u32,
+    pub movie_timescale: u32,
+    pub edit_duration: u64,
+    pub file_bytes: u64,
+    pub boxes: BTreeMap<[u8; 4], BoxRange>,
+    pub mdat_count: u64,
+    pub skipped_boxes: u64,
+    pub sgpd_count: u64,
+    pub sbgp_count: u64,
+    /// Digest of every box header and retained box payload.
+    pub metadata_sha256: String,
+    /// Digests of the current pass's audio bytes and packet identities.
+    pub audio_sha256: String,
+    pub packets_sha256: String,
+    /// Whether the current pass reached the end and matched the first one.
+    pub verified: bool,
+}
+
+/// Sequential, two-pass-verified reader for a single-track APAC MP4.
+pub struct Mp4Reader<R> {
+    file: R,
     structure: Structure,
-    info: FileInfo,
-    cookie: Vec<u8>,
-    config: config::Config,
+    track: Track,
     index: Index,
-    brands: Value,
+    brands: Brands,
     track_id: u32,
     movie_timescale: u32,
     edit_duration: u64,
@@ -162,15 +195,10 @@ pub(crate) struct Mp4Reader {
     expected: Option<(String, String)>,
     verified: bool,
 }
-impl Mp4Reader {
-    pub(crate) fn open(path: &Path) -> Result<Self> {
-        if !path.metadata()?.is_file() {
-            return Err(invalid(b"ftyp", 0, "requires a regular file"));
-        }
-        let mut file = File::open(path)?;
-        if !file.metadata()?.is_file() {
-            return Err(invalid(b"ftyp", 0, "requires a regular file"));
-        }
+impl<R: Source> Mp4Reader<R> {
+    /// Validate the file and read it once to record its digests; the reader
+    /// is then positioned at the first sample.
+    pub fn new(mut file: R) -> Result<Self> {
         let structure = scan(&mut file)?;
         let ftyp = structure.get(b"ftyp")?;
         // The bounded report exposes at most 64 compatible brands.
@@ -191,7 +219,11 @@ impl Mp4Reader {
         {
             return Err(ftyp.error("unsupported ISO BMFF file brand"));
         }
-        let brands = json!({"major":String::from_utf8_lossy(&major),"minor_version":u32be(&ftyp.take::<4>(&mut file,4)?),"compatible":compatible});
+        let brands = Brands {
+            major: String::from_utf8_lossy(&major).into_owned(),
+            minor_version: u32be(&ftyp.take::<4>(&mut file, 4)?),
+            compatible,
+        };
         let hdlr = structure.get(b"hdlr")?;
         hdlr.full(&mut file, &[0])?;
         if hdlr.bytes() < 24 || hdlr.take::<4>(&mut file, 8)? != *b"soun" {
@@ -223,10 +255,10 @@ impl Mp4Reader {
             })
             .map_err(|e| {
                 let mut e: Error = e.into();
-                e.file_position = Some(Box::new(FilePosition {
+                e.position = Some(Position {
                     byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
                     chunk_type: "dapa".into(),
-                }));
+                });
                 e
             })?;
         // Preserve the decoder's established configuration rejection operation.
@@ -280,46 +312,22 @@ impl Mp4Reader {
             remainder_frames: i32::try_from(remainder)
                 .map_err(|_| elst.error("remainder exceeds supported range"))?,
         };
-        let info = FileInfo {
-            schema_version: SCHEMA_VERSION,
-            source: path.to_owned(),
+        let track = Track {
+            sample_rate: f64::from(rate),
+            channels,
+            layout: context.channel_layout().unwrap().clone(),
+            packet_count: u64::from(index.count),
+            table,
             file_bytes: structure.bytes,
-            modified_unix_seconds: structure
-                .modified
-                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs()),
-            environment: Environment::current(),
-            container: Property::known("mp4f".into()),
-            format: AudioFormat {
-                sample_rate: f64::from(rate),
-                format_id: u32::from_be_bytes(*b"apac"),
-                format_fourcc: "apac".into(),
-                flags: 0,
-                bytes_per_packet: 0,
-                frames_per_packet: 1024,
-                bytes_per_frame: 0,
-                channels,
-                bits_per_channel: 0,
-            },
-            layout: Property::known(context.channel_layout().unwrap().clone()),
-            packet_count: Property::known(u64::from(index.count)),
-            max_packet_bytes: Property::known(0),
-            packet_table: Property::known(table),
-            cookie: Property::known(CookieInfo {
-                bytes: cookie.len(),
-                sha256: sha256(&cookie),
-            }),
-            restricts_random_access: Property {
-                value: None,
-                error: None,
-            },
+            revision: structure.modified,
+            cookie,
+            config: parsed,
+            max_packet_bytes: 0,
         };
         let mut out = Self {
             file,
             structure,
-            info,
-            cookie,
-            config: parsed,
+            track,
             index,
             brands,
             track_id,
@@ -333,11 +341,16 @@ impl Mp4Reader {
         };
         while out.next_packet()?.is_some() {}
         out.expected = Some(out.hashes());
-        out.index = Index::open(&mut out.file, &out.structure)?;
-        out.audio_hash = Sha256::new();
-        out.packet_hash = Sha256::new();
-        out.verified = false;
+        out.rewind()?;
         Ok(out)
+    }
+    /// Return to the first sample; the next pass is verified again at its end.
+    pub fn rewind(&mut self) -> Result<()> {
+        self.index = Index::open(&mut self.file, &self.structure)?;
+        self.audio_hash = Sha256::new();
+        self.packet_hash = Sha256::new();
+        self.verified = false;
+        Ok(())
     }
     fn hashes(&self) -> (String, String) {
         (
@@ -345,51 +358,50 @@ impl Mp4Reader {
             format!("{:x}", self.packet_hash.clone().finalize()),
         )
     }
-    pub(crate) fn info(&self) -> &FileInfo {
-        &self.info
+    pub fn track(&self) -> &Track {
+        &self.track
     }
-    pub(crate) fn config(&self) -> &config::Config {
-        &self.config
-    }
-    pub(crate) fn cookie(&self) -> &[u8] {
-        &self.cookie
-    }
-    pub(crate) fn consumed_packets(&self) -> u64 {
+    /// Samples read in the current pass.
+    pub fn consumed_packets(&self) -> u64 {
         self.index.next
     }
-    pub(crate) fn range(&self, start: Option<u64>, frames: u64) -> Result<ReplayRange> {
-        let table = self.info.packet_table.value.as_ref().unwrap();
-        crate::packets::frame_range(0, table.valid_frames as u64, table, start, frames)
-    }
-    pub(crate) fn report(&self) -> Value {
-        let (audio, packets) = self.hashes();
-        let ranges = self
-            .structure
-            .boxes
-            .iter()
-            .map(|(k, v)| {
-                (
-                    String::from_utf8_lossy(k).into_owned(),
-                    json!({"offset":v.offset,"data_offset":v.data,"bytes":v.end-v.offset}),
-                )
-            })
-            .collect::<BTreeMap<_, _>>();
-        let mut report = json!({"kind":"mp4","profile":PROFILE,"brands":self.brands,"track_id":self.track_id,
-            "sample_entry":{"version":0,"channelcount":2,"samplesize":16,"sample_rate":f64::from(self.sample_entry_rate)},
-            "format":self.info.format,"layout_source":"cookie","layout":self.info.layout.value,
-            "packet_count":self.info.packet_count.value,"packet_table":self.info.packet_table.value,
-            "timeline":{"source":"single_elst","movie_timescale":self.movie_timescale,"media_timescale":self.info.format.sample_rate as u32,"edit_duration":self.edit_duration,"rounding":"exact_integral_frames"},
-            "file_bytes":self.structure.bytes,"boxes":ranges,"mdat_count":self.structure.mdat_count,"skipped_boxes":self.structure.skipped,
-            "sample_group_box_counts":{"sgpd":self.structure.sgpd_count,"sbgp":self.structure.sbgp_count},
-            "metadata_sha256":self.structure.hash,"cookie_sha256":sha256(&self.cookie),"audio_sha256":audio,"packets_sha256":packets,
-            "access":"sequential_from_packet_zero","consistency_verified":self.verified,"verification":"two_pass_read_consistency_no_stored_checksums"});
-        if self.sample_entry_rate == 0 {
-            report["sample_entry"]["sample_rate_source"] = json!("cookie");
-            report["sample_entry"]["sample_rate_profile"] = json!("apac-mp4-cookie-sample-rate-v1");
+    pub fn summary(&self) -> Mp4Summary {
+        let (audio_sha256, packets_sha256) = self.hashes();
+        Mp4Summary {
+            brands: self.brands.clone(),
+            track_id: self.track_id,
+            sample_entry_rate: self.sample_entry_rate,
+            movie_timescale: self.movie_timescale,
+            edit_duration: self.edit_duration,
+            file_bytes: self.structure.bytes,
+            boxes: self
+                .structure
+                .boxes
+                .iter()
+                .map(|(&tag, a)| {
+                    (
+                        tag,
+                        BoxRange {
+                            offset: a.offset,
+                            data_offset: a.data,
+                            end: a.end,
+                        },
+                    )
+                })
+                .collect(),
+            mdat_count: self.structure.mdat_count,
+            skipped_boxes: self.structure.skipped,
+            sgpd_count: self.structure.sgpd_count,
+            sbgp_count: self.structure.sbgp_count,
+            metadata_sha256: self.structure.hash.clone(),
+            audio_sha256,
+            packets_sha256,
+            verified: self.verified,
         }
-        report
     }
-    pub(crate) fn next_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
+    /// The next sample of the current pass; at the end, the pass is checked
+    /// against the first one and the file structure is rescanned.
+    pub fn next_packet(&mut self) -> Result<Option<Packet>> {
         let index = self.index.next;
         self.read_packet().map_err(|mut e| {
             if index < u64::from(self.index.count) {
@@ -398,7 +410,7 @@ impl Mp4Reader {
             e
         })
     }
-    fn read_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
+    fn read_packet(&mut self) -> Result<Option<Packet>> {
         let index = self.index.next;
         if let Some((offset, size)) = self.index.next(&mut self.file, self.structure.bytes)? {
             let mut raw = vec![0; size as usize];
@@ -408,9 +420,12 @@ impl Mp4Reader {
                 self.packet_hash.update(v.to_le_bytes());
             }
             self.packet_hash.update(Sha256::digest(&raw));
-            self.info.max_packet_bytes.value =
-                Some(self.info.max_packet_bytes.value.unwrap().max(size));
-            Ok(Some((index, index * 1024, raw)))
+            self.track.max_packet_bytes = self.track.max_packet_bytes.max(size);
+            Ok(Some(Packet {
+                index,
+                raw_frame: index * 1024,
+                bytes: raw,
+            }))
         } else {
             if !self.verified {
                 if self.expected.as_ref().is_some_and(|v| *v != self.hashes()) {
@@ -432,7 +447,8 @@ impl Mp4Reader {
             Ok(None)
         }
     }
-    pub(crate) fn verify_remaining(&mut self) -> Result<()> {
+    /// Read the rest of the current pass, completing its verification.
+    pub fn verify_remaining(&mut self) -> Result<()> {
         while self.next_packet()?.is_some() {}
         Ok(())
     }

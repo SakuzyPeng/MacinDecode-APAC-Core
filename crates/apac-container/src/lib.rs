@@ -14,9 +14,11 @@ use std::{
 };
 
 mod caf;
+mod mp4;
 #[cfg(test)]
 mod test_source;
 pub use caf::{CafReader, CafSummary, Chunk};
+pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
 
 pub type Result<T> = std::result::Result<T, Error>;
 

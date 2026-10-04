@@ -1,7 +1,7 @@
 //! Sequential run/table cursors, independent of packet count in memory usage.
 use super::boxes::{Atom, MediaCursor, Structure, invalid, u32be, u64be};
-use crate::{error::Result, packets::MAX_PACKET_BUFFER};
-use std::fs::File;
+use crate::{Result, Source};
+use apac_core::frame::MAX_PACKET_BUFFER;
 
 #[derive(Clone, Copy)]
 struct Table {
@@ -10,13 +10,13 @@ struct Table {
     width: u64,
 }
 impl Table {
-    fn open(file: &mut File, atom: Atom, width: u64, versions: &[u8]) -> Result<Self> {
+    fn open(file: &mut impl Source, atom: Atom, width: u64, versions: &[u8]) -> Result<Self> {
         atom.full(file, versions)?;
         let count = u32be(&atom.take::<4>(file, 4)?);
         atom.exact(8 + u64::from(count) * width)?;
         Ok(Self { atom, count, width })
     }
-    fn row<const N: usize>(self, file: &mut File, index: u32) -> Result<[u8; N]> {
+    fn row<const N: usize>(self, file: &mut impl Source, index: u32) -> Result<[u8; N]> {
         if index >= self.count || N as u64 != self.width {
             return Err(self.atom.error("table exhausted or entry width mismatch"));
         }
@@ -43,7 +43,7 @@ pub(super) struct Index {
     media: MediaCursor,
 }
 impl Index {
-    pub fn open(file: &mut File, s: &Structure) -> Result<Self> {
+    pub fn open(file: &mut impl Source, s: &Structure) -> Result<Self> {
         let sizes = s.get(b"stsz")?;
         sizes.full(file, &[0])?;
         let raw = sizes.take::<8>(file, 4)?;
@@ -130,7 +130,7 @@ impl Index {
         }
         Ok(out)
     }
-    fn run(&self, file: &mut File, index: u32) -> Result<(u32, u32)> {
+    fn run(&self, file: &mut impl Source, index: u32) -> Result<(u32, u32)> {
         let raw = self.chunks.row::<12>(file, index)?;
         let first = u32be(&raw);
         let samples = u32be(&raw[4..]);
@@ -143,7 +143,7 @@ impl Index {
         }
         Ok((first, samples))
     }
-    fn load_next_run(&mut self, file: &mut File) -> Result<()> {
+    fn load_next_run(&mut self, file: &mut impl Source) -> Result<()> {
         self.next_run = if self.chunk_run < self.chunks.count {
             let next = self.run(file, self.chunk_run)?;
             if next.0 <= self.current_run.unwrap().0 {
@@ -155,7 +155,7 @@ impl Index {
         };
         Ok(())
     }
-    pub fn next(&mut self, file: &mut File, file_bytes: u64) -> Result<Option<(u64, u32)>> {
+    pub fn next(&mut self, file: &mut impl Source, file_bytes: u64) -> Result<Option<(u64, u32)>> {
         if self.next == u64::from(self.count) {
             if self.chunk_left != 0
                 || self.chunk_index != self.offsets.count

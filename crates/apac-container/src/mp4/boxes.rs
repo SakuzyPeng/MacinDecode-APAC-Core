@@ -1,35 +1,18 @@
 //! Bounded ISO BMFF box traversal. Unknown payloads are never buffered.
-use crate::error::{Error, FilePosition, Result};
-use serde::Serialize;
+use crate::{Error, Result, Source, read_at};
 use sha2::{Digest, Sha256};
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::{Read, Seek, SeekFrom},
-    time::SystemTime,
-};
+use std::{collections::BTreeMap, time::SystemTime};
 
 pub(super) fn invalid(tag: &[u8; 4], offset: u64, message: impl Into<String>) -> Error {
-    let mut error = Error::new("MP4 input", message);
-    error.file_position = Some(Box::new(FilePosition {
-        byte_offset: offset,
-        chunk_type: String::from_utf8_lossy(tag).into_owned(),
-    }));
-    error
+    Error::at("MP4 input", tag, offset, message)
 }
-pub(super) fn read(file: &mut File, tag: &[u8; 4], offset: u64, out: &mut [u8]) -> Result<()> {
-    file.seek(SeekFrom::Start(offset))
-        .map_err(|e| invalid(tag, offset, e.to_string()))?;
-    let mut n = 0;
-    while n < out.len() {
-        match file.read(&mut out[n..]) {
-            Ok(0) => return Err(invalid(tag, offset + n as u64, "truncated input")),
-            Ok(count) => n += count,
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => {}
-            Err(e) => return Err(invalid(tag, offset + n as u64, e.to_string())),
-        }
-    }
-    Ok(())
+pub(super) fn read(
+    file: &mut impl Source,
+    tag: &[u8; 4],
+    offset: u64,
+    out: &mut [u8],
+) -> Result<()> {
+    read_at(file, "MP4 input", tag, offset, out)
 }
 pub(super) fn u32be(raw: &[u8]) -> u32 {
     u32::from_be_bytes(raw[..4].try_into().unwrap())
@@ -38,7 +21,7 @@ pub(super) fn u64be(raw: &[u8]) -> u64 {
     u64::from_be_bytes(raw[..8].try_into().unwrap())
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy)]
 pub(super) struct Atom {
     pub tag: [u8; 4],
     pub offset: u64,
@@ -52,7 +35,7 @@ impl Atom {
     pub fn error(self, message: impl Into<String>) -> Error {
         invalid(&self.tag, self.offset, message)
     }
-    pub fn take<const N: usize>(self, file: &mut File, relative: u64) -> Result<[u8; N]> {
+    pub fn take<const N: usize>(self, file: &mut impl Source, relative: u64) -> Result<[u8; N]> {
         let offset = self
             .data
             .checked_add(relative)
@@ -68,7 +51,7 @@ impl Atom {
         }
         Ok(())
     }
-    pub fn full(self, file: &mut File, versions: &[u8]) -> Result<u8> {
+    pub fn full(self, file: &mut impl Source, versions: &[u8]) -> Result<u8> {
         let raw = self.take::<4>(file, 0)?;
         if !versions.contains(&raw[0]) || raw[1..] != [0; 3] {
             return Err(self.error("unsupported version or flags"));
@@ -77,7 +60,7 @@ impl Atom {
     }
 }
 
-pub(super) fn atom(file: &mut File, offset: u64, limit: u64, top: bool) -> Result<Atom> {
+pub(super) fn atom(file: &mut impl Source, offset: u64, limit: u64, top: bool) -> Result<Atom> {
     if offset > limit || limit - offset < 8 {
         return Err(invalid(b"box ", offset, "truncated box header"));
     }
@@ -123,7 +106,13 @@ pub(super) fn atom(file: &mut File, offset: u64, limit: u64, top: bool) -> Resul
     })
 }
 
-fn hash_range(file: &mut File, a: Atom, start: u64, end: u64, hash: &mut Sha256) -> Result<()> {
+fn hash_range(
+    file: &mut impl Source,
+    a: Atom,
+    start: u64,
+    end: u64,
+    hash: &mut Sha256,
+) -> Result<()> {
     let mut cursor = start;
     let mut buffer = [0; 65536];
     while cursor < end {
@@ -155,7 +144,7 @@ impl Structure {
 }
 
 fn children(
-    file: &mut File,
+    file: &mut impl Source,
     start: u64,
     end: u64,
     parent: &[u8; 4],
@@ -225,12 +214,13 @@ fn children(
     }
     Ok(())
 }
-pub(super) fn scan(file: &mut File) -> Result<Structure> {
-    let meta = file.metadata()?;
+pub(super) fn scan(file: &mut impl Source) -> Result<Structure> {
+    let bytes = file.length()?;
+    let modified = file.revision()?;
     let mut state = Structure {
         boxes: BTreeMap::new(),
-        bytes: meta.len(),
-        modified: meta.modified().ok(),
+        bytes,
+        modified,
         hash: String::new(),
         mdat_count: 0,
         sgpd_count: 0,
@@ -264,7 +254,13 @@ pub(super) struct MediaCursor {
     current: Option<Atom>,
 }
 impl MediaCursor {
-    pub fn check(&mut self, file: &mut File, bytes: u64, offset: u64, end: u64) -> Result<()> {
+    pub fn check(
+        &mut self,
+        file: &mut impl Source,
+        bytes: u64,
+        offset: u64,
+        end: u64,
+    ) -> Result<()> {
         loop {
             if let Some(a) = self.current {
                 if offset >= a.data && offset < a.end {

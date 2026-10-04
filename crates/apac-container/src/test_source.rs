@@ -30,6 +30,21 @@ impl Shared {
         state.0[offset as usize..end].copy_from_slice(bytes);
         state.1 += 1;
     }
+    /// Overwrite bytes but keep the revision, like an edit that restores
+    /// the modification time.
+    pub(crate) fn change_quietly(&self, offset: u64, bytes: &[u8]) {
+        let revision = self.state.borrow().1;
+        self.change(offset, bytes);
+        self.state.borrow_mut().1 = revision;
+    }
+    pub(crate) fn bytes(&self) -> Vec<u8> {
+        self.state.borrow().0.clone()
+    }
+    pub(crate) fn replace(&self, bytes: Vec<u8>) {
+        let mut state = self.state.borrow_mut();
+        state.0 = bytes;
+        state.1 += 1;
+    }
     pub(crate) fn truncate(&self, length: u64) {
         let mut state = self.state.borrow_mut();
         state.0.truncate(length as usize);

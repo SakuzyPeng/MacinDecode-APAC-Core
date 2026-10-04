@@ -140,7 +140,7 @@ def validate(binary,r,reference):
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm'); full=(root/'pcm/pcm.f32le').read_bytes(); impl=decoded['pcm']['decoder_settings']['implementation']['value']
             require(decoded['pcm']['channels']==n and decoded['pcm']['layout']['value']['ambisonic_order']==(3 if dyn else order) and decoded['pcm']['sample_rate']==options.get('rate',48000),'wrong output layout')
             require(decoded['drc_processing']==decoded['loudness_normalization']=='off' and decoded['drc_payloads_complete'],'DRC policy changed')
-            require(impl['hoa_recovery_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_additive_sq_drc_off_f64_fft_v1' and impl['hoa_ambient_combination']=='add','wrong backend')
+            require(impl['hoa_recovery_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_additive_sq_drc_off_f64_fft_v2' and impl['hoa_ambient_combination']=='add','wrong backend')
             require(impl['hoa_format_sha256']==format_for(order)['tables_sha256'],'descriptor dictionary changed')
             if dyn: require(impl['hoa_dynamic_format_sha256']==generate()['format_sha256'] and impl['hoa_internal_order']==2 and impl['hoa_output_order']==3,'dynamic rule changed')
             r['implementations'].setdefault(kind,impl); require(r['implementations'][kind]==impl,'implementation changed')

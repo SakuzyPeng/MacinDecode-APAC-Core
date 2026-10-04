@@ -9,24 +9,24 @@ pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v11";
 pub const QUALIFICATION: &str = "independent_math_reference";
 pub const ACCESS_PROFILE: &str = "apac-sq-access-v1";
 pub const HOA_ACCESS_PROFILE: &str = "apac-hoa-access-v1";
-const CHANNELS_BACKEND: &str = "rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1";
-const COMPOSITE_BACKEND: &str = "rust_hoa_multiple_asc_sq_drc_off_f64_fft_v1";
-const HOA_EXPANDED_BACKEND: &str = "rust_hoa_expanded_orders_sq_drc_off_f64_fft_v1";
-const HOA_PARTIAL_BACKEND: &str = "rust_hoa_partial_domain_sq_drc_off_f64_fft_v1";
-const HOA_CONTROLS_BACKEND: &str = "rust_hoa_spatial_controls_sq_drc_off_f64_fft_v1";
-const HOA_FRAME_CONTROLS_BACKEND: &str = "rust_hoa_spatial_controls_sq_drc_off_f64_fft_v2";
-const HOA_TRANSPORT_BACKEND: &str = "rust_hoa_transports_sq_cac_tns_bwe2_drc_off_f64_fft_v1";
-const HOA_QUANTIZATION_BACKEND: &str = "rust_hoa_salient_quantization_sq_drc_off_f64_fft_v1";
-const HOA_AMBIENT_COUNTS_BACKEND: &str = "rust_hoa_ambient_counts_sq_drc_off_f64_fft_v1";
-const HOA_COUNTS_BACKEND: &str = "rust_hoa_salient_counts_sq_drc_off_f64_fft_v1";
-const HOA_COMPONENT_ORDERS_BACKEND: &str = "rust_hoa_component_orders_sq_drc_off_f64_fft_v1";
-const HOA_AMBIENT_BACKEND: &str = "rust_hoa_ambient_sq_drc_off_f64_fft_v1";
-const HOA_SALIENT_BACKEND: &str = "rust_hoa_salient_sq_drc_off_f64_fft_v1";
-const HOA_MIXED_BACKEND: &str = "rust_hoa_mixed_sq_drc_off_f64_fft_v1";
-const HOA_STATIC_AMBIENT_BACKEND: &str = "rust_hoa_static_ambient_sq_drc_off_f64_fft_v1";
-const HOA_ADDITIVE_BACKEND: &str = "rust_hoa_additive_sq_drc_off_f64_fft_v1";
-const HOA_DYNAMIC_BACKEND: &str = "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1";
-const HOA_DYNAMIC_DOMAINS_BACKEND: &str = "rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v1";
+const CHANNELS_BACKEND: &str = "rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v2";
+const COMPOSITE_BACKEND: &str = "rust_hoa_multiple_asc_sq_drc_off_f64_fft_v2";
+const HOA_EXPANDED_BACKEND: &str = "rust_hoa_expanded_orders_sq_drc_off_f64_fft_v2";
+const HOA_PARTIAL_BACKEND: &str = "rust_hoa_partial_domain_sq_drc_off_f64_fft_v2";
+const HOA_CONTROLS_BACKEND: &str = "rust_hoa_spatial_controls_sq_drc_off_f64_fft_v3";
+const HOA_FRAME_CONTROLS_BACKEND: &str = "rust_hoa_spatial_controls_sq_drc_off_f64_fft_v4";
+const HOA_TRANSPORT_BACKEND: &str = "rust_hoa_transports_sq_cac_tns_bwe2_drc_off_f64_fft_v2";
+const HOA_QUANTIZATION_BACKEND: &str = "rust_hoa_salient_quantization_sq_drc_off_f64_fft_v2";
+const HOA_AMBIENT_COUNTS_BACKEND: &str = "rust_hoa_ambient_counts_sq_drc_off_f64_fft_v2";
+const HOA_COUNTS_BACKEND: &str = "rust_hoa_salient_counts_sq_drc_off_f64_fft_v2";
+const HOA_COMPONENT_ORDERS_BACKEND: &str = "rust_hoa_component_orders_sq_drc_off_f64_fft_v2";
+const HOA_AMBIENT_BACKEND: &str = "rust_hoa_ambient_sq_drc_off_f64_fft_v2";
+const HOA_SALIENT_BACKEND: &str = "rust_hoa_salient_sq_drc_off_f64_fft_v2";
+const HOA_MIXED_BACKEND: &str = "rust_hoa_mixed_sq_drc_off_f64_fft_v2";
+const HOA_STATIC_AMBIENT_BACKEND: &str = "rust_hoa_static_ambient_sq_drc_off_f64_fft_v2";
+const HOA_ADDITIVE_BACKEND: &str = "rust_hoa_additive_sq_drc_off_f64_fft_v2";
+const HOA_DYNAMIC_BACKEND: &str = "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v2";
+const HOA_DYNAMIC_DOMAINS_BACKEND: &str = "rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v2";
 
 pub fn channel_layout_profile(decoder: &Decoder) -> Option<&'static str> {
     // A component's discrete profile does not describe the whole HOA stream.
@@ -41,13 +41,13 @@ pub fn backend(decoder: &Decoder) -> &'static str {
     }
     if let Some(context) = decoder.hoa() {
         if context.shared_configuration_enabled() {
-            return "rust_hoa_shared_configuration_sq_drc_off_f64_fft_v1";
+            return "rust_hoa_shared_configuration_sq_drc_off_f64_fft_v2";
         }
         if context.static_remapping().is_some() {
-            return "rust_hoa_static_remapping_sq_drc_off_f64_fft_v1";
+            return "rust_hoa_static_remapping_sq_drc_off_f64_fft_v2";
         }
         if context.source_layout_enabled() {
-            return "rust_hoa_source_layout_sq_drc_off_f64_fft_v1";
+            return "rust_hoa_source_layout_sq_drc_off_f64_fft_v2";
         }
         return if context.dynamic_domains_extended() {
             HOA_DYNAMIC_DOMAINS_BACKEND
@@ -236,37 +236,37 @@ mod tests {
             ),
             (
                 "hoa-mixed-state-v1.json",
-                Some("rust_hoa_mixed_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_mixed_sq_drc_off_f64_fft_v2"),
                 None,
                 None,
             ),
             (
                 "hoa-static-ambient-state-v1.json",
-                Some("rust_hoa_static_ambient_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_static_ambient_sq_drc_off_f64_fft_v2"),
                 None,
                 Some("apac-hoa-static-ambient-math-v1"),
             ),
             (
                 "hoa-dynamic-state-v1.json",
-                Some("rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v2"),
                 None,
                 None,
             ),
             (
                 "hoa-additive-state-v1.json",
-                Some("rust_hoa_additive_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_additive_sq_drc_off_f64_fft_v2"),
                 Some("apac-hoa-additive-state-v1"),
                 None,
             ),
             (
                 "hoa-component-orders-state-v1.json",
-                Some("rust_hoa_component_orders_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_component_orders_sq_drc_off_f64_fft_v2"),
                 Some("apac-hoa-component-orders-state-v1"),
                 None,
             ),
             (
                 "hoa-order1-state-v1.json",
-                Some("rust_hoa_component_orders_sq_drc_off_f64_fft_v1"),
+                Some("rust_hoa_component_orders_sq_drc_off_f64_fft_v2"),
                 Some("apac-hoa-component-orders-state-v1"),
                 None,
             ),

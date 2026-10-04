@@ -10,7 +10,7 @@ from spectrum_vectors import pack
 PROFILE='apac-hoa-expanded-orders-v1'
 NUMERIC_PROFILE='apac-hoa-expanded-orders-math-v1'
 STATE_PROFILE='apac-hoa-expanded-orders-state-v1'
-BACKEND='rust_hoa_expanded_orders_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_expanded_orders_sq_drc_off_f64_fft_v2'
 
 def profile_for(order):return (0,0) if order>6 else (5,2) if order==6 else (5,1) if order>3 else (5,0)
 

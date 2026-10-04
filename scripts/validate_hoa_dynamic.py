@@ -121,7 +121,7 @@ def validate(binary,r,reference):
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm'); full=(root/'pcm/pcm.f32le').read_bytes(); impl=decoded['pcm']['decoder_settings']['implementation']['value']
             require(decoded['pcm']['channels']==16 and decoded['pcm']['layout']['value']['ambisonic_order']==3 and decoded['pcm']['sample_rate']==options['rate'],'wrong output layout')
             require(decoded['drc_processing']==decoded['loudness_normalization']=='off' and decoded['drc_payloads_complete'],'DRC policy changed')
-            require(impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1','wrong backend')
+            require(impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v2','wrong backend')
             require((impl['hoa_internal_order'],impl['hoa_output_order'],impl['hoa_recovery_slot_count'])==(2,3,9),'metadata dimensions conflated')
             require(impl['hoa_format_sha256']==format_for(2)['tables_sha256'] and impl['hoa_descriptor_numeric_profile']=='apac-hoa-salient-order2-math-v1','wrong descriptor dictionary/model')
             require(impl['hoa_dynamic_format_sha256']==fmt['format_sha256'],'wrong subdivision format')

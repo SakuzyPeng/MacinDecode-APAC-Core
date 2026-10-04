@@ -13,7 +13,7 @@ from generate_hoa_dynamic_subbands_format import boundaries
 
 PROFILE = 'apac-hoa-transports-v1'
 STATE_PROFILE = 'apac-hoa-transports-state-v1'
-BACKEND = 'rust_hoa_transports_sq_cac_tns_bwe2_drc_off_f64_fft_v1'
+BACKEND = 'rust_hoa_transports_sq_cac_tns_bwe2_drc_off_f64_fft_v2'
 
 
 def width(kind):

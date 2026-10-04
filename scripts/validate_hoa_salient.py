@@ -76,7 +76,7 @@ def validate(binary,report,reference):
                         for stage,actual,wanted,comparator in [('descriptors',vectors,[v for d in expected['vectors'] for v in d],compare64),('hoa',values,[v for c in expected['scaled'] for v in c],compare)]:
                             metric=comparator(actual,wanted,dict(case=index,packet=i,stage=stage));merge_metrics(report['metrics'][stage],metric);assert metric['passed'],metric
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm');full=(root/'pcm/pcm.f32le').read_bytes();impl=decoded['pcm']['decoder_settings']['implementation']['value']
-            assert impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_salient_sq_drc_off_f64_fft_v1' and decoded['pcm']['layout']['value']['ambisonic_order']==3
+            assert impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_salient_sq_drc_off_f64_fft_v2' and decoded['pcm']['layout']['value']['ambisonic_order']==3
             assert decoded['drc_processing']==decoded['loudness_normalization']=='off'
             if report['implementation'] is None:report['implementation']=impl
             assert report['implementation']==impl

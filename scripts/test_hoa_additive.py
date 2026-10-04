@@ -23,7 +23,7 @@ class AdditiveHoaTests(unittest.TestCase):
             self.assertEqual(h['additive']['combination'],'add'); self.assertEqual(h['additive']['coordinate_space'],'internal_slots' if dynamic else 'acn')
             self.assertTrue(all(d['ambient_omitted_coefficients']==[] and len(d['restored'])==slots for d in h['spatial']['salient']['descriptors']))
             out=self.path(); p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,0,p.stderr)
-            result=json.loads(p.stdout); self.assertEqual(result['backend'],'rust_hoa_additive_sq_drc_off_f64_fft_v1')
+            result=json.loads(p.stdout); self.assertEqual(result['backend'],'rust_hoa_additive_sq_drc_off_f64_fft_v2')
             self.assertEqual((out/'pcm.f32le').stat().st_size,shape(f['options']['order'],dynamic)*4096)
     def test_corruption_positions_and_success_markers(self):
         for f in state_fixtures()['fixtures']:

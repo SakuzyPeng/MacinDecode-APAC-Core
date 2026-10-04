@@ -9,7 +9,7 @@ from spectrum_vectors import pack
 PROFILE='apac-hoa-salient-quantization-v1'
 NUMERIC_PROFILE='apac-hoa-salient-quantization-math-v1'
 STATE_PROFILE='apac-hoa-salient-quantization-state-v1'
-BACKEND='rust_hoa_salient_quantization_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_salient_quantization_sq_drc_off_f64_fft_v2'
 
 
 def native_controls():

@@ -9,7 +9,7 @@ from spectrum_vectors import bits,pack
 
 PROFILE='apac-hoa-component-orders-math-v1'
 STATE_PROFILE='apac-hoa-component-orders-state-v1'
-BACKEND='rust_hoa_component_orders_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_component_orders_sq_drc_off_f64_fft_v2'
 
 
 def component_information(orders,quantization_bits=6,dimensions=None,partial=False):

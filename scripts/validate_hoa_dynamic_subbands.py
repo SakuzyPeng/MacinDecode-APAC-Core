@@ -114,7 +114,7 @@ def validate(binary,r,reference):
                             measured(r['metrics'][stage],[v for c in actual[key] for v in c],[v for c in expected[key] for v in c],dict(case=index,packet=pi,stage=stage,role='current' if node is row else 'embedded'),t['common_window'],9,16,stage=='descriptors')
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm');full=(root/'pcm/pcm.f32le').read_bytes();impl=decoded['pcm']['decoder_settings']['implementation']['value']
             require(impl['hoa_dynamic_subband_profile']==PROFILE and impl['hoa_dynamic_subband_count']==options['subbands'] and impl['hoa_dynamic_format_sha256']==r['format_sha256'],'implementation profile differs')
-            require(impl['hoa_numeric_profile']=='apac-hoa-dynamic-selection-math-v1' and impl['backend']==('rust_hoa_additive_sq_drc_off_f64_fft_v1' if options['path']=='add' else 'rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1'),'existing numeric/backend rule changed')
+            require(impl['hoa_numeric_profile']=='apac-hoa-dynamic-selection-math-v1' and impl['backend']==('rust_hoa_additive_sq_drc_off_f64_fft_v2' if options['path']=='add' else 'rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v2'),'existing numeric/backend rule changed')
             require(decoded['pcm']['channels']==16 and decoded['pcm']['layout']['value']['ambisonic_order']==3 and decoded['drc_processing']==decoded['loudness_normalization']=='off','layout/processing changed')
             require(len(full)==len(cases)*65536 and decoded['saved_frames']==len(cases)*1024,'timeline differs')
             if oracle:measured(r['metrics']['pcm'],struct.unpack('<'+str(len(full)//4)+'f',full),expected_pcm,dict(case=index,stage='pcm'),0,9,16)

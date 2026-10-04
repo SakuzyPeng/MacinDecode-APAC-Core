@@ -30,7 +30,7 @@ def dynamic_legacy(binary,root,options,cases):
             for e in node['elements']:
                 hashes['transport'].update(float_bytes(e['channels_after_bwe2'][0]['scaled'] if e['present'] else [0.]*1024))
                 if e['present']: hashes['quantized'].update(struct.pack('<1024i',*e['channels'][0]['quantized']))
-    decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm'); require(decoded['backend']=='rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1','old dynamic backend changed')
+    decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm'); require(decoded['backend']=='rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v2','old dynamic backend changed')
     return dict(pcm_sha256=sha256_file(root/'pcm/pcm.f32le'),state_sha256=digest(structure),**{k+'_sha256':h.hexdigest() for k,h in hashes.items()})
 
 

@@ -9,7 +9,7 @@ from spectrum_vectors import pack
 
 ROOT=Path(__file__).resolve().parents[1]
 PROFILE='apac-hoa-static-remapping-v1'
-BACKEND='rust_hoa_static_remapping_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_static_remapping_sq_drc_off_f64_fft_v2'
 STATE_PROFILE='apac-hoa-static-remapping-state-v1'
 FORMAT_SHA256=hashlib.sha256((ROOT/'data/hoa-static-remapping-format-v1.json').read_bytes()).hexdigest()
 

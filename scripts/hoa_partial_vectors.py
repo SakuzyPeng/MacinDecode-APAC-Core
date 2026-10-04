@@ -8,7 +8,7 @@ from spectrum_vectors import pack
 PROFILE='apac-hoa-partial-domain-v1'
 NUMERIC_PROFILE='apac-hoa-partial-domain-math-v1'
 STATE_PROFILE='apac-hoa-partial-domain-state-v1'
-BACKEND='rust_hoa_partial_domain_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_partial_domain_sq_drc_off_f64_fft_v2'
 
 def options(n,**extra):
     profile,level=(5,0) if n<=16 else (5,1) if n<=36 else (5,2) if n<=49 else (0,0)

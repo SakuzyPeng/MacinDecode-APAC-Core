@@ -112,7 +112,7 @@ def validate(binary,r,reference):
             decoded=command(binary,'decode-sq',root/'bundle','--out',root/'pcm'); full=(root/'pcm/pcm.f32le').read_bytes(); impl=decoded['pcm']['decoder_settings']['implementation']['value']
             require(decoded['pcm']['channels']==n and decoded['pcm']['sample_rate']==options['rate'],'wrong PCM dimensions')
             require(decoded['drc_processing']==decoded['loudness_normalization']=='off' and decoded['drc_payloads_complete'],'wrong DRC policy')
-            require(impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_static_ambient_sq_drc_off_f64_fft_v1','wrong backend')
+            require(impl['hoa_numeric_profile']==PROFILE and impl['backend']=='rust_hoa_static_ambient_sq_drc_off_f64_fft_v2','wrong backend')
             require(impl['hoa_ambient_format_sha256']==tables['format_sha256'] and impl['hoa_ambient_tables_sha256']==tables['tables_sha256'],'constants changed')
             key=str(options['order'])+'-'+str(options['mixed']); r['implementations'].setdefault(key,impl); require(r['implementations'][key]==impl,'implementation changed')
             require(len(full)==len(cases)*1024*n*4 and hashlib.sha256(full).hexdigest()==decoded['pcm']['sha256'],'PCM length/hash differs')

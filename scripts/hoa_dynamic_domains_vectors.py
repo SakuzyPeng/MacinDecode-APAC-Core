@@ -10,7 +10,7 @@ from spectrum_vectors import bits,pack
 PROFILE='apac-hoa-dynamic-domains-v1'
 NUMERIC_PROFILE='apac-hoa-dynamic-domains-math-v1'
 STATE_PROFILE='apac-hoa-dynamic-domains-state-v1'
-BACKEND='rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v1'
+BACKEND='rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v2'
 
 def options(m,n,explicit=False,**extra):
     full=not explicit and math.isqrt(m)**2==m

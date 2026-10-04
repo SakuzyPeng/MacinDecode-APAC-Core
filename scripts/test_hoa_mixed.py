@@ -26,7 +26,7 @@ class MixedHoaTests(unittest.TestCase):
                 self.assertEqual(d['coded_coefficient_indices'],list(range(4,n))); self.assertEqual(len(d['quantized']),n-4)
                 self.assertEqual(d['ambient_omitted_coefficients'],[0,1,2,3]); self.assertEqual(d['restored'][:4],[0.]*4)
             out=self.path(); p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,0,p.stderr)
-            decoded=json.loads(p.stdout); self.assertEqual(decoded['backend'],'rust_hoa_mixed_sq_drc_off_f64_fft_v1')
+            decoded=json.loads(p.stdout); self.assertEqual(decoded['backend'],'rust_hoa_mixed_sq_drc_off_f64_fft_v2')
             self.assertEqual((out/'pcm.f32le').stat().st_size,1024*n*4)
             self.assertTrue(any(h['channels_after_hoa'][n-1]['scaled']))
     def test_mode_switch_and_selected_report_retain_the_right_history(self):

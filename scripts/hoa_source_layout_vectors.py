@@ -11,7 +11,7 @@ from spectrum_vectors import pack
 ROOT = Path(__file__).resolve().parents[1]
 FORMAT = json.loads((ROOT / 'data/hoa-source-layout-format-v1.json').read_text())
 PROFILE = FORMAT['format_profile']
-BACKEND = 'rust_hoa_source_layout_sq_drc_off_f64_fft_v1'
+BACKEND = 'rust_hoa_source_layout_sq_drc_off_f64_fft_v2'
 STATE_PROFILE = 'apac-hoa-source-layout-state-v1'
 
 

@@ -15,7 +15,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The core's public surface has three tiers: the crate root is the decoding API (`Config`, `Decoder`, `ParsedPacket`, `StreamInfo`, `DecodeError`, `ChannelLayout`, `MAX_PACKET_BUFFER`); `apac_core::inspect` is the report layer (packet/frame report parsers, contexts, stateful `*_with_state` parsing, report and state types); `apac_core::identity` holds the frozen profile strings and format/math digests. `frame` and `synthesis` are private and nothing is `#[doc(hidden)]`: when research needs a core item, export it from `inspect` (or `identity`), never by making an internal module public.
 
-`README.md` (Chinese, ~140 KB) is the user-facing reference for every command, report schema, exit code and support boundary; read the relevant section before changing behavior. The README sections "实现边界", "共享配置与组合 HOA 流" and "ASP 与帧长支持边界" define what is deliberately *not* supported (LRVQ, active DRC/loudness/EQ processing, outer ASP reconfiguration, frame-length index ≠ 0, spatial rendering) — unsupported paths must reject explicitly, never guess.
+User-facing documentation is Chinese: `README.md` is the short entry page (support matrix, quick start, library snippet, platform table) and `guide/` holds the full reference — `commands.md` (every subcommand, export files, report fields, exit codes), `decoding.md` (`decode-sq`, CAF/MP4, fast access, `Decoder`/`Reader`), `bitstream.md` (`parse-packets` depths, channel and HOA syntax, numeric profiles, per-feature acceptance commands), `support.md`, `validation.md`, `development.md`. Read the relevant section before changing behavior, and document new behavior there rather than growing the README. The `guide/support.md` sections "实现边界", "共享配置与组合 HOA 流" and "ASP 与帧长支持边界" define what is deliberately *not* supported (LRVQ, active DRC/loudness/EQ processing, outer ASP reconfiguration, frame-length index ≠ 0, spatial rendering) — unsupported paths must reject explicitly, never guess.
 
 ## Commands
 
@@ -82,7 +82,7 @@ Some Python tests require macOS (`afconvert`/AudioToolbox) and skip elsewhere. T
 
 ## Repository rules (from AGENTS.md)
 
-- `docs/` is a **separate Git repository** (research notes, phase summaries) ignored by this repo — never force-add it, make it a submodule, or a gitlink. Check it with `git -C docs status`. Usage and public interface docs go in `README.md`; research/analysis goes in `docs/`, and experimental conclusions there should cite the code commit.
+- `docs/` is a **separate Git repository** (research notes, phase summaries) ignored by this repo — never force-add it, make it a submodule, or a gitlink. Check it with `git -C docs status`. Usage and public interface docs go in `README.md` and `guide/` (`guide/`, not `docs/`, is part of this repo); research/analysis goes in `docs/`, and experimental conclusions there should cite the code commit.
 - `reports/`, `artifacts/`, `target/` and local Xcode workspaces stay local (they contain absolute paths, sample names, audio). Never commit them.
 - Committed examples use generic paths or explicit arguments — no local usernames, music-library listings, credentials, Apple binaries or decompiled output.
 - Don't rewrite local raw experiment records for redaction; produce a separate redacted copy when sharing.

@@ -233,14 +233,23 @@ def check_source_layouts():
         rows, columns = layout['matrix_rows'], layout['matrix_columns']
         if rows != len(speakers) or rows != len(layout['channel_labels']) - len(layout['lfe_indices']):
             raise AssertionError(f'layout {layout["tag"]}: speaker count')
-        recorded = [struct.unpack('<f', struct.pack('<I', bits))[0] for bits in data['matrices'][layout['matrix_id']]]
+        if columns <= 0 or math.isqrt(columns) ** 2 != columns:
+            raise AssertionError(f'layout {layout["tag"]}: coefficient count must be a positive square')
+        words = data['matrices'][layout['matrix_id']]
+        if len(words) != rows * columns:
+            raise AssertionError(f'layout {layout["tag"]}: matrix length {len(words)}, expected {rows * columns}')
+        recorded = [struct.unpack('<f', struct.pack('<I', bits))[0] for bits in words]
+        if not all(math.isfinite(value) for value in recorded):
+            raise AssertionError(f'layout {layout["tag"]}: nonfinite matrix coefficient')
         derived = layout_matrix(math.isqrt(columns) - 1, speakers)
         if derived is None:
             deficient += 1
             continue
         largest = max(abs(v) for v in recorded)
+        if largest == 0:
+            raise AssertionError(f'layout {layout["tag"]}: matrix has zero magnitude')
         error = max(abs(d - r) for d, r in zip((v for row in derived for v in row), recorded)) / largest
-        if error > RELATIVE_TOLERANCE:
+        if not math.isfinite(error) or error > RELATIVE_TOLERANCE:
             raise AssertionError(f'layout {layout["tag"]}: relative error {error:.3g} exceeds {RELATIVE_TOLERANCE}')
         full += 1
         worst = max(worst, error)

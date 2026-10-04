@@ -78,6 +78,48 @@ class HoaRuleTests(unittest.TestCase):
         tns = [dict(rate=r['sample_rate'], long_limit=r['tns_long_limit'], short_limit=r['tns_short_limit']) for r in rows]
         self.assertEqual(shared.generate(sfb, tns, committed['profiles']), committed)
 
+    def test_source_matrix_shape_and_finiteness_are_checked_before_rank(self):
+        path = self.data / 'hoa-source-layout-format-v1.json'
+        baseline = path.read_text()
+        # Check both a full-rank and a rank-deficient layout, including invalid
+        # coefficients at the end where a NaN can evade Python's max().
+        for tag in (6619138, 7077892):
+            for mutation in ('short', 'long', 'nan_first', 'nan_last', 'inf', '-inf'):
+                with self.subTest(tag=tag, mutation=mutation):
+                    data = json.loads(baseline)
+                    layout = next(row for row in data['layouts'] if row['tag'] == tag)
+                    words = data['matrices'][layout['matrix_id']]
+                    if mutation == 'short':
+                        words[:] = words[:2]
+                    elif mutation == 'long':
+                        words.append(0)
+                    else:
+                        value = {'nan_first': 0x7fc00000, 'nan_last': 0x7fc00000,
+                                 'inf': 0x7f800000, '-inf': 0xff800000}[mutation]
+                        words[-1 if mutation == 'nan_last' else 0] = value
+                    path.write_text(json.dumps(data))
+                    message = 'matrix length' if mutation in ('short', 'long') else 'nonfinite'
+                    with self.assertRaisesRegex(AssertionError, message):
+                        oracle.check_source_layouts()
+
+    def test_invalid_coefficient_counts_and_zero_matrices_are_rejected(self):
+        path = self.data / 'hoa-source-layout-format-v1.json'
+        baseline = path.read_text()
+        for columns in (0, 3):
+            with self.subTest(columns=columns):
+                data = json.loads(baseline)
+                layout = next(row for row in data['layouts'] if row['tag'] == 6619138)
+                layout['matrix_columns'] = columns
+                path.write_text(json.dumps(data))
+                with self.assertRaisesRegex(AssertionError, 'coefficient count'):
+                    oracle.check_source_layouts()
+        data = json.loads(baseline)
+        layout = next(row for row in data['layouts'] if row['tag'] == 6619138)
+        data['matrices'][layout['matrix_id']] = [0] * (layout['matrix_rows'] * layout['matrix_columns'])
+        path.write_text(json.dumps(data))
+        with self.assertRaisesRegex(AssertionError, 'zero magnitude'):
+            oracle.check_source_layouts()
+
 
 if __name__ == '__main__':
     unittest.main()

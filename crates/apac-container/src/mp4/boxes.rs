@@ -248,7 +248,7 @@ pub(super) fn scan(file: &mut impl Source) -> Result<Structure> {
 
 /// The supported physical chunk order lets this cursor find mdat ranges with
 /// constant memory, even in files containing many data boxes.
-#[derive(Default)]
+#[derive(Default, Clone, Copy, Debug)]
 pub(super) struct MediaCursor {
     top: u64,
     current: Option<Atom>,

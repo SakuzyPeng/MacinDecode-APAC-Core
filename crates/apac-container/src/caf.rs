@@ -167,6 +167,286 @@ pub struct CafSummary {
     pub verified: bool,
 }
 
+/// What opening validates: the structure, the stream description and the
+/// fields an input report shows. No audio payload or packet length is read.
+pub(crate) struct Header {
+    structure: Structure,
+    pub(crate) track: Track,
+    layout_source: &'static str,
+    edit_count: u32,
+}
+impl Header {
+    /// The packet table and audio data chunks.
+    pub(crate) fn packets(&self) -> (Chunk, Chunk) {
+        (
+            self.structure.chunks[b"pakt"],
+            self.structure.chunks[b"data"],
+        )
+    }
+}
+/// Validate the structure, description, cookie, channel layout and packet
+/// table header.
+pub(crate) fn header<R: Source>(file: &mut R) -> Result<Header> {
+    let structure = scan(file)?;
+    let chunks = &structure.chunks;
+    let desc = chunks[b"desc"];
+    let mut raw = [0; 32];
+    read(file, b"desc", desc.offset, &mut raw)?;
+    let rate = f64::from_be_bytes(raw[..8].try_into().unwrap());
+    let ints: Vec<u32> = raw[8..]
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_be_bytes(*b))
+        .collect();
+    let channels = ints[4];
+    let layout = ChannelLayout::discrete(channels);
+    let hoa_count = (1..=255).contains(&channels);
+    if layout.is_none() && !hoa_count {
+        return Err(invalid(
+            b"desc",
+            desc.offset + 24,
+            "requires a supported discrete layout or a qualified HOA stream count up to 255",
+        ));
+    }
+    let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
+    if !rate.is_finite() || rate.fract() != 0. || !config::is_supported_sample_rate(rate as u64) {
+        return Err(invalid(
+            b"desc",
+            desc.offset,
+            format!("unsupported sample rate {rate}"),
+        ));
+    }
+    for (i, (&v, &want)) in ints.iter().zip(&expected).enumerate() {
+        if v != want {
+            return Err(invalid(
+                b"desc",
+                desc.offset + 8 + 4 * i as u64,
+                format!("unsupported description field {i}: {v}, expected {want}"),
+            ));
+        }
+    }
+    let kuki = chunks[b"kuki"];
+    let mut cookie = vec![0; kuki.bytes as usize];
+    read(file, b"kuki", kuki.offset, &mut cookie)?;
+    let parsed = config::Config::parse(&cookie).map_err(|e| {
+        let mut e: Error = e.into();
+        e.position = Some(crate::Position {
+            byte_offset: kuki.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
+            chunk_type: "kuki".into(),
+        });
+        e
+    })?;
+    let output_layout = if parsed.has_hoa_component() {
+        let context = DecodedFrameContext::from_config(&parsed)?;
+        if let Some(reason) = context.rejection() {
+            return Err(Error::new(
+                "SQ decoder",
+                format!("unsupported configuration: {reason}"),
+            ));
+        }
+        context
+            .channel_layout()
+            .expect("qualified stream layout")
+            .clone()
+    } else {
+        layout.ok_or_else(|| {
+            invalid(
+                b"kuki",
+                kuki.offset,
+                "this channel count requires a qualified HOA ASC",
+            )
+        })?
+    };
+    let layout_tag = output_layout.tag;
+    for (key, value, want) in [
+        ("sample_rate_hz", parsed.sample_rate_hz(), rate as u64),
+        ("channels", parsed.channels(), u64::from(channels)),
+        ("frame_samples", parsed.frame_samples(), 1024),
+    ] {
+        if value != Some(want) {
+            return Err(invalid(
+                b"kuki",
+                kuki.offset,
+                format!("cookie {key} must equal {want}"),
+            ));
+        }
+    }
+    if parsed.is_single_component() && parsed.component_layout_tag(0) != Some(u64::from(layout_tag))
+    {
+        return Err(invalid(
+            b"kuki",
+            kuki.offset,
+            "cookie layout tag disagrees with output",
+        ));
+    }
+    let layout_source = if let Some(chan) = chunks.get(b"chan") {
+        let mut expected = Vec::with_capacity(12 + 20 * output_layout.descriptions.len());
+        expected.extend_from_slice(&layout_tag.to_be_bytes());
+        expected.extend_from_slice(&output_layout.bitmap.to_be_bytes());
+        expected.extend_from_slice(&(output_layout.descriptions.len() as u32).to_be_bytes());
+        for description in &output_layout.descriptions {
+            expected.extend_from_slice(&description.label.to_be_bytes());
+            expected.extend_from_slice(&description.flags.to_be_bytes());
+            for coordinate in description.coordinates {
+                expected.extend_from_slice(&coordinate.to_be_bytes());
+            }
+        }
+        if chan.bytes != expected.len() as u64 {
+            return Err(invalid(
+                b"chan",
+                chan.offset,
+                "channel layout size disagrees with cookie",
+            ));
+        }
+        let mut raw = vec![0; expected.len()];
+        read(file, b"chan", chan.offset, &mut raw)?;
+        if raw != expected {
+            return Err(invalid(
+                b"chan",
+                chan.offset,
+                "channel layout tag, bitmap or descriptions disagree with cookie",
+            ));
+        }
+        "chan"
+    } else {
+        "cookie"
+    };
+    let pakt = chunks[b"pakt"];
+    let mut raw = [0; 24];
+    read(file, b"pakt", pakt.offset, &mut raw)?;
+    let count = i64::from_be_bytes(raw[..8].try_into().unwrap());
+    let table = PacketTable {
+        valid_frames: i64::from_be_bytes(raw[8..16].try_into().unwrap()),
+        priming_frames: i32::from_be_bytes(raw[16..20].try_into().unwrap()),
+        remainder_frames: i32::from_be_bytes(raw[20..].try_into().unwrap()),
+    };
+    if count < 0 || table.valid_frames < 0 || table.priming_frames < 0 || table.remainder_frames < 0
+    {
+        return Err(invalid(
+            b"pakt",
+            pakt.offset,
+            "negative packet/frame counts",
+        ));
+    }
+    let count = count as u64;
+    let total = (table.valid_frames as u64)
+        .checked_add(table.priming_frames as u64)
+        .and_then(|v| v.checked_add(table.remainder_frames as u64));
+    if count.checked_mul(1024).is_none()
+        || count.checked_mul(1024) != total
+        || count > pakt.bytes - 24
+    {
+        return Err(invalid(
+            b"pakt",
+            pakt.offset,
+            "packet count, table capacity and frame totals disagree",
+        ));
+    }
+    let data = chunks[b"data"];
+    let mut raw = [0; 4];
+    read(file, b"data", data.offset, &mut raw)?;
+    let track = Track {
+        sample_rate: rate,
+        channels,
+        layout: output_layout,
+        packet_count: count,
+        table,
+        file_bytes: structure.bytes,
+        revision: structure.modified,
+        cookie,
+        config: parsed,
+        max_packet_bytes: 0,
+    };
+    Ok(Header {
+        structure,
+        track,
+        layout_source,
+        edit_count: u32::from_be_bytes(raw),
+    })
+}
+
+/// Where the next packet's length (in `pakt`) and payload (in `data`) are.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Cursor {
+    /// Index of the next packet.
+    pub(crate) next: u64,
+    index_offset: u64,
+    data_offset: u64,
+}
+impl Cursor {
+    /// The first packet.
+    pub(crate) fn start(pakt: Chunk, data: Chunk) -> Self {
+        Self {
+            next: 0,
+            index_offset: pakt.offset + 24,
+            data_offset: data.offset + 4,
+        }
+    }
+    /// The next packet's offset and length, moving past it; `None` once all
+    /// `count` packets were returned and the table and audio data are
+    /// consumed exactly. On error the cursor may have moved.
+    pub(crate) fn next<R: Source>(
+        &mut self,
+        file: &mut R,
+        pakt: Chunk,
+        data: Chunk,
+        count: u64,
+    ) -> Result<Option<(u64, u64)>> {
+        if self.next == count {
+            if self.index_offset != pakt.end() {
+                return Err(invalid(
+                    b"pakt",
+                    self.index_offset,
+                    "packet table has trailing entries or bytes",
+                ));
+            }
+            if self.data_offset != data.end() {
+                return Err(invalid(
+                    b"data",
+                    self.data_offset,
+                    "packet sizes do not exactly cover audio data",
+                ));
+            }
+            return Ok(None);
+        }
+        let first = self.index_offset;
+        let mut size = 0u64;
+        for i in 0..10 {
+            if self.index_offset >= pakt.end() {
+                return Err(invalid(
+                    b"pakt",
+                    self.index_offset,
+                    "truncated packet length",
+                ));
+            }
+            let mut byte = [0];
+            read(file, b"pakt", self.index_offset, &mut byte)?;
+            self.index_offset += 1;
+            size = size
+                .checked_mul(128)
+                .and_then(|v| v.checked_add(u64::from(byte[0] & 127)))
+                .ok_or_else(|| invalid(b"pakt", first, "packet length overflow"))?;
+            if byte[0] & 128 == 0 {
+                break;
+            }
+            if i == 9 {
+                return Err(invalid(b"pakt", first, "packet length exceeds 10 bytes"));
+            }
+        }
+        if size == 0 || size > MAX_PACKET_BUFFER as u64 {
+            return Err(invalid(b"pakt", first, "packet length outside 1..16 MiB"));
+        }
+        let offset = self.data_offset;
+        self.data_offset = offset
+            .checked_add(size)
+            .filter(|&v| v <= data.end())
+            .ok_or_else(|| invalid(b"data", offset, "packet exceeds audio data"))?;
+        self.next += 1;
+        Ok(Some((offset, size)))
+    }
+}
+
 /// Sequential, two-pass-verified CAF v1 packet reader.
 pub struct CafReader<R> {
     file: R,
@@ -174,9 +454,7 @@ pub struct CafReader<R> {
     track: Track,
     layout_source: &'static str,
     edit_count: u32,
-    next: u64,
-    index_offset: u64,
-    data_offset: u64,
+    cursor: Cursor,
     data_hash: Sha256,
     packet_hash: Sha256,
     expected: Option<(String, String)>,
@@ -186,191 +464,15 @@ impl<R: Source> CafReader<R> {
     /// Validate the file and read it once to record its digests; the reader
     /// is then positioned at packet zero.
     pub fn new(mut file: R) -> Result<Self> {
-        let structure = scan(&mut file)?;
-        let chunks = &structure.chunks;
-        let desc = chunks[b"desc"];
-        let mut raw = [0; 32];
-        read(&mut file, b"desc", desc.offset, &mut raw)?;
-        let rate = f64::from_be_bytes(raw[..8].try_into().unwrap());
-        let ints: Vec<u32> = raw[8..]
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|b| u32::from_be_bytes(*b))
-            .collect();
-        let channels = ints[4];
-        let layout = ChannelLayout::discrete(channels);
-        let hoa_count = (1..=255).contains(&channels);
-        if layout.is_none() && !hoa_count {
-            return Err(invalid(
-                b"desc",
-                desc.offset + 24,
-                "requires a supported discrete layout or a qualified HOA stream count up to 255",
-            ));
-        }
-        let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
-        if !rate.is_finite() || rate.fract() != 0. || !config::is_supported_sample_rate(rate as u64)
-        {
-            return Err(invalid(
-                b"desc",
-                desc.offset,
-                format!("unsupported sample rate {rate}"),
-            ));
-        }
-        for (i, (&v, &want)) in ints.iter().zip(&expected).enumerate() {
-            if v != want {
-                return Err(invalid(
-                    b"desc",
-                    desc.offset + 8 + 4 * i as u64,
-                    format!("unsupported description field {i}: {v}, expected {want}"),
-                ));
-            }
-        }
-        let kuki = chunks[b"kuki"];
-        let mut cookie = vec![0; kuki.bytes as usize];
-        read(&mut file, b"kuki", kuki.offset, &mut cookie)?;
-        let parsed = config::Config::parse(&cookie).map_err(|e| {
-            let mut e: Error = e.into();
-            e.position = Some(crate::Position {
-                byte_offset: kuki.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
-                chunk_type: "kuki".into(),
-            });
-            e
-        })?;
-        let output_layout = if parsed.has_hoa_component() {
-            let context = DecodedFrameContext::from_config(&parsed)?;
-            if let Some(reason) = context.rejection() {
-                return Err(Error::new(
-                    "SQ decoder",
-                    format!("unsupported configuration: {reason}"),
-                ));
-            }
-            context
-                .channel_layout()
-                .expect("qualified stream layout")
-                .clone()
-        } else {
-            layout.ok_or_else(|| {
-                invalid(
-                    b"kuki",
-                    kuki.offset,
-                    "this channel count requires a qualified HOA ASC",
-                )
-            })?
-        };
-        let layout_tag = output_layout.tag;
-        for (key, value, want) in [
-            ("sample_rate_hz", parsed.sample_rate_hz(), rate as u64),
-            ("channels", parsed.channels(), u64::from(channels)),
-            ("frame_samples", parsed.frame_samples(), 1024),
-        ] {
-            if value != Some(want) {
-                return Err(invalid(
-                    b"kuki",
-                    kuki.offset,
-                    format!("cookie {key} must equal {want}"),
-                ));
-            }
-        }
-        if parsed.is_single_component()
-            && parsed.component_layout_tag(0) != Some(u64::from(layout_tag))
-        {
-            return Err(invalid(
-                b"kuki",
-                kuki.offset,
-                "cookie layout tag disagrees with output",
-            ));
-        }
-        let layout_source = if let Some(chan) = chunks.get(b"chan") {
-            let mut expected = Vec::with_capacity(12 + 20 * output_layout.descriptions.len());
-            expected.extend_from_slice(&layout_tag.to_be_bytes());
-            expected.extend_from_slice(&output_layout.bitmap.to_be_bytes());
-            expected.extend_from_slice(&(output_layout.descriptions.len() as u32).to_be_bytes());
-            for description in &output_layout.descriptions {
-                expected.extend_from_slice(&description.label.to_be_bytes());
-                expected.extend_from_slice(&description.flags.to_be_bytes());
-                for coordinate in description.coordinates {
-                    expected.extend_from_slice(&coordinate.to_be_bytes());
-                }
-            }
-            if chan.bytes != expected.len() as u64 {
-                return Err(invalid(
-                    b"chan",
-                    chan.offset,
-                    "channel layout size disagrees with cookie",
-                ));
-            }
-            let mut raw = vec![0; expected.len()];
-            read(&mut file, b"chan", chan.offset, &mut raw)?;
-            if raw != expected {
-                return Err(invalid(
-                    b"chan",
-                    chan.offset,
-                    "channel layout tag, bitmap or descriptions disagree with cookie",
-                ));
-            }
-            "chan"
-        } else {
-            "cookie"
-        };
-        let pakt = chunks[b"pakt"];
-        let mut raw = [0; 24];
-        read(&mut file, b"pakt", pakt.offset, &mut raw)?;
-        let count = i64::from_be_bytes(raw[..8].try_into().unwrap());
-        let table = PacketTable {
-            valid_frames: i64::from_be_bytes(raw[8..16].try_into().unwrap()),
-            priming_frames: i32::from_be_bytes(raw[16..20].try_into().unwrap()),
-            remainder_frames: i32::from_be_bytes(raw[20..].try_into().unwrap()),
-        };
-        if count < 0
-            || table.valid_frames < 0
-            || table.priming_frames < 0
-            || table.remainder_frames < 0
-        {
-            return Err(invalid(
-                b"pakt",
-                pakt.offset,
-                "negative packet/frame counts",
-            ));
-        }
-        let count = count as u64;
-        let total = (table.valid_frames as u64)
-            .checked_add(table.priming_frames as u64)
-            .and_then(|v| v.checked_add(table.remainder_frames as u64));
-        if count.checked_mul(1024).is_none()
-            || count.checked_mul(1024) != total
-            || count > pakt.bytes - 24
-        {
-            return Err(invalid(
-                b"pakt",
-                pakt.offset,
-                "packet count, table capacity and frame totals disagree",
-            ));
-        }
-        let data = chunks[b"data"];
-        let mut raw = [0; 4];
-        read(&mut file, b"data", data.offset, &mut raw)?;
-        let track = Track {
-            sample_rate: rate,
-            channels,
-            layout: output_layout,
-            packet_count: count,
-            table,
-            file_bytes: structure.bytes,
-            revision: structure.modified,
-            cookie,
-            config: parsed,
-            max_packet_bytes: 0,
-        };
+        let header = header(&mut file)?;
+        let (pakt, data) = header.packets();
         let mut reader = Self {
             file,
-            structure,
-            track,
-            layout_source,
-            edit_count: u32::from_be_bytes(raw),
-            next: 0,
-            index_offset: pakt.offset + 24,
-            data_offset: data.offset + 4,
+            structure: header.structure,
+            track: header.track,
+            layout_source: header.layout_source,
+            edit_count: header.edit_count,
+            cursor: Cursor::start(pakt, data),
             data_hash: Sha256::new(),
             packet_hash: Sha256::new(),
             expected: None,
@@ -383,12 +485,17 @@ impl<R: Source> CafReader<R> {
     }
     /// Return to packet zero; the next pass is verified again at its end.
     pub fn rewind(&mut self) {
-        self.next = 0;
-        self.index_offset = self.structure.chunks[b"pakt"].offset + 24;
-        self.data_offset = self.structure.chunks[b"data"].offset + 4;
+        let (pakt, data) = self.packets();
+        self.cursor = Cursor::start(pakt, data);
         self.data_hash = Sha256::new();
         self.packet_hash = Sha256::new();
         self.verified = false;
+    }
+    fn packets(&self) -> (Chunk, Chunk) {
+        (
+            self.structure.chunks[b"pakt"],
+            self.structure.chunks[b"data"],
+        )
     }
     fn hashes(&self) -> (String, String) {
         (
@@ -402,7 +509,7 @@ impl<R: Source> CafReader<R> {
     }
     /// Packets read in the current pass.
     pub fn consumed_packets(&self) -> u64 {
-        self.next
+        self.cursor.next
     }
     /// The structure, digests and verification state for reports.
     pub fn summary(&self) -> CafSummary {
@@ -422,30 +529,19 @@ impl<R: Source> CafReader<R> {
     /// The next packet of the current pass; at the end, the pass is checked
     /// against the first one and the file structure is rescanned.
     pub fn next_packet(&mut self) -> Result<Option<Packet>> {
-        let index = (self.next < self.track.packet_count).then_some(self.next);
+        let next = self.cursor.next;
+        let index = (next < self.track.packet_count).then_some(next);
         self.read_packet().map_err(|mut e| {
             e.packet_index = index;
             e
         })
     }
     fn read_packet(&mut self) -> Result<Option<Packet>> {
-        let pakt = self.structure.chunks[b"pakt"];
-        let data = self.structure.chunks[b"data"];
-        if self.next == self.track.packet_count {
-            if self.index_offset != pakt.end() {
-                return Err(invalid(
-                    b"pakt",
-                    self.index_offset,
-                    "packet table has trailing entries or bytes",
-                ));
-            }
-            if self.data_offset != data.end() {
-                return Err(invalid(
-                    b"data",
-                    self.data_offset,
-                    "packet sizes do not exactly cover audio data",
-                ));
-            }
+        let (pakt, data) = self.packets();
+        let mut cursor = self.cursor;
+        let Some((offset, size)) =
+            cursor.next(&mut self.file, pakt, data, self.track.packet_count)?
+        else {
             if !self.verified {
                 if self
                     .expected
@@ -468,56 +564,23 @@ impl<R: Source> CafReader<R> {
                 self.verified = true;
             }
             return Ok(None);
-        }
-        let first = self.index_offset;
-        let mut size = 0u64;
-        for i in 0..10 {
-            if self.index_offset >= pakt.end() {
-                return Err(invalid(
-                    b"pakt",
-                    self.index_offset,
-                    "truncated packet length",
-                ));
-            }
-            let mut byte = [0];
-            read(&mut self.file, b"pakt", self.index_offset, &mut byte)?;
-            self.index_offset += 1;
-            size = size
-                .checked_mul(128)
-                .and_then(|v| v.checked_add(u64::from(byte[0] & 127)))
-                .ok_or_else(|| invalid(b"pakt", first, "packet length overflow"))?;
-            if byte[0] & 128 == 0 {
-                break;
-            }
-            if i == 9 {
-                return Err(invalid(b"pakt", first, "packet length exceeds 10 bytes"));
-            }
-        }
-        if size == 0 || size > MAX_PACKET_BUFFER as u64 {
-            return Err(invalid(b"pakt", first, "packet length outside 1..16 MiB"));
-        }
-        let end = self
-            .data_offset
-            .checked_add(size)
-            .filter(|&v| v <= data.end())
-            .ok_or_else(|| invalid(b"data", self.data_offset, "packet exceeds audio data"))?;
+        };
+        let index = self.cursor.next;
         let mut bytes = vec![0; size as usize];
-        read(&mut self.file, b"data", self.data_offset, &mut bytes)?;
+        read(&mut self.file, b"data", offset, &mut bytes)?;
         self.data_hash.update(&bytes);
         // Stable packet identity: source index, data-relative offset, size and duration.
-        for value in [self.next, self.data_offset - data.offset - 4, size, 1024] {
+        for value in [index, offset - data.offset - 4, size, 1024] {
             self.packet_hash.update(value.to_le_bytes());
         }
         self.packet_hash.update(Sha256::digest(&bytes));
-        let result = Packet {
-            index: self.next,
-            raw_frame: self.next * 1024,
-            bytes,
-        };
-        self.next += 1;
-        self.data_offset = end;
+        self.cursor = cursor;
         self.track.max_packet_bytes = self.track.max_packet_bytes.max(size as u32);
-        Ok(Some(result))
+        Ok(Some(Packet {
+            index,
+            raw_frame: index * 1024,
+            bytes,
+        }))
     }
     /// Read the rest of the current pass, completing its verification.
     pub fn verify_remaining(&mut self) -> Result<()> {

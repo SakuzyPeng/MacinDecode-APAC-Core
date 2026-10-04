@@ -11,6 +11,11 @@
 //! frame window from its packet table, and [`Reader`] decodes that window
 //! into interleaved `f32` PCM with sequential or fast access, bidirectional
 //! seeking and per-pass integrity verification.
+//!
+//! For players, [`Media`] opens a CAF or MP4 file reading metadata only and
+//! reads packets through saveable [`PacketCursor`]s, without integrity
+//! verification; [`Playback`] decodes it with frame-exact seeks whose cost
+//! is bounded by decoder checkpoints ([`apac_core::Checkpoint`]).
 #![warn(missing_docs)]
 use apac_core::{config::ParseError, error::DecodeError, model::ChannelLayout};
 use std::{
@@ -21,14 +26,20 @@ use std::{
 };
 
 mod caf;
+mod media;
 mod mp4;
+mod playback;
 mod range;
 mod reader;
 mod source;
 #[cfg(test)]
 mod test_source;
+#[cfg(test)]
+mod test_streams;
 pub use caf::{CafReader, CafSummary, Chunk};
+pub use media::{Media, PacketCursor};
 pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
+pub use playback::{Playback, PlaybackOptions, PlaybackStats};
 pub use range::Range;
 pub use reader::{Access, ReadError, Reader, Stats, Timings};
 pub use source::PacketSource;

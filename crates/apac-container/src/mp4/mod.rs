@@ -17,7 +17,7 @@ use apac_core::{
 use boxes::{Atom, Structure, atom, invalid, read, scan, u32be, u64be};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
-use tables::Index;
+pub(crate) use tables::Index;
 
 fn clock(file: &mut impl Source, a: Atom, movie: bool) -> Result<(u32, u64)> {
     let version = a.full(file, &[0, 1])?;
@@ -198,6 +198,161 @@ pub struct Mp4Summary {
     pub verified: bool,
 }
 
+/// What opening validates: the structure, brands, sample description,
+/// cookie, timeline and sample tables, with the sample cursor at the first
+/// sample. No audio payload or per-sample table entry is read.
+pub(crate) struct Header {
+    structure: Structure,
+    pub(crate) track: Track,
+    pub(crate) index: Index,
+    brands: Brands,
+    track_id: u32,
+    movie_timescale: u32,
+    edit_duration: u64,
+    sample_entry_rate: u32,
+}
+impl Header {
+    /// File length in bytes when the file was opened.
+    pub(crate) fn file_bytes(&self) -> u64 {
+        self.structure.bytes
+    }
+}
+/// Validate everything but the audio and the per-sample table entries.
+pub(crate) fn header(file: &mut impl Source) -> Result<Header> {
+    let structure = scan(file)?;
+    let ftyp = structure.get(b"ftyp")?;
+    // The bounded report exposes at most 64 compatible brands.
+    if ftyp.bytes() < 8 || ftyp.bytes() > 264 || (ftyp.bytes() - 8) % 4 != 0 {
+        return Err(ftyp.error("invalid brand list or more than 64 compatible brands"));
+    }
+    let major = ftyp.take::<4>(file, 0)?;
+    let mut compatible = Vec::new();
+    for i in 0..(ftyp.bytes() - 8) / 4 {
+        compatible.push(String::from_utf8_lossy(&ftyp.take::<4>(file, 8 + i * 4)?).into_owned());
+    }
+    if major == *b"qt  "
+        || !(matches!(&major, b"mp41" | b"mp42" | b"isom" | b"M4A ")
+            || compatible
+                .iter()
+                .any(|s| matches!(s.as_str(), "mp41" | "mp42" | "isom" | "M4A ")))
+    {
+        return Err(ftyp.error("unsupported ISO BMFF file brand"));
+    }
+    let brands = Brands {
+        major: String::from_utf8_lossy(&major).into_owned(),
+        minor_version: u32be(&ftyp.take::<4>(file, 4)?),
+        compatible,
+    };
+    let hdlr = structure.get(b"hdlr")?;
+    hdlr.full(file, &[0])?;
+    if hdlr.bytes() < 24 || hdlr.take::<4>(file, 8)? != *b"soun" {
+        return Err(hdlr.error("requires a single audio handler"));
+    }
+    let smhd = structure.get(b"smhd")?;
+    smhd.exact(8)?;
+    if smhd.take::<8>(file, 0)? != [0; 8] {
+        return Err(smhd.error("requires zero sound balance/version/flags"));
+    }
+    let dref = structure.get(b"dref")?;
+    dref.full(file, &[0])?;
+    if u32be(&dref.take::<4>(file, 4)?) != 1 {
+        return Err(dref.error("requires one self-contained data reference"));
+    }
+    let url = atom(file, dref.data + 8, dref.end, false)?;
+    if url.tag != *b"url "
+        || url.end != dref.end
+        || url.bytes() != 4
+        || url.take::<4>(file, 0)? != [0, 0, 0, 1]
+    {
+        return Err(url.error("external or unsupported data reference"));
+    }
+    let (cookie, sample_entry_rate, cookie_atom) = cookie(file, &structure)?;
+    let (parsed, context) = config::Config::parse(&cookie)
+        .and_then(|parsed| {
+            let context = DecodedFrameContext::from_config(&parsed)?;
+            Ok((parsed, context))
+        })
+        .map_err(|e| {
+            let mut e: Error = e.into();
+            e.position = Some(Position {
+                byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
+                chunk_type: "dapa".into(),
+            });
+            e
+        })?;
+    // Preserve the decoder's established configuration rejection operation.
+    if let Some(reason) = context.rejection() {
+        return Err(Error::new(
+            "SQ decoder",
+            format!("unsupported configuration: {reason}"),
+        ));
+    }
+    let rate = context.sample_rate_hz() as u32;
+    if sample_entry_rate != 0 && rate != sample_entry_rate {
+        return Err(cookie_atom.error("cookie sample rate disagrees with sample entry"));
+    }
+    if parsed.frame_samples() != Some(1024) {
+        return Err(cookie_atom.error("requires 1024-frame cookie"));
+    }
+    let channels = context.channel_count();
+    let (movie_timescale, movie_duration) = clock(file, structure.get(b"mvhd")?, true)?;
+    let (media_timescale, media_duration) = clock(file, structure.get(b"mdhd")?, false)?;
+    let (track_id, track_duration) = track(file, structure.get(b"tkhd")?)?;
+    let elst = structure.get(b"elst")?;
+    let (edit_duration, priming) = edit(file, elst)?;
+    if media_timescale != rate || movie_duration != edit_duration || track_duration != edit_duration
+    {
+        return Err(elst.error("movie/track/edit duration or media timescale disagrees"));
+    }
+    let converted = u128::from(edit_duration) * u128::from(rate);
+    if converted % u128::from(movie_timescale) != 0 {
+        return Err(elst.error("edit duration is not an integral audio frame count"));
+    }
+    let valid = u64::try_from(converted / u128::from(movie_timescale))
+        .map_err(|_| elst.error("edit duration overflow"))?;
+    let index = Index::open(file, &structure)?;
+    let total = u64::from(index.count) * 1024;
+    if media_duration != total {
+        return Err(structure
+            .get(b"mdhd")?
+            .error("media duration disagrees with sample count"));
+    }
+    let remainder = total
+        .checked_sub(priming)
+        .and_then(|v| v.checked_sub(valid))
+        .ok_or_else(|| elst.error("edit lies outside the media timeline"))?;
+    let table = PacketTable {
+        valid_frames: i64::try_from(valid)
+            .map_err(|_| elst.error("valid frame count exceeds supported range"))?,
+        priming_frames: i32::try_from(priming)
+            .map_err(|_| elst.error("priming exceeds supported range"))?,
+        remainder_frames: i32::try_from(remainder)
+            .map_err(|_| elst.error("remainder exceeds supported range"))?,
+    };
+    let track = Track {
+        sample_rate: f64::from(rate),
+        channels,
+        layout: context.channel_layout().unwrap().clone(),
+        packet_count: u64::from(index.count),
+        table,
+        file_bytes: structure.bytes,
+        revision: structure.modified,
+        cookie,
+        config: parsed,
+        max_packet_bytes: 0,
+    };
+    Ok(Header {
+        structure,
+        track,
+        index,
+        brands,
+        track_id,
+        movie_timescale,
+        edit_duration,
+        sample_entry_rate,
+    })
+}
+
 /// Sequential, two-pass-verified reader for a single-track APAC MP4.
 pub struct Mp4Reader<R> {
     file: R,
@@ -218,141 +373,17 @@ impl<R: Source> Mp4Reader<R> {
     /// Validate the file and read it once to record its digests; the reader
     /// is then positioned at the first sample.
     pub fn new(mut file: R) -> Result<Self> {
-        let structure = scan(&mut file)?;
-        let ftyp = structure.get(b"ftyp")?;
-        // The bounded report exposes at most 64 compatible brands.
-        if ftyp.bytes() < 8 || ftyp.bytes() > 264 || (ftyp.bytes() - 8) % 4 != 0 {
-            return Err(ftyp.error("invalid brand list or more than 64 compatible brands"));
-        }
-        let major = ftyp.take::<4>(&mut file, 0)?;
-        let mut compatible = Vec::new();
-        for i in 0..(ftyp.bytes() - 8) / 4 {
-            compatible
-                .push(String::from_utf8_lossy(&ftyp.take::<4>(&mut file, 8 + i * 4)?).into_owned());
-        }
-        if major == *b"qt  "
-            || !(matches!(&major, b"mp41" | b"mp42" | b"isom" | b"M4A ")
-                || compatible
-                    .iter()
-                    .any(|s| matches!(s.as_str(), "mp41" | "mp42" | "isom" | "M4A ")))
-        {
-            return Err(ftyp.error("unsupported ISO BMFF file brand"));
-        }
-        let brands = Brands {
-            major: String::from_utf8_lossy(&major).into_owned(),
-            minor_version: u32be(&ftyp.take::<4>(&mut file, 4)?),
-            compatible,
-        };
-        let hdlr = structure.get(b"hdlr")?;
-        hdlr.full(&mut file, &[0])?;
-        if hdlr.bytes() < 24 || hdlr.take::<4>(&mut file, 8)? != *b"soun" {
-            return Err(hdlr.error("requires a single audio handler"));
-        }
-        let smhd = structure.get(b"smhd")?;
-        smhd.exact(8)?;
-        if smhd.take::<8>(&mut file, 0)? != [0; 8] {
-            return Err(smhd.error("requires zero sound balance/version/flags"));
-        }
-        let dref = structure.get(b"dref")?;
-        dref.full(&mut file, &[0])?;
-        if u32be(&dref.take::<4>(&mut file, 4)?) != 1 {
-            return Err(dref.error("requires one self-contained data reference"));
-        }
-        let url = atom(&mut file, dref.data + 8, dref.end, false)?;
-        if url.tag != *b"url "
-            || url.end != dref.end
-            || url.bytes() != 4
-            || url.take::<4>(&mut file, 0)? != [0, 0, 0, 1]
-        {
-            return Err(url.error("external or unsupported data reference"));
-        }
-        let (cookie, sample_entry_rate, cookie_atom) = cookie(&mut file, &structure)?;
-        let (parsed, context) = config::Config::parse(&cookie)
-            .and_then(|parsed| {
-                let context = DecodedFrameContext::from_config(&parsed)?;
-                Ok((parsed, context))
-            })
-            .map_err(|e| {
-                let mut e: Error = e.into();
-                e.position = Some(Position {
-                    byte_offset: cookie_atom.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
-                    chunk_type: "dapa".into(),
-                });
-                e
-            })?;
-        // Preserve the decoder's established configuration rejection operation.
-        if let Some(reason) = context.rejection() {
-            return Err(Error::new(
-                "SQ decoder",
-                format!("unsupported configuration: {reason}"),
-            ));
-        }
-        let rate = context.sample_rate_hz() as u32;
-        if sample_entry_rate != 0 && rate != sample_entry_rate {
-            return Err(cookie_atom.error("cookie sample rate disagrees with sample entry"));
-        }
-        if parsed.frame_samples() != Some(1024) {
-            return Err(cookie_atom.error("requires 1024-frame cookie"));
-        }
-        let channels = context.channel_count();
-        let (movie_timescale, movie_duration) = clock(&mut file, structure.get(b"mvhd")?, true)?;
-        let (media_timescale, media_duration) = clock(&mut file, structure.get(b"mdhd")?, false)?;
-        let (track_id, track_duration) = track(&mut file, structure.get(b"tkhd")?)?;
-        let elst = structure.get(b"elst")?;
-        let (edit_duration, priming) = edit(&mut file, elst)?;
-        if media_timescale != rate
-            || movie_duration != edit_duration
-            || track_duration != edit_duration
-        {
-            return Err(elst.error("movie/track/edit duration or media timescale disagrees"));
-        }
-        let converted = u128::from(edit_duration) * u128::from(rate);
-        if converted % u128::from(movie_timescale) != 0 {
-            return Err(elst.error("edit duration is not an integral audio frame count"));
-        }
-        let valid = u64::try_from(converted / u128::from(movie_timescale))
-            .map_err(|_| elst.error("edit duration overflow"))?;
-        let index = Index::open(&mut file, &structure)?;
-        let total = u64::from(index.count) * 1024;
-        if media_duration != total {
-            return Err(structure
-                .get(b"mdhd")?
-                .error("media duration disagrees with sample count"));
-        }
-        let remainder = total
-            .checked_sub(priming)
-            .and_then(|v| v.checked_sub(valid))
-            .ok_or_else(|| elst.error("edit lies outside the media timeline"))?;
-        let table = PacketTable {
-            valid_frames: i64::try_from(valid)
-                .map_err(|_| elst.error("valid frame count exceeds supported range"))?,
-            priming_frames: i32::try_from(priming)
-                .map_err(|_| elst.error("priming exceeds supported range"))?,
-            remainder_frames: i32::try_from(remainder)
-                .map_err(|_| elst.error("remainder exceeds supported range"))?,
-        };
-        let track = Track {
-            sample_rate: f64::from(rate),
-            channels,
-            layout: context.channel_layout().unwrap().clone(),
-            packet_count: u64::from(index.count),
-            table,
-            file_bytes: structure.bytes,
-            revision: structure.modified,
-            cookie,
-            config: parsed,
-            max_packet_bytes: 0,
-        };
+        let header = header(&mut file)?;
         let mut out = Self {
             file,
-            structure,
-            track,
-            index,
-            brands,
-            track_id,
-            movie_timescale,
-            edit_duration,
-            sample_entry_rate,
+            structure: header.structure,
+            track: header.track,
+            index: header.index,
+            brands: header.brands,
+            track_id: header.track_id,
+            movie_timescale: header.movie_timescale,
+            edit_duration: header.edit_duration,
+            sample_entry_rate: header.sample_entry_rate,
             audio_hash: Sha256::new(),
             packet_hash: Sha256::new(),
             expected: None,

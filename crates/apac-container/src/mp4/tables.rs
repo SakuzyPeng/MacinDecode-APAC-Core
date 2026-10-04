@@ -3,7 +3,7 @@ use super::boxes::{Atom, MediaCursor, Structure, invalid, u32be, u64be};
 use crate::{Result, Source};
 use apac_core::MAX_PACKET_BUFFER;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Table {
     atom: Atom,
     count: u32,
@@ -23,7 +23,10 @@ impl Table {
         self.atom.take(file, 8 + u64::from(index) * self.width)
     }
 }
-pub(super) struct Index {
+/// A sample cursor: where the next sample's size, chunk and duration are
+/// read. It is small and `Copy`, so a position can be saved and restored.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Index {
     sizes: Atom,
     fixed_size: u32,
     pub count: u32,
@@ -43,7 +46,7 @@ pub(super) struct Index {
     media: MediaCursor,
 }
 impl Index {
-    pub fn open(file: &mut impl Source, s: &Structure) -> Result<Self> {
+    pub(super) fn open(file: &mut impl Source, s: &Structure) -> Result<Self> {
         let sizes = s.get(b"stsz")?;
         sizes.full(file, &[0])?;
         let raw = sizes.take::<8>(file, 4)?;

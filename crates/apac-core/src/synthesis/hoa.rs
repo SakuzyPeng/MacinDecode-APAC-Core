@@ -8,10 +8,9 @@ pub(super) const TRANSPORT_BACKEND: &str = "rust_hoa_transports_sq_cac_tns_bwe2_
 pub(super) const QUANTIZATION_BACKEND: &str = "rust_hoa_salient_quantization_sq_drc_off_f64_fft_v1";
 pub(super) const AMBIENT_COUNTS_BACKEND: &str = "rust_hoa_ambient_counts_sq_drc_off_f64_fft_v1";
 pub(super) const COUNTS_BACKEND: &str = "rust_hoa_salient_counts_sq_drc_off_f64_fft_v1";
-use super::{ChannelState, FrameStateCounts, channels};
 use crate::{
     error::{DecodeError, Result},
-    frame::{DrcState, HoaFrameContext, HoaState, parse_hoa_packet_with_state},
+    frame::{DrcState, HoaFrameContext, HoaPacketReport, HoaState, parse_hoa_packet_with_state},
 };
 pub(super) const COMPONENT_ORDERS_BACKEND: &str = "rust_hoa_component_orders_sq_drc_off_f64_fft_v1";
 pub(super) const BACKEND: &str = "rust_hoa_ambient_sq_drc_off_f64_fft_v1";
@@ -21,14 +20,13 @@ pub(super) const STATIC_AMBIENT_BACKEND: &str = "rust_hoa_static_ambient_sq_drc_
 pub(super) const ADDITIVE_BACKEND: &str = "rust_hoa_additive_sq_drc_off_f64_fft_v1";
 pub(super) const DYNAMIC_BACKEND: &str = "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1";
 pub(super) const DYNAMIC_DOMAINS_BACKEND: &str = "rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v1";
-pub(super) fn decode(
+/// Parse one packet against copies of the DRC and HOA state; nothing is committed.
+pub(super) fn parse(
     context: &HoaFrameContext,
-    drc: &mut DrcState,
-    hoa: &mut HoaState,
-    states: &mut Vec<ChannelState>,
+    drc: &DrcState,
+    hoa: &HoaState,
     packet: &[u8],
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let parse_timer = std::time::Instant::now();
+) -> Result<(HoaPacketReport, DrcState, HoaState)> {
     let mut next_drc = drc.clone();
     let mut next_hoa = hoa.clone();
     let report = parse_hoa_packet_with_state(context, packet, &mut next_drc, &mut next_hoa)
@@ -45,17 +43,5 @@ pub(super) fn decode(
         error.bit_offset = Some(report.packet.frame.stop_bit_offset);
         return Err(error);
     }
-    let parse_seconds = parse_timer.elapsed().as_secs_f64();
-    let timer = std::time::Instant::now();
-    let mut next = states.clone();
-    let (samples, frame) = channels::render(&mut next, &report.packet)?;
-    let counts = FrameStateCounts {
-        frame,
-        parse_seconds,
-        synthesis_seconds: timer.elapsed().as_secs_f64(),
-    };
-    *states = next;
-    *drc = next_drc;
-    *hoa = next_hoa;
-    Ok((samples, counts))
+    Ok((report, next_drc, next_hoa))
 }

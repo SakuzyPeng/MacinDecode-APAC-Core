@@ -187,3 +187,32 @@ fn stream_info_matches_the_configuration() {
     }
     assert!(decoders > 50, "{decoders} decoders");
 }
+#[test]
+fn a_parsed_packet_is_rejected_after_another_commit_or_reset() {
+    for row in fixtures() {
+        let cookie = bytes(&row["cookie"]);
+        let first = bytes(&row["first"]);
+        let next = bytes(&row["next"]);
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut out = vec![0f32; 1024 * decoder.info().channel_count as usize];
+        let stale = decoder.parse(&first).unwrap();
+        decoder.decode_vec(&first).unwrap();
+        let before = (decoder.metadata_sha256(), decoder.channels.clone());
+        assert!(decoder.synthesize(stale, &mut out).is_err());
+        assert_eq!(decoder.metadata_sha256(), before.0);
+        assert!(
+            decoder
+                .channels
+                .iter()
+                .zip(&before.1)
+                .all(|(a, b)| a.overlap == b.overlap)
+        );
+        let stale = decoder.parse(&next).unwrap();
+        decoder.reset();
+        assert!(decoder.synthesize(stale, &mut out).is_err());
+        let mut reference = Decoder::from_cookie(&cookie).unwrap();
+        let parsed = decoder.parse(&first).unwrap();
+        decoder.synthesize(parsed, &mut out).unwrap();
+        assert_eq!(pcm(out.clone()), pcm(reference.decode_vec(&first).unwrap()));
+    }
+}

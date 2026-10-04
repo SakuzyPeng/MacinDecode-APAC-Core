@@ -1,5 +1,5 @@
 //! Atomic multi-component synthesis using the unchanged per-output transforms.
-use super::{ChannelState, FrameInfo, FrameStateCounts};
+use super::{ChannelState, FrameInfo};
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
@@ -9,14 +9,14 @@ use crate::{
     },
 };
 pub(super) const BACKEND: &str = "rust_hoa_multiple_asc_sq_drc_off_f64_fft_v1";
-pub(super) fn decode(
+/// Parse one packet against copies of the DRC and component state; nothing
+/// is committed.
+pub(super) fn parse(
     context: &StreamFrameContext,
-    drc: &mut DrcState,
-    state: &mut StreamState,
-    channels: &mut Vec<ChannelState>,
+    drc: &DrcState,
+    state: &StreamState,
     packet: &[u8],
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let timer = std::time::Instant::now();
+) -> Result<(StreamPacketReport, DrcState, StreamState)> {
     let mut next_drc = drc.clone();
     let mut next_state = state.clone();
     let report = stream::parse_with_state(
@@ -40,21 +40,9 @@ pub(super) fn decode(
         error.bit_offset = Some(report.frame.stop_bit_offset);
         return Err(error);
     }
-    let parse_seconds = timer.elapsed().as_secs_f64();
-    let timer = std::time::Instant::now();
-    let mut next = channels.clone();
-    let (samples, frame) = render(&mut next, &report)?;
-    let counts = FrameStateCounts {
-        frame,
-        parse_seconds,
-        synthesis_seconds: timer.elapsed().as_secs_f64(),
-    };
-    *drc = next_drc;
-    *state = next_state;
-    *channels = next;
-    Ok((samples, counts))
+    Ok((report, next_drc, next_state))
 }
-fn render(
+pub(super) fn render(
     states: &mut [ChannelState],
     packet: &StreamPacketReport,
 ) -> Result<(Vec<f32>, FrameInfo)> {

@@ -30,12 +30,12 @@ fn hoa_media_stream_digest() {
     let prime = table.priming_frames as u64;
     let end = prime + table.valid_frames as u64;
     while let Some((index, raw, packet)) = source.next_packet().unwrap() {
-        let (samples, counts) = decoder
-            .decode_frame_report(&packet)
+        let mut samples = vec![0f32; 16384];
+        let counts = decoder
+            .decode(&packet, &mut samples)
             .unwrap_or_else(|e| panic!("packet {index}: {e}"));
-        drc_payload_frames += counts.frame.drc_payload_frames;
-        embedded_frames += counts.frame.embedded_preroll_frames;
-        assert_eq!(samples.len(), 16384);
+        drc_payload_frames += counts.drc_payload_frames;
+        embedded_frames += counts.embedded_preroll_frames;
         let first = raw.max(prime);
         let last = (raw + 1024).min(end);
         if first < last {

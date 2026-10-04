@@ -1,5 +1,5 @@
 //! Atomic dynamic-channel synthesis; the existing per-channel math is unchanged.
-use super::{ChannelState, FrameInfo, FrameStateCounts};
+use super::{ChannelState, FrameInfo};
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
@@ -7,13 +7,12 @@ use crate::{
 };
 pub(super) const BACKEND: &str = "rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1";
 
-pub(super) fn decode(
+/// Parse one packet against a copy of the DRC state; nothing is committed.
+pub(super) fn parse(
     context: &ChannelFrameContext,
-    state: &mut DrcState,
-    channels: &mut Vec<ChannelState>,
+    state: &DrcState,
     packet: &[u8],
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let parse_timer = std::time::Instant::now();
+) -> Result<(ChannelPacketReport, DrcState)> {
     let mut next_state = state.clone();
     let decoded =
         parse_channel_packet_with_state(context, packet, &mut next_state).map_err(|e| {
@@ -29,18 +28,7 @@ pub(super) fn decode(
         e.bit_offset = Some(decoded.frame.stop_bit_offset);
         return Err(e);
     }
-    let parse_seconds = parse_timer.elapsed().as_secs_f64();
-    let synthesis_timer = std::time::Instant::now();
-    let mut next = channels.clone();
-    let (samples, frame) = render(&mut next, &decoded)?;
-    let counts = FrameStateCounts {
-        frame,
-        parse_seconds,
-        synthesis_seconds: synthesis_timer.elapsed().as_secs_f64(),
-    };
-    *channels = next;
-    *state = next_state;
-    Ok((samples, counts))
+    Ok((decoded, next_state))
 }
 pub(super) fn render(
     states: &mut [ChannelState],

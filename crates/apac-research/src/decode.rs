@@ -161,6 +161,7 @@ fn decode_with_access(
         mut embedded_frames,
         mut embedded_absent,
     ) = (0u64, 0u64, 0u64, 0u64, 0u64);
+    let mut samples = vec![0f32; 1024 * channels as usize];
     loop {
         let timer = Instant::now();
         let next = bundle.next_packet()?;
@@ -193,15 +194,19 @@ fn decode_with_access(
         }
         first_synthesis_packet.get_or_insert(packet_index);
         let timer = Instant::now();
-        let (samples, counts) = decoder.decode_frame_report(&bytes).map_err(|e| {
+        let decoded = decoder.parse(&bytes).and_then(|parsed| {
+            full_parse_seconds += timer.elapsed().as_secs_f64();
+            let render = Instant::now();
+            let frame = decoder.synthesize(parsed, &mut samples);
+            render_seconds += render.elapsed().as_secs_f64();
+            frame
+        });
+        let frame = &decoded.map_err(|e| {
             let mut e = Error::from(e);
             e.packet_index = Some(packet_index);
             e
         })?;
         synthesis_seconds += timer.elapsed().as_secs_f64();
-        full_parse_seconds += counts.parse_seconds;
-        render_seconds += counts.synthesis_seconds;
-        let frame = &counts.frame;
         drc_frames += frame.drc_payload_frames;
         drc_missing_history += frame.drc_missing_history_frames;
         decoded_packets += 1;

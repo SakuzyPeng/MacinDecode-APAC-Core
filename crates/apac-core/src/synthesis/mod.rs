@@ -193,6 +193,8 @@ pub struct Decoder {
     /// The single-ASC transport context state scans and layout profiles read.
     access: ChannelFrameContext,
     scan: ScanWorkspace,
+    /// Counts commits and resets; a parsed packet is valid for one generation.
+    generation: u64,
 }
 impl Clone for Decoder {
     fn clone(&self) -> Self {
@@ -203,6 +205,7 @@ impl Clone for Decoder {
             layout: self.layout.clone(),
             access: self.access.clone(),
             scan: ScanWorkspace::default(),
+            generation: self.generation,
         }
     }
 }
@@ -276,6 +279,7 @@ impl Decoder {
                     context: stream,
                 },
                 scan: ScanWorkspace::default(),
+                generation: 0,
             });
         }
         let (channel_context, hoa_context) = match decoded_context {
@@ -318,6 +322,7 @@ impl Decoder {
             layout,
             access: channel_context,
             scan: ScanWorkspace::default(),
+            generation: 0,
         })
     }
     pub fn info(&self) -> StreamInfo<'_> {
@@ -356,10 +361,21 @@ impl Decoder {
         }
         self.channels.fill(ChannelState::new());
         self.scan.numeric_elements = 0;
+        self.generation += 1;
     }
     /// Decode one outer packet into `out` (at least 1024 × channel_count
-    /// interleaved samples). On error the state and the frame count are unchanged.
+    /// interleaved samples). On error the state is unchanged.
     pub fn decode(&mut self, packet: &[u8], out: &mut [f32]) -> Result<FrameInfo> {
+        self.check_output(out)?;
+        let parsed = self.parse(packet)?;
+        self.synthesize(parsed, out)
+    }
+    /// [`Decoder::decode`] into a new buffer.
+    pub fn decode_vec(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
+        let parsed = self.parse(packet)?;
+        self.commit(parsed).map(|(samples, _)| samples)
+    }
+    fn check_output(&self, out: &[f32]) -> Result<()> {
         let needed = 1024 * self.channel_count() as usize;
         if out.len() < needed {
             return Err(DecodeError::new(
@@ -370,13 +386,94 @@ impl Decoder {
                 ),
             ));
         }
-        let (samples, info) = self.decode_frame_report(packet)?;
-        out[..samples.len()].copy_from_slice(&samples);
-        Ok(info.frame)
+        Ok(())
     }
-    /// [`Decoder::decode`] into a new buffer.
-    pub fn decode_vec(&mut self, packet: &[u8]) -> Result<Vec<f32>> {
-        self.decode_frame_report(packet).map(|(samples, _)| samples)
+    /// First stage of [`Decoder::decode`]: parse one packet against copies of
+    /// the current state. Nothing is committed until [`Decoder::synthesize`].
+    #[doc(hidden)]
+    pub fn parse(&self, packet: &[u8]) -> Result<ParsedPacket> {
+        let body = match &self.engine {
+            Engine::Stereo { context } => {
+                let mut drc = self.drc.clone();
+                let report = parse_packet_with_state(context, packet, &mut drc).map_err(|e| {
+                    let mut error = DecodeError::new("SQ spectrum", e.to_string());
+                    error.bit_offset = Some(e.bit_offset);
+                    error
+                })?;
+                if !report.packet_complete {
+                    let frame = report.frame();
+                    let mut error = DecodeError::new(
+                        "SQ decoder",
+                        format!("unsupported frame: {}", frame.stop_reason),
+                    );
+                    error.bit_offset = Some(
+                        frame
+                            .diagnostics
+                            .first()
+                            .map_or(frame.stop_bit_offset, |d| d.bit_offset),
+                    );
+                    return Err(error);
+                }
+                Parsed::Stereo { report, drc }
+            }
+            Engine::Channels { context } => {
+                let (report, drc) = channels::parse(context, &self.drc, packet)?;
+                Parsed::Channels { report, drc }
+            }
+            Engine::Hoa { context, state } => {
+                let (report, drc, state) = hoa::parse(context, &self.drc, state, packet)?;
+                Parsed::Hoa { report, drc, state }
+            }
+            Engine::Composite { context, state } => {
+                let (report, drc, state) = stream::parse(context, &self.drc, state, packet)?;
+                Parsed::Composite { report, drc, state }
+            }
+        };
+        Ok(ParsedPacket {
+            generation: self.generation,
+            body,
+        })
+    }
+    /// Second stage of [`Decoder::decode`]: synthesize a packet parsed from
+    /// the current state into `out`, then commit the overlap and the parsed
+    /// state together. A packet parsed before any later commit or reset is
+    /// rejected.
+    #[doc(hidden)]
+    pub fn synthesize(&mut self, parsed: ParsedPacket, out: &mut [f32]) -> Result<FrameInfo> {
+        self.check_output(out)?;
+        let (samples, info) = self.commit(parsed)?;
+        out[..samples.len()].copy_from_slice(&samples);
+        Ok(info)
+    }
+    fn commit(&mut self, parsed: ParsedPacket) -> Result<(Vec<f32>, FrameInfo)> {
+        if parsed.generation != self.generation {
+            return Err(DecodeError::new(
+                "SQ decoder",
+                "parsed packet is stale: the decoder state changed after parsing",
+            ));
+        }
+        let mut next = self.channels.clone();
+        let (samples, info) = match &parsed.body {
+            Parsed::Stereo { report, .. } => render_packet(&mut next, report)?,
+            Parsed::Channels { report, .. } => channels::render(&mut next, report)?,
+            Parsed::Hoa { report, .. } => channels::render(&mut next, &report.packet)?,
+            Parsed::Composite { report, .. } => stream::render(&mut next, report)?,
+        };
+        self.channels = next;
+        match (parsed.body, &mut self.engine) {
+            (Parsed::Stereo { drc, .. } | Parsed::Channels { drc, .. }, _) => self.drc = drc,
+            (Parsed::Hoa { drc, state, .. }, Engine::Hoa { state: current, .. }) => {
+                self.drc = drc;
+                *current = state;
+            }
+            (Parsed::Composite { drc, state, .. }, Engine::Composite { state: current, .. }) => {
+                self.drc = drc;
+                *current = state;
+            }
+            _ => unreachable!("a parsed packet matches its engine"),
+        }
+        self.generation += 1;
+        Ok((samples, info))
     }
     /// The committed state the research layer digests as
     /// `metadata_after_processing_sha256`.
@@ -469,13 +566,14 @@ impl Decoder {
                     }
                     Engine::Stereo { .. } | Engine::Channels { .. } => {}
                 }
+                self.generation += 1;
                 Ok(counts)
             }
             _ => {
                 // The legacy stereo wrapper validates current spectra before
                 // embedded spectra. Re-run only failed scans through that exact
                 // path to preserve its first-error ordering and public errors.
-                match self.clone().decode_frame_report(packet) {
+                match self.clone().decode_vec(packet) {
                     Err(error) => Err(error),
                     Ok(_) => Err(DecodeError::new(
                         "SQ access",
@@ -682,54 +780,6 @@ impl Decoder {
         }
         self.hoa().map(|c| c.numeric_profile())
     }
-    #[doc(hidden)]
-    pub fn decode_frame_report(&mut self, packet: &[u8]) -> Result<(Vec<f32>, FrameStateCounts)> {
-        let context = match &mut self.engine {
-            Engine::Composite { context, state } => {
-                return stream::decode(context, &mut self.drc, state, &mut self.channels, packet);
-            }
-            Engine::Hoa { context, state } => {
-                return hoa::decode(context, &mut self.drc, state, &mut self.channels, packet);
-            }
-            Engine::Channels { context } => {
-                return channels::decode(context, &mut self.drc, &mut self.channels, packet);
-            }
-            Engine::Stereo { context } => context,
-        };
-        let parse_timer = std::time::Instant::now();
-        let mut next_drc = self.drc.clone();
-        let decoded = parse_packet_with_state(context, packet, &mut next_drc).map_err(|e| {
-            let mut error = DecodeError::new("SQ spectrum", e.to_string());
-            error.bit_offset = Some(e.bit_offset);
-            error
-        })?;
-        if !decoded.packet_complete {
-            let frame = decoded.frame();
-            let mut error = DecodeError::new(
-                "SQ decoder",
-                format!("unsupported frame: {}", frame.stop_reason),
-            );
-            error.bit_offset = Some(
-                frame
-                    .diagnostics
-                    .first()
-                    .map_or(frame.stop_bit_offset, |d| d.bit_offset),
-            );
-            return Err(error);
-        }
-        let parse_seconds = parse_timer.elapsed().as_secs_f64();
-        let synthesis_timer = std::time::Instant::now();
-        let mut next = self.channels.clone();
-        let (samples, frame) = render_packet(&mut next, &decoded)?;
-        let counts = FrameStateCounts {
-            frame,
-            parse_seconds,
-            synthesis_seconds: synthesis_timer.elapsed().as_secs_f64(),
-        };
-        self.channels = next;
-        self.drc = next_drc;
-        Ok((samples, counts))
-    }
 }
 
 /// Borrowed decoder state: DRC history plus the composite or HOA state.
@@ -753,11 +803,32 @@ pub struct FrameInfo {
     pub drc_payload_frames: u64,
     pub drc_missing_history_frames: u64,
 }
+/// A packet parsed by [`Decoder::parse`], awaiting [`Decoder::synthesize`].
 #[doc(hidden)]
-pub struct FrameStateCounts {
-    pub frame: FrameInfo,
-    pub parse_seconds: f64,
-    pub synthesis_seconds: f64,
+pub struct ParsedPacket {
+    generation: u64,
+    body: Parsed,
+}
+#[allow(clippy::large_enum_variant)]
+enum Parsed {
+    Stereo {
+        report: PacketReport,
+        drc: DrcState,
+    },
+    Channels {
+        report: crate::frame::ChannelPacketReport,
+        drc: DrcState,
+    },
+    Hoa {
+        report: crate::frame::HoaPacketReport,
+        drc: DrcState,
+        state: HoaState,
+    },
+    Composite {
+        report: crate::frame::StreamPacketReport,
+        drc: DrcState,
+        state: StreamState,
+    },
 }
 
 /// What [`Decoder::advance`] scanned in one outer packet.

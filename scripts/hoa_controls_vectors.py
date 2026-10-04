@@ -10,6 +10,7 @@ PROFILE='apac-hoa-spatial-controls-v1'
 NUMERIC_PROFILE='apac-hoa-spatial-controls-math-v1'
 STATE_PROFILE='apac-hoa-spatial-controls-state-v1'
 BACKEND='rust_hoa_spatial_controls_sq_drc_off_f64_fft_v3'
+FRAME_BACKEND='rust_hoa_spatial_controls_sq_drc_off_f64_fft_v4'
 
 def options(**extra):
     result=dict(order=2,rate=48000,path='salient',counts=[3],ambient_count=0,scene=False)

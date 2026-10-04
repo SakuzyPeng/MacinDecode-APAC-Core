@@ -6,7 +6,7 @@ from validate import require
 
 def metadata(decoded,opts,report):
     impl=decoded['pcm']['decoder_settings']['implementation']['value']
-    require(decoded['backend']==(vectors.BACKEND.replace('_v1','_v2') if opts.get('controls',{}).get('flag_b') else vectors.BACKEND) and decoded['packet_state_profile']==(vectors.STATE_PROFILE.replace('-v1','-v2') if opts.get('controls',{}).get('flag_b') else vectors.STATE_PROFILE),'control backend/state differs')
+    require(decoded['backend']==(vectors.FRAME_BACKEND if opts.get('controls',{}).get('flag_b') else vectors.BACKEND) and decoded['packet_state_profile']==(vectors.STATE_PROFILE.replace('-v1','-v2') if opts.get('controls',{}).get('flag_b') else vectors.STATE_PROFILE),'control backend/state differs')
     require(impl['hoa_spatial_controls_profile']==vectors.PROFILE and impl['hoa_spatial_controls_format_sha256']==vectors.control_format_sha256(),'control identity differs')
     require(impl['hoa_spatial_controls']==vectors.control_values(opts.get('controls'),opts['path']),'control flags differ')
     if opts.get('controls',{}).get('flag_b'):

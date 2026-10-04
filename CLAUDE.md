@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `crates/apac-research` — std report layer: the `parse-cookie` `CookieReport`, `parse_packets` / `decode` drivers behind `parse-packets` / `decode-sq`, input dispatch (`input.rs` opens files, builds `FileInfo` and the input report JSON from the container's typed values), packet-directory bundles, output budget, PCM compare, test signals. Optional `clap` feature derives `ValueEnum` for CLI enums.
 - `crates/apac-native` — macOS-only AudioToolbox reference code (`native`, `collect`, `replay`, `research`); the crate body is `#![cfg(target_os = "macos")]`. Its `build.rs` compiles the root-level `native/audio_toolbox.c`.
 - `crates/apac-tool` — the `apac-tool` binary plus the integration tests that run it (`CARGO_BIN_EXE_apac-tool` only exists in this package).
+- Examples: `crates/apac-container/examples/decode_file.rs` (CAF/MP4 → raw f32 PCM through `Reader`, byte-identical to `decode-sq`) and `crates/apac-no-std-example` (an unpublished `#![no_std]` library decoding into a caller buffer with feature-less `apac-core`; host tests compare it with `Decoder::decode_vec`). `crates/apac-research/examples/layout_presence.rs` is a suite helper, not an API example.
 
 The core's public surface has three tiers: the crate root is the decoding API (`Config`, `Decoder`, `ParsedPacket`, `StreamInfo`, `DecodeError`, `ChannelLayout`, `MAX_PACKET_BUFFER`); `apac_core::inspect` is the report layer (packet/frame report parsers, contexts, stateful `*_with_state` parsing, report and state types); `apac_core::identity` holds the frozen profile strings and format/math digests. `frame` and `synthesis` are private and nothing is `#[doc(hidden)]`: when research needs a core item, export it from `inspect` (or `identity`), never by making an internal module public.
 
@@ -30,6 +31,9 @@ cargo +1.98.0 check --offline -p apac-core          # core without the serde fea
 # or float methods missing from core (sqrt etc.): use libm
 cargo +1.98.0 build --offline -p apac-core --target thumbv7em-none-eabihf
 cargo +1.98.0 build --offline -p apac-core --target wasm32v1-none --features serde
+cargo +1.98.0 build --offline -p apac-no-std-example --target thumbv7em-none-eabihf
+# rustdoc must stay warning-free (missing_docs is denied by clippy -D warnings)
+cargo +1.98.0 doc --offline --no-deps -p apac-core -p apac-container
 cargo +1.98.0 fmt --all
 python3 -B -m unittest discover -s scripts -p 'test_*.py'
 
@@ -71,6 +75,7 @@ Some Python tests require macOS (`afconvert`/AudioToolbox) and skip elsewhere. T
 - **Numeric identity is frozen.** Profile strings (e.g. `apac-sq-math-v1`, `apac-hoa-shared-configuration-v1`), `BACKEND`, data-file hashes and the order of floating-point operations are part of published results. Don't alter existing arithmetic order or data files; introduce new behavior under a new/optional profile or report field and keep existing reports byte-compatible.
 - **Restructuring guard.** While the no_std decode API refactor is in progress, library APIs may break but CLI output must stay byte-identical (PCM, `parse-cookie`/`parse-packets` JSON, error text, exit codes). Never regenerate `crates/apac-research/tests/golden/refactor-v1.json` to make a change pass; the Python unittest failures recorded at the baseline (6 HOA/TNS cases) must stay exactly the same set.
 - After touching anything in `data/`, the corresponding `generate_*.py --check` must still pass.
+- **Public items are documented.** `apac-core` and `apac-container` set `#![warn(missing_docs)]`. Document every new public type, function, method, constant and variant; serializable report types document the type and put `#[allow(missing_docs)]` on it (their fields are the JSON keys). Research-only core items go into `inspect`, frozen identifiers into `identity`.
 - State changes are atomic per outer packet: a failed packet must not commit component descriptions, dynamic maps, DRC history, or overlap; `reset()` restores the initial state.
 - Exit codes: `0` success/complete; `1` runtime/input/integrity error; `2` PCM out of tolerance, unresolved collection errors, or `partial`/`unsupported` parse (`parse-packets` usually returns 2 because payloads beyond the prefix are unparsed).
 - Export commands require `--out` to be a **new, non-existent directory** and cap cumulative output at 128 MiB (`--max-output-mib`). JSON/JSONL records use `schema_version: 1`; optional system properties are `{"value": ..., "error": null}`.

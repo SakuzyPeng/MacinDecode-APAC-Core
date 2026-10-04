@@ -24,6 +24,7 @@ target/debug/apac-tool --help
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、输入报告组装、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
 | `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |
+| `crates/apac-no-std-example` | 示例：在 `no_std` + `alloc` 库中用 `apac-core` 把包解码到调用方缓冲；不发布 |
 
 `apac-core` 的报告与状态类型只在 `serde` feature 下派生 `Serialize`（`apac-research` 开启它；结构化字段值经 serde_json 渲染以保持键排序）。`apac_core::config::Config::parse` 只做类型化解析，不记录字段；`parse_recorded` 另外返回字段记录，`parse-cookie` 输出的报告由 `apac_research::config::parse_cookie` 组装。
 
@@ -35,7 +36,23 @@ cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf
 cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf --features serde
 cargo +1.98.0 build -p apac-core --target wasm32v1-none
 cargo +1.98.0 build -p apac-core --target wasm32v1-none --features serde
+cargo +1.98.0 build -p apac-no-std-example --target thumbv7em-none-eabihf
+cargo +1.98.0 build -p apac-no-std-example --target wasm32v1-none
 ```
+
+`apac-core` 的公开接口分三层：
+
+- **解码**（crate 根）：`Config`、`Decoder`、`ParsedPacket`、`StreamInfo`／`StreamKind`、`FrameInfo`、`AdvanceInfo`、`DecodeError`、`ParseError`、`ChannelLayout` 和 `MAX_PACKET_BUFFER`。`Decoder::parse` 与 `Decoder::synthesize` 把 `decode` 拆成解析和合成两段，供外层分别计时。
+- **检查**（`apac_core::inspect`）：报告层，含包／帧报告解析器、各类上下文（`FrameContext`、`ChannelFrameContext`、`HoaFrameContext`、`StreamFrameContext`、`DecodedFrameContext`）、带状态解析（`*_with_state`、`ParseMode`、`ScanWorkspace`、`DrcState`、`HoaState`、`StreamState`）、报告与状态类型和 `MetadataState`。`parse-packets` 和 `decode-sq` 的报告都由这一层组装。
+- **标识**（`apac_core::identity`）：冻结的 profile 字符串和格式／数学表 SHA-256，与已发布报告中的值一致。
+
+`frame`、`synthesis` 是私有模块，没有 `#[doc(hidden)]` 接口。`apac-core` 和 `apac-container` 开启 `missing_docs`，所有公开项都有文档；序列化报告类型只在类型上写文档，字段即报告 JSON 的键。生成文档：
+
+```sh
+cargo +1.98.0 doc --no-deps -p apac-core -p apac-container --open
+```
+
+`crates/apac-no-std-example` 演示无 std 用法：只依赖不开 feature 的 `apac-core`（依赖链为 apac-core、libm、sha2），用 `Config::parse`、`Decoder::new`、`Decoder::decode` 把包解码到调用方提供的交错缓冲区。最终程序只需提供全局分配器，不需要文件系统、时钟或平台浮点库。
 
 `native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
 
@@ -856,6 +873,13 @@ let (source, decoder, stats) = reader.finish()?;   // 补读剩余包，完成�
   - 否则先补读当前遍剩余的包并完成校验，成功后才倒回首包、重置解码器、重放前缀；新的一遍读到末尾时再次校验。此前已返回 PCM 对应的摘要不会因 seek 丢失，这也意味着回退可能需要读取剩余文件。
 - **失败恢复**：包解码失败后，后续 `read` 和 `finish` 会拒绝，必须先成功 `seek`，再从首包重放前缀；失败包不会被定位操作跳过。来源读取、校验或回退失败会使该 Reader 终止使用，后续 `read`、`seek` 和 `finish` 均拒绝。
 - **统计**：`stats()` 给出 `decode-sq` 报告所用的计数（前缀扫描、完整解码、预热、缺席元素、内嵌帧、DRC 帧、保存帧）和各阶段耗时。
+
+完整示例见 `crates/apac-container/examples/decode_file.rs`。它按文件头识别 CAF 或 MP4，输出原始小端 Float32 交错 PCM，与同范围的 `decode-sq` 逐字节相同；输出文件必须不存在：
+
+```sh
+cargo run -p apac-container --example decode_file -- input.caf output.f32
+cargo run -p apac-container --example decode_file -- input.mp4 output.f32 --fast --start 48000 --frames 96000
+```
 
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
 

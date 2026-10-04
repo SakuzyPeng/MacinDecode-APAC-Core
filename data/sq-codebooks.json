@@ -1,7 +1,9 @@
 {
-  "source": "https://github.com/FFmpeg/FFmpeg/blob/a9cbcc2bbb9f64256834af2a22e31dd465a81f9d/libavcodec/aactab.c",
-  "source_sha256": "dc26f9316026cd807617db09c72424ae2b19b07a1d9c19a45cc05ab9617a32ce",
-  "license": "LGPL-2.1-or-later; see COPYING.LGPLv2.1 and THIRD_PARTY.md",
+  "source": "https://github.com/mstorsjo/vo-aacenc/blob/a277487e051e92e99a532294eed3c673f4d879f2/aacenc/src/aac_rom.c",
+  "source_sha256": "bebae3b53f4de70055c6328a24e3fc3172f3b15d40eb9e4556d6d8c2d91cb8b6",
+  "copyright": "Copyright 2003-2010, VisualOn, Inc.",
+  "license": "Apache-2.0; see LICENSES/Apache-2.0.txt and THIRD_PARTY.md",
+  "changes": "Selected the spectral (1-11) and scale-factor Huffman codewords and lengths and the 44.1/48 kHz long/short scale-factor band offsets; split the packed book-pair length tables (high byte: odd book, low byte: even book); flattened in table-index order; converted to JSON.",
   "spectral": [
     {
       "codes": [

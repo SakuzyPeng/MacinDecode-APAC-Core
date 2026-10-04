@@ -64,17 +64,21 @@ def native_check(trace,truths):
 
 
 @contextmanager
-def workspace(report,label):
+def workspace(report,label,retain=None):
     with tempfile.TemporaryDirectory(prefix='apac-drc-') as temporary:
         root=Path(temporary)
-        try:yield root
-        except Exception:
+        def preserve():
             size=sum(p.stat().st_size for p in root.rglob('*') if p.is_file())
             require(size<=LIMIT,'DRC failure snapshot exceeds 128 MiB')
             target=Path(report['failure_directory'])/label
             target.parent.mkdir(parents=True,exist_ok=True)
             shutil.copytree(root,target)
+        try:yield root
+        except Exception:
+            preserve()
             raise
+        else:
+            if retain is not None and retain():preserve()
 
 def run(binary,report,reference,native):
     frozen=json.loads(MANIFEST.read_text(encoding='utf-8'))

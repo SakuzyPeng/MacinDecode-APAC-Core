@@ -76,23 +76,40 @@ class NativePacketControlTests(unittest.TestCase):
             self.assertEqual(len(control['windows']), 3)
         self.assertFalse(self.report['failure_directory'].exists())
 
-    def test_pcm_mismatch_fails_and_preserves_metrics_and_audio(self):
+    def test_pcm_mismatch_preserves_metrics_audio_and_all_remaining_controls(self):
         self.candidate_pcm = bytes(len(self.native_pcm))
-        with self.assertRaisesRegex(AssertionError, 'native encoder control exceeds original tolerance'):
-            self.run_controls()
-        self.assertEqual(len(self.report['controls']), 1)
+        self.run_controls()
+        self.assertEqual(len(self.report['controls']), 16)
         control = self.report['controls'][0]
-        self.assertFalse(control['passed'])
+        self.assertTrue(control['passed'])
         metrics = control['native_float_metrics']
         self.assertFalse(metrics['passed'])
         self.assertEqual(metrics['max_absolute_error'], 1.0)
         self.assertEqual(metrics['failed_samples'], 8192)
+        self.assertEqual(metrics['first_failure']['reference'], 1.0)
+        self.assertEqual(metrics['first_failure']['candidate'], 0.0)
         self.assertEqual(control['pcm_sha256'], hashlib.sha256(self.candidate_pcm).hexdigest())
         snapshot = self.report['failure_directory']/'control-48000-silence-1'
         self.assertEqual((snapshot/'native-pcm/pcm.f32le').read_bytes(), self.native_pcm)
         self.assertEqual((snapshot/'rust-pcm/pcm.f32le').read_bytes(), self.candidate_pcm)
         self.assertTrue((snapshot/'packets/manifest.json').is_file())
         self.assertTrue((snapshot/'native-state.json').is_file())
+        self.report['passed'] = True
+        self.assertEqual(native.finalize_native_pcm(self.report,self.report['controls'],'native_float_metrics'),0)
+        self.assertEqual(self.report['native_pcm_comparison']['failed'],16)
+        self.report['require_native_pcm'] = True
+        self.assertEqual(native.finalize_native_pcm(self.report,self.report['controls'],'native_float_metrics'),2)
+
+    def test_boundary_failure_still_stops_and_preserves_the_capture(self):
+        with patch.object(native,'native_checks',side_effect=AssertionError('boundary differs')):
+            # run_controls supplies its own acquisition patches, so replace
+            # only the structural checker inside that context here.
+            with patch.multiple(native,command=self.command,trace_bundle=self.trace,
+                                inspect=lambda *args:self.rows):
+                with self.assertRaisesRegex(AssertionError,'boundary differs'):
+                    native.controls(self.root/'unused-binary',self.report)
+        self.assertFalse(self.report['controls'][0]['passed'])
+        self.assertTrue((self.report['failure_directory']/'control-48000-silence-1/native-state.json').is_file())
 
 
 if __name__ == '__main__':

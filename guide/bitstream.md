@@ -4,6 +4,8 @@
 
 返回 [README](../README.md)。
 
+以下各阶段的兼容性说明以相同上游数值配置为前提；SQ v1 升级为 v2 时，频谱、PCM 和摘要须使用 v2 基线重新核对。
+
 ## SQ 与离散声道
 
 ### SQ 频谱深度
@@ -16,7 +18,7 @@
 
 库入口 `inspect::parse_spectrum(&FrameContext, &[u8]) -> Result<SpectrumReport, config::ParseError>` 提供类型化结果；`SpectrumReport.frame` 是原 `FrameReport`，JSON 序列化时平铺它。`parse_packets_with_depth(..., ParseDepth)` 提供包目录接口，原 `parse_frame`、`parse_packets` 及 CLI 默认 `--depth prefix` 保持原有行为。
 
-缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。反量化 `|q|^(4/3)` 和缩放 `2^((sf-100)/4)` 分别按最近值、平局取偶舍入为 Float32，再作 Float32 乘法。全部幅度与缩放因子的 IEEE 位模式由高精度公式离线生成，运行时不使用系统 `powf`。频谱报告新增可选 `numeric_profile`，新输出为 `apac-sq-math-v1`；旧报告缺失该字段时仍可读取。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
+缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。`apac-sq-math-v2` 用 Float64 表保存反量化 `|q|^(4/3)` 和缩放 `2^((sf-100)/4)`，相乘后只转一次 Float32（最近值、平局取偶）。生成器在 100／200 位 Decimal 下核对全部 8192×4 个幅度／增益余数组合；其余增益是无上溢、下溢的精确二次幂缩放，覆盖全部合法缩放因子。结果等于完整公式直接舍入为 Float32，运行时不使用系统 `powf`。`numeric_profile` 为 `apac-sq-math-v2`；旧报告缺失该字段仍可读取，但 v1 报告不能作 v2 的逐位参考。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
 
 码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](../THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
 
@@ -52,7 +54,7 @@ PY
 
 `TnsReport.cac` 保留前阶段报告，JSON 继续平铺。`channels` 是原始整数及 CAC 前频谱，`channels_after_cac` 保留 TNS 输入，`channels_after_tns` 为滤波后输出，`tns_stage=scaled_after_tns_before_bwe2`。`tns` 逐声道、窗口、滤波器记录存在位、分辨率、长度／阶数、方向／压缩、补码整数、Float64 反射系数、有效谱线区间和起止位。`tns_complete` 及汇总 `tns_complete_packets` 只表示此阶段完成；整包仍是 partial，组件终点仍未知。CPE 缺席不产生虚构频谱。
 
-长窗支持 0..3 个滤波器、0..12 阶；短窗逐一处理八个窗口，每窗 0..1 个滤波器、0..7 阶，不依赖分组。长度必须非零，零阶不读取方向和系数但仍推进频带游标。长／短游标从完整 49／14 带开始，实际范围再裁至 `max_sfb` 和 TNS 上限（48 kHz 长窗 40、44.1 kHz 长窗 42、短窗 14）；空作用范围仍完整读完参数。截断、超阶及非有限结果明确报错，不补零或截断阶数。
+长窗支持 0..3 个滤波器、0..12 阶；短窗逐一处理八个窗口，每窗 0..1 个滤波器、0..7 阶，不依赖分组。长度必须非零，零阶不读取方向和系数但仍推进频带游标。长／短游标从完整 49／14 带开始，实际范围再裁至 `max_sfb` 和 TNS 上限（48 kHz 长窗 40、44.1 kHz 长窗 42、短窗 14）；空作用范围仍完整读完参数。长窗声明阶数 13–31 按已确认语法夹至 12，只读取 12 个系数，并以 `encoded_order` 和 `apac-tns-order-clamp-v1` 记录声明；这不是损坏载荷的补零恢复。零长度、截断及非有限结果仍明确报错。
 
 `apac-tns-math-v1` 以正弦公式定义反射系数，Decimal 100／200 位计算结果须舍入到同一 Float64 位模式。运行时采用固定顺序 Float64 格型滤波，每个滤波器重置状态，各谱线最后一次转换为 Float32；无 TNS 时原有 SQ／CAC 输出不变。配置拒绝消息保持原操作名称及退出码，并列出拒绝字段、实际值和 cookie 位位置；配置范围没有扩大。
 
@@ -107,7 +109,7 @@ BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式�
 
 受支持的 DRC 配置会完整读取增益载荷，并固定采用 `drc_processing=off`、`loudness_normalization=off`。不应用播放增益、曲线或 shape filter，也没有尚未实现的开启选项。`decode-sq` 元数据记录载荷解析完成状态、规则版本、码表摘要及后端版本；历史增益节点不足会单独计数，不伪造历史状态。关闭策略无需以这些节点插值音频。保持编码结构不变的声明与响度元数据更新会正常推进，并与左右 overlap 一起按外层包原子提交。它们不会改变关闭策略下的 PCM，后续帧也不模拟苹果的交叉淡化舍入。
 
-原生参考必须在属性和 cookie 设置后、输入前 reset。省略这一步的历史启动交叉淡化反例仍作为失败记录保留。初始化 reset 能消除启动反例，运行中元数据变化后的外层切换差异仍单列保留。原生验收 `apac-drc-off-native-v2` 要求实际选中集合为空、DRC 内核对相同输入逐位恒等、零新增延迟、整数参数与边界正确；苹果外层 Float32 舍入只作诊断。Rust 的正确性由独立数学参考及三平台 debug／release 逐位一致验证，不以复制苹果舍入为目标。完整编码控制 PCM 比较仍使用原容差并在超差时报失败。
+原生参考必须在属性和 cookie 设置后、输入前 reset。省略这一步的历史启动交叉淡化反例仍作为失败记录保留。初始化 reset 能消除启动反例，运行中元数据变化后的外层切换差异仍单列保留。原生验收 `apac-drc-off-native-v2` 要求实际选中集合为空、DRC 内核对相同输入逐位恒等、零新增延迟、整数参数与边界正确；苹果外层 Float32 舍入只作诊断。Rust 的正确性由独立数学参考及三平台 debug／release 逐位一致验证，不以复制苹果舍入为目标。完整编码控制 PCM 使用原容差单列兼容性结果；默认不以它替代结构或独立数学判断，`--require-native-pcm` 可显式要求兼容，超差退出 2。
 
 ```sh
 python3 scripts/generate_drc_manifest.py --check
@@ -122,7 +124,7 @@ python3 scripts/validate_drc.py --binary target/debug/apac-tool --native --repor
 python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report reports/drc-native-media.json
 ```
 
-人工清单分别冻结 2,516 个解析用例和 2,640 个 PCM 序列，正式构建和便携验收均不依赖研究目录、网络或苹果文件。完整编码器控制的 PCM 超差会使验收失败，且保留失败指标与输入。
+人工清单分别冻结 2,516 个解析用例和 2,640 个 PCM 序列，正式构建和便携验收均不依赖研究目录、网络或苹果文件。完整编码器控制的 PCM 超差保留指标与输入，并使 `native_pcm_comparison.passed=false`；原生工具的通过不代表独立数学通过。
 
 ### 完整包深度
 

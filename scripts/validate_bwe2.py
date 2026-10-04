@@ -310,7 +310,7 @@ def main():
                 source_sha256=source_digest(),tables_sha256=sha256_file(DESTINATION),format_sha256=sha256_file(ROOT/'data/bwe2-format-v1.json'),
                 constant_model_sha256=json.loads(DESTINATION.read_text())['tables_sha256'],
                 vector_manifest_sha256=sha256_file(ROOT/'data/bwe2-vectors-v2.json'),
-                upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v1.json','cac-math-v1.json','tns-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
+                upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v2.json','cac-math-v1.json','tns-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
                 tool_sha256=sha256_file(binary),platform=platform.platform(),architecture=platform.machine(),python=sys.version,
                 mode='native_diagnostic' if args.native_only else 'bit_exact_regression' if args.regression_report else 'bit_exact_replay' if args.reference_report else 'independent_math',
                 implementation=None,atol=1e-6,rtol=1e-5,spectra=[],pcm=[],errors=[],native_artificial=[],real=[],started_utc=datetime.now(timezone.utc).isoformat())

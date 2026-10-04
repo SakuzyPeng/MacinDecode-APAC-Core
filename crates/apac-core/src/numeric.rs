@@ -1,7 +1,7 @@
 //! Fixed IEEE constants for the independent SQ mathematical profile.
 //! Generated offline from formulas; no runtime transcendental functions.
 /// The SQ arithmetic profile: fixed IEEE constants, Float64 synthesis.
-pub const PROFILE: &str = "apac-sq-math-v1";
+pub const PROFILE: &str = "apac-sq-math-v2";
 
 pub struct Transform {
     pub window: &'static [f64],
@@ -10,8 +10,8 @@ pub struct Transform {
 }
 pub struct Tables {
     pub sha256: &'static str,
-    pub inverse: &'static [f32],
-    pub gains: &'static [f32],
+    pub inverse: &'static [f64],
+    pub gains: &'static [f64],
     pub(crate) short: Transform,
     pub(crate) long: Transform,
 }
@@ -24,11 +24,11 @@ impl Tables {
         }
     }
 }
-/// Generated from `data/sq-math-v1.json` by the build script.
+/// Generated from `data/sq-math-v2.json` by the build script.
 pub fn tables() -> &'static Tables {
     &crate::tables::SQ_MATH
 }
-/// Identity of the SQ constants, as embedded in `data/sq-math-v1.json`.
+/// Identity of the SQ constants, as embedded in `data/sq-math-v2.json`.
 pub fn tables_sha256() -> &'static str {
     tables().sha256
 }

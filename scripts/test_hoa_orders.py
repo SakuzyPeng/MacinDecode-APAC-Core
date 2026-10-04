@@ -43,12 +43,12 @@ class HoaOrderTests(unittest.TestCase):
         p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists());self.assertIn('qualified HOA',p.stderr)
         raw,truth=caf(ambient.cookie(order=1),[ambient.packet({},order=1)[0]],channels=4);bad=bytearray(raw);position=truth['chunks']['chan']['offset'];bad[position:position+4]=struct.pack('>I',(190<<16)|9)
         source=self.path();source.write_bytes(bad);out=self.path();p=self.run_tool('decode-sq',source,'--out',out);self.assertEqual(p.returncode,1);self.assertEqual(json.loads(p.stderr)['error']['chunk_type'],'chan');self.assertFalse(out.exists())
-    def test_structure_variants_and_unsupported_rate_remain_rejected(self):
-        original=salient.cookie(order=2);path=self.path();path.write_bytes(original);parsed=json.loads(self.run_tool('parse-cookie',path).stdout)
-        for name,value,rate in [('components[0].hoa.salient[0].order',1,48000),('components[0].hoa.ambient_selection_present',1,48000),('global.sample_rate_index',5,32000)]:
-            f=next(f for f in parsed['fields'] if f['name']==name);wire=''.join(format(v,'08b') for v in original);at=f['bit_offset'];config=pack(wire[:at]+bits(value,f['bit_length'])+wire[at+f['bit_length']:])
-            root=self.path();salient.bundle(root,[salient.packet({},order=2)[0]],order=2);(root/'cookie.bin').write_bytes(config);m=json.loads((root/'manifest.json').read_text());m['file']['format']['sample_rate']=rate;m['file']['cookie']['value']=dict(bytes=len(config),sha256=hashlib.sha256(config).hexdigest());(root/'manifest.json').write_text(json.dumps(m))
-            out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertIn(name,p.stderr);self.assertFalse(out.exists())
+    def test_expanded_orders_selection_and_rate_are_supported(self):
+        from portable_tools import assert_hoa_configuration
+        for change, rate in ((dict(component_orders=[1, 2, 2, 2, 2]), 48000),
+                             (dict(path='replace', ambient_count=4, selection=[0, 1, 2, 3]), 48000),
+                             ({}, 32000)):
+            assert_hoa_configuration(self, dict(order=2, counts=[4]*5, **change), rate)
     def test_container_tail_empty_fast_and_output_protection(self):
         for module,order,rate in ((ambient,1,48000),(salient,2,44100)):
             n=(order+1)**2;case=ambient.excitation(3,order=1) if order==1 else salient.basis(8,4,1,order=2);packets=[module.packet(case,order=order,rate=rate)[0]]*3

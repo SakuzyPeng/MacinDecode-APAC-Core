@@ -70,17 +70,22 @@ class TnsTests(unittest.TestCase):
         for row in rows[2:]:
             self.assertFalse(row['tns_complete']);self.assertEqual(row['tns'],[]);self.assertEqual(row['channels_after_tns'],[])
 
-    def test_bad_length_order_and_truncation_keep_packet_positions_and_marker(self):
-        valid,truth=packet(dict(left_tns=filter_spec([1])))
-        bad_length,_=packet(dict(left_tns=filter_spec([],length=0)))
-        bad_order,_=packet(dict(left_tns=filter_spec([1]*13)))
-        result=self.parse([valid,bad_length,bad_order,valid[:-2]])
-        self.assertEqual(result.returncode,1,result.stderr)
-        rows=[json.loads(s) for s in (self.root/'tns.jsonl').read_text().splitlines()]
-        for row,kind in zip(rows[1:],('tns-length','tns-order','truncated')):
-            self.assertEqual(row['status'],'error')
-            self.assertEqual(row['error']['kind'],kind)
-            self.assertIsInstance(row['error']['bit_offset'],int)
+    def test_clamped_order_and_malformed_payloads_keep_boundaries(self):
+        valid, _ = packet(dict(left_tns=filter_spec([1])))
+        bad_length, _ = packet(dict(left_tns=filter_spec([], length=0)))
+        spec = filter_spec([1]*12); spec[0]['filters'][0]['encoded_order'] = 13
+        clamped, truth = packet(dict(left_tns=spec))
+        result = self.parse([valid, bad_length, clamped, valid[:-2]])
+        self.assertEqual(result.returncode, 1, result.stderr)
+        rows = [json.loads(s) for s in (self.root/'tns.jsonl').read_text().splitlines()]
+        for row, kind in ((rows[1], 'tns-length'), (rows[3], 'truncated')):
+            self.assertEqual(row['status'], 'error'); self.assertEqual(row['error']['kind'], kind)
+            self.assertIsInstance(row['error']['bit_offset'], int)
+        self.assertEqual(rows[2]['status'], 'partial')
+        check_expected(rows[2]['report'], truth)
+        f = rows[2]['report']['tns'][0]['windows'][0]['filters'][0]
+        self.assertEqual((f['order'], f['encoded_order'], len(f['quantized'])), (12, 13, 12))
+        self.assertEqual(f['order_profile'], 'apac-tns-order-clamp-v1')
         self.assertTrue((self.root/'tns.jsonl.incomplete').exists())
 
     def test_decoder_rejects_truncated_bwe_after_tns_and_keeps_failed_artifact(self):

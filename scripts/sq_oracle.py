@@ -20,8 +20,8 @@ def coefficient(q, sf):
         return 0.0
     with localcontext() as ctx:
         ctx.prec = PRECISION
-        magnitude = D.from_float(round_f32(inverse_magnitude(abs(q))))
-        gain = D.from_float(round_f32(scale_gain(sf)))
+        magnitude = inverse_magnitude(abs(q))
+        gain = scale_gain(sf)
         return round_f32((-magnitude if q < 0 else magnitude) * gain)
 
 

@@ -21,7 +21,7 @@ APAC（Apple Positional Audio Codec）是苹果用于空间音频的编解码器
 - **声道解码**：频谱 Huffman、反量化、CAC、TNS、BWE2、IMDCT 与叠加，覆盖 Mono 至 22.2
 - **HOA 解码**：零至十阶，salient／ambient、动态选择、空间控制、源布局还原，以及与声道组成的组合流
 - **范围访问**：顺序解码或快速前缀扫描，双向 `seek`，结果与在该点新建的解码器逐位相同
-- **独立数值模型**：常量由公式以高精度生成，Float64 运算、固定运算顺序，各平台与各构建逐位一致
+- **独立数值模型**：常量由公式以高精度生成，固定运算顺序，确定性输出；SQ 反量化（`apac-sq-math-v2`）以 Float64 相乘后只舍入一次到 Float32
 - **逐包语法报告**：`parse-packets` 按阶段输出字段、位偏移和中间频谱
 - **`#![no_std]` 核心**：解码库只依赖 `alloc`、`sha2` 与 `libm`；CAC 逆混合是可选 crate，可以不编入构建
 - **苹果参考对照（macOS）**：AudioToolbox 编解码、测试信号与 PCM 比较，用于验收

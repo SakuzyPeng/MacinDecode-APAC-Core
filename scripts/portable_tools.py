@@ -18,6 +18,33 @@ def required_binary():
     return binary
 
 
+def assert_hoa_configuration(test, options, rate=48000):
+    """Encode a matching silent payload for an expanded HOA configuration.
+
+    Changing only a cookie can change descriptor widths or field presence;
+    an old payload is then malformed, not evidence of an unsupported config.
+    """
+    import json
+    from hoa_shared_vectors import bundle, packet
+    spec = dict(components=[dict(type=2, options=options)], rate=rate)
+    root = test.path()
+    bundle(root, [packet(dict(components=[{}]), **spec)[0]], **spec)
+    parsed = test.run_tool('parse-packets', root, '--depth', 'hoa', '--output', root/'parsed')
+    test.assertEqual(parsed.returncode, 0, parsed.stderr)
+    report = json.loads((root/'parsed').read_text())['report']
+    test.assertTrue(report['packet_complete'])
+    destination = test.path()
+    result = test.run_tool('decode-sq', root, '--out', destination)
+    test.assertEqual(result.returncode, 0, result.stderr)
+    decoded = json.loads(result.stdout)
+    channels = (options.get('order', 3) + 1)**2
+    test.assertEqual(decoded['saved_frames'], 1024)
+    test.assertEqual(decoded['pcm']['channels'], channels)
+    test.assertEqual(decoded['pcm']['sample_rate'], rate)
+    test.assertEqual((destination/'pcm.f32le').read_bytes(), bytes(1024 * channels * 4))
+    return report
+
+
 def assert_hoa_fast(test, source, destination):
     """A qualified legacy HOA file now accepts fast with identical PCM/state."""
     import json

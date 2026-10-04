@@ -21,7 +21,7 @@ This is an independent implementation written for interoperability and research.
 - **Channel decoding**: spectral Huffman, dequantization, CAC, TNS, BWE2, IMDCT and overlap, from mono up to 22.2
 - **HOA decoding**: orders zero to ten, salient/ambient, dynamic selection, spatial controls, source-layout recovery, and composite streams with channels
 - **Range access**: sequential decoding or fast prefix scanning, bidirectional `seek`, bit-identical to a decoder opened fresh at that point
-- **Independent numeric model**: constants generated from formulas at high precision, Float64 arithmetic in a fixed order, bit-identical across platforms and builds
+- **Independent numeric model**: constants generated from formulas at high precision, a fixed order of operations, deterministic output; SQ dequantization (`apac-sq-math-v2`) multiplies in Float64 and rounds once to Float32
 - **Per-packet syntax reports**: `parse-packets` emits fields, bit offsets and intermediate spectra stage by stage
 - **`#![no_std]` core**: the decoding library depends only on `alloc`, `sha2` and `libm`; the CAC inverse mixing is an optional crate that builds can leave out
 - **Apple reference comparison (macOS)**: AudioToolbox encoding/decoding, test signals and PCM comparison for acceptance

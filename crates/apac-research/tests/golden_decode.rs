@@ -13,7 +13,9 @@ use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, path::Path};
 
-const GOLDEN: &str = "tests/golden/refactor-v1.json";
+// Preserve the v1 snapshot as historical evidence. SQ v2 intentionally changes
+// spectral/PCM values and their profile identity; it needs its own baseline.
+const GOLDEN: &str = "tests/golden/sq-math-v2.json";
 
 fn sha<T: Serialize>(value: &T) -> String {
     format!(

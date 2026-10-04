@@ -42,7 +42,8 @@ class HoaTests(unittest.TestCase):
             f=next(f for f in parsed['fields'] if f['name']==name);wire=''.join(format(v,'08b') for v in original);pos=f['bit_offset'];wire=wire[:pos]+bits(value,f['bit_length'])+wire[pos+f['bit_length']:]
             root=self.path();bundle(root,[packet({})[0]]);cfg=pack(wire);(root/'cookie.bin').write_bytes(cfg);m=json.loads((root/'manifest.json').read_text());m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=__import__('hashlib').sha256(cfg).hexdigest());(root/'manifest.json').write_text(json.dumps(m))
             out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertFalse(out.exists())
-            if name!='components[0].hoa.flag_b':self.assertIn(name,p.stderr)
+            reason = {'global.profile_id': 'HOA profile 31 level 0', 'components[0].hoa.flag_b': 'hoa-component-count', 'components[0].hoa.parameter_0': 'parameter_0=0'}[name]
+            self.assertIn(reason, p.stderr)
     def test_invalid_spatial_mode_and_late_element_do_not_export_success(self):
         f=state_fixture()
         for name in ('last_element_error','late_spatial_error','embedded_error','outer_after_embedded_error'):

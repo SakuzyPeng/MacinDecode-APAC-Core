@@ -23,7 +23,7 @@ The historical window data is used only by diagnostic verification. It is not in
 
 ## Independent mathematical profile
 
-`data/sq-math-v1.json` is independently generated from mathematical formulas by `scripts/generate_sq_math.py` and `scripts/sq_math.py`, using Python's standard-library Decimal arithmetic at 100 and 200 decimal digits. It records exact IEEE bit patterns for inverse quantization, gains, sine windows, modulation and FFT rotations. These constants are not copied from an Apple component or the historical window observations. The generator and the independent direct-sum synthesis oracle are included for offline reproduction.
+`data/sq-math-v2.json` (the default `apac-sq-math-v2`) and the preserved `data/sq-math-v1.json` are independently generated from mathematical formulas by `scripts/generate_sq_math.py` and `scripts/sq_math.py`, using Python's standard-library Decimal arithmetic at 100 and 200 decimal digits. They record exact IEEE bit patterns for inverse quantization, gains, sine windows, modulation and FFT rotations (v2 stores the inverse quantizer and gains as Float64). These constants are not copied from an Apple component or the historical window observations. The generator and the independent direct-sum synthesis oracle are included for offline reproduction.
 
 ## CAC wire constants and independent mathematics
 

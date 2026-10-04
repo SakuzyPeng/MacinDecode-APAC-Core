@@ -62,10 +62,6 @@ impl Output {
     }
 }
 
-pub fn f32_bits(bits: u32) -> String {
-    format!("f32::from_bits(0x{bits:08x})")
-}
-
 pub fn f64_bits(bits: u64) -> String {
     format!("f64::from_bits(0x{bits:016x})")
 }

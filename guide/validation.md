@@ -86,7 +86,7 @@ python3 scripts/validate.py \
 
 ## SQ 数学常量
 
-`data/sq-math-v1.json` 保存公式生成的精确 Float32／Float64 位模式，覆盖反量化、缩放、窗、调制和 FFT 常量。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
+`data/sq-math-v2.json` 保存公式生成的精确 IEEE 位模式，反量化、缩放、窗、调制和 FFT 常量均为 Float64。反量化乘积只在最终转为 Float32，生成器额外验证整个合法 SQ 域与完整公式的一次舍入等价。生成器只使用 Python 标准库 Decimal，在 100 位和 200 位精度下分别计算并核对舍入结果；正式 Rust 构建直接包含该数据，无需 Python、苹果文件、网络或系统超越函数。未来修改数值规则须升级配置版本，不随苹果实现版本自动变化。
 
 ```sh
 # 检查已提交的常量；不覆盖文件
@@ -102,7 +102,9 @@ python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
   --reference-report reports/sq-math-baseline.json --output reports/sq-math-release.json
 ```
 
-数学参考使用 Decimal 直接 IMDCT 求和，不读取生产数值表、不调用生产 FFT，也不把候选输出当作真值。PCM 仍按 `atol=1e-6, rtol=1e-5` 验收，另记录 ULP；频谱还要求符合分别舍入的精确结果。第二关必须使用同一提交、源码与常量指纹下成功的完整数学报告，逐位比较所有阶段；不以容差代替摘要一致。必需用例缺失、非有限数值、执行中二进制或源码变化均失败。
+数学参考使用 Decimal 直接 IMDCT 求和，不读取生产数值表、不调用生产 FFT，也不把候选输出当作真值。PCM 仍按 `atol=1e-6, rtol=1e-5` 验收，另记录 ULP；频谱还要求符合完整公式一次舍入的精确结果。第二关必须使用同一提交、源码与常量指纹下成功的完整数学报告，逐位比较所有阶段；不以容差代替摘要一致。必需用例缺失、非有限数值、执行中二进制或源码变化均失败。
+
+旧 `data/sq-math-v1.json` 留作历史资料，可用 `python3 -B scripts/generate_sq_math.py --profile apac-sq-math-v1 --check` 核对。v1 的数学报告及 PCM 摘要不能作为 v2 的逐位基线；常量表增加约 34 KiB。
 
 ## CAC 矩阵
 
@@ -138,7 +140,7 @@ python3 -B scripts/generate_sq_codebooks.py --check --source /path/to/vo-aacenc/
 
 ## 重构回归
 
-重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。
+重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；当前快照为 `crates/apac-research/tests/golden/sq-math-v2.json`，v1 快照保留。快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。
 
 ```sh
 cargo +1.98.0 test --offline -p apac-research --test golden_decode
@@ -149,6 +151,14 @@ python3 -B scripts/compare_reports.py reports/portable-suite-before reports/port
 ```
 
 `compare_reports.py` 支持 JSON、JSONL 或报告目录，忽略时间、源码／二进制构建指纹、编译器及运行环境字段，保留 PCM、常量和向量摘要等结果差异。比较相同退出 0，有差异退出 1；`--limit` 必须为正整数，只限制每个文件打印的差异数，非正值退出 2。可用 `--ignore` 显式追加忽略的字段名。
+
+## 原生结构检查与 PCM 兼容性
+
+`validate_packet_native.py` 和 `validate_drc_native.py` 把编码控制的完整 PCM 对照单列为 `native_pcm_comparison`，保留原 `atol=1e-6, rtol=1e-5`、逐样本差异和首个位置。发生超差时仍保存包、捕获及两份 PCM 到报告对应的 `.failures/`，继续检查剩余控制；不删除压力输入，也不调整增益或容差。
+
+默认 `passed` 表示规定的原生结构／状态检查通过，`qualification=native_structure_and_state`、`independent_math_verified=false` 明确它不是数学验收。长度、非有限值、参数、边界、处理关闭和延迟检查仍是硬条件；人工单位／状态控制的既有数值条件也保留。DRC 的 8 个预滚／元数据更新状态用例只要 PCM 超差，就保留失败证据并退出 1，不受 `--require-native-pcm` 影响。独立数学正确性由相应 Decimal 验证器另行证明。
+
+需要把完整编码控制的原生 PCM 兼容性也作为硬条件时，加 `--require-native-pcm`。`structural_passed` 保存结构结论，兼容性计数及结果保持可见；结构失败退出 1，结构通过但显式要求的 PCM 兼容性失败退出 2，满足所选条件退出 0。旧报告不改写。
 
 ## 历史正弦窗与苹果合成参考
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hash-qualified DRC-off encoder/media closure. PCM mismatches are fatal."""
+"""DRC-off structure/selection/timing proof, with separate native PCM diagnostics."""
 import argparse
 from datetime import datetime,timezone
 import hashlib,json,struct,subprocess,sys
@@ -13,13 +13,12 @@ from validate_replay import command,sha256_file
 from validate import require,write_json
 from validate_cac import pcm_stop
 from packet_vectors import window,basis
+from native_pcm import compare as compare_native_pcm, finalize as finalize_native_pcm
 from drc_vectors import packet,bundle,pack
 
 
 def compare_encoder_pcm(record,actual,native):
-    record['pcm_metrics']=compare_pcm(struct.unpack('<'+str(len(actual)//4)+'f',actual),struct.unpack('<'+str(len(native)//4)+'f',native))
-    record['pcm_sha256']=hashlib.sha256(actual).hexdigest()
-    require(record['pcm_metrics']['passed'],'full DRC encoder PCM exceeds original tolerance')
+    compare_native_pcm(record,actual,native)
 
 
 def native_parameters(rows,trace):
@@ -71,7 +70,7 @@ def controls(binary,report):
             for signal in ('noise','impulse'):
                 label=f'{rate}-{profile}-{signal}';record=dict(rate=rate,profile=profile,signal=signal,passed=False);report['controls'].append(record)
                 try:
-                    with workspace(report,label) as root:
+                    with workspace(report,label,retain=lambda: not record.get('pcm_metrics',{}).get('passed',True)) as root:
                         extra=[] if profile=='default' else ['--drc-configuration',profile]
                         command(binary,'fixture','--out',root/'fixture','--sample-rate',rate,'--duration','0.125','--signals',signal,*extra)
                         source=root/'fixture'/signal;fixture=json.loads((source/'manifest.json').read_text(encoding='utf-8'))
@@ -113,12 +112,15 @@ def state_controls(binary,report):
             selected=kind=='metadata_updates' or (kind=='preroll' and options.get('rich') and prerolls<2)
             if not selected:continue
             prerolls+=int(kind=='preroll')
+            item=dict(rate=rate,index=index,kind=kind,passed=False)
             with workspace(report,f'state-{rate}-{index}') as root:
                 payloads=[written_packet(c,rate,options)[0] for c in seq]
                 written_bundle(root/'packets',payloads,rate,**options)
-                item=dict(rate=rate,index=index,kind=kind,input_sha256=identity((root/'packets/cookie.bin').read_bytes(),payloads),passed=False)
+                item['input_sha256']=identity((root/'packets/cookie.bin').read_bytes(),payloads)
                 report['state_controls'].append(item)
                 inspect_bundle(binary,root/'packets',root,1024*len(seq),item)
+                # Artificial state controls retain their hard numerical gate.
+                require(item['pcm_metrics']['passed'],'native DRC state control exceeds original tolerance')
                 item['passed']=True
     require(len(report['state_controls'])==8,'metadata/preroll controls missing')
 
@@ -144,7 +146,8 @@ def recovery(binary,report):
 def representatives(binary,report,baseline):
     previous=json.loads(baseline.read_text(encoding='utf-8'));require(previous['passed'] and len(previous['representatives'])==15,'requires 15 verified representative ranges')
     for index,spec in enumerate(previous['representatives']):
-        with workspace(report,'representative-'+str(index)) as root:
+        item={}
+        with workspace(report,'representative-'+str(index),retain=lambda: not item.get('pcm_metrics',{}).get('passed',True)) as root:
             target=spec['dump']['replay_window']
             command(binary,'dump',spec['source'],'--out',root/'packets','--with-preroll','--start-packet',target['requested_start_packet'],'--packets',target['requested_packets'])
             manifest=json.loads((root/'packets/manifest.json').read_text());frames=max(1,(target['target_raw_end']-target['target_raw_start']))
@@ -161,11 +164,12 @@ def representatives(binary,report,baseline):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True)
+    p.add_argument('--require-native-pcm',action='store_true',help='Require native PCM compatibility as well; mismatch exits 2, without redefining independent math.')
     p.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))
     args=p.parse_args();require(sys.platform=='darwin' and args.binary.is_file() and not args.report.exists(),'requires macOS binary and fresh report')
-    report=dict(schema_version=1,passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+    report=dict(schema_version=1,passed=False,mode='native_diagnostic',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
                 source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),component_sha256=COMPONENT_SHA256,
-                native_bridge_sha256=sha256_file(ROOT/'native/audio_toolbox.c'),rules_version='apac-native-drc-off-v1',gate_profile=GATE_PROFILE,
+                native_bridge_sha256=sha256_file(ROOT/'native/audio_toolbox.c'),rules_version='apac-native-drc-off-v2',gate_profile=GATE_PROFILE,require_native_pcm=args.require_native_pcm,
                 started_at=datetime.now(timezone.utc).isoformat(),controls=[],representatives=[],errors=[],
                 failure_directory=str(args.report.with_suffix('.failures')))
     try:
@@ -173,8 +177,10 @@ def main():
         require(source_digest()==report['source_sha256'] and sha256_file(args.binary)==report['binary_sha256'],'source or binary changed during acceptance')
         require(len(report['representatives'])==15,'representative ranges missing');report['passed']=True
     except Exception as error:report['errors'].append(dict(error=str(error)))
+    records=report['controls']+report.get('state_controls',[])+report['representatives']
+    exit_code=finalize_native_pcm(report,records)
     require(len(json.dumps(report).encode())<=LIMIT,'native report exceeds 128 MiB');write_json(args.report,report)
-    print(json.dumps(dict(passed=report['passed'],controls=len(report['controls']),representatives=len(report['representatives']),errors=report['errors'])))
-    return 0 if report['passed'] else 1
+    print(json.dumps(dict(passed=report['passed'],qualification=report['qualification'],independent_math_verified=False,structural_passed=report['structural_passed'],native_pcm_comparison=report['native_pcm_comparison'],controls=len(report['controls']),representatives=len(report['representatives']),errors=report['errors'])))
+    return exit_code
 
 if __name__=='__main__':raise SystemExit(main())

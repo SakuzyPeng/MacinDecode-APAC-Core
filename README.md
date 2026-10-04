@@ -5,6 +5,7 @@ Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM
 > **实验性项目**，与 Apple 无关。解码器按独立公式定义的固定数值模型实现，不调用苹果音频接口；与 AudioToolbox 参考输出的数值差异由验收脚本另行统计，不承诺逐位一致。
 
 - **`apac-core`**：`#![no_std]` + `alloc` 的解码库，解析 magic cookie 并把数据包解码为交错 Float32 PCM。不依赖文件系统、时钟或平台浮点库，可在嵌入式和 WebAssembly 目标上构建。
+- **`apac-cac`**：CAC（声道对齐编码）的逆混合运算，独立成 crate。`apac-core` 通过 `cac` feature 接入它，`apac-tool` 默认开启。不开启时仍完整读取和报告 CAC 语法，但遇到使用非零 CAC 增益的帧会明确拒绝。
 - **`apac-container`**：CAF 与非分片 MP4／M4A 读取，支持顺序与快速范围定位。
 - **`apac-tool`**：命令行工具。在 Linux、Windows 和 macOS 上把 APAC 文件解码为 PCM，并输出配置与逐包语法报告；macOS 上另有基于 AudioToolbox 的参考编解码，用于对照验证。
 
@@ -19,6 +20,8 @@ Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM
 | DRC、响度、场景图与 renderer 元数据 | 只读取语法，不处理音频 |
 | LRVQ、外层 ASP 重配置、帧长索引 ≠ 0 | 明确拒绝 |
 | DRC／响度／EQ 音频处理、空间渲染、实时播放 | 不在范围内 |
+
+CAC 逆混合由 `apac-cac` 提供；不含它的构建只解码所有 CAC 增益为 0 的帧，其余明确拒绝。
 
 不支持的输入一律报错并说明原因（字段名、取值和 cookie 位位置），不会猜测或静默降级。完整边界见 [guide/support.md](guide/support.md)。
 
@@ -39,6 +42,9 @@ target/release/apac-tool decode-sq input.caf --out window \
 
 # 查看配置（magic cookie）的逐字段解析
 target/release/apac-tool parse-cookie cookie.bin
+
+# 不含 CAC 逆混合的构建
+cargo build --release -p apac-tool --no-default-features
 ```
 
 `--out` 必须是一个尚不存在的目录，导出总量默认上限 128 MiB（`--max-output-mib` 可调）。退出码：`0` 成功；`1` 运行、输入或完整性错误；`2` PCM 超出容差，或解析结果为 `partial`／`unsupported`。
@@ -55,6 +61,8 @@ for packet in packets {
     let pcm: Vec<f32> = decoder.decode_vec(packet)?;  // 1024 × 声道数个交错样本
 }
 ```
+
+解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。
 
 需要从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`；完整示例见 `crates/apac-container/examples/decode_file.rs`。无 std 用法见 `crates/apac-no-std-example`。API 文档：
 

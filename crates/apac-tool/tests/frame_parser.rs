@@ -890,6 +890,23 @@ mod cac_tests {
         b.0
     }
     #[test]
+    #[cfg(not(feature = "cac"))]
+    fn without_the_cac_feature_only_zero_gains_decode() {
+        let zero = parse_cac(&context(), &packet(0, 0)).unwrap();
+        assert!(zero.cac_complete);
+        assert_eq!(
+            zero.channels_after_cac[1].scaled,
+            zero.spectrum.channels[1].scaled
+        );
+        let error = parse_cac(&context(), &packet(0, 9)).unwrap_err();
+        assert_eq!(error.kind, "cac-unavailable");
+        let mut decoder = Decoder::from_cookie(&cookie(3, 2, false)).unwrap();
+        let error = decoder.decode_vec(&packet(0, 9)).unwrap_err();
+        assert!(error.message.contains("no cac feature"), "{error:?}");
+        decoder.decode_vec(&packet(0, 0)).unwrap();
+    }
+    #[test]
+    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_preserves_legacy_spectrum_and_exposes_both_stages() {
         for block in [0, 1, 2, 3] {
             let bytes = packet(block, 9);
@@ -928,6 +945,7 @@ mod cac_tests {
         assert!(!deferred.cac_complete && deferred.channels_after_cac.is_empty());
     }
     #[test]
+    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_errors_leave_overlap_untouched_and_reset_is_exact() {
         let cookie = cookie(3, 2, false);
         let mut actual = Decoder::from_cookie(&cookie).unwrap();
@@ -966,6 +984,7 @@ mod cac_tests {
         assert_eq!(actual.decode_vec(&packet(0, 9)).unwrap(), first);
     }
     #[test]
+    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_truncation_tools_and_bit_mutations_preserve_boundaries() {
         let good = packet(0, 34);
         let report = parse_cac(&context(), &good).unwrap();
@@ -1046,6 +1065,7 @@ mod tns_tests {
         b.0
     }
     #[test]
+    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn filtered_spectra_and_pcm_errors_are_transactional_and_reset_exactly() {
         let cookie = cookie(3, 2, false);
         let mut actual = Decoder::from_cookie(&cookie).unwrap();

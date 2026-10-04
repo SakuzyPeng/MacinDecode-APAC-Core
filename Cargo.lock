@@ -53,6 +53,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "apac-cac"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "apac-container"
 version = "0.1.0"
 dependencies = [
@@ -65,6 +73,7 @@ dependencies = [
 name = "apac-core"
 version = "0.1.0"
 dependencies = [
+ "apac-cac",
  "apac-core",
  "libm",
  "serde",

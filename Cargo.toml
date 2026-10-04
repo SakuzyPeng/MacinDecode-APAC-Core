@@ -9,6 +9,7 @@ edition = "2024"
 license = "MIT"
 
 [workspace.dependencies]
+apac-cac = { path = "crates/apac-cac" }
 apac-core = { path = "crates/apac-core" }
 apac-container = { path = "crates/apac-container" }
 apac-research = { path = "crates/apac-research" }

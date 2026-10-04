@@ -141,23 +141,16 @@ fn sq_codebooks_offsets_and_tries_match_the_json_loader() {
 }
 
 #[test]
-fn cac_codebooks_rotations_and_tries_match_the_json_loader() {
+fn cac_codebooks_tries_and_math_identity_match_the_json_loader() {
     #[derive(Deserialize)]
     struct Books {
         gain: LegacyCodebook,
         repeat: LegacyCodebook,
     }
     #[derive(Deserialize)]
-    struct Rotation {
-        a_f64: u64,
-        b_f64: u64,
-        swap: bool,
-    }
-    #[derive(Deserialize)]
     struct Math {
         numeric_profile: String,
         tables_sha256: String,
-        rotations: Vec<Rotation>,
     }
     let books: Books = serde_json::from_str(&data("cac-codebooks.json")).unwrap();
     assert_codebook(&super::CAC_GAIN, &books.gain);
@@ -170,15 +163,8 @@ fn cac_codebooks_rotations_and_tries_match_the_json_loader() {
     );
     let math: Math = serde_json::from_str(&data("cac-math-v1.json")).unwrap();
     assert_eq!(math.numeric_profile, crate::frame::CAC_NUMERIC_PROFILE);
-    assert_eq!(super::CAC_MATH_SHA256, math.tables_sha256);
+    // The rotations themselves are checked in `apac-cac`.
     assert_eq!(crate::frame::cac_math_sha256(), math.tables_sha256);
-    assert_eq!(super::CAC_ROTATIONS.len(), math.rotations.len());
-    for (actual, expected) in super::CAC_ROTATIONS.iter().zip(&math.rotations) {
-        assert_eq!(
-            (actual.a_f64, actual.b_f64, actual.swap),
-            (expected.a_f64, expected.b_f64, expected.swap)
-        );
-    }
 }
 
 #[test]

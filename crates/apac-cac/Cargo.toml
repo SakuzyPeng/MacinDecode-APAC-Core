@@ -1,0 +1,15 @@
+[package]
+name = "apac-cac"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+description = "CAC inverse mixing for apac-core, kept separate from the core (the core's `cac` feature)"
+
+[build-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true

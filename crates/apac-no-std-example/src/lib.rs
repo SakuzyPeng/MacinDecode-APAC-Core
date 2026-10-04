@@ -10,6 +10,10 @@
 //! cargo build -p apac-no-std-example --target wasm32v1-none
 //! ```
 //!
+//! The example uses `apac-core` without features, so it carries no CAC inverse
+//! mixing and rejects frames that use a nonzero CAC gain index; add
+//! `features = ["cac"]` to the dependency to decode them.
+//!
 //! Packets come from wherever the platform stores them; this example takes
 //! them as byte slices and writes PCM into a caller-provided buffer, so the
 //! only allocations are the decoder's own state.

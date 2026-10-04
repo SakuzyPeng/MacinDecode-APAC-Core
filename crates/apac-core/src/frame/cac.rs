@@ -1,4 +1,8 @@
 //! Shared-ICS SQ spectra and bounded CAC before TNS. No inter-frame CAC state.
+//!
+//! The CAC syntax is read here; the inverse mixing comes from the `apac-cac` crate
+//! (the `cac` feature). Without it, only frames whose gain indices are all 0 (no mixing)
+//! pass, and any other frame is rejected at its first nonzero gain run.
 use super::ParseMode;
 use super::spectrum::{Codebook, Trie};
 use super::{FrameContext, IcsInfo, Parser, SpectrumReport};
@@ -72,22 +76,20 @@ fn books() -> &'static Books {
 fn tries() -> &'static [Trie; 2] {
     &crate::tables::CAC_TRIES
 }
-struct Math {
-    tables_sha256: &'static str,
-    rotations: &'static [crate::tables::CacRotation],
-}
-/// Generated from `data/cac-math-v1.json` by the build script.
-fn math() -> &'static Math {
-    static MATH: Math = Math {
-        tables_sha256: crate::tables::CAC_MATH_SHA256,
-        rotations: &crate::tables::CAC_ROTATIONS,
-    };
-    &MATH
-}
+/// `tables_sha256` of `data/cac-math-v1.json`: the frozen identity of the rotations that
+/// `apac-cac` carries, reported whether or not this build includes them.
+const MATH_SHA256: &str = "a72b01a9ad01961516d2d5207da0a61c491ae1a10c76ed9a0406fdc1d0db6994";
 /// SHA-256 of the CAC numeric tables.
 pub fn math_sha256() -> &'static str {
-    math().tables_sha256
+    MATH_SHA256
 }
+
+/// Inverse mixing of one spectral line pair for a gain index: `apac_cac::rotate`.
+type Inverse = fn(f32, f32, u8) -> (f32, f32);
+#[cfg(feature = "cac")]
+const INVERSE: Option<Inverse> = Some(apac_cac::rotate);
+#[cfg(not(feature = "cac"))]
+const INVERSE: Option<Inverse> = None;
 
 /// Each ordinary repeat encodes 1..43 slots. The terminal code has capacity 44,
 /// and only its unused suffix may extend beyond the remaining active slots.
@@ -186,24 +188,6 @@ pub(super) fn read_data_at(
     })
 }
 
-fn rotate(x: f32, y: f32, gain: u8) -> (f32, f32) {
-    if gain == 0 {
-        return (x, y);
-    }
-    let entry = &math().rotations[usize::from(gain)];
-    let (a, b) = (f64::from_bits(entry.a_f64), f64::from_bits(entry.b_f64));
-    let (x, y) = (f64::from(x), f64::from(y));
-    // The products and sum each round separately. Do not fuse or reassociate.
-    let sum = (a * x + b * y) as f32;
-    let difference = (b * x - a * y) as f32;
-    let canonical = |value: f32| if value == 0. { 0. } else { value };
-    if entry.swap {
-        (canonical(difference), canonical(sum))
-    } else {
-        (canonical(sum), canonical(difference))
-    }
-}
-
 fn apply(spectrum: &SpectrumReport, data: &CacData) -> Result<Vec<CacChannelSpectrum>, ParseError> {
     apply_channels(&spectrum.channels, data)
 }
@@ -218,6 +202,31 @@ pub(super) fn apply_channels_at_rate(
     data: &CacData,
     rate: u64,
 ) -> Result<Vec<CacChannelSpectrum>, ParseError> {
+    apply_with(channels, data, rate, INVERSE)
+}
+fn apply_with(
+    channels: &[super::ChannelSpectrum],
+    data: &CacData,
+    rate: u64,
+    inverse: Option<Inverse>,
+) -> Result<Vec<CacChannelSpectrum>, ParseError> {
+    // Gain index 0 leaves the pair unchanged, so it needs no inverse mixing.
+    let rotate = match inverse {
+        Some(rotate) => rotate,
+        None => match data.runs.iter().find(|run| run.gain_index != 0) {
+            Some(run) => {
+                return Err(ParseError::new(
+                    run.bit_offset,
+                    "cac-unavailable",
+                    format!(
+                        "CAC gain index {} needs the apac-cac inverse mixing; this build has no cac feature",
+                        run.gain_index
+                    ),
+                ));
+            }
+            None => |x, y, _| (x, y),
+        },
+    };
     let mut left = channels[0].scaled.clone();
     let mut right = channels[1].scaled.clone();
     let ics = &channels[0].ics;
@@ -321,18 +330,6 @@ pub(crate) fn parse_cac_with(
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn rotations_fit_the_skipped_prefix_finite_value_bound() {
-        for rotation in super::math().rotations {
-            let a = f64::from_bits(rotation.a_f64);
-            let b = f64::from_bits(rotation.b_f64);
-            assert!(a.is_finite() && b.is_finite() && a.abs() <= 1. && b.abs() <= 1.);
-            // SQ < 2^58, each sum uses two bounded products, with ample
-            // separate-rounding headroom inside the conservative 2^60 bound.
-            assert!((a.abs() + b.abs()) * 2f64.powi(58) * 1.0001 < 2f64.powi(60));
-        }
-    }
-
     use super::*;
     fn word(out: &mut Vec<bool>, code: u32, bits: usize) {
         out.extend((0..bits).rev().map(|bit| code & (1 << bit) != 0));
@@ -397,19 +394,52 @@ mod tests {
         );
     }
     #[test]
-    fn rotations_preserve_identity_energy_and_polarity() {
-        assert_eq!(rotate(2., -3., 0), (2., -3.));
-        for gain in 1..=34 {
-            let (x, y) = rotate(1., 0., gain);
-            assert!((f64::from(x) * f64::from(x) + f64::from(y) * f64::from(y) - 1.).abs() < 1e-7);
-            let zeros = rotate(0., 0., gain);
-            assert_eq!((zeros.0.to_bits(), zeros.1.to_bits()), (0, 0));
-        }
-        let (left, right) = rotate(1., 1., 9);
-        assert_eq!(left.to_bits(), 0);
-        assert!(right > 1.4);
-        let (left, right) = rotate(1., 1., 26);
-        assert!(left < -1.4);
-        assert_eq!(right.to_bits(), 0);
+    fn math_identity_is_the_apac_cac_table() {
+        assert_eq!(apac_cac::MATH_SHA256, MATH_SHA256);
+        assert_eq!(apac_cac::NUMERIC_PROFILE, NUMERIC_PROFILE);
+    }
+    #[test]
+    fn without_inverse_mixing_only_zero_gains_pass() {
+        let ics = IcsInfo {
+            block_type: 0,
+            max_sfb: 2,
+            window_groups: vec![1],
+        };
+        let channel = |channel_index, values: [f32; 2]| super::super::ChannelSpectrum {
+            channel_index,
+            ics: ics.clone(),
+            global_gain: 100,
+            sections: vec![],
+            scale_factors: vec![],
+            quantized: vec![],
+            // Band 0 covers lines 0..4 and band 1 lines 4..8 at 48 kHz.
+            scaled: [values.as_slice(), &[0.; 2], values.as_slice(), &[0.; 1018]].concat(),
+            stream_bit_offset: 0,
+            spectral_bit_offset: 0,
+            end_bit_offset: 0,
+        };
+        let channels = [channel(0, [1., 2.]), channel(1, [3., 4.])];
+        let run = |gain_index, bit_offset| CacRun {
+            gain_index,
+            repeat_code: 43,
+            bit_offset,
+            bit_length: 4,
+        };
+        let data = |gains: [u8; 2]| CacData {
+            start_bit_offset: 100,
+            end_bit_offset: 108,
+            runs: vec![run(gains[0], 100), run(gains[1], 104)],
+            gain_indices: vec![gains.to_vec()],
+        };
+        let unchanged = apply_with(&channels, &data([0, 0]), 48000, None).unwrap();
+        assert_eq!(&unchanged[0].scaled[..2], &[1., 2.]);
+        assert_eq!(&unchanged[1].scaled[..2], &[3., 4.]);
+        let full = apply_with(&channels, &data([0, 0]), 48000, INVERSE).unwrap();
+        assert_eq!(full[0].scaled, unchanged[0].scaled);
+        let error = apply_with(&channels, &data([0, 9]), 48000, None).unwrap_err();
+        assert_eq!((error.kind, error.bit_offset), ("cac-unavailable", 104));
+        let mixed = apply_with(&channels, &data([0, 9]), 48000, INVERSE).unwrap();
+        assert_eq!(mixed[0].scaled[..4], unchanged[0].scaled[..4]);
+        assert_ne!(mixed[0].scaled[4..6], unchanged[0].scaled[4..6]);
     }
 }

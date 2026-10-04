@@ -1,4 +1,5 @@
-//! SQ numeric tables, SQ/CAC Huffman codebooks, TNS and BWE2 constants.
+//! SQ numeric tables, SQ/CAC Huffman codebooks, TNS and BWE2 constants. The CAC
+//! rotations belong to the `apac-cac` crate.
 use crate::emit::{self, Output};
 use crate::{data_json, trie_build};
 use serde::Deserialize;
@@ -144,19 +145,6 @@ struct CacBooks {
     gain: Book,
     repeat: Book,
 }
-#[derive(Deserialize)]
-struct Rotation {
-    a_f64: u64,
-    b_f64: u64,
-    swap: bool,
-}
-#[derive(Deserialize)]
-struct CacMath {
-    numeric_profile: String,
-    tables_sha256: String,
-    rotations: Vec<Rotation>,
-}
-
 pub fn cac(out: &mut Output) {
     let books: CacBooks = data_json("cac-codebooks.json");
     assert_eq!(books.gain.codes.len(), 35);
@@ -175,21 +163,6 @@ pub fn cac(out: &mut Output) {
         "crate::tables::Trie",
         [gain_trie, repeat_trie],
     );
-    let math: CacMath = data_json("cac-math-v1.json");
-    assert_eq!(math.numeric_profile, "apac-cac-math-v1");
-    assert_eq!(math.rotations.len(), 35);
-    out.array(
-        true,
-        "CAC_ROTATIONS",
-        "crate::tables::CacRotation",
-        math.rotations.iter().map(|r| {
-            format!(
-                "crate::tables::CacRotation {{ a_f64: 0x{:016x}, b_f64: 0x{:016x}, swap: {} }}",
-                r.a_f64, r.b_f64, r.swap
-            )
-        }),
-    );
-    out.str_const("CAC_MATH_SHA256", &math.tables_sha256);
 }
 
 #[derive(Deserialize)]

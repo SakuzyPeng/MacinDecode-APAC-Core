@@ -8,7 +8,7 @@
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放不在当前交付范围。
+当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。CAC 逆混合在独立的 `apac-cac` crate 中；不含它的构建（`apac-tool --no-default-features`，或不开 `cac` feature 的 `apac-core`）只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放不在当前交付范围。
 
 ## 共享配置与组合 HOA 流
 

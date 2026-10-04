@@ -47,13 +47,6 @@ pub struct Codebook {
     pub bits: &'static [usize],
 }
 
-/// One CAC gain index's rotation: Float64 bit patterns and the channel swap.
-pub struct CacRotation {
-    pub a_f64: u64,
-    pub b_f64: u64,
-    pub swap: bool,
-}
-
 /// One explicit sampling rate: its SFB/TNS table bucket and band offsets.
 pub struct SfbRate {
     pub sample_rate: u64,

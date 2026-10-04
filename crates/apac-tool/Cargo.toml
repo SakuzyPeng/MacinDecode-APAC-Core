@@ -5,6 +5,12 @@ edition.workspace = true
 license.workspace = true
 description = "AudioToolbox reference tools for Apple Positional Audio Codec research"
 
+[features]
+# On by default; `--no-default-features` builds a tool without CAC inverse mixing, which
+# rejects frames that use a nonzero CAC gain index.
+default = ["cac"]
+cac = ["apac-core/cac", "apac-research/cac"]
+
 [[bin]]
 name = "apac-tool"
 path = "src/main.rs"

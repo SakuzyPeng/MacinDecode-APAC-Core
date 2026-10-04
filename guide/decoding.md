@@ -117,6 +117,8 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 
 ## 库接口
 
+使用 CAC 的流需要 `apac-core` 的 `cac` feature（`apac-tool` 默认开启）；没有它时，`Decoder` 遇到非零 CAC 增益的帧返回 `cac-unavailable` 错误，状态不提交。
+
 `apac_core::Decoder` 是单包解码接口：`Decoder::new(&Config)`（或 `from_cookie`）按配置选择立体声、单 ASC 多声道、HOA 或组合流路径，不支持时返回带原因的错误；`info()` 给出采样率、声道数、每包 1024 帧、路径类型和布局；`decode(packet, &mut out)` 把 `1024 × channel_count` 个交错 Float32 样本写入调用方缓冲（不足时报错且不改状态），返回该包的统计 `FrameInfo`；`decode_vec` 返回新分配的样本；`advance(packet)` 只推进状态（快速定位用，之后须先完整解码前一包再导出 PCM）；`reset()` 回到初始状态。内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。解码路径不记录语法字段；backend、support_scope 等报告标识由 `apac_research::implementation` 根据所选路径给出。文件级入口为 `apac_research::decode::decode_sq` 和 `apac_research::decode::decode_sq_with_options`，后者接受 `(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
 `apac_container::Reader` 把这个循环封装成范围解码接口，`decode-sq` 也走它：

@@ -20,6 +20,7 @@ target/debug/apac-tool --help
 | crate | 内容 |
 | --- | --- |
 | `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；`no_std` + `alloc`，默认只依赖 sha2 与 libm |
+| `crates/apac-cac` | CAC 逆混合（`rotate`）和 `apac-cac-math-v1` 旋转表；`no_std`，无运行时依赖。`apac-core` 的 `cac` feature 接入它，`apac-tool` 默认开启，`apac-research` 转发同名 feature |
 | `crates/apac-container` | CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对 |
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、输入报告组装、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
@@ -36,6 +37,7 @@ cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf
 cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf --features serde
 cargo +1.98.0 build -p apac-core --target wasm32v1-none
 cargo +1.98.0 build -p apac-core --target wasm32v1-none --features serde
+cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf --features cac
 cargo +1.98.0 build -p apac-no-std-example --target thumbv7em-none-eabihf
 cargo +1.98.0 build -p apac-no-std-example --target wasm32v1-none
 ```
@@ -52,7 +54,16 @@ cargo +1.98.0 build -p apac-no-std-example --target wasm32v1-none
 cargo +1.98.0 doc --no-deps -p apac-core -p apac-container --open
 ```
 
-`crates/apac-no-std-example` 演示无 std 用法：只依赖不开 feature 的 `apac-core`（依赖链为 apac-core、libm、sha2），用 `Config::parse`、`Decoder::new`、`Decoder::decode` 把包解码到调用方提供的交错缓冲区。最终程序只需提供全局分配器，不需要文件系统、时钟或平台浮点库。
+`crates/apac-no-std-example` 演示无 std 用法：只依赖不开 feature 的 `apac-core`（依赖链为 apac-core、libm、sha2），用 `Config::parse`、`Decoder::new`、`Decoder::decode` 把包解码到调用方提供的交错缓冲区。最终程序只需提供全局分配器，不需要文件系统、时钟或平台浮点库。示例不开 `cac`，因此只解码 CAC 增益全为 0 的帧；需要 CAC 时在依赖上加 `features = ["cac"]`，依赖链增加 `apac-cac`。
+
+### CAC feature
+
+CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取和报告；按增益施加的 2×2 逆混合矩阵和旋转表在独立的 `crates/apac-cac` 中，经 `apac-core` 的 `cac` feature 接入。
+
+- 开启时，行为与数值和拆分前逐位相同；`cac_tables_sha256` 等报告标识不变。
+- 不开启时，增益全为 0 的帧不需要逆混合，照常解码；第一个非零增益游程以 `cac-unavailable` 拒绝，位偏移指向该游程。`decode-sq` 因此返回退出码 1。
+- `apac-tool` 默认开启；`--no-default-features` 构建不含 `apac-cac` 的工具。workspace 的单元测试、`apac-research`、`apac-container` 和 `apac-no-std-example` 的测试通过 dev-dependency 开启它。
+- 不含 CAC 的路径由 `apac-core` 的单元测试和 `cargo +1.98.0 test -p apac-tool --no-default-features --test frame_parser` 覆盖，后者跳过依赖 CAC 运算的用例。
 
 `native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
 

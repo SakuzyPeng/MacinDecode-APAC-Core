@@ -11,4 +11,6 @@ description = "Example: decoding APAC packets with apac-core in a no_std + alloc
 apac-core.workspace = true
 
 [dev-dependencies]
+# Host tests decode CAC fixtures.
+apac-core = { workspace = true, features = ["cac"] }
 serde_json.workspace = true

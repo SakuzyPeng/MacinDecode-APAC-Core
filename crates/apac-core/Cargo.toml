@@ -10,8 +10,12 @@ description = "Independent APAC configuration, frame parsing and SQ/HOA synthesi
 # Serialize the report and state types; serde_json only reproduces the
 # key-sorted rendering of structured syntax values.
 serde = ["dep:serde", "dep:serde_json"]
+# CAC inverse mixing from the separate `apac-cac` crate. Without it, frames that use a
+# nonzero CAC gain index are rejected; the CAC syntax is still read and reported.
+cac = ["dep:apac-cac"]
 
 [dependencies]
+apac-cac = { workspace = true, optional = true }
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
 # Correctly rounded square root without the platform libm.
@@ -19,8 +23,8 @@ libm = "0.2"
 sha2 = { version = "0.10", default-features = false }
 
 [dev-dependencies]
-# Unit tests compare against the serialized reports.
-apac-core = { path = ".", features = ["serde"] }
+# Unit tests compare against the serialized reports and decode CAC fixtures.
+apac-core = { path = ".", features = ["serde", "cac"] }
 serde.workspace = true
 serde_json.workspace = true
 

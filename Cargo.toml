@@ -6,6 +6,7 @@ default-members = ["crates/apac-tool"]
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
 
 [workspace.dependencies]
 apac-core = { path = "crates/apac-core" }

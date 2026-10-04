@@ -2,6 +2,7 @@
 name = "apac-core"
 version.workspace = true
 edition.workspace = true
+license = "MIT AND Apache-2.0"
 build = "build/main.rs"
 description = "Independent APAC configuration, frame parsing and SQ/HOA synthesis"
 

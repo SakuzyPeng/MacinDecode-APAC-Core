@@ -2,6 +2,7 @@
 name = "apac-tool"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 description = "AudioToolbox reference tools for Apple Positional Audio Codec research"
 
 [[bin]]

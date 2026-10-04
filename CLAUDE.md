@@ -84,5 +84,6 @@ Some Python tests require macOS (`afconvert`/AudioToolbox) and skip elsewhere. T
 
 - `docs/` is a **separate Git repository** (research notes, phase summaries) ignored by this repo — never force-add it, make it a submodule, or a gitlink. Check it with `git -C docs status`. Usage and public interface docs go in `README.md` and `guide/` (`guide/`, not `docs/`, is part of this repo); research/analysis goes in `docs/`, and experimental conclusions there should cite the code commit.
 - `reports/`, `artifacts/`, `target/` and local Xcode workspaces stay local (they contain absolute paths, sample names, audio). Never commit them.
+- The project is MIT-licensed (`LICENSE`; `apac-core` declares `MIT AND Apache-2.0` because it compiles in the vo-aacenc tables). Third-party data must be MIT-compatible (no copyleft such as LGPL/GPL), record its source, hash and license inside the data file, and be listed in `THIRD_PARTY.md` with its license text under `LICENSES/`.
 - Committed examples use generic paths or explicit arguments — no local usernames, music-library listings, credentials, Apple binaries or decompiled output.
 - Don't rewrite local raw experiment records for redaction; produce a separate redacted copy when sharing.

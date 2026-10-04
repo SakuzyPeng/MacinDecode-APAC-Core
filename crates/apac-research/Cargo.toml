@@ -2,6 +2,7 @@
 name = "apac-research"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
 build = "build.rs"
 description = "APAC research reports, packet bundles, containers and CLI drivers"
 

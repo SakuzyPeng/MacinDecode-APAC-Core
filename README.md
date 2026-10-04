@@ -82,8 +82,16 @@ cargo doc --no-deps -p apac-core -p apac-container --open
 
 跨目标编译不能代替运行验收；是否达到跨平台逐位一致，以对应提交的完整验收报告为准。
 
-## 许可与第三方数据
+## 许可
 
-项目自身代码的许可证尚未确定。`data/` 中的第三方格式表及其许可见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+项目代码以 [MIT 许可](LICENSE) 发布。
 
-Apple 和 AudioToolbox 是 Apple Inc. 的商标。本项目是为互操作和研究目的独立编写的实现，未获 Apple 授权或认可，不包含苹果二进制、反编译代码或源媒体。
+`data/sq-codebooks.json` 中的 AAC Huffman 码表和频带边界取自 vo-aacenc，适用 Apache-2.0 许可（见 [THIRD_PARTY.md](THIRD_PARTY.md) 和 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)）。这些表在构建时编入 `apac-core`，因此该 crate 的许可声明为 `MIT AND Apache-2.0`，其他 crate 为 `MIT`。
+
+## 免责声明
+
+- 本项目是为互操作和研究目的独立编写的实现，与 Apple Inc. 无关，未获 Apple 授权、赞助或认可。Apple 和 AudioToolbox 是 Apple Inc. 的商标；文中提及 APAC 等名称仅用于说明兼容对象。
+- 仓库不包含苹果二进制、反编译代码、SDK 文件或源媒体。`data/` 中观测或转录所得的格式常量在各自文件内注明来源，第三方数据详见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+- 解码器是实验性实现，输出不保证与苹果参考逐位一致，也未经生产环境验证。软件按“原样”提供，不附带任何明示或默示担保（见 [LICENSE](LICENSE)）。
+- APAC 及相关音频技术可能受第三方专利保护。本项目的许可证不授予任何专利许可；在产品中使用或分发之前，请自行评估所在法域的专利与法律要求。
+- 使用本项目处理音频时，请遵守相应内容的版权与许可条款。

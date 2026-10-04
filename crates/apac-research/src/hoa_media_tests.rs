@@ -1,6 +1,17 @@
 //! Real-media streaming check driven by validate_hoa_media.py.
 use crate::{input::Input, synthesis::Decoder};
 
+fn media_decoder(cookie: &[u8]) -> Decoder {
+    let decoder = Decoder::from_cookie(cookie).unwrap();
+    assert!(crate::implementation::hoa_numeric_profile(&decoder).is_some());
+    assert_eq!(
+        decoder.info().channel_count,
+        16,
+        "HOA media validation requires exactly 16 output channels"
+    );
+    decoder
+}
+
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
 #[test]
@@ -20,8 +31,7 @@ fn hoa_media_stream_digest() {
     let mut source = Input::open(&path).unwrap();
     let info = source.info().clone();
     let table = info.packet_table.value.clone().unwrap();
-    let mut decoder = Decoder::from_cookie(source.cookie()).unwrap();
-    assert!(crate::implementation::hoa_numeric_profile(&decoder).is_some());
+    let mut decoder = media_decoder(source.cookie());
     let mut hash = Sha256::new();
     let mut packets = 0u64;
     let mut frames = 0u64;
@@ -29,8 +39,8 @@ fn hoa_media_stream_digest() {
     let mut embedded_frames = 0u64;
     let prime = table.priming_frames as u64;
     let end = prime + table.valid_frames as u64;
+    let mut samples = vec![0f32; 16384];
     while let Some((index, raw, packet)) = source.next_packet().unwrap() {
-        let mut samples = vec![0f32; 16384];
         let counts = decoder
             .decode(&packet, &mut samples)
             .unwrap_or_else(|e| panic!("packet {index}: {e}"));
@@ -54,4 +64,33 @@ fn hoa_media_stream_digest() {
     let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::frame::HOA_NUMERIC_PROFILE,"layout":decoder.info().layout,"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
     serde_json::to_writer_pretty(&mut output, &report).unwrap();
     output.write_all(b"\n").unwrap();
+}
+
+#[test]
+fn media_validation_requires_sixteen_hoa_channels() {
+    use serde_json::Value;
+    let bytes = |value: &Value| {
+        let text = value.as_str().unwrap();
+        (0..text.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&text[i..i + 2], 16).unwrap())
+            .collect::<Vec<_>>()
+    };
+    let orders: Value =
+        serde_json::from_str(include_str!("../../../data/hoa-orders-state-v1.json")).unwrap();
+    for row in orders["fixtures"].as_array().unwrap() {
+        let cookie = bytes(&row["cookie"]);
+        // These are supported 4- and 9-channel HOA streams, but cannot be
+        // cropped or hashed using the media check's 16-channel stride.
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        assert!(decoder.decode_vec(&bytes(&row["first"])).is_ok());
+        assert!(std::panic::catch_unwind(|| media_decoder(&cookie)).is_err());
+    }
+    let row: Value =
+        serde_json::from_str(include_str!("../../../data/hoa-ambient-state-v1.json")).unwrap();
+    let mut decoder = media_decoder(&bytes(&row["cookie"]));
+    assert_eq!(
+        decoder.decode_vec(&bytes(&row["first"])).unwrap().len(),
+        16384
+    );
 }

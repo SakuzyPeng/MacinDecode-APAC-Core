@@ -191,6 +191,9 @@ pub struct Decoder {
     /// The single-ASC transport context state scans and layout profiles read.
     access: ChannelFrameContext,
     scan: ScanWorkspace,
+    /// Retained by parsed packets, so moving this decoder preserves ownership
+    /// and a replacement cannot reuse the identity of a dropped decoder.
+    owner: Arc<()>,
     /// Counts commits and resets; a parsed packet is valid for one generation.
     generation: u64,
     /// Decoding records no syntax; tests switch to report parsing to prove
@@ -206,6 +209,7 @@ impl Clone for Decoder {
             layout: self.layout.clone(),
             access: self.access.clone(),
             scan: ScanWorkspace::default(),
+            owner: Arc::new(()),
             generation: self.generation,
             mode: self.mode,
         }
@@ -281,6 +285,7 @@ impl Decoder {
                     context: stream,
                 },
                 scan: ScanWorkspace::default(),
+                owner: Arc::new(()),
                 generation: 0,
                 mode: crate::frame::ParseMode::Decode,
             });
@@ -325,6 +330,7 @@ impl Decoder {
             layout,
             access: channel_context,
             scan: ScanWorkspace::default(),
+            owner: Arc::new(()),
             generation: 0,
             mode: crate::frame::ParseMode::Decode,
         })
@@ -400,6 +406,7 @@ impl Decoder {
     }
     /// First stage of [`Decoder::decode`]: parse one packet against copies of
     /// the current state. Nothing is committed until [`Decoder::synthesize`].
+    /// The parsed packet belongs to this decoder, not to any of its clones.
     #[doc(hidden)]
     pub fn parse(&self, packet: &[u8]) -> Result<ParsedPacket> {
         let body = match &self.engine {
@@ -444,14 +451,16 @@ impl Decoder {
             }
         };
         Ok(ParsedPacket {
+            owner: Arc::clone(&self.owner),
             generation: self.generation,
             body,
         })
     }
     /// Second stage of [`Decoder::decode`]: synthesize a packet parsed from
     /// the current state into `out`, then commit the overlap and the parsed
-    /// state together. A packet parsed before any later commit or reset is
-    /// rejected.
+    /// state together. A packet from another decoder (including a clone), or
+    /// parsed before any later commit or reset, is rejected without changing
+    /// state or output. Moving the original decoder preserves packet ownership.
     #[doc(hidden)]
     pub fn synthesize(&mut self, parsed: ParsedPacket, out: &mut [f32]) -> Result<FrameInfo> {
         self.check_output(out)?;
@@ -460,6 +469,12 @@ impl Decoder {
         Ok(info)
     }
     fn commit(&mut self, parsed: ParsedPacket) -> Result<(Vec<f32>, FrameInfo)> {
+        if !Arc::ptr_eq(&parsed.owner, &self.owner) {
+            return Err(DecodeError::new(
+                "SQ decoder",
+                "parsed packet belongs to a different decoder",
+            ));
+        }
         if parsed.generation != self.generation {
             return Err(DecodeError::new(
                 "SQ decoder",
@@ -654,6 +669,7 @@ pub struct FrameInfo {
 /// A packet parsed by [`Decoder::parse`], awaiting [`Decoder::synthesize`].
 #[doc(hidden)]
 pub struct ParsedPacket {
+    owner: Arc<()>,
     generation: u64,
     body: Parsed,
 }

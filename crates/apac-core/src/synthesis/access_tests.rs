@@ -216,3 +216,106 @@ fn a_parsed_packet_is_rejected_after_another_commit_or_reset() {
         assert_eq!(pcm(out.clone()), pcm(reference.decode_vec(&first).unwrap()));
     }
 }
+
+fn ownership_fixtures() -> Vec<Value> {
+    let mut rows = fixtures();
+    rows.push(
+        serde_json::from_str(include_str!("../../../../data/hoa-ambient-state-v1.json")).unwrap(),
+    );
+    let shared: Value =
+        serde_json::from_str(include_str!("../../../../data/hoa-shared-state-v1.json")).unwrap();
+    let mut composite = shared["fixtures"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "stream-pair")
+        .unwrap()
+        .clone();
+    composite["next"] = composite["good"].clone();
+    rows.push(composite);
+    rows
+}
+
+fn reject_foreign_packet(decoder: &mut Decoder, parsed: ParsedPacket) {
+    let before = (decoder.metadata_sha256(), decoder.channels.clone());
+    let mut out = vec![f32::NAN; 1024 * decoder.info().channel_count as usize];
+    let error = decoder.synthesize(parsed, &mut out).unwrap_err();
+    assert_eq!(
+        error.message,
+        "parsed packet belongs to a different decoder"
+    );
+    assert!(out.iter().all(|v| v.is_nan()));
+    assert_eq!(decoder.metadata_sha256(), before.0);
+    assert!(
+        decoder
+            .channels
+            .iter()
+            .zip(&before.1)
+            .all(|(a, b)| a.overlap == b.overlap)
+    );
+}
+
+#[test]
+fn parsed_packets_cannot_cross_decoder_instances() {
+    let rows = ownership_fixtures();
+    for source in &rows {
+        let mut source_decoder = Decoder::from_cookie(&bytes(&source["cookie"])).unwrap();
+        source_decoder.decode_vec(&bytes(&source["first"])).unwrap();
+        for target in &rows {
+            let mut target_decoder = Decoder::from_cookie(&bytes(&target["cookie"])).unwrap();
+            target_decoder.decode_vec(&bytes(&target["first"])).unwrap();
+            let next = bytes(&target["next"]);
+            let own = target_decoder.parse(&next).unwrap();
+            let mut reference = target_decoder.clone();
+            reject_foreign_packet(
+                &mut target_decoder,
+                source_decoder.parse(&bytes(&source["next"])).unwrap(),
+            );
+            // Rejection preserves both the committed state and pending packets.
+            let mut out = vec![0.; 1024 * target_decoder.info().channel_count as usize];
+            target_decoder.synthesize(own, &mut out).unwrap();
+            assert_eq!(pcm(out), pcm(reference.decode_vec(&next).unwrap()));
+            assert_eq!(
+                target_decoder.metadata_sha256(),
+                reference.metadata_sha256()
+            );
+        }
+    }
+}
+
+#[test]
+fn parsed_packets_cannot_cross_clones_even_at_the_same_generation() {
+    for row in ownership_fixtures() {
+        let mut original = Decoder::from_cookie(&bytes(&row["cookie"])).unwrap();
+        let first = bytes(&row["first"]);
+        let next = bytes(&row["next"]);
+        original.decode_vec(&first).unwrap();
+        let mut cloned = original.clone();
+        reject_foreign_packet(&mut cloned, original.parse(&next).unwrap());
+        reject_foreign_packet(&mut original, cloned.parse(&next).unwrap());
+
+        original.decode_vec(&next).unwrap();
+        cloned.reset();
+        // Both advanced once, but only the original retains packet history.
+        reject_foreign_packet(&mut cloned, original.parse(&next).unwrap());
+        reject_foreign_packet(&mut original, cloned.parse(&first).unwrap());
+
+        let parsed = original.parse(&next).unwrap();
+        drop(original);
+        reject_foreign_packet(&mut cloned, parsed);
+    }
+}
+
+#[test]
+fn moving_a_decoder_preserves_its_parsed_packets() {
+    for row in ownership_fixtures() {
+        let decoder = Decoder::from_cookie(&bytes(&row["cookie"])).unwrap();
+        let first = bytes(&row["first"]);
+        let parsed = decoder.parse(&first).unwrap();
+        let mut reference = decoder.clone();
+        let mut moved = Box::new(decoder);
+        let mut out = vec![0.; 1024 * moved.info().channel_count as usize];
+        moved.synthesize(parsed, &mut out).unwrap();
+        assert_eq!(pcm(out), pcm(reference.decode_vec(&first).unwrap()));
+    }
+}

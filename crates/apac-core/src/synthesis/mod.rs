@@ -27,7 +27,6 @@ use crate::{
         ScanWorkspace, StreamFrameContext, stream::StreamState,
     },
 };
-pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
 
 #[derive(Clone, Copy, Default)]
 struct Complex {
@@ -407,7 +406,6 @@ impl Decoder {
     /// First stage of [`Decoder::decode`]: parse one packet against copies of
     /// the current state. Nothing is committed until [`Decoder::synthesize`].
     /// The parsed packet belongs to this decoder, not to any of its clones.
-    #[doc(hidden)]
     pub fn parse(&self, packet: &[u8]) -> Result<ParsedPacket> {
         let body = match &self.engine {
             Engine::Stereo { context } => {
@@ -461,7 +459,6 @@ impl Decoder {
     /// state together. A packet from another decoder (including a clone), or
     /// parsed before any later commit or reset, is rejected without changing
     /// state or output. Moving the original decoder preserves packet ownership.
-    #[doc(hidden)]
     pub fn synthesize(&mut self, parsed: ParsedPacket, out: &mut [f32]) -> Result<FrameInfo> {
         self.check_output(out)?;
         let (samples, info) = self.commit(parsed)?;
@@ -506,7 +503,6 @@ impl Decoder {
     }
     /// The committed state the research layer digests as
     /// `metadata_after_processing_sha256`.
-    #[doc(hidden)]
     pub fn metadata_state(&self) -> MetadataState<'_> {
         MetadataState {
             drc: &self.drc,
@@ -613,7 +609,6 @@ impl Decoder {
         }
     }
     /// The composite stream context, when several components are combined.
-    #[doc(hidden)]
     pub fn composite(&self) -> Option<&StreamFrameContext> {
         match &self.engine {
             Engine::Composite { context, .. } => Some(context),
@@ -621,7 +616,6 @@ impl Decoder {
         }
     }
     /// The single-ASC HOA context.
-    #[doc(hidden)]
     pub fn hoa(&self) -> Option<&HoaFrameContext> {
         match &self.engine {
             Engine::Hoa { context, .. } => Some(context),
@@ -629,7 +623,6 @@ impl Decoder {
         }
     }
     /// The single-ASC transport context fast access scans with.
-    #[doc(hidden)]
     pub fn transport(&self) -> &ChannelFrameContext {
         &self.access
     }
@@ -646,7 +639,6 @@ impl Decoder {
 }
 
 /// Borrowed decoder state: DRC history plus the composite or HOA state.
-#[doc(hidden)]
 pub struct MetadataState<'a> {
     pub drc: &'a DrcState,
     pub components: Option<&'a crate::frame::stream::StreamState>,
@@ -667,7 +659,6 @@ pub struct FrameInfo {
     pub drc_missing_history_frames: u64,
 }
 /// A packet parsed by [`Decoder::parse`], awaiting [`Decoder::synthesize`].
-#[doc(hidden)]
 pub struct ParsedPacket {
     owner: Arc<()>,
     generation: u64,

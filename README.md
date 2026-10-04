@@ -157,7 +157,7 @@ cookie 已确认的 `frame_samples` 用于核对逐包帧数、绝对帧位置�
 
 LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_deferred` 停止，`prefix_complete=false`，保留剩余位。当前系统的默认双声道编码路径未启用该工具；这不意味着其他编码设置、系统版本或已有媒体不会使用它。未知 ASP 类型、重配置或未验证的保留位同样明确停止。
 
-库入口为 `frame::FrameContext::from_cookie(&[u8])` 和 `frame::parse_frame(&FrameContext, &[u8])`。上下文只使用 cookie 中已确认的字段；`is_supported()` 表示配置适合尝试当前前缀，不保证每包分支均已实现。`packets::PacketBundle::next_packet` 提供经过校验的原始包记录及字节，保留既有批次回放接口。
+库入口为 `inspect::FrameContext::from_cookie(&[u8])` 和 `inspect::parse_frame(&FrameContext, &[u8])`。上下文只使用 cookie 中已确认的字段；`is_supported()` 表示配置适合尝试当前前缀，不保证每包分支均已实现。`packets::PacketBundle::next_packet` 提供经过校验的原始包记录及字节，保留既有批次回放接口。
 
 单包语法错误记录包序号和包内位位置，继续保留其他包的结果，退出 `1` 并留下 `<REPORT.jsonl>.incomplete`。I/O 或目录完整性失败立即停止并保留已有的不完整输出；正常的 partial/unsupported 结果不会留下失败标记。报告结束前还会校验未选中的包。沿用 128 MiB 输出限额及拒绝覆盖机制；已验证的双声道 ASP 内嵌 preroll 上限为 4096 字节。
 
@@ -177,13 +177,13 @@ python3 scripts/validate_drc_off.py --binary target/debug/apac-tool \
 
 `spectrum_complete=true` 只表示两路 SQ 流完成。CPE 缺席时 `channels=[]`、`spectrum_complete=false`，汇总单列 `cpe_absent_packets`；LRVQ 和范围外配置同样不伪造频谱。整包状态仍为 partial，通常退出 `2`。`prefix_complete` 保留原目标含义，`payload_bit_offset` 仍指左声道流起点，`component_end_bit_offset` 保持 null。汇总另列 `left_spectrum_packets`、`right_spectrum_packets` 和 `spectrum_complete_packets`。
 
-库入口 `frame::parse_spectrum(&FrameContext, &[u8]) -> Result<SpectrumReport, config::ParseError>` 提供类型化结果；`SpectrumReport.frame` 是原 `FrameReport`，JSON 序列化时平铺它。`parse_packets_with_depth(..., ParseDepth)` 提供包目录接口，原 `parse_frame`、`parse_packets` 及 CLI 默认 `--depth prefix` 保持原有行为。
+库入口 `inspect::parse_spectrum(&FrameContext, &[u8]) -> Result<SpectrumReport, config::ParseError>` 提供类型化结果；`SpectrumReport.frame` 是原 `FrameReport`，JSON 序列化时平铺它。`parse_packets_with_depth(..., ParseDepth)` 提供包目录接口，原 `parse_frame`、`parse_packets` 及 CLI 默认 `--depth prefix` 保持原有行为。
 
 缩放因子差分在所有组间连续累加，支持 `-256..255`；超界明确报错，不复现苹果的饱和恢复。逃逸幅度限制为已验证的 `16..8191`。反量化 `|q|^(4/3)` 和缩放 `2^((sf-100)/4)` 分别按最近值、平局取偶舍入为 Float32，再作 Float32 乘法。全部幅度与缩放因子的 IEEE 位模式由高精度公式离线生成，运行时不使用系统 `powf`。频谱报告新增可选 `numeric_profile`，新输出为 `apac-sq-math-v1`；旧报告缺失该字段时仍可读取。频谱尚未施加 CAC、TNS、DRC 或合成变换，不能直接解释为可播放 PCM。
 
 码字、码长及频带常量的来源和许可见 [THIRD_PARTY.md](THIRD_PARTY.md)；Rust 的解码表结构与 APAC 读取器为独立实现，运行和构建无需系统二进制或本地研究目录。
 
-**CAC 深度**：`parse-packets --depth cac` 及 `frame::parse_cac(&FrameContext, &[u8]) -> Result<CacReport, config::ParseError>` 完成共享 ICS 下的右声道流与 CAC。原 `prefix`／`spectrum` 行为保持不变；`spectrum` 仍在共享头标志之后保留左流并停止。
+**CAC 深度**：`parse-packets --depth cac` 及 `inspect::parse_cac(&FrameContext, &[u8]) -> Result<CacReport, config::ParseError>` 完成共享 ICS 下的右声道流与 CAC。原 `prefix`／`spectrum` 行为保持不变；`spectrum` 仍在共享头标志之后保留左流并停止。
 
 `CacReport.spectrum` 保存原始频谱报告，JSON 平铺其字段。`channels` 中的量化整数和 `scaled` 始终表示 CAC 前的编码流；`channels_after_cac` 才是左右声道的恢复频谱，标记为 `output_stage=scaled_after_cac_before_tns`。报告另含 `shared_ics`、`cac_complete`、`cac_numeric_profile`，以及 `cac` 中的游程、按组／频带展开的增益索引、CAC 起止位。逐声道 `end_bit_offset` 仍是原始流终点，外层 `stop_bit_offset` 为本深度的停止位置；整包状态仍为 partial，组件终点仍未知。
 
@@ -207,7 +207,7 @@ bundle(path, [frame(case)[0] for case in cases])
 PY
 ```
 
-**TNS 深度**：`parse-packets --depth tns` 及 `frame::parse_tns(&FrameContext, &[u8]) -> Result<TnsReport, config::ParseError>` 依次读取完整左 TNS、完整右 TNS，停在 BWE2 入口。原 `prefix`／`spectrum`／`cac` 深度的默认值、结果与停止位置保持不变。
+**TNS 深度**：`parse-packets --depth tns` 及 `inspect::parse_tns(&FrameContext, &[u8]) -> Result<TnsReport, config::ParseError>` 依次读取完整左 TNS、完整右 TNS，停在 BWE2 入口。原 `prefix`／`spectrum`／`cac` 深度的默认值、结果与停止位置保持不变。
 
 `TnsReport.cac` 保留前阶段报告，JSON 继续平铺。`channels` 是原始整数及 CAC 前频谱，`channels_after_cac` 保留 TNS 输入，`channels_after_tns` 为滤波后输出，`tns_stage=scaled_after_tns_before_bwe2`。`tns` 逐声道、窗口、滤波器记录存在位、分辨率、长度／阶数、方向／压缩、补码整数、Float64 反射系数、有效谱线区间和起止位。`tns_complete` 及汇总 `tns_complete_packets` 只表示此阶段完成；整包仍是 partial，组件终点仍未知。CPE 缺席不产生虚构频谱。
 
@@ -230,7 +230,7 @@ python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --native-only
 
 TNS 数学参考从公式重新计算系数，转换为 200 位 LPC，再作直接式递推；不复用生产格型或常量表。频谱和 PCM 保持 `atol=1e-6, rtol=1e-5`，记录最大误差、ULP 及失败坐标。另对量化整数、CAC 参数／频谱、TNS 参数／频谱和 PCM 的小端字节摘要要求完全一致。完整验收包含原有 SQ 17,800／9,948、CAC 2,912／2,984 两套矩阵；`validate_cac.py` 也支持显式 `--regression-report` 核对旧提交的固定输出。`--native-only` 属于诊断报告，不能作为便携数学或跨平台验收参考。
 
-**BWE2 深度**：`parse-packets --depth bwe2` 及 `frame::parse_bwe2(&FrameContext, &[u8]) -> Result<Bwe2Report, config::ParseError>` 完成 TNS 后的带宽扩展，在核心对齐之前停止。旧深度不消费新增参数。`Bwe2Report.tns` 保留先前报告并在 JSON 中平铺；新增 `bwe2` 的控制位、有效启用状态、参数来源、两个 LSF 索引、按组增益及起止位。`channels_after_bwe2` 保存输出、复制区间、是否实际处理及可用的 LPC／LSF 诊断量，标识为 `bwe2_stage=scaled_after_bwe2_before_synthesis`。`bwe2_complete` 和汇总 `bwe2_complete_packets` 不替代整包完成状态，组件终点仍未知。
+**BWE2 深度**：`parse-packets --depth bwe2` 及 `inspect::parse_bwe2(&FrameContext, &[u8]) -> Result<Bwe2Report, config::ParseError>` 完成 TNS 后的带宽扩展，在核心对齐之前停止。旧深度不消费新增参数。`Bwe2Report.tns` 保留先前报告并在 JSON 中平铺；新增 `bwe2` 的控制位、有效启用状态、参数来源、两个 LSF 索引、按组增益及起止位。`channels_after_bwe2` 保存输出、复制区间、是否实际处理及可用的 LPC／LSF 诊断量，标识为 `bwe2_stage=scaled_after_bwe2_before_synthesis`。`bwe2_complete` 和汇总 `bwe2_complete_packets` 不替代整包完成状态，组件终点仍未知。
 
 两个控制位先于所有载荷：00 关闭，01 读取右参数，10 读取左参数并按有效声道条件复用到右侧，11 独立读取两侧。零 max_sfb 不读取该侧载荷。复用只接受已定义增益覆盖全部目标组的情况，缺失组明确报错，不借用上包缓存。两套 512×16 LSF 码本与 64 项激励增益是固定格式常量；增益索引 0 是非零小增益。短窗仍以八个 128 点窗口输出，每组增益作用于组内窗口。
 
@@ -254,7 +254,7 @@ BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式�
 
 所有验收入口显式接收二进制和报告路径，拒绝覆盖、缺失用例、指纹变化和执行中源码／二进制变化；便携测试不依赖 docs/local。旧 TNS／BWE2 矩阵也可显式使用 `--regression-report reports/previous-math.json` 重新执行并对照原摘要，语义与 SQ／CAC 一致；数值配置、常量和向量身份必须相同。BWE2 元数据另记录 `bwe2_numeric_profile`、格式字典与数学常量摘要。本深度仍只报告当前核心帧；完整包及内嵌帧的处理见下文 `packet` 深度。BWE2 深度不读取 DRC；后续载荷和关闭策略支持见下文。重配置、LRVQ 和多声道限制继续保留。
 
-**DRC 载荷深度**：`parse-packets --depth drc` 和 `frame::parse_drc(&FrameContext, &[u8]) -> Result<DrcReport, config::ParseError>` 在受限配置下读取场景更新后的 DRC，停在 trimming 入口。支持一个 location 1 系数集合、一个增益序列、单频带、coding profile 0、线性插值、1024 帧及显式 64 采样的最小时间间隔。指令效果限定为已验证的 2／5／32（或无指令）。配置重述须保持相同编码结构；响度元数据更新会完整解析，曲线与 shape filter 只保留声明。非终止增益扩展明确停止。
+**DRC 载荷深度**：`parse-packets --depth drc` 和 `inspect::parse_drc(&FrameContext, &[u8]) -> Result<DrcReport, config::ParseError>` 在受限配置下读取场景更新后的 DRC，停在 trimming 入口。支持一个 location 1 系数集合、一个增益序列、单频带、coding profile 0、线性插值、1024 帧及显式 64 采样的最小时间间隔。指令效果限定为已验证的 2／5／32（或无指令）。配置重述须保持相同编码结构；响度元数据更新会完整解析，曲线与 shape filter 只保留声明。非终止增益扩展明确停止。
 
 报告保留 BWE2 及之前的结果，新增精确的 1/8 dB 整数增益、采样时间、码字范围、配置／元数据来源及哈希。`drc_complete` 只表示到达 trimming 入口；`drc_history_sufficient` 表示已解析的前一帧提供了当前帧起点之前的增益节点，不代表已实现插值或播放处理。`drc_processing_applied=false`；缺席 CPE 仍读取 DRC。截断、计数或时间越界、节点不推进直接报错，不复制原生的零增益恢复。
 
@@ -277,7 +277,7 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 人工清单分别冻结 2,516 个解析用例和 2,640 个 PCM 序列，正式构建和便携验收均不依赖研究目录、网络或苹果文件。完整编码器控制的 PCM 超差会使验收失败，且保留失败指标与输入。
 
-**完整包深度**：`parse-packets --depth packet` 和 `frame::parse_packet(&FrameContext, &[u8]) -> Result<PacketReport, config::ParseError>` 在限定配置下继续解析核心对齐、场景更新、DRC、关闭的 trimming 与末字节零填充。DRC 使 trimming 恰好按字节结束时，还验证编码器写出的零 custom-data 标志及其填充，不接受任意额外尾部。接受 ASP 类型 0／1，以及无重配置、含零或一个内嵌 preroll 的类型 2；内嵌帧长度限于 1–4096 字节，拒绝嵌套、类型 3、未知载荷、非零填充和额外尾部。旧深度、默认值和停止位置保持不变。
+**完整包深度**：`parse-packets --depth packet` 和 `inspect::parse_packet(&FrameContext, &[u8]) -> Result<PacketReport, config::ParseError>` 在限定配置下继续解析核心对齐、场景更新、DRC、关闭的 trimming 与末字节零填充。DRC 使 trimming 恰好按字节结束时，还验证编码器写出的零 custom-data 标志及其填充，不接受任意额外尾部。接受 ASP 类型 0／1，以及无重配置、含零或一个内嵌 preroll 的类型 2；内嵌帧长度限于 1–4096 字节，拒绝嵌套、类型 3、未知载荷、非零填充和额外尾部。旧深度、默认值和停止位置保持不变。
 
 `PacketReport.bwe2` 保留前阶段结果，JSON 继续平铺；新增 `packet_complete`、`packet_state_profile=apac-asp-state-v1`、`packet_tail` 和可选 `embedded_preroll`。核心终点来自实际核心语法及对齐，随后才是 ancillary；频谱终点不充当组件终点。只有整个外层包及内嵌帧均覆盖后，整包 `status` 才为 `complete`。这仍是语法状态，不表示支持任意配置或无需解码状态。CPE 缺席时原始声道数组保持空，频谱阶段完成标志保持 false，完整包仍可完成。
 
@@ -304,7 +304,7 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 channel ASC 的实际读取顺序是**每个元素后立即读取该元素的 BWE2**，然后才进入下一元素；全部元素完成后作核心对齐和 ancillary。SCE 有一份 ICS／SQ／TNS，CPE 复用既有左右流、CAC、TNS，LFE 的 SQ 后没有 TNS 或 BWE2 位。SCE 的 BWE2 启用位为真时总会读取两个 LSF 索引；零 `max_sfb` 不读取组增益，也不恢复零输入的频谱。CPE 保持原先的频带门控和局部参数复用规则，参数不跨元素继承。
 
-库入口为 `ChannelFrameContext::from_cookie` 和 `frame::parse_channel_packet(&ChannelFrameContext, &[u8])`。上下文提供声道数、布局、标签、元素配置和资格查询；`ChannelPacketReport` 逐元素保存存在状态、编码方式、量化频谱、CAC／TNS／BWE2 数据及各阶段频谱。元素内 `channel_index` 是局部编号，`configuration.output_channels` 显式映射到输出声道。`end_bit_offset` 是元素本体终点，紧随的 BWE2 范围单独记录；只有全部元素和尾部完成才设置 `packet_complete=true`。语法错误附带元素索引和可确定的位位置。
+库入口为 `ChannelFrameContext::from_cookie` 和 `inspect::parse_channel_packet(&ChannelFrameContext, &[u8])`。上下文提供声道数、布局、标签、元素配置和资格查询；`ChannelPacketReport` 逐元素保存存在状态、编码方式、量化频谱、CAC／TNS／BWE2 数据及各阶段频谱。元素内 `channel_index` 是局部编号，`configuration.output_channels` 显式映射到输出声道。`end_bit_offset` 是元素本体终点，紧随的 BWE2 范围单独记录；只有全部元素和尾部完成才设置 `packet_complete=true`。语法错误附带元素索引和可确定的位位置。
 
 缺席元素的编码声道数组为空，合成仅输出该元素已有 overlap 尾部并清零，不影响其他声道。内嵌帧先推进全部声道和 DRC；Mono／Stereo／5.1／7.1 已核实的 preroll 容量分别是 2048／4096／12288／16384 字节；7.1.4／22.2 的实测容量分别为 24576／49152 字节。普通包仍独立受 16 MiB 上限约束。最后一个元素、DRC、尾部或合成失败都会回滚整个外层包。`channels` 深度选择后面的包时，会先读取目录中已有的前置包以建立声明和增益节点状态。
 
@@ -372,7 +372,7 @@ python3 -B scripts/validate_hoa_remapping.py --binary target/debug/apac-tool \
   --report reports/hoa-remapping-math.json
 ```
 
-库入口为 `HoaFrameContext::from_cookie`、`frame::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
+库入口为 `HoaFrameContext::from_cookie`、`inspect::parse_hoa_packet(&HoaFrameContext, &[u8])` 和 `HoaPacketReport`。报告中的 `elements` 保存传输整数及 SQ／TNS／BWE2 各阶段；新增 `hoa` 保存公共窗口、空间模式、ambient 索引、恢复后系数频谱和位范围。`hoa_complete` 仅表示恢复阶段完成，整包仍须完成 ancillary 与尾部。单包解析入口从初始 HOA／DRC 状态开始；需要连续报告时使用 `parse-packets --depth hoa`，选择中间包也会先推进已有前缀。旧深度和离散声道报告不变。
 
 原无选择／变换扩展的一、三阶 ambient 恢复均已确认是精确恒等映射，包括短窗转置与逆转置抵消；不能将该结论推广到其他零 salient 配置。规则标识为 `apac-hoa-ambient-math-v1`，不增加浮点近似或修改既有 SQ／TNS／BWE2／合成模型。PCM 元数据记录 `hoa_numeric_profile`、实际阶数、ACN 和 SN3D，后端为 `rust_hoa_ambient_sq_drc_off_f64_fft_v1`，状态规则为 `apac-hoa-ambient-state-v1`。DRC／响度处理固定关闭，`experimental=true` 保留。
 
@@ -490,7 +490,7 @@ python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
 
 **Ambient 与 salient 叠加**：在上述固定二阶、固定三阶和动态九槽→十六系数的 5 salient＋4 ambient 配置中，接受 cookie `flag_d=true`。传输槽位 `0..3` 为 ambient、`4..8` 为 salient；静态选择、三套四路变换、帧内变换索引及既有动态划分均可组合。模式 0–3 完整读取九／十六项描述及规定的符号，差分历史不省略 ambient 位置。模式 4／5 沿用完整恢复。`flag_d=false` 继续使用原有省略与覆盖规则；纯 ambient／salient 的新标志组合仍拒绝。
 
-`frame::AmbientCombination::{Replace, Add}` 和 `HoaFrameContext::ambient_combination()` 提供类型化查询。叠加先计算五个 salient 乘积，再按 ambient 输入 `0..3` 加入矩阵贡献，以 Float64、固定顺序 Neumaier 补偿求和，合并后一次转换为 Float32；不将两路分别舍入后再相加。恒等变换直接使用对应 ambient 输入，非有限结果报错。新增规则为 `apac-hoa-additive-math-v1`、状态为 `apac-hoa-additive-state-v1`，后端为 `rust_hoa_additive_sq_drc_off_f64_fft_v1`。动态分支继续记录动态复制标识，并以 `hoa_recovery_numeric_profile` 标明叠加恢复；旧配置的标识和输出不变。
+`inspect::AmbientCombination::{Replace, Add}` 和 `HoaFrameContext::ambient_combination()` 提供类型化查询。叠加先计算五个 salient 乘积，再按 ambient 输入 `0..3` 加入矩阵贡献，以 Float64、固定顺序 Neumaier 补偿求和，合并后一次转换为 Float32；不将两路分别舍入后再相加。恒等变换直接使用对应 ambient 输入，非有限结果报错。新增规则为 `apac-hoa-additive-math-v1`、状态为 `apac-hoa-additive-state-v1`，后端为 `rust_hoa_additive_sq_drc_off_f64_fft_v1`。动态分支继续记录动态复制标识，并以 `hoa_recovery_numeric_profile` 标明叠加恢复；旧配置的标识和输出不变。
 
 可选 `hoa.additive` 记录策略、选择表、变换索引、恢复阶段与 `ambient_contributions`。这些诊断贡献采用 Float64；其 `recovery_index` 依 `coordinate_space` 指向固定路径的 ACN 或动态路径的内部槽位，不用诊断值回写计算。新增路径的原 `channels_after_transform` 数组为空，避免伪造中途 Float32 舍入；原始传输频谱及最终 ACN 频谱仍完整保留。描述报告的实际编码索引和空省略集合明确表示线上完整读取。历史报告缺少新增字段时仍可读取。
 
@@ -1090,7 +1090,7 @@ git clone https://github.com/SakuzyPeng/MacinDecode-APAC-Docs.git MacinDecode-AP
 
 组合流包含至少一个 HOA ASC，可与已支持的 SQ 声道布局组合，最终输出最多 255 声道。每个主声明的核心帧按线上顺序读取、对齐并验证，包含重复声明和最终未输出的组件。各组件分别保存空间描述、动态选择及合成历史；DRC 与全部组件状态按外层包提交。声明范围相同且类型、长度一致的记录可重复，其他重叠范围拒绝。无场景时依次接入能完整容纳的组件；中性全源场景按源描述区间安排输出，后声明的同范围源替换前者。附加 ASC 是输出描述，不新增编码核心；有中性场景时，它们可重新划分跨组件的源区间。
 
-`frame::StreamFrameContext::from_cookie` 提供组合上下文。使用 `is_supported()`／`rejection()` 检查资格，`components()` 查询每个主声明的类型、源布局、`source_channels` 和 HOA 实际恢复维度。`output_ranges` 中的每项包含组件内 `source_start`、最终 `output_start` 和 `channels`；组件可能有多个区间或不输出。`output_start` 为第一段的起点，`output_channels` 为全部区间的总长度。`additional_components()` 返回附加声明。`hoa_component(index)` 返回该组件的 `HoaFrameContext`，可继续使用实际长度的分量查询、`full_order()`、`order()` 和维度查询。`apac_core::Decoder` 自动分派组合流，并提供 `components()`、`hoa_component(index)`；既有单 ASC 接口保留。
+`inspect::StreamFrameContext::from_cookie` 提供组合上下文。使用 `is_supported()`／`rejection()` 检查资格，`components()` 查询每个主声明的类型、源布局、`source_channels` 和 HOA 实际恢复维度。`output_ranges` 中的每项包含组件内 `source_start`、最终 `output_start` 和 `channels`；组件可能有多个区间或不输出。`output_start` 为第一段的起点，`output_channels` 为全部区间的总长度。`additional_components()` 返回附加声明。`hoa_component(index)` 返回该组件的 `HoaFrameContext`，可继续使用实际长度的分量查询、`full_order()`、`order()` 和维度查询。`apac_core::Decoder` 自动分派组合流，并提供 `components()`、`hoa_component(index)`；既有单 ASC 接口保留。
 
 `parse-packets --depth stream` 输出组合报告；`--depth hoa` 遇到多个或附加 ASC 时自动分派。新报告使用 `components` 数组，逐组件给出绝对位边界。整体布局按实际路由保留源标签；完整保留一个组件的源顺序时沿用该组件的布局标签，其他组合使用逐声道标签，不虚构一个共同 HOA 阶数。
 

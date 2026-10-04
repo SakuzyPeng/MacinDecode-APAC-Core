@@ -197,7 +197,6 @@ impl ChannelFrameContext {
     pub fn channel_layout(&self) -> Option<&ChannelLayout> {
         self.layout.as_ref()
     }
-    #[doc(hidden)]
     pub fn channel_layout_profile(&self) -> Option<&'static str> {
         if self.hoa.is_some() || !self.is_supported() {
             return None;

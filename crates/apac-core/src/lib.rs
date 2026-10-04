@@ -15,13 +15,13 @@ mod bwe2_math;
 mod channel_layout;
 pub mod config;
 pub mod error;
-pub mod frame;
+mod frame;
 pub mod identity;
 pub mod inspect;
 pub mod model;
 mod numeric;
 pub mod record;
-pub mod synthesis;
+mod synthesis;
 mod tables;
 
 pub use config::{Config, ParseError};
@@ -29,8 +29,3 @@ pub use error::DecodeError;
 pub use frame::MAX_PACKET_BUFFER;
 pub use model::ChannelLayout;
 pub use synthesis::{AdvanceInfo, Decoder, FrameInfo, ParsedPacket, StreamInfo, StreamKind};
-
-/// Transitional access for `apac-research` while the decoder and its reports
-/// are separated. Not a stable interface; it shrinks as the refactor proceeds.
-#[doc(hidden)]
-pub mod research_support;

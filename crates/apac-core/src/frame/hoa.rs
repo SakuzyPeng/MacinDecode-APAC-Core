@@ -781,21 +781,18 @@ impl HoaFrameContext {
     pub fn level_id(&self) -> u8 {
         self.configuration.level_id
     }
-    #[doc(hidden)]
     pub fn expanded_orders(&self) -> bool {
         self.configuration.expanded_orders()
     }
     pub fn quantization_bits(&self) -> u8 {
         self.configuration.quantization_bits
     }
-    #[doc(hidden)]
     pub fn quantization_extended(&self) -> bool {
         self.configuration.quantization_extended()
     }
     pub fn salient_components(&self) -> usize {
         usize::from(self.configuration.salient_components)
     }
-    #[doc(hidden)]
     pub fn ambient_count_extended(&self) -> bool {
         self.configuration.ambient_count_extended()
     }
@@ -822,7 +819,6 @@ impl HoaFrameContext {
     pub fn spatial_controls(&self) -> super::HoaSpatialControls {
         self.configuration.controls
     }
-    #[doc(hidden)]
     pub fn controls_extended(&self) -> bool {
         self.configuration.controls_extended()
     }
@@ -839,7 +835,6 @@ impl HoaFrameContext {
     pub fn dynamic_selection_enabled(&self) -> bool {
         self.configuration.dynamic_method.is_some()
     }
-    #[doc(hidden)]
     pub fn dynamic_domains_extended(&self) -> bool {
         self.configuration.dynamic_domains_extended()
     }
@@ -852,7 +847,6 @@ impl HoaFrameContext {
     pub fn static_ambient_enabled(&self) -> bool {
         self.configuration.static_ambient
     }
-    #[doc(hidden)]
     pub fn transport_extended(&self) -> bool {
         self.configuration.transport_extended()
     }
@@ -888,11 +882,9 @@ impl HoaFrameContext {
             self.salient_component_configurations().try_into().ok()?;
         Some(components.map(|c| c.order))
     }
-    #[doc(hidden)]
     pub fn component_orders_extended(&self) -> bool {
         self.configuration.component_orders_extended()
     }
-    #[doc(hidden)]
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
         self.configuration.component_order_info()
     }
@@ -1289,7 +1281,6 @@ impl DecodedFrameContext {
             Self::Stream(c) => c.rejection(),
         }
     }
-    #[doc(hidden)]
     pub fn sample_rate_hz(&self) -> u64 {
         match self {
             Self::Channels(c) => c.sample_rate_hz(),
@@ -1297,7 +1288,6 @@ impl DecodedFrameContext {
             Self::Stream(c) => c.sample_rate_hz(),
         }
     }
-    #[doc(hidden)]
     pub fn channel_count(&self) -> u32 {
         match self {
             Self::Channels(c) => c.channel_count(),

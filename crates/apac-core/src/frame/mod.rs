@@ -2,7 +2,7 @@
 use crate::prelude::*;
 use crate::record::FieldValue;
 mod auxiliary;
-pub use auxiliary::{AuxiliaryPayload, SceneGraphPayload, TrimmingDeclaration};
+pub use auxiliary::{AuxiliaryPayload, SceneGraphPayload, SceneGraphState, TrimmingDeclaration};
 mod channels;
 mod hoa;
 mod hoa_remapping;
@@ -19,7 +19,7 @@ mod hoa_controls;
 pub use hoa_controls::PROFILE as HOA_SPATIAL_CONTROLS_PROFILE;
 pub use hoa_controls::format_sha256 as hoa_spatial_controls_format_sha256;
 pub use hoa_controls::frame_state_sha256 as hoa_frame_configuration_state_sha256;
-pub use hoa_controls::{HoaFrameConfigurationReport, HoaSpatialControls};
+pub use hoa_controls::{HoaFrameConfiguration, HoaFrameConfigurationReport, HoaSpatialControls};
 pub use hoa_dynamic::{
     DOMAINS_PROFILE as HOA_DYNAMIC_DOMAINS_PROFILE,
     domains_format_sha256 as hoa_dynamic_domains_format_sha256,
@@ -33,61 +33,52 @@ mod hoa_salient_subbands;
 mod hoa_transport;
 pub use channels::STATE_PROFILE as CHANNEL_STATE_PROFILE;
 pub use channels::{
-    ChannelFrameContext, ChannelPacketReport, ElementConfiguration, ElementKind, ElementReport,
-    parse_channel_packet,
+    ChannelFrameContext, ChannelPacketReport, ChannelPreroll, ElementConfiguration, ElementKind,
+    ElementReport, parse_channel_packet,
 };
-#[doc(hidden)]
 pub use channels::{
     ScanWorkspace, parse_channel_packet_with_state, scan_channel_packet, scan_hoa_packet,
 };
 pub use hoa_salient::ORDER1_PROFILE as HOA_SALIENT_ORDER1_PROFILE;
-#[doc(hidden)]
 pub use hoa_salient::{
     EXPANDED_PROFILE as HOA_EXPANDED_ORDERS_PROFILE,
     expanded_math_sha256 as hoa_expanded_math_sha256,
 };
 pub use hoa_salient::{
-    SalientComponentOrderInfo, SalientDescriptor, SalientSpatialData, SalientSubbandInfo,
+    SalientComponentOrderInfo, SalientDescriptor, SalientSpatialData, SalientState,
+    SalientSubbandInfo,
 };
-#[doc(hidden)]
 pub use hoa_salient::{
     format_sha256 as hoa_salient_format_sha256, math_sha256 as hoa_salient_math_sha256,
 };
 pub use hoa_salient_subbands::PARTITION_PROFILE as HOA_SALIENT_PARTITION_PROFILE;
 pub use hoa_salient_subbands::SUBBAND_PROFILE as HOA_SALIENT_SUBBAND_PROFILE;
-#[doc(hidden)]
 pub use hoa_salient_subbands::format_sha256 as hoa_salient_subbands_format_sha256;
 pub use hoa_transport::HoaExtensionData;
-#[doc(hidden)]
 pub use hoa_transport::format_sha256 as hoa_transport_format_sha256;
 mod bwe2;
 mod cac;
-#[doc(hidden)]
 pub mod drc;
 mod drc_shared;
 pub use drc::DrcGainExtension;
 pub use drc::RULES_VERSION as DRC_RULES_VERSION;
-#[doc(hidden)]
 pub use drc::{DrcState, codebook_sha256 as drc_codebook_sha256};
 pub use drc_shared::{DrcGainSequence, DrcSequenceParameters};
 pub use drc_shared::{
     PROFILE as HOA_SHARED_DRC_PROFILE, format_sha256 as hoa_shared_drc_format_sha256,
 };
-#[doc(hidden)]
 pub use packet::parse_packet_with_state;
 mod packet;
 mod packet_config;
-#[doc(hidden)]
 pub mod sfb;
 mod spectrum;
-#[doc(hidden)]
 pub mod stream;
 pub use sfb::{
     PROFILE as HOA_SHARED_CONFIG_PROFILE, format_sha256 as hoa_shared_config_format_sha256,
 };
 pub use stream::{
     AdditionalComponentConfiguration, StreamComponentConfiguration, StreamComponentReport,
-    StreamFrameContext, StreamOutputRange, StreamPacketReport, parse_stream_packet,
+    StreamFrameContext, StreamOutputRange, StreamPacketReport, StreamPreroll, parse_stream_packet,
 };
 mod tns;
 pub use crate::bwe2_math::Analysis as Bwe2Analysis;
@@ -98,7 +89,6 @@ pub use bwe2::{
     parse_bwe2,
 };
 pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
-#[doc(hidden)]
 pub use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
 pub(crate) use channels::parse_channel_packet_with_mode;
@@ -108,7 +98,6 @@ pub use drc::{
 pub use hoa::PARTIAL_PROFILE as HOA_PARTIAL_PROFILE;
 pub use hoa::TRANSPORT_PROFILE as HOA_TRANSPORT_PROFILE;
 pub(crate) use hoa::parse_hoa_packet_with_mode;
-#[doc(hidden)]
 pub use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{
     HoaCoefficientSpectrum, HoaFrameContext, HoaFrameInfo, HoaMixedMapping, HoaPacketReport,
@@ -116,12 +105,10 @@ pub use hoa::{
 };
 pub use hoa::{NUMERIC_PROFILE as HOA_NUMERIC_PROFILE, STATE_PROFILE as HOA_STATE_PROFILE};
 pub use hoa_ambient::{AmbientSpectrum, AmbientTransform, StaticAmbientData};
-#[doc(hidden)]
 pub use hoa_ambient::{
     format_sha256 as hoa_ambient_format_sha256, math_sha256 as hoa_ambient_math_sha256,
 };
 pub use hoa_dynamic::SUBBAND_PROFILE as HOA_DYNAMIC_SUBBAND_PROFILE;
-#[doc(hidden)]
 pub use hoa_dynamic::format_sha256 as hoa_dynamic_format_sha256;
 pub use hoa_dynamic::{
     DynamicBandMapping, DynamicSelectionData, DynamicSelectionEncoding, InternalAmbientData,
@@ -131,7 +118,6 @@ pub(crate) use packet::parse_packet_with_mode;
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
-#[doc(hidden)]
 pub use tns::math_sha256 as tns_math_sha256;
 pub use tns::{TnsChannel, TnsChannelSpectrum, TnsFilter, TnsReport, TnsWindow, parse_tns};
 
@@ -298,7 +284,6 @@ pub struct FrameReport {
 
 /// What a packet parse produces besides its decisions and state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[doc(hidden)]
 pub enum ParseMode {
     /// Packet reports: recorded syntax and every spectrum.
     Report,

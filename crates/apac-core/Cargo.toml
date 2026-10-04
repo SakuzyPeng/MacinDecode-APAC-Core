@@ -13,6 +13,8 @@ serde = ["dep:serde", "dep:serde_json"]
 [dependencies]
 serde = { version = "1.0", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
+# Correctly rounded square root without the platform libm.
+libm = "0.2"
 sha2 = { version = "0.10", default-features = false }
 
 [dev-dependencies]

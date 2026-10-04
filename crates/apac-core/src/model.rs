@@ -37,7 +37,7 @@ impl ChannelLayout {
     }
     pub fn tagged(tag: u32, channels: u32, name: Option<String>) -> Self {
         let hoa = tag >> 16 == 190 || tag >> 16 == 191;
-        let root = (channels as f64).sqrt() as u32;
+        let root = channels.isqrt();
         Self {
             tag,
             bitmap: 0,
@@ -47,6 +47,18 @@ impl ChannelLayout {
             ambisonic_channel_order: hoa.then(|| "ACN".into()),
             ambisonic_normalization: hoa
                 .then(|| if tag >> 16 == 190 { "SN3D" } else { "N3D" }.into()),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn integer_square_root_matches_the_former_float_root() {
+        let former = |n: u32| (f64::from(n)).sqrt() as u32;
+        let squares = (1..=u32::from(u16::MAX)).flat_map(|k| [k * k - 1, k * k, k * k + 1]);
+        for n in (0..=1 << 20).chain(squares).chain([u32::MAX]) {
+            assert_eq!(n.isqrt(), former(n), "{n}");
         }
     }
 }

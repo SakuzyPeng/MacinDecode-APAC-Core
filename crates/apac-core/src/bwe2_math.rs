@@ -253,7 +253,7 @@ fn envelope(a: &[f64; 17], bins: usize) -> Vec<f64> {
         .map(|z| {
             let re = z.re * z.re;
             let im = z.im * z.im;
-            (re + im).sqrt()
+            libm::sqrt(re + im)
         })
         .collect()
 }
@@ -281,7 +281,7 @@ fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
             let im = q * lsf_cosine(6000. - half_frequency);
             let re2 = re * re;
             let im2 = im * im;
-            (re2 + im2).sqrt()
+            libm::sqrt(re2 + im2)
         })
         .collect()
 }
@@ -372,6 +372,29 @@ pub(crate) fn restore_captured(
 mod tests {
     use super::*;
     use std::f64::consts::PI;
+    #[test]
+    fn libm_square_root_matches_the_platform_bit_for_bit() {
+        // Both are IEEE correctly rounded; the core has no platform sqrt.
+        let mut values = vec![0., -0., f64::MIN_POSITIVE, 5e-324, 1., 2., f64::MAX];
+        values.extend((1..=1 << 12).flat_map(|k| {
+            let square = f64::from(k * k);
+            [square, square.next_down(), square.next_up()]
+        }));
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        values.extend((0..1 << 20).map(|_| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            f64::from_bits(state >> 1)
+        }));
+        for value in values.into_iter().filter(|v| v.is_finite()) {
+            assert_eq!(
+                libm::sqrt(value).to_bits(),
+                value.sqrt().to_bits(),
+                "{value:e}"
+            );
+        }
+    }
     #[test]
     fn every_lsf_pair_has_valid_spacing_and_gain_zero_is_not_mute() {
         assert!(constants().gains[0] > 0. && constants().gains[0] < 1.);

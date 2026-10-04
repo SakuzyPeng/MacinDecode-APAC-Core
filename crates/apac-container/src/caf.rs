@@ -2,51 +2,24 @@
 //! Wire reference: Apple Core Audio Format Specification, archived CAF_spec v1,
 //! Audio Description, Audio Data and Packet Table chunks; public CAFFile.h.
 //! No packet index or unknown chunk payload is retained in memory.
-use crate::{
+use crate::{Error, Packet, PacketTable, Result, Source, Track, read_at};
+use apac_core::{
     config::{self, MAX_COOKIE_BYTES},
-    error::{Error, FilePosition, Result},
-    model::*,
-    packets::{MAX_PACKET_BUFFER, ReplayRange},
+    frame::MAX_PACKET_BUFFER,
+    model::ChannelLayout,
+    research_support::{channel_layout, frame},
 };
-use serde::Serialize;
-use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
-use std::{
-    collections::BTreeMap,
-    fs::File,
-    io::{Read, Seek, SeekFrom},
-    path::Path,
-    time::SystemTime,
-};
-
-pub(crate) const PROFILE: &str = "apac-caf-input-v1";
-#[cfg(test)]
-const STEREO: u32 = (101 << 16) | 2;
+use std::{collections::BTreeMap, time::SystemTime};
 
 fn invalid(tag: &[u8; 4], offset: u64, message: impl Into<String>) -> Error {
-    let mut e = Error::new("CAF input", message);
-    e.file_position = Some(Box::new(FilePosition {
-        byte_offset: offset,
-        chunk_type: String::from_utf8_lossy(tag).into_owned(),
-    }));
-    e
+    Error::at("CAF input", tag, offset, message)
 }
-fn read(file: &mut File, tag: &[u8; 4], offset: u64, out: &mut [u8]) -> Result<()> {
-    file.seek(SeekFrom::Start(offset))
-        .map_err(|e| invalid(tag, offset, e.to_string()))?;
-    let mut done = 0;
-    while done < out.len() {
-        match file.read(&mut out[done..]) {
-            Ok(0) => return Err(invalid(tag, offset + done as u64, "truncated input")),
-            Ok(n) => done += n,
-            Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(e) => return Err(invalid(tag, offset + done as u64, e.to_string())),
-        }
-    }
-    Ok(())
+fn read<R: Source>(file: &mut R, tag: &[u8; 4], offset: u64, out: &mut [u8]) -> Result<()> {
+    read_at(file, "CAF input", tag, offset, out)
 }
-fn digest_range(
-    file: &mut File,
+fn digest_range<R: Source>(
+    file: &mut R,
     tag: &[u8; 4],
     start: u64,
     bytes: u64,
@@ -62,10 +35,11 @@ fn digest_range(
     }
     Ok(())
 }
-#[derive(Clone, Copy, Debug, Serialize)]
-struct Chunk {
-    offset: u64,
-    bytes: u64,
+/// A retained chunk's payload range.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Chunk {
+    pub offset: u64,
+    pub bytes: u64,
 }
 impl Chunk {
     fn end(self) -> u64 {
@@ -79,9 +53,9 @@ struct Structure {
     hash: String,
     skipped: u64,
 }
-fn scan(file: &mut File) -> Result<Structure> {
-    let meta = file.metadata()?;
-    let bytes = meta.len();
+fn scan<R: Source>(file: &mut R) -> Result<Structure> {
+    let bytes = file.length()?;
+    let modified = file.revision()?;
     let mut header = [0u8; 8];
     read(file, b"caff", 0, &mut header)?;
     if header != *b"caff\0\x01\0\0" {
@@ -161,18 +135,35 @@ fn scan(file: &mut File) -> Result<Structure> {
     Ok(Structure {
         chunks,
         bytes,
-        modified: meta.modified().ok(),
+        modified,
         hash: format!("{:x}", hash.finalize()),
         skipped,
     })
 }
 
-pub(crate) struct CafReader {
-    file: File,
+/// The structure, digests and verification state a CAF input report shows.
+#[derive(Debug, Clone)]
+pub struct CafSummary {
+    pub chunks: BTreeMap<[u8; 4], Chunk>,
+    pub file_bytes: u64,
+    pub skipped_chunks: u64,
+    /// Digest of the header, chunk headers and retained chunk payloads.
+    pub metadata_sha256: String,
+    /// `"chan"` when a channel layout chunk was checked, else `"cookie"`.
+    pub layout_source: &'static str,
+    pub edit_count: u32,
+    /// Digests of the current pass's audio bytes and packet identities.
+    pub audio_sha256: String,
+    pub packets_sha256: String,
+    /// Whether the current pass reached the end and matched the first one.
+    pub verified: bool,
+}
+
+/// Sequential, two-pass-verified CAF v1 packet reader.
+pub struct CafReader<R> {
+    file: R,
     structure: Structure,
-    info: FileInfo,
-    cookie: Vec<u8>,
-    config: config::Config,
+    track: Track,
     layout_source: &'static str,
     edit_count: u32,
     next: u64,
@@ -183,15 +174,10 @@ pub(crate) struct CafReader {
     expected: Option<(String, String)>,
     verified: bool,
 }
-impl CafReader {
-    pub(crate) fn open(path: &Path) -> Result<Self> {
-        if !path.metadata()?.is_file() {
-            return Err(invalid(b"caff", 0, "requires a regular file"));
-        }
-        let mut file = File::open(path)?;
-        if !file.metadata()?.is_file() {
-            return Err(invalid(b"caff", 0, "requires a regular file"));
-        }
+impl<R: Source> CafReader<R> {
+    /// Validate the file and read it once to record its digests; the reader
+    /// is then positioned at packet zero.
+    pub fn new(mut file: R) -> Result<Self> {
         let structure = scan(&mut file)?;
         let chunks = &structure.chunks;
         let desc = chunks[b"desc"];
@@ -205,7 +191,7 @@ impl CafReader {
             .map(|b| u32::from_be_bytes(*b))
             .collect();
         let channels = ints[4];
-        let layout = crate::channel_layout::layout(u64::from(channels));
+        let layout = channel_layout::layout(u64::from(channels));
         let hoa_count = (1..=255).contains(&channels);
         if layout.is_none() && !hoa_count {
             return Err(invalid(
@@ -215,10 +201,7 @@ impl CafReader {
             ));
         }
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
-        if !rate.is_finite()
-            || rate.fract() != 0.
-            || crate::frame::sfb::index(rate as u64).is_none()
-        {
+        if !rate.is_finite() || rate.fract() != 0. || frame::sfb::index(rate as u64).is_none() {
             return Err(invalid(
                 b"desc",
                 desc.offset,
@@ -239,14 +222,14 @@ impl CafReader {
         read(&mut file, b"kuki", kuki.offset, &mut cookie)?;
         let parsed = config::Config::parse(&cookie).map_err(|e| {
             let mut e: Error = e.into();
-            e.file_position = Some(Box::new(FilePosition {
+            e.position = Some(crate::Position {
                 byte_offset: kuki.offset + e.bit_offset.unwrap_or(0) as u64 / 8,
                 chunk_type: "kuki".into(),
-            }));
+            });
             e
         })?;
         let output_layout = if parsed.has_hoa_component() {
-            let context = crate::frame::DecodedFrameContext::from_config(&parsed)?;
+            let context = frame::DecodedFrameContext::from_config(&parsed)?;
             if let Some(reason) = context.rejection() {
                 return Err(Error::new(
                     "SQ decoder",
@@ -363,46 +346,22 @@ impl CafReader {
         let data = chunks[b"data"];
         let mut raw = [0; 4];
         read(&mut file, b"data", data.offset, &mut raw)?;
-        let info = FileInfo {
-            schema_version: SCHEMA_VERSION,
-            source: path.to_owned(),
+        let track = Track {
+            sample_rate: rate,
+            channels,
+            layout: output_layout,
+            packet_count: count,
+            table,
             file_bytes: structure.bytes,
-            modified_unix_seconds: structure
-                .modified
-                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs()),
-            environment: Environment::current(),
-            container: Property::known("caff".into()),
-            format: AudioFormat {
-                sample_rate: rate,
-                format_id: ints[0],
-                format_fourcc: "apac".into(),
-                flags: 0,
-                bytes_per_packet: 0,
-                frames_per_packet: 1024,
-                bytes_per_frame: 0,
-                channels,
-                bits_per_channel: 0,
-            },
-            layout: Property::known(output_layout),
-            packet_count: Property::known(count),
-            packet_table: Property::known(table),
-            max_packet_bytes: Property::known(0),
-            cookie: Property::known(CookieInfo {
-                bytes: cookie.len(),
-                sha256: sha256(&cookie),
-            }),
-            restricts_random_access: Property {
-                value: None,
-                error: None,
-            },
+            revision: structure.modified,
+            cookie,
+            config: parsed,
+            max_packet_bytes: 0,
         };
         let mut reader = Self {
             file,
             structure,
-            info,
-            cookie,
-            config: parsed,
+            track,
             layout_source,
             edit_count: u32::from_be_bytes(raw),
             next: 0,
@@ -415,13 +374,17 @@ impl CafReader {
         };
         while reader.next_packet()?.is_some() {}
         reader.expected = Some(reader.hashes());
-        reader.next = 0;
-        reader.index_offset = pakt.offset + 24;
-        reader.data_offset = data.offset + 4;
-        reader.data_hash = Sha256::new();
-        reader.packet_hash = Sha256::new();
-        reader.verified = false;
+        reader.rewind();
         Ok(reader)
+    }
+    /// Return to packet zero; the next pass is verified again at its end.
+    pub fn rewind(&mut self) {
+        self.next = 0;
+        self.index_offset = self.structure.chunks[b"pakt"].offset + 24;
+        self.data_offset = self.structure.chunks[b"data"].offset + 4;
+        self.data_hash = Sha256::new();
+        self.packet_hash = Sha256::new();
+        self.verified = false;
     }
     fn hashes(&self) -> (String, String) {
         (
@@ -429,41 +392,40 @@ impl CafReader {
             format!("{:x}", self.packet_hash.clone().finalize()),
         )
     }
-    pub(crate) fn info(&self) -> &FileInfo {
-        &self.info
+    pub fn track(&self) -> &Track {
+        &self.track
     }
-    pub(crate) fn config(&self) -> &config::Config {
-        &self.config
-    }
-    pub(crate) fn cookie(&self) -> &[u8] {
-        &self.cookie
-    }
-    pub(crate) fn consumed_packets(&self) -> u64 {
+    /// Packets read in the current pass.
+    pub fn consumed_packets(&self) -> u64 {
         self.next
     }
-    pub(crate) fn report(&self) -> Value {
-        let hashes = self.hashes();
-        json!({"kind":"caf","profile":if self.info.format.channels == 2 {PROFILE} else {"apac-caf-input-v2"},"format":self.info.format,"packet_table":self.info.packet_table.value,"packet_count":self.info.packet_count.value,
-            "file_bytes":self.structure.bytes,"layout_source":self.layout_source,"layout":self.info.layout.value,
-            "edit_count":self.edit_count,"chunks":self.structure.chunks.iter().map(|(k,v)|(String::from_utf8_lossy(k).into_owned(),v)).collect::<BTreeMap<_,_>>(),
-            "skipped_chunks":self.structure.skipped,"metadata_sha256":self.structure.hash,"cookie_sha256":sha256(&self.cookie),"audio_sha256":hashes.0,"packets_sha256":hashes.1,
-            "consistency_verified":self.verified,"verification":"two_pass_read_consistency_no_stored_checksums","access":"sequential_from_packet_zero"})
+    pub fn summary(&self) -> CafSummary {
+        let (audio_sha256, packets_sha256) = self.hashes();
+        CafSummary {
+            chunks: self.structure.chunks.clone(),
+            file_bytes: self.structure.bytes,
+            skipped_chunks: self.structure.skipped,
+            metadata_sha256: self.structure.hash.clone(),
+            layout_source: self.layout_source,
+            edit_count: self.edit_count,
+            audio_sha256,
+            packets_sha256,
+            verified: self.verified,
+        }
     }
-    pub(crate) fn range(&self, start: Option<u64>, requested: u64) -> Result<ReplayRange> {
-        let table = self.info.packet_table.value.as_ref().unwrap();
-        crate::packets::frame_range(0, table.valid_frames as u64, table, start, requested)
-    }
-    pub(crate) fn next_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
-        let index = (self.next < self.info.packet_count.value.unwrap()).then_some(self.next);
+    /// The next packet of the current pass; at the end, the pass is checked
+    /// against the first one and the file structure is rescanned.
+    pub fn next_packet(&mut self) -> Result<Option<Packet>> {
+        let index = (self.next < self.track.packet_count).then_some(self.next);
         self.read_packet().map_err(|mut e| {
             e.packet_index = index;
             e
         })
     }
-    fn read_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
+    fn read_packet(&mut self) -> Result<Option<Packet>> {
         let pakt = self.structure.chunks[b"pakt"];
         let data = self.structure.chunks[b"data"];
-        if self.next == self.info.packet_count.value.unwrap() {
+        if self.next == self.track.packet_count {
             if self.index_offset != pakt.end() {
                 return Err(invalid(
                     b"pakt",
@@ -541,216 +503,23 @@ impl CafReader {
             self.packet_hash.update(value.to_le_bytes());
         }
         self.packet_hash.update(Sha256::digest(&bytes));
-        let result = (self.next, self.next * 1024, bytes);
+        let result = Packet {
+            index: self.next,
+            raw_frame: self.next * 1024,
+            bytes,
+        };
         self.next += 1;
         self.data_offset = end;
-        self.info.max_packet_bytes.value =
-            Some(self.info.max_packet_bytes.value.unwrap().max(size as u32));
+        self.track.max_packet_bytes = self.track.max_packet_bytes.max(size as u32);
         Ok(Some(result))
     }
-    pub(crate) fn verify_remaining(&mut self) -> Result<()> {
+    /// Read the rest of the current pass, completing its verification.
+    pub fn verify_remaining(&mut self) -> Result<()> {
         while self.next_packet()?.is_some() {}
         Ok(())
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::{
-        fs::{self, OpenOptions},
-        io::Write,
-        sync::atomic::{AtomicU64, Ordering},
-    };
-    static NEXT: AtomicU64 = AtomicU64::new(0);
-    const COOKIE: &[u8] = &[
-        0, 0, 0, 26, 100, 97, 112, 97, 0, 0, 0, 0, 8, 0, 124, 1, 128, 4, 4, 32, 0, 18, 0, 202, 0, 0,
-    ];
-    struct Temp(std::path::PathBuf);
-    impl Temp {
-        fn new(raw: &[u8]) -> Self {
-            let p = std::env::temp_dir().join(format!(
-                "apac-caf-{}-{}",
-                std::process::id(),
-                NEXT.fetch_add(1, Ordering::Relaxed)
-            ));
-            fs::write(&p, raw).unwrap();
-            Self(p)
-        }
-        fn change(&self, offset: u64, bytes: &[u8]) {
-            let mut f = OpenOptions::new().write(true).open(&self.0).unwrap();
-            f.seek(SeekFrom::Start(offset)).unwrap();
-            f.write_all(bytes).unwrap();
-        }
-    }
-    impl Drop for Temp {
-        fn drop(&mut self) {
-            let _ = fs::remove_file(&self.0);
-        }
-    }
-    fn chunk(tag: &[u8; 4], payload: &[u8]) -> Vec<u8> {
-        let mut out = tag.to_vec();
-        out.extend((payload.len() as i64).to_be_bytes());
-        out.extend(payload);
-        out
-    }
-    fn fixture() -> Vec<u8> {
-        let mut out = b"caff\0\x01\0\0".to_vec();
-        let mut desc = 48000f64.to_be_bytes().to_vec();
-        for n in [u32::from_be_bytes(*b"apac"), 0, 0, 1024, 2, 0] {
-            desc.extend(n.to_be_bytes());
-        }
-        out.extend(chunk(b"desc", &desc));
-        out.extend(chunk(b"kuki", COOKIE));
-        let mut pakt = 2i64.to_be_bytes().to_vec();
-        pakt.extend(1900i64.to_be_bytes());
-        pakt.extend(100i32.to_be_bytes());
-        pakt.extend(48i32.to_be_bytes());
-        pakt.extend([1, 2]);
-        out.extend(chunk(b"pakt", &pakt));
-        out.extend(chunk(b"data", &[0, 0, 0, 7, 20, 30, 40]));
-        out
-    }
-    #[test]
-    fn bounded_packet_iteration_and_exact_time_cropping() {
-        let tmp = Temp::new(&fixture());
-        let mut r = CafReader::open(&tmp.0).unwrap();
-        assert_eq!(r.cookie(), COOKIE);
-        assert_eq!(r.range(Some(1850), 100).unwrap().frames, 50);
-        assert_eq!(r.range(Some(1850), 100).unwrap().raw_start, 1950);
-        assert_eq!(r.next_packet().unwrap().unwrap(), (0, 0, vec![20]));
-        assert_eq!(r.next_packet().unwrap().unwrap(), (1, 1024, vec![30, 40]));
-        r.verify_remaining().unwrap();
-        assert_eq!(r.report()["consistency_verified"], true);
-        assert_eq!(r.report()["layout_source"], "cookie");
-        assert_eq!(r.report()["edit_count"], 7);
-    }
-    #[test]
-    fn every_container_truncation_is_rejected_with_a_file_position() {
-        let raw = fixture();
-        for end in 0..raw.len() {
-            let tmp = Temp::new(&raw[..end]);
-            let e = CafReader::open(&tmp.0).err().unwrap();
-            assert!(e.file_position.is_some(), "{end}: {e}");
-        }
-    }
-    #[test]
-    fn terminal_unknown_data_and_reordered_chunks() {
-        let raw = fixture();
-        let tmp = Temp::new(&raw);
-        let r = CafReader::open(&tmp.0).unwrap();
-        let data = r.structure.chunks[b"data"];
-        let pakt = r.structure.chunks[b"pakt"];
-        let mut moved = raw[..(pakt.offset - 12) as usize].to_vec();
-        moved.extend(&raw[(data.offset - 12) as usize..]);
-        moved.extend(&raw[(pakt.offset - 12) as usize..(data.offset - 12) as usize]);
-        let t = Temp::new(&moved);
-        CafReader::open(&t.0).unwrap().verify_remaining().unwrap();
-        tmp.change(data.offset - 8, &(-1i64).to_be_bytes());
-        CafReader::open(&tmp.0).unwrap().verify_remaining().unwrap();
-    }
-    #[test]
-    fn metadata_audio_boundaries_and_lengths_cannot_change_after_open() {
-        for kind in ["data", "kuki", "pakt", "desc", "grow", "truncate"] {
-            let raw = fixture();
-            let tmp = Temp::new(&raw);
-            let mut r = CafReader::open(&tmp.0).unwrap();
-            match kind {
-                "grow" => tmp.change(raw.len() as u64, &[1]),
-                "truncate" => OpenOptions::new()
-                    .write(true)
-                    .open(&tmp.0)
-                    .unwrap()
-                    .set_len(raw.len() as u64 - 1)
-                    .unwrap(),
-                "data" => tmp.change(r.structure.chunks[b"data"].offset + 5, &[31]),
-                "pakt" => tmp.change(r.structure.chunks[b"pakt"].offset + 24, &[2, 1]),
-                _ => {
-                    let tag: [u8; 4] = kind.as_bytes().try_into().unwrap();
-                    tmp.change(r.structure.chunks[&tag].offset, &[255]);
-                }
-            }
-            assert!(r.verify_remaining().is_err(), "{kind}");
-        }
-    }
-    #[test]
-    fn duplicate_and_invalid_structures_never_get_guessed() {
-        let raw = fixture();
-        let tmp = Temp::new(&raw);
-        let r = CafReader::open(&tmp.0).unwrap();
-        for tag in [*b"desc", *b"kuki", *b"pakt", *b"data"] {
-            let c = r.structure.chunks[&tag];
-            let mut bad = raw.clone();
-            bad.extend(&raw[(c.offset - 12) as usize..c.end() as usize]);
-            assert!(CafReader::open(&Temp::new(&bad).0).is_err());
-        }
-        for (offset, bytes) in [
-            (4, vec![0, 2]),
-            (6, vec![0, 1]),
-            (8, b"free".to_vec()),
-            (12, (-2i64).to_be_bytes().to_vec()),
-            (
-                r.structure.chunks[b"pakt"].offset,
-                (-1i64).to_be_bytes().to_vec(),
-            ),
-            (r.structure.chunks[b"pakt"].offset + 24, vec![0, 3]),
-        ] {
-            let t = Temp::new(&raw);
-            t.change(offset, &bytes);
-            assert!(CafReader::open(&t.0).is_err());
-        }
-    }
-    #[test]
-    fn unknown_chunks_are_skipped_but_their_headers_are_checked() {
-        let mut raw = fixture();
-        raw.extend(chunk(b"test", &[1, 2, 3, 4, 5]));
-        let t = Temp::new(&raw);
-        let mut r = CafReader::open(&t.0).unwrap();
-        assert_eq!(r.report()["skipped_chunks"], 1);
-        r.verify_remaining().unwrap();
-        let mut r = CafReader::open(&t.0).unwrap();
-        t.change(raw.len() as u64 - 13, &999i64.to_be_bytes());
-        assert!(r.verify_remaining().is_err());
-    }
-    #[test]
-    fn stereo_layout_and_cookie_must_agree_with_description() {
-        let mut raw = fixture();
-        let mut chan = STEREO.to_be_bytes().to_vec();
-        chan.extend([0; 8]);
-        raw.extend(chunk(b"chan", &chan));
-        let t = Temp::new(&raw);
-        let r = CafReader::open(&t.0).unwrap();
-        assert_eq!(r.report()["layout_source"], "chan");
-        let offset = r.structure.chunks[b"chan"].offset;
-        t.change(offset, &((102u32 << 16) | 2).to_be_bytes());
-        assert!(CafReader::open(&t.0).is_err());
-        let t = Temp::new(&fixture());
-        t.change(20, &44100f64.to_be_bytes());
-        assert!(CafReader::open(&t.0).is_err());
-    }
-    #[test]
-    fn packet_length_varints_are_bounded_and_cover_data_exactly() {
-        for sizes in [
-            vec![0, 3],
-            vec![1, 1],
-            vec![2, 2],
-            vec![0x81],
-            vec![0xff; 10],
-            vec![0x80; 11],
-            vec![1, 2, 0],
-        ] {
-            let raw = fixture();
-            let t = Temp::new(&raw);
-            let r = CafReader::open(&t.0).unwrap();
-            let p = r.structure.chunks[b"pakt"];
-            let d = r.structure.chunks[b"data"];
-            let mut bad = raw[..(p.offset - 12) as usize].to_vec();
-            let mut payload = raw[p.offset as usize..p.offset as usize + 24].to_vec();
-            payload.extend(sizes);
-            bad.extend(chunk(b"pakt", &payload));
-            bad.extend(&raw[(d.offset - 12) as usize..]);
-            let tmp = Temp::new(&bad);
-            assert!(CafReader::open(&tmp.0).is_err());
-        }
-    }
-}
+#[path = "caf_tests.rs"]
+mod tests;

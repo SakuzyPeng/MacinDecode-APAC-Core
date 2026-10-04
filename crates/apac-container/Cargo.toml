@@ -1,0 +1,9 @@
+[package]
+name = "apac-container"
+version.workspace = true
+edition.workspace = true
+description = "Restricted CAF and MP4 APAC input over any Read + Seek source"
+
+[dependencies]
+apac-core.workspace = true
+sha2.workspace = true

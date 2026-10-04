@@ -1,4 +1,3 @@
-mod caf;
 pub mod compare;
 pub mod config;
 pub mod decode;
@@ -12,4 +11,4 @@ pub mod parse_packets;
 pub mod signal;
 
 pub mod error;
-use apac_core::research_support::{bwe2_math, channel_layout, frame, numeric, synthesis};
+use apac_core::research_support::{bwe2_math, frame, numeric, synthesis};

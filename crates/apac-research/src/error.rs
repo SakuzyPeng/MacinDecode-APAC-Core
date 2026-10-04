@@ -78,6 +78,20 @@ impl From<apac_core::config::ParseError> for Error {
         apac_core::error::DecodeError::from(error).into()
     }
 }
+impl From<apac_container::Error> for Error {
+    fn from(error: apac_container::Error) -> Self {
+        let mut result = Self::new(error.operation, error.message);
+        result.bit_offset = error.bit_offset;
+        result.packet_index = error.packet_index;
+        result.file_position = error.position.map(|p| {
+            Box::new(FilePosition {
+                byte_offset: p.byte_offset,
+                chunk_type: p.chunk_type,
+            })
+        });
+        result
+    }
+}
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
         Self::io("JSON", e)

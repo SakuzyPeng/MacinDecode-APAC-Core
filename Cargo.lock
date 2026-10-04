@@ -53,6 +53,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "apac-container"
+version = "0.1.0"
+dependencies = [
+ "apac-core",
+ "sha2",
+]
+
+[[package]]
 name = "apac-core"
 version = "0.1.0"
 dependencies = [
@@ -79,6 +87,7 @@ dependencies = [
 name = "apac-research"
 version = "0.1.0"
 dependencies = [
+ "apac-container",
  "apac-core",
  "clap",
  "serde",

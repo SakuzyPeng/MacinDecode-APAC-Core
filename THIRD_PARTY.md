@@ -36,3 +36,17 @@ The historical window data is used only by diagnostic verification. It is not in
 `data/hoa-source-layout-format-v1.json` records bounded source-layout matrix coefficients and accepted layout identifiers observed in the hash-bound AudioCodecs 7.0 reference. Matrix entries retain their Float32 bit patterns; shared matrices are stored once. Channel labels follow the public CoreAudio layout property. These are format observations, not executable bytes, decompiled control flow, native decoder objects or source-media content. The included packaging tool accepts explicit observation paths; reference binaries and observations are not build dependencies.
 
 Source recovery uses independently implemented Float64 compensated sums and a separate Decimal direct-sum oracle. A reference defect in the CICP_7 alias's LFE position is reconstructed only by the native diagnostic validator; production uses the declared public channel layout.
+
+## Rules behind recorded HOA format constants
+
+Several HOA format files were first recorded from the AudioCodecs reference. Their bytes are unchanged, because their digests are published identities, but the following values are now re-derived from independent rules by `scripts/hoa_rules_oracle.py --check` and `scripts/generate_hoa_shared_config_format.py --vo-aacenc DIR --check`:
+
+| Constants | File | Rule | Agreement |
+| --- | --- | --- | --- |
+| Band offsets for all 13 sampling rates; TNS band limits | `hoa-shared-config-format-v1.json` | AAC tables, rebuilt from vo-aacenc `aac_rom.c` and `tns.c` (Apache-2.0) at the commit pinned above | byte-identical file |
+| Subband grids, methods 0–2, 1–16 subbands | `hoa-dynamic-format-v1/v2.json`, `hoa-salient-subbands-format-v1/v2.json` | Method 0 interpolates linearly over the Zwicker critical-band edges (with 24 kHz as the last point, mapped onto 1024 lines), method 1 over the 49 AAC long-window bands; both round half up once onto the 128-line short-window grid. Method 2 takes equal widths, rounds half up to a long-window line, then half up onto the short grid. Long-window ends are eight times the short ones. | exact, except method 0 with 9 subbands: first end 2 where the rule gives 1, kept as recorded |
+| Salient coefficient groups and mode structure, orders 1–10 | `hoa-salient-orderN-shared-v1.json` | all coefficients / odd l+\|m\| / even l+\|m\| (symmetry about the horizontal plane); the same mode structure for every order | exact |
+| Static ambient sign tables | `hoa-static-ambient-tables-v1.json` | row orders of the 4×4 Sylvester–Hadamard matrix, divisor 2, inverse by transpose | exact |
+| Source-layout matrices of the 18 full-rank layouts | `hoa-source-layout-format-v1.json` | (order + 1) · pinv(Y), Y the real N3D spherical harmonics (ACN order, no Condon–Shortley phase) at the speaker directions, LFE excluded | at most 4.1e-7 relative to the largest entry, the Float32 rounding of the reference; not bit-identical, so the recorded bits stay |
+
+These remain recorded observations: the profile/level table; the speaker directions per layout (inferred from the matrices, all round angles); the three Hadamard row orders; the matrices of the 18 rank-deficient layouts (horizontal speakers with height or higher-order coefficients have no unique pseudo-inverse, and the recorded values come from the reference's near-singular inversion); and the data-trained dictionaries — salient Huffman codebooks, mode-4 cluster matrices (orthogonal, with no closed form), spatial-control mean coefficients, BWE2 and CAC codebooks.

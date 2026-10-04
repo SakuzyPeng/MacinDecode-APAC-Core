@@ -124,6 +124,18 @@ python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --native --ou
 
 Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
 
+## HOA 格式常量的独立规则
+
+部分 HOA 格式常量最初取自参考组件观测。下列核对用独立规则重新推导它们，并与已提交的数据比较；数据文件字节不变，已发布的格式标识保持原值。规则、例外和仍属观测的部分见 [THIRD_PARTY.md](../THIRD_PARTY.md)。
+
+```sh
+# 子带网格、salient 分组、静态 ambient 符号表、满秩源布局矩阵
+python3 -B scripts/hoa_rules_oracle.py --check
+# 频带边界与 TNS 上限：需要 vo-aacenc 检出（提交 a277487e051e92e99a532294eed3c673f4d879f2）
+python3 -B scripts/generate_hoa_shared_config_format.py --check --vo-aacenc /path/to/vo-aacenc
+python3 -B scripts/generate_sq_codebooks.py --check --source /path/to/vo-aacenc/aacenc/src/aac_rom.c
+```
+
 ## 重构回归
 
 重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。

@@ -16,7 +16,8 @@ mod passive_metadata;
 mod passive_renderer;
 mod scenes;
 
-use std::{collections::BTreeMap, fmt};
+use alloc::collections::BTreeMap;
+use core::fmt;
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 
@@ -101,7 +102,7 @@ impl fmt::Display for ParseError {
         )
     }
 }
-impl std::error::Error for ParseError {}
+impl core::error::Error for ParseError {}
 
 /// The typed configuration and the recorded syntax from a single parse.
 pub fn parse_recorded(data: &[u8]) -> Result<(Config, Recording), ParseError> {

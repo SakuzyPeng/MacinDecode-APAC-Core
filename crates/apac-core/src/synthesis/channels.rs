@@ -101,7 +101,7 @@ pub(super) fn render_core(
             element.configuration.kind == crate::frame::ElementKind::Cpe && !element.present;
         for (local, &global) in element.configuration.output_channels.iter().enumerate() {
             let index = usize::from(global);
-            if index >= states.len() || std::mem::replace(&mut occupied[index], true) {
+            if index >= states.len() || core::mem::replace(&mut occupied[index], true) {
                 return Err(DecodeError::new(
                     "SQ channels",
                     "invalid output channel map",

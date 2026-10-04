@@ -1,11 +1,12 @@
 //! Independent APAC decoding core.
 //!
-//! The crate is `no_std` with `alloc`. During the restructuring it still links
-//! `std` explicitly: every remaining `std::` path marks a dependency that
-//! phase 6 removes before `extern crate std` goes away.
+//! The crate is `no_std` with `alloc`; its only non-optional dependencies are
+//! `sha2` and `libm`. The `serde` feature adds `Serialize` to the report and
+//! state types. Unit tests link `std` and name it explicitly.
 #![no_std]
 
 extern crate alloc;
+#[cfg(test)]
 extern crate std;
 
 mod prelude;

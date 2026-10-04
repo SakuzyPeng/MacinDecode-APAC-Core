@@ -45,8 +45,8 @@ pub(super) struct HoaConfiguration {
     pub level_id: u8,
     /// Output ACN coefficients; transport and core dimensions are independent.
     pub channels: u8,
-    pub source_layout: std::sync::Arc<super::hoa_source::SourceLayout>,
-    pub static_remapping: Option<std::sync::Arc<super::HoaStaticRemapping>>,
+    pub source_layout: Arc<super::hoa_source::SourceLayout>,
+    pub static_remapping: Option<Arc<super::HoaStaticRemapping>>,
     pub recovery_slots: u8,
     pub dynamic_method: Option<u8>,
     pub dynamic_subbands: Option<u8>,
@@ -157,9 +157,8 @@ impl HoaConfiguration {
             profile_id: global.profile_id.get().unwrap_or(5) as u8,
             level_id: global.level_id.get().unwrap_or(0) as u8,
             channels,
-            source_layout: std::sync::Arc::new(source_layout),
-            static_remapping: super::HoaStaticRemapping::selected(hoa, channels)
-                .map(std::sync::Arc::new),
+            source_layout: Arc::new(source_layout),
+            static_remapping: super::HoaStaticRemapping::selected(hoa, channels).map(Arc::new),
             recovery_slots,
             dynamic_method: dynamic
                 .then(|| hoa.dynamic_selection_parameter.get().unwrap_or(3) as u8),

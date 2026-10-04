@@ -93,7 +93,7 @@ fn forward(data: &mut [Complex]) {
     assert!(matches!(n, 96 | 768));
     let m = n / 3;
     let mut branches: [Vec<Complex>; 3] =
-        std::array::from_fn(|r| (0..m).map(|j| data[3 * j + r]).collect());
+        core::array::from_fn(|r| (0..m).map(|j| data[3 * j + r]).collect());
     for branch in &mut branches {
         radix2(branch);
     }

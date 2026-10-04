@@ -192,7 +192,7 @@ pub(super) fn spectra(packet: &ChannelPacketReport) -> Result<Vec<&[f32]>, Parse
         let mut seen = vec![false; count];
         for (slot, &carrier) in mapping.core_to_transport.iter().enumerate() {
             let carrier = usize::from(carrier);
-            if carrier >= count || std::mem::replace(&mut seen[carrier], true) {
+            if carrier >= count || core::mem::replace(&mut seen[carrier], true) {
                 return Err(ParseError::new(
                     packet.frame.stop_bit_offset,
                     "hoa-remapping",

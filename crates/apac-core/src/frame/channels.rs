@@ -16,7 +16,7 @@ use crate::{
     frame::MAX_PACKET_BUFFER,
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
 
 pub const STATE_PROFILE: &str = "apac-channel-state-v1";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

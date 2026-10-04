@@ -12,7 +12,7 @@ use crate::{
     config::{self, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{ChannelLayout, SCHEMA_VERSION, sha256},
 };
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
 
 pub const PROFILE: &str = "apac-hoa-multiple-asc-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-multiple-asc-state-v1";

@@ -115,7 +115,7 @@ fn decode_runs(
             }
             count
         };
-        indices.extend(std::iter::repeat_n(gain_index, count));
+        indices.extend(core::iter::repeat_n(gain_index, count));
         runs.push(CacRun {
             gain_index,
             repeat_code,

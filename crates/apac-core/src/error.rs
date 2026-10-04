@@ -28,7 +28,7 @@ impl fmt::Display for DecodeError {
         write!(f, "{}: {}", self.operation, self.message)
     }
 }
-impl std::error::Error for DecodeError {}
+impl core::error::Error for DecodeError {}
 impl From<ParseError> for DecodeError {
     fn from(error: ParseError) -> Self {
         let mut result = Self::new("parse-cookie", error.to_string());

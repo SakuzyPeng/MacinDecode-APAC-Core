@@ -547,7 +547,7 @@ impl Parser<'_> {
                 self.component_mut().effective_component_index = Some(first as u64);
             } else {
                 for c in start..start + component_channels {
-                    if std::mem::replace(&mut occupied[c as usize], true) {
+                    if core::mem::replace(&mut occupied[c as usize], true) {
                         return self
                             .invalid("channel-range", "overlapping component channel ranges");
                     }

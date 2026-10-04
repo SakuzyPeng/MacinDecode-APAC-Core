@@ -139,7 +139,7 @@ use crate::{
     config::{self, ConfigField, Diagnostic, FieldExt, ParseError, ParseStatus, bits::BitReader},
     model::{SCHEMA_VERSION, sha256},
 };
-use std::collections::BTreeMap;
+use alloc::collections::BTreeMap;
 
 /// Largest single packet accepted by every parser and packet store.
 pub const MAX_PACKET_BUFFER: usize = 16 * 1024 * 1024;

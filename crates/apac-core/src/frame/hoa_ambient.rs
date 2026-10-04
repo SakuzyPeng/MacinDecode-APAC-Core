@@ -102,7 +102,7 @@ pub(super) fn restore(
         for (line, value) in scaled.iter_mut().enumerate() {
             if slot < 4 && data.effective_index != 3 {
                 *value = transform(
-                    std::array::from_fn(|i| sources[i][line]),
+                    core::array::from_fn(|i| sources[i][line]),
                     data.effective_index,
                     slot,
                 );

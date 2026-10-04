@@ -890,24 +890,49 @@ mod cac_tests {
         b.0
     }
     #[test]
-    #[cfg(not(feature = "cac"))]
     fn without_the_cac_feature_only_zero_gains_decode() {
+        // Workspace dev-dependencies can enable core's feature independently
+        // of apac-tool's. The package-only no-default-features run tests absence.
+        if apac_core::CAC_ENABLED {
+            return;
+        }
         let zero = parse_cac(&context(), &packet(0, 0)).unwrap();
         assert!(zero.cac_complete);
         assert_eq!(
             zero.channels_after_cac[1].scaled,
             zero.spectrum.channels[1].scaled
         );
-        let error = parse_cac(&context(), &packet(0, 9)).unwrap_err();
-        assert_eq!(error.kind, "cac-unavailable");
-        let mut decoder = Decoder::from_cookie(&cookie(3, 2, false)).unwrap();
-        let error = decoder.decode_vec(&packet(0, 9)).unwrap_err();
-        assert!(error.message.contains("no cac feature"), "{error:?}");
-        decoder.decode_vec(&packet(0, 0)).unwrap();
+        let config = cookie(3, 2, false);
+        for block in [0, 1, 2, 3] {
+            let mut decoder = Decoder::from_cookie(&config).unwrap();
+            let mut scanner = Decoder::from_cookie(&config).unwrap();
+            let zero = packet(block, 0);
+            decoder.decode_vec(&zero).unwrap();
+            scanner.advance(&zero).unwrap();
+            for gain in [1, 9, 26, 34] {
+                let unsupported = packet(block, gain);
+                let parsed = parse_cac(&context(), &unsupported).unwrap_err();
+                assert_eq!(parsed.kind, "cac-unavailable");
+                let decoded = decoder.decode_vec(&unsupported).unwrap_err();
+                assert!(decoded.message.contains("no cac feature"), "{decoded:?}");
+                assert_eq!(decoded.bit_offset, Some(parsed.bit_offset));
+                assert_eq!(scanner.advance(&unsupported).unwrap_err(), decoded);
+            }
+            // Failed packets must not affect a later supported packet. A scan
+            // needs one decoded predecessor to restore the synthesis overlap.
+            scanner.decode_vec(&zero).unwrap();
+            decoder.decode_vec(&zero).unwrap();
+            assert_eq!(
+                scanner.decode_vec(&zero).unwrap(),
+                decoder.decode_vec(&zero).unwrap()
+            );
+        }
     }
     #[test]
-    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_preserves_legacy_spectrum_and_exposes_both_stages() {
+        if !apac_core::CAC_ENABLED {
+            return;
+        }
         for block in [0, 1, 2, 3] {
             let bytes = packet(block, 9);
             let original = parse_spectrum(&context(), &bytes).unwrap();
@@ -945,8 +970,10 @@ mod cac_tests {
         assert!(!deferred.cac_complete && deferred.channels_after_cac.is_empty());
     }
     #[test]
-    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_errors_leave_overlap_untouched_and_reset_is_exact() {
+        if !apac_core::CAC_ENABLED {
+            return;
+        }
         let cookie = cookie(3, 2, false);
         let mut actual = Decoder::from_cookie(&cookie).unwrap();
         let mut reference = Decoder::from_cookie(&cookie).unwrap();
@@ -984,8 +1011,10 @@ mod cac_tests {
         assert_eq!(actual.decode_vec(&packet(0, 9)).unwrap(), first);
     }
     #[test]
-    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn cac_truncation_tools_and_bit_mutations_preserve_boundaries() {
+        if !apac_core::CAC_ENABLED {
+            return;
+        }
         let good = packet(0, 34);
         let report = parse_cac(&context(), &good).unwrap();
         let start = report.cac.as_ref().unwrap().start_bit_offset;
@@ -1065,8 +1094,10 @@ mod tns_tests {
         b.0
     }
     #[test]
-    #[cfg_attr(not(feature = "cac"), ignore = "needs the cac feature")]
     fn filtered_spectra_and_pcm_errors_are_transactional_and_reset_exactly() {
+        if !apac_core::CAC_ENABLED {
+            return;
+        }
         let cookie = cookie(3, 2, false);
         let mut actual = Decoder::from_cookie(&cookie).unwrap();
         let mut expected = Decoder::from_cookie(&cookie).unwrap();

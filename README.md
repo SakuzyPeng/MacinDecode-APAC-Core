@@ -62,7 +62,7 @@ for packet in packets {
 }
 ```
 
-解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。
+解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。`apac_core::CAC_ENABLED` 表示当前 core 构建在 Cargo 合并依赖 feature 后是否包含 CAC 逆混合；关闭时完整解码和快速前缀扫描都拒绝非零 CAC 增益。
 
 需要从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`；完整示例见 `crates/apac-container/examples/decode_file.rs`。无 std 用法见 `crates/apac-no-std-example`。API 文档：
 

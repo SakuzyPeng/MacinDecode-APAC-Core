@@ -91,6 +91,23 @@ const INVERSE: Option<Inverse> = Some(apac_cac::rotate);
 #[cfg(not(feature = "cac"))]
 const INVERSE: Option<Inverse> = None;
 
+fn inverse_for(runs: &[CacRun], inverse: Option<Inverse>) -> Result<Inverse, ParseError> {
+    match inverse {
+        Some(rotate) => Ok(rotate),
+        None => match runs.iter().find(|run| run.gain_index != 0) {
+            Some(run) => Err(ParseError::new(
+                run.bit_offset,
+                "cac-unavailable",
+                format!(
+                    "CAC gain index {} needs the apac-cac inverse mixing; this build has no cac feature",
+                    run.gain_index
+                ),
+            )),
+            None => Ok(|x, y, _| (x, y)),
+        },
+    }
+}
+
 /// Each ordinary repeat encodes 1..43 slots. The terminal code has capacity 44,
 /// and only its unused suffix may extend beyond the remaining active slots.
 fn decode_runs(
@@ -156,6 +173,9 @@ pub(super) fn read_data_at(
 ) -> Result<CacData, ParseError> {
     let start = parser.bits.position();
     let (runs, indices) = decode_runs(&mut parser.bits, ics.max_sfb * ics.window_groups.len())?;
+    // State-only scans may never materialize spectra. Enforce the same support
+    // boundary here, before any parser mode can commit the packet's state.
+    inverse_for(&runs, INVERSE)?;
     if parser.mode.record() {
         for (i, run) in runs.iter().enumerate() {
             let gain_bits = books().gain.bits[usize::from(run.gain_index)];
@@ -211,22 +231,7 @@ fn apply_with(
     inverse: Option<Inverse>,
 ) -> Result<Vec<CacChannelSpectrum>, ParseError> {
     // Gain index 0 leaves the pair unchanged, so it needs no inverse mixing.
-    let rotate = match inverse {
-        Some(rotate) => rotate,
-        None => match data.runs.iter().find(|run| run.gain_index != 0) {
-            Some(run) => {
-                return Err(ParseError::new(
-                    run.bit_offset,
-                    "cac-unavailable",
-                    format!(
-                        "CAC gain index {} needs the apac-cac inverse mixing; this build has no cac feature",
-                        run.gain_index
-                    ),
-                ));
-            }
-            None => |x, y, _| (x, y),
-        },
-    };
+    let rotate = inverse_for(&data.runs, inverse)?;
     let mut left = channels[0].scaled.clone();
     let mut right = channels[1].scaled.clone();
     let ics = &channels[0].ics;

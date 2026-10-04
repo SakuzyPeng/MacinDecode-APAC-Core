@@ -84,3 +84,9 @@ pub use error::DecodeError;
 pub use frame::MAX_PACKET_BUFFER;
 pub use model::ChannelLayout;
 pub use synthesis::{AdvanceInfo, Decoder, FrameInfo, ParsedPacket, StreamInfo, StreamKind};
+
+/// Whether this build includes CAC inverse mixing via the `cac` feature.
+///
+/// Reflects this crate's features after Cargo unifies dependency features,
+/// which may differ from the calling crate's own feature flags.
+pub const CAC_ENABLED: bool = cfg!(feature = "cac");

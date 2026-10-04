@@ -3,7 +3,7 @@ use crate::{
     model::*,
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
 };
-use crate::{input::Input, synthesis::SqDecoder};
+use crate::{input::Input, synthesis::Decoder};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
@@ -27,7 +27,7 @@ pub struct SqDecodeOptions {
 
 /// `metadata_after_processing_sha256`: the SHA-256 of the committed DRC, scene
 /// graph and composite/HOA state as a key-sorted JSON object.
-pub(crate) fn metadata_sha256(decoder: &SqDecoder) -> String {
+pub(crate) fn metadata_sha256(decoder: &Decoder) -> String {
     let state = decoder.metadata_state();
     let drc = state.drc;
     let mut value = json!({"channels":drc.channels,"configuration":drc.configuration,"previous_nodes":drc.previous_nodes});
@@ -104,8 +104,8 @@ fn decode_with_access(
         options.start_frame,
         options.frames.unwrap_or((table.valid_frames as u64).max(1)),
     )?;
-    let mut decoder = SqDecoder::from_config(bundle.config())?;
-    let channels = decoder.channel_count();
+    let mut decoder = Decoder::new(bundle.config())?;
+    let channels = decoder.info().channel_count;
     let backend = decoder.backend();
     let state_profile = decoder.state_profile();
     let support_scope = decoder.support_scope();
@@ -122,13 +122,13 @@ fn decode_with_access(
         ));
     }
     if let Some(layout) = &info.layout.value
-        && !layout.equivalent(decoder.channel_layout())
+        && !layout.equivalent(decoder.info().layout)
     {
         return Err(Error::new(
             "SQ decoder",
             format!(
                 "input channel layout disagrees with decoder: expected cookie layout tag {:#010x}, zero bitmap and no descriptions",
-                decoder.channel_layout().tag
+                decoder.info().layout.tag
             ),
         ));
     }
@@ -176,7 +176,7 @@ fn decode_with_access(
         }
         if fast && synthesis_start.is_none_or(|start| packet_index < start) {
             let timer = Instant::now();
-            let counts = decoder.scan_frame(&bytes).map_err(|e| {
+            let counts = decoder.advance(&bytes).map_err(|e| {
                 let mut e = Error::from(e);
                 e.packet_index = Some(packet_index);
                 e
@@ -201,15 +201,16 @@ fn decode_with_access(
         synthesis_seconds += timer.elapsed().as_secs_f64();
         full_parse_seconds += counts.parse_seconds;
         render_seconds += counts.synthesis_seconds;
-        drc_frames += counts.drc_payload_frames;
-        drc_missing_history += counts.drc_missing_history_frames;
+        let frame = &counts.frame;
+        drc_frames += frame.drc_payload_frames;
+        drc_missing_history += frame.drc_missing_history_frames;
         decoded_packets += 1;
         warmup_packets += u64::from(raw + 1024 <= range.raw_start);
-        absent_packets += u64::from(counts.cpe_absent);
-        absent_elements += counts.absent_elements;
-        embedded_absent_elements += counts.embedded_absent_elements;
-        embedded_frames += counts.embedded_preroll_frames;
-        embedded_absent += counts.embedded_cpe_absent;
+        absent_packets += u64::from(frame.cpe_absent);
+        absent_elements += frame.absent_elements;
+        embedded_absent_elements += frame.embedded_absent_elements;
+        embedded_frames += frame.embedded_preroll_frames;
+        embedded_absent += frame.embedded_cpe_absent;
         let first = raw.max(range.raw_start);
         let last = (raw + 1024).min(range.raw_end);
         if first < last {
@@ -237,12 +238,12 @@ fn decode_with_access(
         interleaved: true,
         sample_rate: info.format.sample_rate,
         channels,
-        layout: if decoder.stream_context().is_some()
+        layout: if decoder.composite().is_some()
             || decoder
-                .hoa_context()
+                .hoa()
                 .is_some_and(|c| c.shared_configuration_enabled())
         {
-            Property::known(decoder.channel_layout().clone())
+            Property::known(decoder.info().layout.clone())
         } else {
             info.layout
         },
@@ -309,13 +310,13 @@ fn decode_with_access(
         value["components"] = json!(components);
         value["hoa_shared_config_format_sha256"] =
             json!(crate::frame::hoa_shared_config_format_sha256());
-        if let Some(context) = decoder.stream_context()
+        if let Some(context) = decoder.composite()
             && !context.additional_components().is_empty()
         {
             value["additional_components"] = json!(context.additional_components());
         }
     }
-    if decoder.shared_drc_syntax_used() {
+    if decoder.metadata_state().drc.shared_syntax_used {
         let value = pcm
             .decoder_settings
             .get_mut("implementation")
@@ -326,7 +327,7 @@ fn decode_with_access(
         value["shared_drc_syntax_profile"] = json!(crate::frame::HOA_SHARED_DRC_PROFILE);
         value["shared_drc_format_sha256"] = json!(crate::frame::hoa_shared_drc_format_sha256());
     }
-    if let Some(context) = decoder.hoa_context() {
+    if let Some(context) = decoder.hoa() {
         let value = pcm
             .decoder_settings
             .get_mut("implementation")
@@ -394,7 +395,7 @@ fn decode_with_access(
             value["hoa_level_id"] = json!(context.level_id());
         }
     }
-    if let Some(context) = decoder.hoa_context()
+    if let Some(context) = decoder.hoa()
         && context.ambient_count_extended()
     {
         let value = pcm
@@ -407,10 +408,7 @@ fn decode_with_access(
         value["hoa_ambient_component_count"] = json!(context.ambient_components());
         value["hoa_ambient_count_profile"] = json!("apac-hoa-ambient-counts-v1");
     }
-    if decoder
-        .hoa_context()
-        .is_some_and(|c| c.salient_components() != 0)
-    {
+    if decoder.hoa().is_some_and(|c| c.salient_components() != 0) {
         let value = pcm
             .decoder_settings
             .get_mut("implementation")
@@ -418,7 +416,7 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        let context = decoder.hoa_context().unwrap();
+        let context = decoder.hoa().unwrap();
         if context.quantization_extended() {
             value["hoa_salient_quantization_bits"] = json!(context.quantization_bits());
             value["hoa_salient_quantization_profile"] = json!("apac-hoa-salient-quantization-v1");
@@ -451,16 +449,13 @@ fn decode_with_access(
             ));
         }
         value["hoa_tables_sha256"] = json!(crate::frame::hoa_salient_math_sha256());
-        if let Some(context) = decoder.hoa_context()
+        if let Some(context) = decoder.hoa()
             && (context.ambient_components() != 0 || context.dynamic_selection_enabled())
         {
             value["hoa_descriptor_numeric_profile"] = json!(context.descriptor_numeric_profile());
         }
     }
-    if decoder
-        .hoa_context()
-        .is_some_and(|c| c.static_ambient_enabled())
-    {
+    if decoder.hoa().is_some_and(|c| c.static_ambient_enabled()) {
         let value = pcm
             .decoder_settings
             .get_mut("implementation")
@@ -471,7 +466,7 @@ fn decode_with_access(
         value["hoa_ambient_format_sha256"] = json!(crate::frame::hoa_ambient_format_sha256());
         value["hoa_ambient_tables_sha256"] = json!(crate::frame::hoa_ambient_math_sha256());
     }
-    if let Some(context) = decoder.hoa_context()
+    if let Some(context) = decoder.hoa()
         && context.dynamic_selection_enabled()
     {
         let value = pcm
@@ -506,7 +501,7 @@ fn decode_with_access(
             value["hoa_dynamic_subband_profile"] = json!(crate::frame::HOA_DYNAMIC_SUBBAND_PROFILE);
         }
     }
-    if let Some(context) = decoder.hoa_context()
+    if let Some(context) = decoder.hoa()
         && context.ambient_combination() == crate::frame::AmbientCombination::Add
     {
         let value = pcm
@@ -520,7 +515,7 @@ fn decode_with_access(
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
     }
     if let Some((counts, method)) = decoder
-        .hoa_context()
+        .hoa()
         .and_then(|c| {
             Some((
                 c.salient_component_configurations()
@@ -531,9 +526,7 @@ fn decode_with_access(
             ))
         })
         .filter(|(counts, method)| {
-            *counts != [4; 5]
-                || *method != 0
-                || !decoder.hoa_context().unwrap().spatial_controls().flag_f
+            *counts != [4; 5] || *method != 0 || !decoder.hoa().unwrap().spatial_controls().flag_f
         })
     {
         let value = pcm
@@ -546,13 +539,11 @@ fn decode_with_access(
         value["hoa_salient_subband_counts"] = json!(counts);
         value["hoa_salient_subband_profile"] = json!(crate::frame::HOA_SALIENT_SUBBAND_PROFILE);
         value["hoa_salient_subband_format_sha256"] =
-            json!(
-                if decoder.hoa_context().unwrap().spatial_controls().flag_f {
-                    crate::frame::hoa_salient_subbands_format_sha256(method)
-                } else {
-                    crate::frame::hoa_spatial_controls_format_sha256()
-                }
-            );
+            json!(if decoder.hoa().unwrap().spatial_controls().flag_f {
+                crate::frame::hoa_salient_subbands_format_sha256(method)
+            } else {
+                crate::frame::hoa_spatial_controls_format_sha256()
+            });
         if method != 0 {
             value["hoa_salient_partition_method"] = json!(method);
             value["hoa_salient_partition_profile"] =
@@ -574,9 +565,9 @@ fn decode_with_access(
     if let Some(profile) = decoder.channel_layout_profile() {
         report["channel_layout_profile"] = json!(profile);
     }
-    if channels != 2 || decoder.stream_context().is_some() {
+    if channels != 2 || decoder.composite().is_some() {
         report["channel_count"] = json!(channels);
-        report["channel_layout"] = json!(decoder.channel_layout());
+        report["channel_layout"] = json!(decoder.info().layout);
         report["absent_elements"] = json!(absent_elements);
         report["embedded_absent_elements"] = json!(embedded_absent_elements);
     }

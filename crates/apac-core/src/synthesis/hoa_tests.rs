@@ -29,26 +29,26 @@ fn source_layout_dimensions_transactions_and_reset_follow_the_declared_output() 
             fixture["name"],
             context.rejection()
         );
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         let n = fixture["options"]["output_coefficients"].as_u64().unwrap() as usize;
-        assert_eq!(decoder.channel_count() as usize, n);
+        assert_eq!(decoder.info().channel_count as usize, n);
         let initial = snapshot(&decoder);
-        let first = decoder.decode_frame(&bytes(&fixture["first"])).unwrap();
+        let first = decoder.decode_vec(&bytes(&fixture["first"])).unwrap();
         assert_eq!(first.len(), n * 1024);
         assert!(first.iter().all(|v| v.is_finite()));
         let checkpoint = snapshot(&decoder);
-        assert!(decoder.decode_frame(&bytes(&fixture["bad"])).is_err());
+        assert!(decoder.decode_vec(&bytes(&fixture["bad"])).is_err());
         assert_eq!(snapshot(&decoder), checkpoint);
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&bytes(&fixture["first"])).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&bytes(&fixture["first"])).unwrap();
         assert_eq!(
-            decoder.decode_frame(&bytes(&fixture["good"])).unwrap(),
-            clean.decode_frame(&bytes(&fixture["good"])).unwrap()
+            decoder.decode_vec(&bytes(&fixture["good"])).unwrap(),
+            clean.decode_vec(&bytes(&fixture["good"])).unwrap()
         );
         decoder.reset();
         assert_eq!(snapshot(&decoder), initial);
         assert_eq!(
-            decoder.decode_frame(&bytes(&fixture["first"])).unwrap(),
+            decoder.decode_vec(&bytes(&fixture["first"])).unwrap(),
             first
         );
         if fixture["name"] == "n3d-labels" {
@@ -74,27 +74,24 @@ fn static_remapping_keeps_fixed_core_maps_and_atomic_history() {
             serde_json::to_value(context.static_remapping().unwrap()).unwrap(),
             fixture["mapping"]
         );
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         let initial = snapshot(&decoder);
-        let first = decoder.decode_frame(&bytes(&fixture["first"])).unwrap();
+        let first = decoder.decode_vec(&bytes(&fixture["first"])).unwrap();
         assert!(first.iter().all(|v| v.is_finite()));
         let saved = snapshot(&decoder);
-        assert!(decoder.decode_frame(&bytes(&fixture["bad"])).is_err());
+        assert!(decoder.decode_vec(&bytes(&fixture["bad"])).is_err());
         assert_eq!(snapshot(&decoder), saved);
-        let good = decoder.decode_frame(&bytes(&fixture["good"])).unwrap();
+        let good = decoder.decode_vec(&bytes(&fixture["good"])).unwrap();
         decoder.reset();
         assert_eq!(snapshot(&decoder), initial);
         assert_eq!(
-            decoder.decode_frame(&bytes(&fixture["first"])).unwrap(),
+            decoder.decode_vec(&bytes(&fixture["first"])).unwrap(),
             first
         );
-        assert_eq!(
-            decoder.decode_frame(&bytes(&fixture["good"])).unwrap(),
-            good
-        );
+        assert_eq!(decoder.decode_vec(&bytes(&fixture["good"])).unwrap(), good);
     }
 }
-fn snapshot(d: &SqDecoder) -> (Vec<Vec<u64>>, String) {
+fn snapshot(d: &Decoder) -> (Vec<Vec<u64>>, String) {
     (
         d.channels
             .iter()
@@ -106,10 +103,10 @@ fn snapshot(d: &SqDecoder) -> (Vec<Vec<u64>>, String) {
 #[test]
 fn hoa_transactions_and_reset() {
     let f = fixture();
-    let mut d = SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap();
-    assert_eq!(d.channel_count(), 16);
-    assert_eq!(d.channel_layout().ambisonic_order, Some(3));
-    d.decode_frame(&bytes(&f["first"])).unwrap();
+    let mut d = Decoder::from_cookie(&bytes(&f["cookie"])).unwrap();
+    assert_eq!(d.info().channel_count, 16);
+    assert_eq!(d.info().layout.ambisonic_order, Some(3));
+    d.decode_vec(&bytes(&f["first"])).unwrap();
     let state = snapshot(&d);
     for key in [
         "last_element_error",
@@ -117,25 +114,25 @@ fn hoa_transactions_and_reset() {
         "embedded_error",
         "outer_after_embedded_error",
     ] {
-        assert!(d.decode_frame(&bytes(&f[key])).is_err());
+        assert!(d.decode_vec(&bytes(&f[key])).is_err());
         assert_eq!(state, snapshot(&d));
     }
     let first = bytes(&f["first"]);
     for end in 0..first.len() {
-        assert!(d.decode_frame(&first[..end]).is_err());
+        assert!(d.decode_vec(&first[..end]).is_err());
         assert_eq!(state, snapshot(&d));
     }
-    let mut fresh = SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap();
-    fresh.decode_frame(&first).unwrap();
+    let mut fresh = Decoder::from_cookie(&bytes(&f["cookie"])).unwrap();
+    fresh.decode_vec(&first).unwrap();
     assert_eq!(
-        d.decode_frame(&bytes(&f["next"])).unwrap(),
-        fresh.decode_frame(&bytes(&f["next"])).unwrap()
+        d.decode_vec(&bytes(&f["next"])).unwrap(),
+        fresh.decode_vec(&bytes(&f["next"])).unwrap()
     );
     assert_eq!(snapshot(&d), snapshot(&fresh));
     d.reset();
     assert_eq!(
         snapshot(&d),
-        snapshot(&SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap())
+        snapshot(&Decoder::from_cookie(&bytes(&f["cookie"])).unwrap())
     );
 }
 #[test]
@@ -157,13 +154,13 @@ fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
     let f: Value =
         serde_json::from_str(include_str!("../../../../data/hoa-salient-state-v1.json")).unwrap();
     let cookie = bytes(&f["cookie"]);
-    let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+    let mut decoder = Decoder::from_cookie(&cookie).unwrap();
     assert_eq!(
         decoder.hoa_numeric_profile(),
         Some("apac-hoa-salient-math-v1")
     );
     let first = bytes(&f["first"]);
-    decoder.decode_frame(&first).unwrap();
+    decoder.decode_vec(&first).unwrap();
     let before = snapshot(&decoder);
     for key in [
         "last_element_error",
@@ -172,24 +169,24 @@ fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
         "embedded_error",
         "outer_after_embedded_error",
     ] {
-        assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+        assert!(decoder.decode_vec(&bytes(&f[key])).is_err(), "{key}");
         assert_eq!(before, snapshot(&decoder));
     }
     for end in 0..first.len() {
-        assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+        assert!(decoder.decode_vec(&first[..end]).is_err(), "{end}");
         assert_eq!(before, snapshot(&decoder));
     }
-    let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-    clean.decode_frame(&first).unwrap();
+    let mut clean = Decoder::from_cookie(&cookie).unwrap();
+    clean.decode_vec(&first).unwrap();
     assert_eq!(
-        decoder.decode_frame(&bytes(&f["next"])).unwrap(),
-        clean.decode_frame(&bytes(&f["next"])).unwrap()
+        decoder.decode_vec(&bytes(&f["next"])).unwrap(),
+        clean.decode_vec(&bytes(&f["next"])).unwrap()
     );
     assert_eq!(snapshot(&decoder), snapshot(&clean));
     decoder.reset();
     assert_eq!(
         snapshot(&decoder),
-        snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+        snapshot(&Decoder::from_cookie(&cookie).unwrap())
     );
 }
 
@@ -209,9 +206,9 @@ fn hoa_order_dimensions_rates_and_transactions_are_qualified() {
             context.maximum_preroll_bytes(),
             if n == 4 { 8192 } else { 18432 }
         );
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         let first = bytes(&f["first"]);
-        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 1024 * n);
+        assert_eq!(decoder.decode_vec(&first).unwrap().len(), 1024 * n);
         let before = snapshot(&decoder);
         for key in [
             "last_element_error",
@@ -220,23 +217,23 @@ fn hoa_order_dimensions_rates_and_transactions_are_qualified() {
             "embedded_error",
             "outer_after_embedded_error",
         ] {
-            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{n} {key}");
+            assert!(decoder.decode_vec(&bytes(&f[key])).is_err(), "{n} {key}");
             assert_eq!(before, snapshot(&decoder));
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err(), "{n} {end}");
+            assert!(decoder.decode_vec(&first[..end]).is_err(), "{n} {end}");
             assert_eq!(before, snapshot(&decoder));
         }
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&first).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&first).unwrap();
         assert_eq!(
-            decoder.decode_frame(&bytes(&f["next"])).unwrap(),
-            fresh.decode_frame(&bytes(&f["next"])).unwrap()
+            decoder.decode_vec(&bytes(&f["next"])).unwrap(),
+            fresh.decode_vec(&bytes(&f["next"])).unwrap()
         );
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
     }
 }
@@ -262,11 +259,11 @@ fn mixed_hoa_rolls_back_all_output_history_and_drc_and_resets() {
             context.channel_count() as usize
         );
         assert_eq!(context.state_profile(), "apac-hoa-mixed-state-v1");
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(decoder.backend(), "rust_hoa_mixed_sq_drc_off_f64_fft_v1");
         let first = bytes(&f["first"]);
         assert_eq!(
-            decoder.decode_frame(&first).unwrap().len(),
+            decoder.decode_vec(&first).unwrap().len(),
             1024 * context.channel_count() as usize
         );
         let before = snapshot(&decoder);
@@ -277,26 +274,26 @@ fn mixed_hoa_rolls_back_all_output_history_and_drc_and_resets() {
             "embedded_error",
             "outer_after_embedded_error",
         ] {
-            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(&f[key])).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+            assert!(decoder.decode_vec(&first[..end]).is_err(), "{end}");
             assert_eq!(snapshot(&decoder), before);
         }
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&first).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                decoder.decode_frame(&bytes(&f[key])).unwrap(),
-                clean.decode_frame(&bytes(&f[key])).unwrap()
+                decoder.decode_vec(&bytes(&f[key])).unwrap(),
+                clean.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&decoder), snapshot(&clean));
         }
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
     }
 }
@@ -330,7 +327,7 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
     .unwrap();
     for f in data["fixtures"].as_array().unwrap() {
         let cookie = bytes(&f["cookie"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(
             decoder.hoa_numeric_profile(),
             Some("apac-hoa-static-ambient-math-v1")
@@ -340,7 +337,7 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
             "rust_hoa_static_ambient_sq_drc_off_f64_fft_v1"
         );
         let first = bytes(&f["first"]);
-        decoder.decode_frame(&first).unwrap();
+        decoder.decode_vec(&first).unwrap();
         let before = snapshot(&decoder);
         for key in [
             "last_element_error",
@@ -349,26 +346,26 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
             "embedded_error",
             "outer_after_embedded_error",
         ] {
-            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(&f[key])).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+            assert!(decoder.decode_vec(&first[..end]).is_err(), "{end}");
             assert_eq!(snapshot(&decoder), before);
         }
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&first).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                decoder.decode_frame(&bytes(&f[key])).unwrap(),
-                clean.decode_frame(&bytes(&f[key])).unwrap()
+                decoder.decode_vec(&bytes(&f[key])).unwrap(),
+                clean.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&decoder), snapshot(&clean));
         }
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
     }
 }
@@ -391,13 +388,13 @@ fn dynamic_hoa_dimensions_mapping_state_and_all_outputs_are_atomic() {
             (2, 3, 9, 16)
         );
         assert_eq!(context.maximum_preroll_bytes(), 32768);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(
             decoder.backend(),
             "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1"
         );
         let first = bytes(&f["first"]);
-        assert_eq!(decoder.decode_frame(&first).unwrap().len(), 16384);
+        assert_eq!(decoder.decode_vec(&first).unwrap().len(), 16384);
         let before = snapshot(&decoder);
         for key in [
             "last_element_error",
@@ -409,26 +406,26 @@ fn dynamic_hoa_dimensions_mapping_state_and_all_outputs_are_atomic() {
             "embedded_error",
             "outer_after_embedded_error",
         ] {
-            assert!(decoder.decode_frame(&bytes(&f[key])).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(&f[key])).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err());
+            assert!(decoder.decode_vec(&first[..end]).is_err());
             assert_eq!(snapshot(&decoder), before);
         }
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&first).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                decoder.decode_frame(&bytes(&f[key])).unwrap(),
-                fresh.decode_frame(&bytes(&f[key])).unwrap()
+                decoder.decode_vec(&bytes(&f[key])).unwrap(),
+                fresh.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&decoder), snapshot(&fresh));
         }
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
     }
 }
@@ -454,36 +451,36 @@ fn additive_history_transform_mapping_and_output_overlap_are_atomic() {
                 32768
             }
         );
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(decoder.backend(), "rust_hoa_additive_sq_drc_off_f64_fft_v1");
         assert_eq!(decoder.state_profile(), "apac-hoa-additive-state-v1");
         let first = bytes(&f["first"]);
         assert_eq!(
-            decoder.decode_frame(&first).unwrap().len(),
+            decoder.decode_vec(&first).unwrap().len(),
             1024 * context.channel_count() as usize
         );
         let before = snapshot(&decoder);
         for (key, value) in f["errors"].as_object().unwrap() {
-            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(value)).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err(), "{end}");
+            assert!(decoder.decode_vec(&first[..end]).is_err(), "{end}");
             assert_eq!(snapshot(&decoder), before);
         }
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&first).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                decoder.decode_frame(&bytes(&f[key])).unwrap(),
-                fresh.decode_frame(&bytes(&f[key])).unwrap()
+                decoder.decode_vec(&bytes(&f[key])).unwrap(),
+                fresh.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&decoder), snapshot(&fresh));
         }
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
         let restored = crate::frame::parse_hoa_packet(&context, &first).unwrap();
         assert_eq!(
@@ -498,14 +495,12 @@ fn additive_last_output_synthesis_failure_preserves_all_packet_state() {
     let data: Value =
         serde_json::from_str(include_str!("../../../../data/hoa-additive-state-v1.json")).unwrap();
     for f in data["fixtures"].as_array().unwrap() {
-        let mut decoder = SqDecoder::from_cookie(&bytes(&f["cookie"])).unwrap();
-        decoder.decode_frame(&bytes(&f["first"])).unwrap();
+        let mut decoder = Decoder::from_cookie(&bytes(&f["cookie"])).unwrap();
+        decoder.decode_vec(&bytes(&f["first"])).unwrap();
         // Fail after spatial/DRC parsing and the preceding ACN channels have rendered.
         decoder.channels.last_mut().unwrap().overlap[0] = f64::MAX;
         let before = snapshot(&decoder);
-        let error = decoder
-            .decode_frame(&bytes(&f["embedded_good"]))
-            .unwrap_err();
+        let error = decoder.decode_vec(&bytes(&f["embedded_good"])).unwrap_err();
         assert_eq!(error.operation, "SQ synthesis");
         assert_eq!(snapshot(&decoder), before);
     }
@@ -524,35 +519,47 @@ fn effective_subbands_commit_all_eight_maps_and_rollback_unused_row_failures() {
             Some(f["options"]["subbands"].as_u64().unwrap() as usize)
         );
         assert_eq!(context.maximum_preroll_bytes(), 32768);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        decoder.decode_frame(&bytes(&f["first"])).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        decoder.decode_vec(&bytes(&f["first"])).unwrap();
         let before = snapshot(&decoder);
         for (key, value) in f["errors"].as_object().unwrap() {
-            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(value)).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
-        let mut alternate = SqDecoder::from_cookie(&cookie).unwrap();
-        alternate.decode_frame(&bytes(&f["first"])).unwrap();
+        let mut alternate = Decoder::from_cookie(&cookie).unwrap();
+        alternate.decode_vec(&bytes(&f["first"])).unwrap();
         assert_eq!(
-            decoder.decode_frame(&bytes(&f["next"])).unwrap(),
-            alternate.decode_frame(&bytes(&f["alternate"])).unwrap()
+            decoder.decode_vec(&bytes(&f["next"])).unwrap(),
+            alternate.decode_vec(&bytes(&f["alternate"])).unwrap()
         );
         assert_ne!(
-            decoder.hoa_state.last_dynamic_mapping.as_ref().unwrap()[7],
-            alternate.hoa_state.last_dynamic_mapping.as_ref().unwrap()[7]
+            decoder
+                .metadata_state()
+                .hoa
+                .unwrap()
+                .last_dynamic_mapping
+                .as_ref()
+                .unwrap()[7],
+            alternate
+                .metadata_state()
+                .hoa
+                .unwrap()
+                .last_dynamic_mapping
+                .as_ref()
+                .unwrap()[7]
         );
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&bytes(&f["first"])).unwrap();
-        fresh.decode_frame(&bytes(&f["next"])).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&bytes(&f["first"])).unwrap();
+        fresh.decode_vec(&bytes(&f["next"])).unwrap();
         assert_eq!(
-            decoder.decode_frame(&bytes(&f["embedded_good"])).unwrap(),
-            fresh.decode_frame(&bytes(&f["embedded_good"])).unwrap()
+            decoder.decode_vec(&bytes(&f["embedded_good"])).unwrap(),
+            fresh.decode_vec(&bytes(&f["embedded_good"])).unwrap()
         );
         assert_eq!(snapshot(&decoder), snapshot(&fresh));
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
         let restored = crate::frame::parse_hoa_packet(&context, &bytes(&f["first"])).unwrap();
         assert_eq!(
@@ -607,34 +614,31 @@ fn spatial_subband_history_overlap_drc_and_late_failures_are_atomic() {
         let bad =
             crate::frame::HoaFrameContext::from_cookie(&bytes(&f["bad_count_cookie"])).unwrap_err();
         assert_eq!(bad.kind, "hoa-subband-count");
-        let mut d = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut d = Decoder::from_cookie(&cookie).unwrap();
         let first = bytes(&f["first"]);
-        d.decode_frame(&first).unwrap();
+        d.decode_vec(&first).unwrap();
         let before = snapshot(&d);
         for (key, value) in f["errors"].as_object().unwrap() {
-            assert!(d.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert!(d.decode_vec(&bytes(value)).is_err(), "{key}");
             assert_eq!(snapshot(&d), before, "{key}");
         }
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&first).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                d.decode_frame(&bytes(&f[key])).unwrap(),
-                fresh.decode_frame(&bytes(&f[key])).unwrap()
+                d.decode_vec(&bytes(&f[key])).unwrap(),
+                fresh.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&d), snapshot(&fresh));
         }
         d.channels.last_mut().unwrap().overlap[0] = f64::MAX;
         let before = snapshot(&d);
-        assert_eq!(
-            d.decode_frame(&first).unwrap_err().operation,
-            "SQ synthesis"
-        );
+        assert_eq!(d.decode_vec(&first).unwrap_err().operation, "SQ synthesis");
         assert_eq!(snapshot(&d), before);
         d.reset();
         assert_eq!(
             snapshot(&d),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
         let restored = crate::frame::parse_hoa_packet(&ctx, &first).unwrap();
         assert_eq!(
@@ -714,7 +718,7 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
                 .unwrap()
                 .is_supported()
         );
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(
             decoder.backend(),
             "rust_hoa_component_orders_sq_drc_off_f64_fft_v1"
@@ -724,43 +728,43 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
             "apac-hoa-component-orders-state-v1"
         );
         assert_eq!(
-            decoder.channel_layout().ambisonic_order,
+            decoder.info().layout.ambisonic_order,
             Some(u32::from(output_order))
         );
         let first = bytes(&f["first"]);
         assert_eq!(
-            decoder.decode_frame(&first).unwrap().len(),
+            decoder.decode_vec(&first).unwrap().len(),
             channels as usize * 1024
         );
         let before = snapshot(&decoder);
         for (key, value) in f["errors"].as_object().unwrap() {
-            assert!(decoder.decode_frame(&bytes(value)).is_err(), "{key}");
+            assert!(decoder.decode_vec(&bytes(value)).is_err(), "{key}");
             assert_eq!(snapshot(&decoder), before, "{key}");
         }
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err());
+            assert!(decoder.decode_vec(&first[..end]).is_err());
             assert_eq!(snapshot(&decoder), before);
         }
-        let mut fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        fresh.decode_frame(&first).unwrap();
+        let mut fresh = Decoder::from_cookie(&cookie).unwrap();
+        fresh.decode_vec(&first).unwrap();
         for key in ["embedded_good", "next"] {
             assert_eq!(
-                decoder.decode_frame(&bytes(&f[key])).unwrap(),
-                fresh.decode_frame(&bytes(&f[key])).unwrap()
+                decoder.decode_vec(&bytes(&f[key])).unwrap(),
+                fresh.decode_vec(&bytes(&f[key])).unwrap()
             );
             assert_eq!(snapshot(&decoder), snapshot(&fresh));
         }
         decoder.channels.last_mut().unwrap().overlap[0] = f64::MAX;
         let before = snapshot(&decoder);
         assert_eq!(
-            decoder.decode_frame(&first).unwrap_err().operation,
+            decoder.decode_vec(&first).unwrap_err().operation,
             "SQ synthesis"
         );
         assert_eq!(snapshot(&decoder), before);
         decoder.reset();
         assert_eq!(
             snapshot(&decoder),
-            snapshot(&SqDecoder::from_cookie(&cookie).unwrap())
+            snapshot(&Decoder::from_cookie(&cookie).unwrap())
         );
         let restored = crate::frame::parse_hoa_packet(&context, &first).unwrap();
         assert!(

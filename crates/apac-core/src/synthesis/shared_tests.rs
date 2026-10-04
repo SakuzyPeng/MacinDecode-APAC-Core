@@ -12,7 +12,7 @@ fn bytes(value: &Value) -> Vec<u8> {
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect()
 }
-fn snapshot(decoder: &SqDecoder) -> (String, Vec<Vec<u64>>) {
+fn snapshot(decoder: &Decoder) -> (String, Vec<Vec<u64>>) {
     (
         decoder.metadata_sha256(),
         decoder
@@ -29,9 +29,9 @@ fn shared_rates_components_and_all_histories_commit_atomically() {
     for row in data["fixtures"].as_array().unwrap() {
         let name = row["name"].as_str().unwrap();
         let cookie = bytes(&row["cookie"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(
-            decoder.channel_count() as u64,
+            decoder.info().channel_count as u64,
             row["channels"].as_u64().unwrap()
         );
         if let Some(components) = decoder.components() {
@@ -39,7 +39,7 @@ fn shared_rates_components_and_all_histories_commit_atomically() {
                 components.len() as u64,
                 row["declared_components"].as_u64().unwrap()
             );
-            let mut covered = vec![false; decoder.channel_count() as usize];
+            let mut covered = vec![false; decoder.info().channel_count as usize];
             for component in components {
                 assert!(component.source_channels > 0);
                 for range in &component.output_ranges {
@@ -55,23 +55,26 @@ fn shared_rates_components_and_all_histories_commit_atomically() {
         let initial = snapshot(&decoder);
         let first = bytes(&row["first"]);
         let first_pcm = decoder
-            .decode_frame(&first)
+            .decode_vec(&first)
             .unwrap_or_else(|e| panic!("{name}: {e}"));
-        assert_eq!(first_pcm.len(), decoder.channel_count() as usize * 1024);
+        assert_eq!(
+            first_pcm.len(),
+            decoder.info().channel_count as usize * 1024
+        );
         let before = snapshot(&decoder);
         for key in ["bad", "late", "bad_graph"]
             .into_iter()
             .filter(|key| row.get(key).is_some())
         {
             assert!(
-                decoder.decode_frame(&bytes(&row[key])).is_err(),
+                decoder.decode_vec(&bytes(&row[key])).is_err(),
                 "{name}: {key}"
             );
             assert_eq!(before, snapshot(&decoder), "{name}: {key}");
         }
         for end in 0..row["required_bytes"].as_u64().unwrap() as usize {
             assert!(
-                decoder.decode_frame(&first[..end]).is_err(),
+                decoder.decode_vec(&first[..end]).is_err(),
                 "{name} truncated {end}"
             );
             assert_eq!(before, snapshot(&decoder), "{name} truncated {end}");
@@ -79,22 +82,22 @@ fn shared_rates_components_and_all_histories_commit_atomically() {
         let mut extra = first.clone();
         extra.push(0xa5);
         assert!(
-            decoder.decode_frame(&extra).is_err(),
+            decoder.decode_vec(&extra).is_err(),
             "{name}: trailing marker"
         );
         assert_eq!(before, snapshot(&decoder));
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&first).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&first).unwrap();
         let next = bytes(&row["good"]);
         assert_eq!(
-            decoder.decode_frame(&next).unwrap(),
-            clean.decode_frame(&next).unwrap(),
+            decoder.decode_vec(&next).unwrap(),
+            clean.decode_vec(&next).unwrap(),
             "{name}"
         );
         assert_eq!(snapshot(&decoder), snapshot(&clean));
         decoder.reset();
         assert_eq!(snapshot(&decoder), initial);
-        assert_eq!(decoder.decode_frame(&first).unwrap(), first_pcm);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), first_pcm);
     }
 }
 #[test]
@@ -110,7 +113,7 @@ fn shared_cookie_truncation_never_becomes_a_qualified_component() {
         let cookie = bytes(&row["cookie"]);
         for end in 0..cookie.len() {
             assert!(
-                SqDecoder::from_cookie(&cookie[..end]).is_err(),
+                Decoder::from_cookie(&cookie[..end]).is_err(),
                 "{} truncated {end}",
                 row["name"]
             );

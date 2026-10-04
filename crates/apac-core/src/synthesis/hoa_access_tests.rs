@@ -15,7 +15,7 @@ fn fixtures() -> Vec<Value> {
         .unwrap()
         .clone()
 }
-fn snapshot(d: &SqDecoder) -> (String, Vec<Vec<u64>>) {
+fn snapshot(d: &Decoder) -> (String, Vec<Vec<u64>>) {
     (
         d.metadata_sha256(),
         d.channels
@@ -38,29 +38,29 @@ fn hoa_scanning_retains_all_history_and_one_predecessor_converges() {
             .iter()
             .map(bytes)
             .collect();
-        let mut sequential = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut sequential = Decoder::from_cookie(&cookie).unwrap();
         let initial = snapshot(&sequential);
         let mut outputs = Vec::new();
         let mut states = Vec::new();
         for packet in &packets {
-            outputs.push(pcm(sequential.decode_frame(packet).unwrap()));
+            outputs.push(pcm(sequential.decode_vec(packet).unwrap()));
             states.push(snapshot(&sequential));
         }
         for target in 0..=packets.len() {
-            let mut fast = SqDecoder::from_cookie(&cookie).unwrap();
+            let mut fast = Decoder::from_cookie(&cookie).unwrap();
             let start = if target == packets.len() {
                 target
             } else {
                 target.saturating_sub(1)
             };
             for (i, packet) in packets[..start].iter().enumerate() {
-                fast.scan_frame(packet)
+                fast.advance(packet)
                     .unwrap_or_else(|e| panic!("{name} scan {i}: {e}"));
                 assert_eq!(fast.metadata_sha256(), states[i].0, "{name} scan {i}");
                 assert_eq!(snapshot(&fast).1, initial.1);
             }
             for (i, packet) in packets.iter().enumerate().skip(start) {
-                let output = pcm(fast.decode_frame(packet).unwrap());
+                let output = pcm(fast.decode_vec(packet).unwrap());
                 assert_eq!(
                     snapshot(&fast),
                     states[i],
@@ -81,10 +81,10 @@ fn hoa_failed_scan_matches_first_error_and_keeps_every_state() {
         let cookie = bytes(&row["cookie"]);
         let first = bytes(&row["packets"][0]);
         let good = bytes(&row["packets"][1]);
-        let mut fast = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut sequential = SqDecoder::from_cookie(&cookie).unwrap();
-        fast.decode_frame(&first).unwrap();
-        sequential.decode_frame(&first).unwrap();
+        let mut fast = Decoder::from_cookie(&cookie).unwrap();
+        let mut sequential = Decoder::from_cookie(&cookie).unwrap();
+        fast.decode_vec(&first).unwrap();
+        sequential.decode_vec(&first).unwrap();
         let before = snapshot(&fast);
         let mut tail = good.clone();
         tail.push(165);
@@ -94,20 +94,20 @@ fn hoa_failed_scan_matches_first_error_and_keeps_every_state() {
             good[..good.len() - 1].to_vec(),
             tail,
         ] {
-            let expected = sequential.decode_frame(&packet).unwrap_err();
-            let actual = fast.scan_frame(&packet).err().unwrap();
+            let expected = sequential.decode_vec(&packet).unwrap_err();
+            let actual = fast.advance(&packet).err().unwrap();
             assert_eq!(actual, expected, "{}", row["name"]);
             assert_eq!(snapshot(&fast), before);
         }
-        fast.scan_frame(&good).unwrap();
-        sequential.decode_frame(&good).unwrap();
+        fast.advance(&good).unwrap();
+        sequential.decode_vec(&good).unwrap();
         assert_eq!(fast.metadata_sha256(), sequential.metadata_sha256());
-        fast.decode_frame(&first).unwrap();
-        sequential.decode_frame(&first).unwrap();
+        fast.decode_vec(&first).unwrap();
+        sequential.decode_vec(&first).unwrap();
         assert_eq!(snapshot(&fast), snapshot(&sequential));
         assert_eq!(
-            pcm(fast.decode_frame(&good).unwrap()),
-            pcm(sequential.decode_frame(&good).unwrap())
+            pcm(fast.decode_vec(&good).unwrap()),
+            pcm(sequential.decode_vec(&good).unwrap())
         );
     }
     let asp: Value =
@@ -115,15 +115,15 @@ fn hoa_failed_scan_matches_first_error_and_keeps_every_state() {
     for row in asp["fixtures"].as_array().unwrap() {
         let cookie = bytes(&row["cookie"]);
         let first = bytes(&row["first"]);
-        let mut scan = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut full = SqDecoder::from_cookie(&cookie).unwrap();
-        scan.decode_frame(&first).unwrap();
-        full.decode_frame(&first).unwrap();
+        let mut scan = Decoder::from_cookie(&cookie).unwrap();
+        let mut full = Decoder::from_cookie(&cookie).unwrap();
+        scan.decode_vec(&first).unwrap();
+        full.decode_vec(&first).unwrap();
         let before = snapshot(&scan);
         for (name, value) in row["bad"].as_object().unwrap() {
             let packet = bytes(value);
-            let expected = full.decode_frame(&packet).unwrap_err();
-            let actual = scan.scan_frame(&packet).err().unwrap();
+            let expected = full.decode_vec(&packet).unwrap_err();
+            let actual = scan.advance(&packet).err().unwrap();
             assert_eq!(actual, expected, "{name}");
             assert_eq!(snapshot(&scan), before, "{name}");
         }
@@ -148,10 +148,10 @@ fn hoa_scans_reject_frozen_component_numeric_and_late_state_errors() {
         for row in rows {
             let cookie = bytes(&row["cookie"]);
             let first = bytes(&row["first"]);
-            let mut full = SqDecoder::from_cookie(&cookie).unwrap();
-            let mut scan = SqDecoder::from_cookie(&cookie).unwrap();
-            full.decode_frame(&first).unwrap();
-            scan.scan_frame(&first).unwrap();
+            let mut full = Decoder::from_cookie(&cookie).unwrap();
+            let mut scan = Decoder::from_cookie(&cookie).unwrap();
+            full.decode_vec(&first).unwrap();
+            scan.advance(&first).unwrap();
             assert_eq!(full.metadata_sha256(), scan.metadata_sha256());
             let before = snapshot(&scan);
             for (key, value) in row.as_object().unwrap() {
@@ -161,8 +161,8 @@ fn hoa_scans_reject_frozen_component_numeric_and_late_state_errors() {
                     continue;
                 }
                 let packet = bytes(value);
-                let expected = full.decode_frame(&packet).unwrap_err();
-                let actual = scan.scan_frame(&packet).err().unwrap();
+                let expected = full.decode_vec(&packet).unwrap_err();
+                let actual = scan.advance(&packet).err().unwrap();
                 assert_eq!(actual, expected, "{} {key}", row["name"]);
                 assert_eq!(snapshot(&scan), before);
             }

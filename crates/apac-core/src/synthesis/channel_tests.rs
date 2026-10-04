@@ -27,7 +27,7 @@ fn fixtures() -> Vec<Value> {
 fn bits(values: Vec<f32>) -> Vec<u32> {
     values.into_iter().map(f32::to_bits).collect()
 }
-fn state(decoder: &SqDecoder) -> (Vec<Vec<u64>>, Value) {
+fn state(decoder: &Decoder) -> (Vec<Vec<u64>>, Value) {
     (
         decoder
             .channels
@@ -41,28 +41,25 @@ fn state(decoder: &SqDecoder) -> (Vec<Vec<u64>>, Value) {
 fn all_layouts_preserve_every_channel_and_metadata_after_late_errors() {
     for row in fixtures() {
         let cookie = bytes(&row["cookie"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         let n = row["channels"].as_u64().unwrap() as u32;
-        assert_eq!(decoder.channel_count(), n);
-        assert_eq!(decoder.channel_layout().tag & 0xffff, n);
+        assert_eq!(decoder.info().channel_count, n);
+        assert_eq!(decoder.info().layout.tag & 0xffff, n);
         assert_eq!(
-            decoder.decode_frame(&bytes(&row["first"])).unwrap().len(),
+            decoder.decode_vec(&bytes(&row["first"])).unwrap().len(),
             n as usize * 1024
         );
         let before = state(&decoder);
         for key in ["last_element_error", "late_drc_error"] {
-            assert!(
-                decoder.decode_frame(&bytes(&row[key])).is_err(),
-                "{n} {key}"
-            );
+            assert!(decoder.decode_vec(&bytes(&row[key])).is_err(), "{n} {key}");
             assert_eq!(state(&decoder), before, "{n} {key}");
         }
-        let actual = bits(decoder.decode_frame(&bytes(&row["next"])).unwrap());
-        let mut reference = SqDecoder::from_cookie(&cookie).unwrap();
-        reference.decode_frame(&bytes(&row["first"])).unwrap();
+        let actual = bits(decoder.decode_vec(&bytes(&row["next"])).unwrap());
+        let mut reference = Decoder::from_cookie(&cookie).unwrap();
+        reference.decode_vec(&bytes(&row["first"])).unwrap();
         assert_eq!(
             actual,
-            bits(reference.decode_frame(&bytes(&row["next"])).unwrap())
+            bits(reference.decode_vec(&bytes(&row["next"])).unwrap())
         );
     }
 }
@@ -70,16 +67,16 @@ fn all_layouts_preserve_every_channel_and_metadata_after_late_errors() {
 fn reset_rebuilds_all_channels_and_initial_drc_configuration() {
     for row in fixtures() {
         let cookie = bytes(&row["cookie"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let fresh = SqDecoder::from_cookie(&cookie).unwrap();
-        decoder.decode_frame(&bytes(&row["first"])).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let fresh = Decoder::from_cookie(&cookie).unwrap();
+        decoder.decode_vec(&bytes(&row["first"])).unwrap();
         decoder.reset();
         assert_eq!(state(&decoder), state(&fresh));
-        let actual = bits(decoder.decode_frame(&bytes(&row["first"])).unwrap());
+        let actual = bits(decoder.decode_vec(&bytes(&row["first"])).unwrap());
         let mut fresh = fresh;
         assert_eq!(
             actual,
-            bits(fresh.decode_frame(&bytes(&row["first"])).unwrap())
+            bits(fresh.decode_vec(&bytes(&row["first"])).unwrap())
         );
     }
 }

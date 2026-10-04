@@ -31,11 +31,11 @@ fn scanning_preserves_metadata_and_one_predecessor_converges() {
         let cookie = bytes(&row["cookie"]);
         let first = bytes(&row["first"]);
         let next = bytes(&row["next"]);
-        let mut sequential = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut fast = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut sequential = Decoder::from_cookie(&cookie).unwrap();
+        let mut fast = Decoder::from_cookie(&cookie).unwrap();
         for _ in 0..7 {
-            sequential.decode_frame(&first).unwrap();
-            let counts = fast.scan_frame(&first).unwrap();
+            sequential.decode_vec(&first).unwrap();
+            let counts = fast.advance(&first).unwrap();
             assert_eq!(counts.numeric_elements, 0);
             assert_eq!(fast.metadata_sha256(), sequential.metadata_sha256());
             assert!(
@@ -44,15 +44,15 @@ fn scanning_preserves_metadata_and_one_predecessor_converges() {
                     .all(|c| c.overlap.iter().all(|x| *x == 0.))
             );
         }
-        sequential.decode_frame(&next).unwrap();
-        fast.decode_frame(&next).unwrap();
+        sequential.decode_vec(&next).unwrap();
+        fast.decode_vec(&next).unwrap();
         assert_eq!(
-            pcm(sequential.decode_frame(&next).unwrap()),
-            pcm(fast.decode_frame(&next).unwrap())
+            pcm(sequential.decode_vec(&next).unwrap()),
+            pcm(fast.decode_vec(&next).unwrap())
         );
         assert_eq!(fast.metadata_sha256(), sequential.metadata_sha256());
         fast.reset();
-        let fresh = SqDecoder::from_cookie(&cookie).unwrap();
+        let fresh = Decoder::from_cookie(&cookie).unwrap();
         assert_eq!(fast.metadata_sha256(), fresh.metadata_sha256());
         assert!(
             fast.channels
@@ -66,15 +66,15 @@ fn failed_scans_preserve_all_state_and_exact_decoder_error() {
     for row in fixtures() {
         let cookie = bytes(&row["cookie"]);
         let first = bytes(&row["first"]);
-        let mut sequential = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut fast = SqDecoder::from_cookie(&cookie).unwrap();
-        sequential.decode_frame(&first).unwrap();
-        fast.scan_frame(&first).unwrap();
+        let mut sequential = Decoder::from_cookie(&cookie).unwrap();
+        let mut fast = Decoder::from_cookie(&cookie).unwrap();
+        sequential.decode_vec(&first).unwrap();
+        fast.advance(&first).unwrap();
         let before = fast.metadata_sha256();
         for key in ["last_element_error", "late_drc_error"] {
             let packet = bytes(&row[key]);
-            let expected = sequential.decode_frame(&packet).unwrap_err();
-            let actual = fast.scan_frame(&packet).err().unwrap();
+            let expected = sequential.decode_vec(&packet).unwrap_err();
+            let actual = fast.advance(&packet).err().unwrap();
             assert_eq!(actual, expected);
             assert_eq!(before, fast.metadata_sha256());
             assert!(
@@ -84,8 +84,8 @@ fn failed_scans_preserve_all_state_and_exact_decoder_error() {
             );
         }
         for end in 0..first.len() {
-            let expected = sequential.decode_frame(&first[..end]).unwrap_err();
-            let actual = fast.scan_frame(&first[..end]).err().unwrap();
+            let expected = sequential.decode_vec(&first[..end]).unwrap_err();
+            let actual = fast.advance(&first[..end]).err().unwrap();
             assert_eq!(actual, expected);
             assert_eq!(before, fast.metadata_sha256());
         }
@@ -141,4 +141,49 @@ fn bounded_constants_and_extreme_finite_spectra_cannot_overflow_synthesis() {
             );
         }
     }
+}
+#[test]
+fn decoding_into_a_short_buffer_leaves_the_state_unchanged() {
+    for row in fixtures() {
+        let cookie = bytes(&row["cookie"]);
+        let first = bytes(&row["first"]);
+        let next = bytes(&row["next"]);
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut reference = Decoder::from_cookie(&cookie).unwrap();
+        decoder.decode_vec(&first).unwrap();
+        reference.decode_vec(&first).unwrap();
+        let samples = 1024 * decoder.info().channel_count as usize;
+        let before = decoder.metadata_sha256();
+        let mut short = vec![0f32; samples - 1];
+        assert!(decoder.decode(&next, &mut short).is_err());
+        assert_eq!(decoder.metadata_sha256(), before);
+        let mut out = vec![f32::NAN; samples + 3];
+        let info = decoder.decode(&next, &mut out).unwrap();
+        let expected = pcm(reference.decode_vec(&next).unwrap());
+        assert_eq!(pcm(out[..samples].to_vec()), expected);
+        assert!(out[samples..].iter().all(|v| v.is_nan()));
+        assert_eq!(info.embedded_preroll_frames, 0);
+    }
+}
+#[test]
+fn stream_info_matches_the_configuration() {
+    let mut decoders = 0usize;
+    for cookie in crate::config::model_tests::corpus() {
+        let Ok(config) = crate::config::Config::parse(&cookie) else {
+            continue;
+        };
+        let Ok(decoder) = Decoder::new(&config) else {
+            continue;
+        };
+        let info = decoder.info();
+        assert_eq!(Some(info.sample_rate_hz), config.sample_rate_hz());
+        assert_eq!(info.frame_samples, 1024);
+        assert_eq!(
+            info.kind == StreamKind::Composite,
+            decoder.composite().is_some()
+        );
+        assert_eq!(info.kind == StreamKind::Hoa, decoder.hoa().is_some());
+        decoders += 1;
+    }
+    assert!(decoders > 50, "{decoders} decoders");
 }

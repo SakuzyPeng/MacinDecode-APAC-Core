@@ -1,5 +1,5 @@
 //! Real-media streaming check driven by validate_hoa_media.py.
-use crate::{input::Input, synthesis::SqDecoder};
+use crate::{input::Input, synthesis::Decoder};
 
 /// Explicit, bounded real-input check. It writes only small metadata/digests,
 /// never an unbounded full-song PCM export. One source per selected class.
@@ -20,7 +20,7 @@ fn hoa_media_stream_digest() {
     let mut source = Input::open(&path).unwrap();
     let info = source.info().clone();
     let table = info.packet_table.value.clone().unwrap();
-    let mut decoder = SqDecoder::from_cookie(source.cookie()).unwrap();
+    let mut decoder = Decoder::from_cookie(source.cookie()).unwrap();
     assert!(decoder.hoa_numeric_profile().is_some());
     let mut hash = Sha256::new();
     let mut packets = 0u64;
@@ -33,8 +33,8 @@ fn hoa_media_stream_digest() {
         let (samples, counts) = decoder
             .decode_frame_report(&packet)
             .unwrap_or_else(|e| panic!("packet {index}: {e}"));
-        drc_payload_frames += counts.drc_payload_frames;
-        embedded_frames += counts.embedded_preroll_frames;
+        drc_payload_frames += counts.frame.drc_payload_frames;
+        embedded_frames += counts.frame.embedded_preroll_frames;
         assert_eq!(samples.len(), 16384);
         let first = raw.max(prime);
         let last = (raw + 1024).min(end);
@@ -51,7 +51,7 @@ fn hoa_media_stream_digest() {
     source.verify_remaining().unwrap();
     assert_eq!(frames, table.valid_frames as u64);
     assert_eq!(Some(packets), info.packet_count.value);
-    let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::frame::HOA_NUMERIC_PROFILE,"layout":decoder.channel_layout(),"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
+    let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::frame::HOA_NUMERIC_PROFILE,"layout":decoder.info().layout,"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
     serde_json::to_writer_pretty(&mut output, &report).unwrap();
     output.write_all(b"\n").unwrap();
 }

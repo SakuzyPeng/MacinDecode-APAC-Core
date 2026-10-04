@@ -1,6 +1,6 @@
 //! Synthetic syntax only: no real media cookie or packet is embedded here.
 use apac_core::frame::{FrameContext, FrameReport, parse_frame, parse_packet};
-use apac_core::synthesis::SqDecoder;
+use apac_core::synthesis::Decoder;
 use apac_research::config::{ParseStatus, parse_cookie};
 use apac_research::packets::MAX_PACKET_BUFFER;
 use serde_json::json;
@@ -684,7 +684,7 @@ mod spectrum_tests {
 mod synthesis_tests {
     use super::*;
     use apac_core::frame::parse_spectrum;
-    use apac_core::synthesis::SqDecoder;
+    use apac_core::synthesis::Decoder;
     fn packet(block: u64, active: bool) -> Vec<u8> {
         let mut b = Bits::default();
         b.fields(&[
@@ -720,10 +720,10 @@ mod synthesis_tests {
     }
     #[test]
     fn independent_pcm_keeps_channels_and_window_history() {
-        let mut decoder = SqDecoder::from_cookie(&cookie(3, 2, false)).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie(3, 2, false)).unwrap();
         let mut nonzero = 0;
         for block in [0, 1, 2, 2, 3, 0, 0] {
-            let samples = decoder.decode_frame(&packet(block, true)).unwrap();
+            let samples = decoder.decode_vec(&packet(block, true)).unwrap();
             assert_eq!(samples.len(), 2048);
             assert!(samples.iter().all(|s| s.is_finite()));
             assert!(samples.iter().skip(1).step_by(2).all(|s| *s == 0.));
@@ -734,17 +734,17 @@ mod synthesis_tests {
     #[test]
     fn errors_do_not_advance_overlap_and_reset_restarts_exactly() {
         let c = cookie(3, 2, false);
-        let mut a = SqDecoder::from_cookie(&c).unwrap();
-        let mut b = SqDecoder::from_cookie(&c).unwrap();
+        let mut a = Decoder::from_cookie(&c).unwrap();
+        let mut b = Decoder::from_cookie(&c).unwrap();
         let active = packet(0, true);
         let zero = packet(0, false);
-        let original = a.decode_frame(&active).unwrap();
-        b.decode_frame(&active).unwrap();
+        let original = a.decode_vec(&active).unwrap();
+        b.decode_vec(&active).unwrap();
         // APAC permits this transition; the following malformed payload must
         // still leave the now-short-window overlap unchanged.
         assert_eq!(
-            a.decode_frame(&packet(2, true)).unwrap(),
-            b.decode_frame(&packet(2, true)).unwrap()
+            a.decode_vec(&packet(2, true)).unwrap(),
+            b.decode_vec(&packet(2, true)).unwrap()
         );
         let mut bad = active.clone();
         let bit = parse_spectrum(&context(), &bad)
@@ -752,13 +752,10 @@ mod synthesis_tests {
             .frame
             .stop_bit_offset;
         bad[bit / 8] |= 1 << (7 - bit % 8);
-        assert!(a.decode_frame(&bad).is_err());
-        assert_eq!(
-            a.decode_frame(&zero).unwrap(),
-            b.decode_frame(&zero).unwrap()
-        );
+        assert!(a.decode_vec(&bad).is_err());
+        assert_eq!(a.decode_vec(&zero).unwrap(), b.decode_vec(&zero).unwrap());
         a.reset();
-        assert_eq!(a.decode_frame(&active).unwrap(), original);
+        assert_eq!(a.decode_vec(&active).unwrap(), original);
     }
     #[test]
     fn active_tools_truncation_and_extra_tail_are_rejected() {
@@ -773,9 +770,9 @@ mod synthesis_tests {
         for bit in stop + 2..stop + 3 {
             let mut bad = good.clone();
             bad[bit / 8] |= 1 << (7 - bit % 8);
-            let error = SqDecoder::from_cookie(&c)
+            let error = Decoder::from_cookie(&c)
                 .unwrap()
-                .decode_frame(&bad)
+                .decode_vec(&bad)
                 .unwrap_err();
             let data_start = stop + 4;
             let expected = data_start
@@ -788,46 +785,46 @@ mod synthesis_tests {
         }
         for end in 0..good.len() {
             assert!(
-                SqDecoder::from_cookie(&c)
+                Decoder::from_cookie(&c)
                     .unwrap()
-                    .decode_frame(&good[..end])
+                    .decode_vec(&good[..end])
                     .is_err()
             );
         }
         let mut extra = good.clone();
         extra.push(0);
         assert!(
-            SqDecoder::from_cookie(&c)
+            Decoder::from_cookie(&c)
                 .unwrap()
-                .decode_frame(&extra)
+                .decode_vec(&extra)
                 .is_err()
         );
         let mut shared = good.clone();
         let left_end = parse_spectrum(&context(), &good).unwrap().channels[0].end_bit_offset;
         shared[left_end / 8] |= 1 << (7 - left_end % 8);
         assert!(
-            SqDecoder::from_cookie(&c)
+            Decoder::from_cookie(&c)
                 .unwrap()
-                .decode_frame(&shared)
+                .decode_vec(&shared)
                 .is_err()
         );
         assert!(
-            SqDecoder::from_cookie(&c)
+            Decoder::from_cookie(&c)
                 .unwrap()
-                .decode_frame(&[0x40])
+                .decode_vec(&[0x40])
                 .is_err()
         );
         assert!(
-            SqDecoder::from_cookie(&c)
+            Decoder::from_cookie(&c)
                 .unwrap()
-                .decode_frame(&[0x70])
+                .decode_vec(&[0x70])
                 .is_err()
         );
     }
     #[test]
     fn unverified_configurations_cannot_enter_pcm_synthesis() {
         for data in [cookie(5, 2, false), cookie(3, 8, false), cookie(3, 2, true)] {
-            assert!(SqDecoder::from_cookie(&data).is_err());
+            assert!(Decoder::from_cookie(&data).is_err());
         }
         let mut c = cookie(3, 2, false);
         let parsed = parse_cookie(&c).unwrap();
@@ -838,14 +835,14 @@ mod synthesis_tests {
             .unwrap()
             .bit_offset;
         c[offset / 8] |= 1 << (7 - offset % 8);
-        assert!(SqDecoder::from_cookie(&c).is_err());
+        assert!(Decoder::from_cookie(&c).is_err());
     }
 }
 
 mod cac_tests {
     use super::*;
     use apac_core::frame::{parse_cac, parse_spectrum};
-    use apac_core::synthesis::SqDecoder;
+    use apac_core::synthesis::Decoder;
 
     pub(super) fn packet(block: u64, gain: usize) -> Vec<u8> {
         let books: serde_json::Value =
@@ -933,10 +930,10 @@ mod cac_tests {
     #[test]
     fn cac_errors_leave_overlap_untouched_and_reset_is_exact() {
         let cookie = cookie(3, 2, false);
-        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut reference = SqDecoder::from_cookie(&cookie).unwrap();
-        let first = actual.decode_frame(&packet(0, 9)).unwrap();
-        reference.decode_frame(&packet(0, 9)).unwrap();
+        let mut actual = Decoder::from_cookie(&cookie).unwrap();
+        let mut reference = Decoder::from_cookie(&cookie).unwrap();
+        let first = actual.decode_vec(&packet(0, 9)).unwrap();
+        reference.decode_vec(&packet(0, 9)).unwrap();
         let mut bad = packet(0, 34);
         let end = parse_cac(&context(), &bad)
             .unwrap()
@@ -953,20 +950,20 @@ mod cac_tests {
                 0
             };
         assert_eq!(
-            actual.decode_frame(&bad).unwrap_err().bit_offset,
+            actual.decode_vec(&bad).unwrap_err().bit_offset,
             Some(expected_bit)
         );
         assert_eq!(
-            actual.decode_frame(&packet(2, 26)).unwrap(),
-            reference.decode_frame(&packet(2, 26)).unwrap()
+            actual.decode_vec(&packet(2, 26)).unwrap(),
+            reference.decode_vec(&packet(2, 26)).unwrap()
         );
-        assert!(actual.decode_frame(&bad[..bad.len() / 2]).is_err());
+        assert!(actual.decode_vec(&bad[..bad.len() / 2]).is_err());
         assert_eq!(
-            actual.decode_frame(&packet(0, 26)).unwrap(),
-            reference.decode_frame(&packet(0, 26)).unwrap()
+            actual.decode_vec(&packet(0, 26)).unwrap(),
+            reference.decode_vec(&packet(0, 26)).unwrap()
         );
         actual.reset();
-        assert_eq!(actual.decode_frame(&packet(0, 9)).unwrap(), first);
+        assert_eq!(actual.decode_vec(&packet(0, 9)).unwrap(), first);
     }
     #[test]
     fn cac_truncation_tools_and_bit_mutations_preserve_boundaries() {
@@ -977,9 +974,9 @@ mod cac_tests {
         let cookie = cookie(3, 2, false);
         for cut in 0..good.len() {
             assert!(
-                SqDecoder::from_cookie(&cookie)
+                Decoder::from_cookie(&cookie)
                     .unwrap()
-                    .decode_frame(&good[..cut])
+                    .decode_vec(&good[..cut])
                     .is_err()
             );
         }
@@ -994,9 +991,9 @@ mod cac_tests {
                     0
                 };
             assert_eq!(
-                SqDecoder::from_cookie(&cookie)
+                Decoder::from_cookie(&cookie)
                     .unwrap()
-                    .decode_frame(&bad)
+                    .decode_vec(&bad)
                     .unwrap_err()
                     .bit_offset,
                 Some(expected_bit)
@@ -1024,7 +1021,7 @@ mod cac_tests {
 mod tns_tests {
     use super::*;
     use apac_core::frame::{parse_cac, parse_tns};
-    use apac_core::synthesis::SqDecoder;
+    use apac_core::synthesis::Decoder;
     fn packet(order: u64, length: u64, bwe: u64) -> Vec<u8> {
         let source = super::cac_tests::packet(0, 9);
         let end = parse_cac(&context(), &source)
@@ -1051,8 +1048,8 @@ mod tns_tests {
     #[test]
     fn filtered_spectra_and_pcm_errors_are_transactional_and_reset_exactly() {
         let cookie = cookie(3, 2, false);
-        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut expected = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut actual = Decoder::from_cookie(&cookie).unwrap();
+        let mut expected = Decoder::from_cookie(&cookie).unwrap();
         let good = packet(3, 49, 0);
         let parsed = parse_tns(&context(), &good).unwrap();
         check_coverage(&good, &parsed.cac.spectrum.frame);
@@ -1061,27 +1058,27 @@ mod tns_tests {
             parsed.channels_after_tns[0].scaled,
             parsed.cac.channels_after_cac[0].scaled
         );
-        let first = actual.decode_frame(&good).unwrap();
-        assert_eq!(first, expected.decode_frame(&good).unwrap());
+        let first = actual.decode_vec(&good).unwrap();
+        assert_eq!(first, expected.decode_vec(&good).unwrap());
         for bad in [
             packet(1, 0, 0),
             packet(13, 49, 0),
             packet(3, 49, 1),
             good[..good.len() - 2].to_vec(),
         ] {
-            assert!(actual.decode_frame(&bad).is_err());
+            assert!(actual.decode_vec(&bad).is_err());
         }
         assert_eq!(
-            actual.decode_frame(&good).unwrap(),
-            expected.decode_frame(&good).unwrap()
+            actual.decode_vec(&good).unwrap(),
+            expected.decode_vec(&good).unwrap()
         );
         actual.reset();
-        assert_eq!(actual.decode_frame(&good).unwrap(), first);
+        assert_eq!(actual.decode_vec(&good).unwrap(), first);
     }
     #[test]
     fn configuration_errors_name_fields_values_and_cookie_positions() {
         let bytes = cookie(5, 2, false);
-        let result = SqDecoder::from_cookie(&bytes).err().unwrap();
+        let result = Decoder::from_cookie(&bytes).err().unwrap();
         assert_eq!(result.operation, "SQ decoder");
         assert!(
             result
@@ -1095,7 +1092,7 @@ mod tns_tests {
             .find(|f| f.name == "ancillary.metadata_present")
             .unwrap()
             .bit_offset;
-        let error = SqDecoder::from_cookie(&bytes).err().unwrap();
+        let error = Decoder::from_cookie(&bytes).err().unwrap();
         assert!(error.message.contains(&format!(
             "ancillary.metadata_present=true at cookie bit {bit}"
         )));
@@ -1105,7 +1102,7 @@ mod tns_tests {
 mod bwe2_tests {
     use super::*;
     use apac_core::frame::parse_bwe2;
-    use apac_core::synthesis::SqDecoder;
+    use apac_core::synthesis::Decoder;
     fn bytes(hex: &str) -> Vec<u8> {
         let (pairs, remainder) = hex.as_bytes().as_chunks::<2>();
         assert!(remainder.is_empty());
@@ -1122,32 +1119,32 @@ mod bwe2_tests {
         let independent = bytes("61464098844028c81310881800010004050000");
         let short = bytes("696ab204120824104820942108421085902850a16020000208208000");
         let cookie = cookie(3, 2, false);
-        let mut actual = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut expected = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut actual = Decoder::from_cookie(&cookie).unwrap();
+        let mut expected = Decoder::from_cookie(&cookie).unwrap();
         let report = parse_bwe2(&context(), &active).unwrap();
         assert!(report.bwe2_complete);
         assert!(report.channels_after_bwe2[0].processing_applied);
         check_coverage(&active, &report.tns.cac.spectrum.frame);
-        let first = actual.decode_frame(&active).unwrap();
-        assert_eq!(first, expected.decode_frame(&active).unwrap());
+        let first = actual.decode_vec(&active).unwrap();
+        assert_eq!(first, expected.decode_vec(&active).unwrap());
         let mut tail = active.clone();
         *tail.last_mut().unwrap() = 0x80;
-        assert!(actual.decode_frame(&tail).is_err());
-        assert!(actual.decode_frame(&active[..active.len() - 2]).is_err());
+        assert!(actual.decode_vec(&tail).is_err());
+        assert!(actual.decode_vec(&active[..active.len() - 2]).is_err());
         assert_eq!(
-            actual.decode_frame(&short).unwrap(),
-            expected.decode_frame(&short).unwrap()
+            actual.decode_vec(&short).unwrap(),
+            expected.decode_vec(&short).unwrap()
         );
         assert_eq!(
-            actual.decode_frame(&independent).unwrap(),
-            expected.decode_frame(&independent).unwrap()
+            actual.decode_vec(&independent).unwrap(),
+            expected.decode_vec(&independent).unwrap()
         );
         assert_eq!(
-            actual.decode_frame(&active).unwrap(),
-            expected.decode_frame(&active).unwrap()
+            actual.decode_vec(&active).unwrap(),
+            expected.decode_vec(&active).unwrap()
         );
         actual.reset();
-        assert_eq!(actual.decode_frame(&active).unwrap(), first);
+        assert_eq!(actual.decode_vec(&active).unwrap(), first);
     }
 }
 
@@ -1214,9 +1211,9 @@ fn asp_type_aliases_and_preroll_padding_preserve_complete_packets() {
     let config = cookie(3, 2, false);
     let active = packet_test_frame(true, None);
     let absent = packet_test_frame(false, None);
-    let mut control = SqDecoder::from_cookie(&config).unwrap();
-    let expected = control.decode_frame(&active).unwrap();
-    let expected_tail = control.decode_frame(&absent).unwrap();
+    let mut control = Decoder::from_cookie(&config).unwrap();
+    let expected = control.decode_vec(&active).unwrap();
+    let expected_tail = control.decode_vec(&absent).unwrap();
     for code in [0u8, 1, 3] {
         let mut frame = active.clone();
         frame[0] = (frame[0] & 0x3f) | (code << 6);
@@ -1228,8 +1225,8 @@ fn asp_type_aliases_and_preroll_padding_preserve_complete_packets() {
                 "apac-asp-boundaries-v1"
             );
         }
-        let mut decoder = SqDecoder::from_cookie(&config).unwrap();
-        assert_eq!(decoder.decode_frame(&frame).unwrap(), expected);
+        let mut decoder = Decoder::from_cookie(&config).unwrap();
+        assert_eq!(decoder.decode_vec(&frame).unwrap(), expected);
         for padding in [0u8, 1, 7] {
             let mut outer = packet_test_frame(false, Some(&frame));
             outer[2] = (outer[2] & !7) | padding;
@@ -1256,8 +1253,8 @@ fn asp_type_aliases_and_preroll_padding_preserve_complete_packets() {
                     "apac-asp-boundaries-v1"
                 );
             }
-            let mut decoder = SqDecoder::from_cookie(&config).unwrap();
-            assert_eq!(decoder.decode_frame(&outer).unwrap(), expected_tail);
+            let mut decoder = Decoder::from_cookie(&config).unwrap();
+            assert_eq!(decoder.decode_vec(&outer).unwrap(), expected_tail);
         }
     }
 }
@@ -1265,25 +1262,25 @@ fn asp_type_aliases_and_preroll_padding_preserve_complete_packets() {
 #[test]
 fn missing_element_outputs_the_tail_once_and_reset_clears_it() {
     let config = cookie(3, 2, false);
-    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+    let mut decoder = Decoder::from_cookie(&config).unwrap();
     let active = packet_test_frame(true, None);
     let absent = packet_test_frame(false, None);
-    decoder.decode_frame(&active).unwrap();
-    let tail = decoder.decode_frame(&absent).unwrap();
+    decoder.decode_vec(&active).unwrap();
+    let tail = decoder.decode_vec(&absent).unwrap();
     assert!(tail.iter().any(|v| *v != 0.));
     assert!(tail.iter().skip(1).step_by(2).all(|v| v.to_bits() == 0));
     assert!(
         decoder
-            .decode_frame(&absent)
+            .decode_vec(&absent)
             .unwrap()
             .iter()
             .all(|v| v.to_bits() == 0)
     );
-    decoder.decode_frame(&active).unwrap();
+    decoder.decode_vec(&active).unwrap();
     decoder.reset();
     assert!(
         decoder
-            .decode_frame(&absent)
+            .decode_vec(&absent)
             .unwrap()
             .iter()
             .all(|v| v.to_bits() == 0)
@@ -1295,19 +1292,19 @@ fn invalid_outer_tail_and_invalid_internal_frame_do_not_commit_state() {
     let config = cookie(3, 2, false);
     let active = packet_test_frame(true, None);
     let absent = packet_test_frame(false, None);
-    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
-    let mut control = SqDecoder::from_cookie(&config).unwrap();
-    decoder.decode_frame(&active).unwrap();
-    control.decode_frame(&active).unwrap();
+    let mut decoder = Decoder::from_cookie(&config).unwrap();
+    let mut control = Decoder::from_cookie(&config).unwrap();
+    decoder.decode_vec(&active).unwrap();
+    control.decode_vec(&active).unwrap();
     let mut bad = packet_test_frame(true, Some(&active));
     *bad.last_mut().unwrap() = 0x80;
-    assert!(decoder.decode_frame(&bad).is_err());
+    assert!(decoder.decode_vec(&bad).is_err());
     let bad_inner = packet_test_frame(true, Some(&[0x60]));
-    let error = decoder.decode_frame(&bad_inner).unwrap_err();
+    let error = decoder.decode_vec(&bad_inner).unwrap_err();
     assert!(error.message.contains("embedded preroll"));
     assert_eq!(error.bit_offset, Some(30));
-    let after = decoder.decode_frame(&absent).unwrap();
-    let expected = control.decode_frame(&absent).unwrap();
+    let after = decoder.decode_vec(&absent).unwrap();
+    let expected = control.decode_vec(&absent).unwrap();
     assert_eq!(
         after.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),
         expected.iter().map(|v| v.to_bits()).collect::<Vec<_>>()
@@ -1327,11 +1324,11 @@ fn internal_preroll_emits_only_current_pcm_and_has_bounded_coordinates() {
     assert_eq!(internal.end_bit_offset, 24 + active.len() * 8);
     assert!(internal.report.packet_complete);
     assert_eq!(internal.report.frame().packet_bytes, active.len());
-    let mut expected = SqDecoder::from_cookie(&config).unwrap();
-    expected.decode_frame(&active).unwrap();
-    let expected = expected.decode_frame(&absent).unwrap();
-    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
-    let output = decoder.decode_frame(&outer).unwrap();
+    let mut expected = Decoder::from_cookie(&config).unwrap();
+    expected.decode_vec(&active).unwrap();
+    let expected = expected.decode_vec(&absent).unwrap();
+    let mut decoder = Decoder::from_cookie(&config).unwrap();
+    let output = decoder.decode_vec(&outer).unwrap();
     assert_eq!(output.len(), 2048);
     assert_eq!(
         output.iter().map(|v| v.to_bits()).collect::<Vec<_>>(),

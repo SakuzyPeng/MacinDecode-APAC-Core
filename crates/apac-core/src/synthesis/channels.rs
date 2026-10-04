@@ -1,5 +1,5 @@
 //! Atomic dynamic-channel synthesis; the existing per-channel math is unchanged.
-use super::{ChannelState, FrameStateCounts};
+use super::{ChannelState, FrameInfo, FrameStateCounts};
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
@@ -32,18 +32,21 @@ pub(super) fn decode(
     let parse_seconds = parse_timer.elapsed().as_secs_f64();
     let synthesis_timer = std::time::Instant::now();
     let mut next = channels.clone();
-    let mut result = render(&mut next, &decoded)?;
-    result.1.parse_seconds = parse_seconds;
-    result.1.synthesis_seconds = synthesis_timer.elapsed().as_secs_f64();
+    let (samples, frame) = render(&mut next, &decoded)?;
+    let counts = FrameStateCounts {
+        frame,
+        parse_seconds,
+        synthesis_seconds: synthesis_timer.elapsed().as_secs_f64(),
+    };
     *channels = next;
     *state = next_state;
-    Ok(result)
+    Ok((samples, counts))
 }
 pub(super) fn render(
     states: &mut [ChannelState],
     packet: &ChannelPacketReport,
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let mut counts = FrameStateCounts::default();
+) -> Result<(Vec<f32>, FrameInfo)> {
+    let mut counts = FrameInfo::default();
     if let Some(inner) = &packet.embedded_preroll {
         let (_, child) = render(states, &inner.report)?;
         counts.embedded_preroll_frames = 1 + child.embedded_preroll_frames;
@@ -63,8 +66,8 @@ pub(super) fn render_core(
     states: &mut [ChannelState],
     elements: &[crate::frame::ElementReport],
     hoa: Option<&crate::frame::HoaFrameInfo>,
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let mut counts = FrameStateCounts::default();
+) -> Result<(Vec<f32>, FrameInfo)> {
+    let mut counts = FrameInfo::default();
     if let Some(hoa) = hoa
         && (hoa.static_remapping.is_some()
             || hoa.source_layout.is_some()

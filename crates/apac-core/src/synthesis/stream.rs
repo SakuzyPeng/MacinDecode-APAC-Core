@@ -1,5 +1,5 @@
 //! Atomic multi-component synthesis using the unchanged per-output transforms.
-use super::{ChannelState, FrameStateCounts};
+use super::{ChannelState, FrameInfo, FrameStateCounts};
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
@@ -43,19 +43,22 @@ pub(super) fn decode(
     let parse_seconds = timer.elapsed().as_secs_f64();
     let timer = std::time::Instant::now();
     let mut next = channels.clone();
-    let mut result = render(&mut next, &report)?;
-    result.1.parse_seconds = parse_seconds;
-    result.1.synthesis_seconds = timer.elapsed().as_secs_f64();
+    let (samples, frame) = render(&mut next, &report)?;
+    let counts = FrameStateCounts {
+        frame,
+        parse_seconds,
+        synthesis_seconds: timer.elapsed().as_secs_f64(),
+    };
     *drc = next_drc;
     *state = next_state;
     *channels = next;
-    Ok(result)
+    Ok((samples, counts))
 }
 fn render(
     states: &mut [ChannelState],
     packet: &StreamPacketReport,
-) -> Result<(Vec<f32>, FrameStateCounts)> {
-    let mut counts = FrameStateCounts::default();
+) -> Result<(Vec<f32>, FrameInfo)> {
+    let mut counts = FrameInfo::default();
     if let Some(child) = &packet.embedded_preroll {
         let (_, child) = render(states, &child.report)?;
         counts.embedded_preroll_frames = 1 + child.embedded_preroll_frames;

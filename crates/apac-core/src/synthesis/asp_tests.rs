@@ -12,7 +12,7 @@ fn bytes(value: &Value) -> Vec<u8> {
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect()
 }
-fn state(decoder: &SqDecoder) -> (String, Vec<Vec<u64>>) {
+fn state(decoder: &Decoder) -> (String, Vec<Vec<u64>>) {
     (
         decoder.metadata_sha256(),
         decoder
@@ -38,19 +38,19 @@ fn asp_type_aliases_and_ignored_padding_preserve_pcm() {
             ("embedded", "inner_three"),
             ("embedded", "padded"),
         ] {
-            let mut a = SqDecoder::from_cookie(&cookie).unwrap();
-            let mut b = SqDecoder::from_cookie(&cookie).unwrap();
-            a.decode_frame(&first).unwrap();
-            b.decode_frame(&first).unwrap();
+            let mut a = Decoder::from_cookie(&cookie).unwrap();
+            let mut b = Decoder::from_cookie(&cookie).unwrap();
+            a.decode_vec(&first).unwrap();
+            b.decode_vec(&first).unwrap();
             assert_eq!(
-                pcm(a.decode_frame(&bytes(&row[baseline])).unwrap()),
-                pcm(b.decode_frame(&bytes(&row[variant])).unwrap()),
+                pcm(a.decode_vec(&bytes(&row[baseline])).unwrap()),
+                pcm(b.decode_vec(&bytes(&row[variant])).unwrap()),
                 "{} {variant}",
                 row["name"]
             );
             assert_eq!(
-                pcm(a.decode_frame(&bytes(&row["zero"])).unwrap()),
-                pcm(b.decode_frame(&bytes(&row["zero"])).unwrap())
+                pcm(a.decode_vec(&bytes(&row["zero"])).unwrap()),
+                pcm(b.decode_vec(&bytes(&row["zero"])).unwrap())
             );
         }
     }
@@ -61,7 +61,7 @@ fn global_frame_length_rejections_are_reference_implementation_boundaries() {
     let data: Value =
         serde_json::from_str(include_str!("../../../../data/hoa-asp-vectors-v1.json")).unwrap();
     let original = bytes(&data["fixtures"][0]["cookie"]);
-    assert!(SqDecoder::from_cookie(&original).is_ok());
+    assert!(Decoder::from_cookie(&original).is_ok());
     for index in 1..64u8 {
         let mut cookie = original.clone();
         let start = 96 + 16 + 6 + 4 + 1 + 6;
@@ -77,7 +77,7 @@ fn global_frame_length_rejections_are_reference_implementation_boundaries() {
                 .iter()
                 .any(|d| d.message.contains("only implements frame-size index 0"))
         );
-        assert!(SqDecoder::from_cookie(&cookie).is_err());
+        assert!(Decoder::from_cookie(&cookie).is_err());
     }
 }
 #[test]
@@ -87,27 +87,27 @@ fn asp_rejections_do_not_commit_any_history_and_retry_reset_match() {
     for row in data["fixtures"].as_array().unwrap() {
         let cookie = bytes(&row["cookie"]);
         let first = bytes(&row["first"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
         let initial = state(&decoder);
-        let first_pcm = pcm(decoder.decode_frame(&first).unwrap());
+        let first_pcm = pcm(decoder.decode_vec(&first).unwrap());
         let before = state(&decoder);
         for (name, packet) in row["bad"].as_object().unwrap() {
             assert!(
-                decoder.decode_frame(&bytes(packet)).is_err(),
+                decoder.decode_vec(&bytes(packet)).is_err(),
                 "{} {name}",
                 row["name"]
             );
             assert_eq!(before, state(&decoder), "{} {name}", row["name"]);
         }
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&first).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&first).unwrap();
         assert_eq!(
-            pcm(decoder.decode_frame(&bytes(&row["embedded"])).unwrap()),
-            pcm(clean.decode_frame(&bytes(&row["embedded"])).unwrap())
+            pcm(decoder.decode_vec(&bytes(&row["embedded"])).unwrap()),
+            pcm(clean.decode_vec(&bytes(&row["embedded"])).unwrap())
         );
         assert_eq!(state(&decoder), state(&clean));
         decoder.reset();
         assert_eq!(initial, state(&decoder));
-        assert_eq!(first_pcm, pcm(decoder.decode_frame(&first).unwrap()));
+        assert_eq!(first_pcm, pcm(decoder.decode_vec(&first).unwrap()));
     }
 }

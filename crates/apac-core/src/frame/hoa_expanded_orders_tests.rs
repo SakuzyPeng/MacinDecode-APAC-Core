@@ -1,5 +1,5 @@
 use super::*;
-use crate::{frame::HoaFrameContext, synthesis::SqDecoder};
+use crate::{frame::HoaFrameContext, synthesis::Decoder};
 use serde_json::Value;
 
 fn data() -> Value {
@@ -70,17 +70,17 @@ fn expanded_dimensions_preserve_atomic_overlaps_and_compensated_residuals() {
         let first = bytes(&f["first"]);
         let good = bytes(&f["good"]);
         let bad = bytes(&f["bad"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        let initial = decoder.decode_frame(&first).unwrap();
-        clean.decode_frame(&first).unwrap();
-        assert!(decoder.decode_frame(&bad).is_err());
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        let initial = decoder.decode_vec(&first).unwrap();
+        clean.decode_vec(&first).unwrap();
+        assert!(decoder.decode_vec(&bad).is_err());
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), initial);
         if f["name"] == "compensated-cancellation" {
             let context = HoaFrameContext::from_cookie(&cookie).unwrap();
             let report = crate::frame::parse_hoa_packet(&context, &first).unwrap();

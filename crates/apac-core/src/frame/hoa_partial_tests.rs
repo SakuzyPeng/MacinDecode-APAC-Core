@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use crate::{
     frame::{HoaFrameContext, parse_hoa_packet},
-    synthesis::SqDecoder,
+    synthesis::Decoder,
 };
 use serde_json::Value;
 
@@ -58,9 +58,9 @@ fn explicit_dimensions_retain_last_coefficient_without_square_padding() {
             assert_eq!(c.scaled[0], expected, "dimension {n}, coefficient {k}");
             assert!(c.scaled[1..].iter().all(|&x| x == 0.));
         }
-        let pcm = SqDecoder::from_cookie(&cookie)
+        let pcm = Decoder::from_cookie(&cookie)
             .unwrap()
-            .decode_frame(&packet)
+            .decode_vec(&packet)
             .unwrap();
         assert_eq!(pcm.len(), 1024 * n);
     }
@@ -73,20 +73,20 @@ fn explicit_dimensions_preserve_packet_atomicity_and_reset() {
         let first = bytes(&f["first"]);
         let good = bytes(&f["good"]);
         let bad = bytes(&f["bad"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut reference = SqDecoder::from_cookie(&cookie).unwrap();
-        let initial = decoder.decode_frame(&first).unwrap();
-        reference.decode_frame(&first).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut reference = Decoder::from_cookie(&cookie).unwrap();
+        let initial = decoder.decode_vec(&first).unwrap();
+        reference.decode_vec(&first).unwrap();
         for end in 0..first.len() {
-            assert!(decoder.decode_frame(&first[..end]).is_err());
+            assert!(decoder.decode_vec(&first[..end]).is_err());
         }
-        assert!(decoder.decode_frame(&bad).is_err());
+        assert!(decoder.decode_vec(&bad).is_err());
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            reference.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            reference.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), initial);
     }
 }
 
@@ -99,9 +99,9 @@ fn explicit_domain_matrix_and_direction_modes_are_rejected() {
         let error = parse_hoa_packet(&context, &packet).unwrap_err();
         assert_eq!(error.kind, "hoa-coding-mode");
         assert!(
-            SqDecoder::from_cookie(&cookie)
+            Decoder::from_cookie(&cookie)
                 .unwrap()
-                .decode_frame(&packet)
+                .decode_vec(&packet)
                 .is_err()
         );
     }

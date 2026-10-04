@@ -199,17 +199,17 @@ mod tests {
                 crate::frame::parse_hoa_packet_with_state(&context, &bad, &mut drc, &mut state);
             assert!(failed.is_err() || !failed.unwrap().packet.packet_complete);
             assert_eq!(state, before);
-            let mut decoder = crate::synthesis::SqDecoder::from_cookie(&cookie).unwrap();
-            let mut clean = crate::synthesis::SqDecoder::from_cookie(&cookie).unwrap();
-            let initial = decoder.decode_frame(&first).unwrap();
-            clean.decode_frame(&first).unwrap();
-            assert!(decoder.decode_frame(&bad).is_err());
+            let mut decoder = crate::synthesis::Decoder::from_cookie(&cookie).unwrap();
+            let mut clean = crate::synthesis::Decoder::from_cookie(&cookie).unwrap();
+            let initial = decoder.decode_vec(&first).unwrap();
+            clean.decode_vec(&first).unwrap();
+            assert!(decoder.decode_vec(&bad).is_err());
             assert_eq!(
-                decoder.decode_frame(&good).unwrap(),
-                clean.decode_frame(&good).unwrap()
+                decoder.decode_vec(&good).unwrap(),
+                clean.decode_vec(&good).unwrap()
             );
             decoder.reset();
-            assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
+            assert_eq!(decoder.decode_vec(&first).unwrap(), initial);
         }
     }
     #[test]

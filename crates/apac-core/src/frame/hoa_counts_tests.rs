@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     config::bits::BitReader,
     frame::{HoaFrameContext, HoaState, parse_hoa_packet, parse_hoa_packet_with_state},
-    synthesis::SqDecoder,
+    synthesis::Decoder,
 };
 use serde_json::Value;
 
@@ -145,8 +145,8 @@ fn count_histories_pcm_and_drc_roll_back_together_and_reset() {
         let ctx = HoaFrameContext::from_cookie(&cookie).unwrap();
         let first = bytes(&f["first"]);
         let good = bytes(&f["good"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let first_pcm = decoder.decode_frame(&first).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let first_pcm = decoder.decode_vec(&first).unwrap();
         let mut state = HoaState::default();
         let mut drc = ctx.initial_drc_state();
         parse_hoa_packet_with_state(&ctx, &first, &mut drc, &mut state).unwrap();
@@ -159,7 +159,7 @@ fn count_histories_pcm_and_drc_roll_back_together_and_reset() {
             serde_json::to_value((&drc.channels, &drc.configuration, &drc.previous_nodes)).unwrap();
         for raw in f["errors"].as_object().unwrap().values() {
             let bad = bytes(raw);
-            assert!(decoder.decode_frame(&bad).is_err());
+            assert!(decoder.decode_vec(&bad).is_err());
             let failed = parse_hoa_packet_with_state(&ctx, &bad, &mut drc, &mut state);
             assert!(failed.is_err() || !failed.unwrap().packet.packet_complete);
             assert_eq!(state, saved);
@@ -169,14 +169,14 @@ fn count_histories_pcm_and_drc_roll_back_together_and_reset() {
                 drc_before
             );
         }
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        clean.decode_frame(&first).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        clean.decode_vec(&first).unwrap();
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), first_pcm);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), first_pcm);
     }
 }
 

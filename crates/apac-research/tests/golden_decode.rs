@@ -6,7 +6,7 @@
 //! they only prove that a refactor left the observable results unchanged.
 //! Regenerate deliberately with `APAC_GOLDEN_WRITE=1 cargo test --test golden_decode`.
 use apac_core::frame;
-use apac_core::synthesis::SqDecoder;
+use apac_core::synthesis::Decoder;
 use apac_research::config::parse_cookie;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -72,13 +72,13 @@ fn packets(fixture: &Map<String, Value>) -> Vec<(String, Vec<u8>)> {
 fn cookie_record(cookie: &[u8]) -> Value {
     json!({
         "cookie_report": outcome(parse_cookie(cookie)),
-        "decoder": match SqDecoder::from_cookie(cookie) {
+        "decoder": match Decoder::from_cookie(cookie) {
             Ok(d) => json!({
-                "channels": d.channel_count(),
+                "channels": d.info().channel_count,
                 "backend": d.backend(),
                 "state_profile": d.state_profile(),
                 "support_scope": d.support_scope(),
-                "layout": sha(d.channel_layout()),
+                "layout": sha(d.info().layout),
             }),
             Err(e) => json!({"error": e.to_string()}),
         },
@@ -123,10 +123,10 @@ fn report(cookie: &[u8], packet: &[u8]) -> Value {
 
 fn replay(cookie: &[u8], fixture: &Map<String, Value>) -> Value {
     let mut record = cookie_record(cookie);
-    let mut decoder = SqDecoder::from_cookie(cookie).ok();
+    let mut decoder = Decoder::from_cookie(cookie).ok();
     let mut rows = Vec::new();
     for (key, packet) in packets(fixture) {
-        let decoded = decoder.as_mut().map(|d| match d.decode_frame(&packet) {
+        let decoded = decoder.as_mut().map(|d| match d.decode_vec(&packet) {
             Ok(pcm) => {
                 let bytes: Vec<u8> = pcm.iter().flat_map(|v| v.to_le_bytes()).collect();
                 json!({"pcm": format!("{:x}", Sha256::digest(&bytes)), "samples": pcm.len()})

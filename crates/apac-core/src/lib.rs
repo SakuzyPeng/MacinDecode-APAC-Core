@@ -21,6 +21,10 @@ pub mod record;
 pub mod synthesis;
 mod tables;
 
+pub use config::Config;
+pub use error::DecodeError;
+pub use synthesis::{AdvanceInfo, Decoder, FrameInfo, StreamInfo, StreamKind};
+
 /// Transitional access for `apac-research` while the decoder and its reports
 /// are separated. Not a stable interface; it shrinks as the refactor proceeds.
 #[doc(hidden)]

@@ -1,5 +1,5 @@
 use super::*;
-use crate::{config::bits::BitReader, frame::HoaFrameContext, synthesis::SqDecoder};
+use crate::{config::bits::BitReader, frame::HoaFrameContext, synthesis::Decoder};
 use serde_json::Value;
 
 fn data() -> Value {
@@ -93,17 +93,17 @@ fn wide_quantized_reports_preserve_511_and_atomic_history() {
             );
             wide |= actual.quantized.contains(&511);
         }
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        let pcm = decoder.decode_frame(&first).unwrap();
-        clean.decode_frame(&first).unwrap();
-        assert!(decoder.decode_frame(&bad).is_err());
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        let pcm = decoder.decode_vec(&first).unwrap();
+        clean.decode_vec(&first).unwrap();
+        assert!(decoder.decode_vec(&bad).is_err());
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), pcm);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), pcm);
     }
     assert!(wide);
 }

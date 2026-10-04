@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     config::bits::BitReader,
     frame::{HoaFrameContext, HoaState, parse_hoa_packet, parse_hoa_packet_with_state},
-    synthesis::SqDecoder,
+    synthesis::Decoder,
 };
 use serde_json::Value;
 
@@ -27,22 +27,22 @@ fn control_histories_overlaps_and_failed_packets_commit_atomically() {
         let first = bytes(&f["first"]);
         let good = bytes(&f["good"]);
         let bad = bytes(&f["bad"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        let initial = decoder.decode_frame(&first).unwrap();
-        clean.decode_frame(&first).unwrap();
-        assert!(decoder.decode_frame(&bad).is_err());
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        let initial = decoder.decode_vec(&first).unwrap();
+        clean.decode_vec(&first).unwrap();
+        assert!(decoder.decode_vec(&bad).is_err());
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
-        let mut sequence = SqDecoder::from_cookie(&cookie).unwrap();
+        assert_eq!(decoder.decode_vec(&first).unwrap(), initial);
+        let mut sequence = Decoder::from_cookie(&cookie).unwrap();
         for p in f["packets"].as_array().unwrap() {
             assert_eq!(
-                sequence.decode_frame(&bytes(p)).unwrap().len(),
-                1024 * sequence.channel_count() as usize
+                sequence.decode_vec(&bytes(p)).unwrap().len(),
+                1024 * sequence.info().channel_count as usize
             );
         }
     }

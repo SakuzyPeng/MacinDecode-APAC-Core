@@ -48,11 +48,14 @@ pub(super) fn decode(
     let parse_seconds = parse_timer.elapsed().as_secs_f64();
     let timer = std::time::Instant::now();
     let mut next = states.clone();
-    let mut result = channels::render(&mut next, &report.packet)?;
-    result.1.parse_seconds = parse_seconds;
-    result.1.synthesis_seconds = timer.elapsed().as_secs_f64();
+    let (samples, frame) = channels::render(&mut next, &report.packet)?;
+    let counts = FrameStateCounts {
+        frame,
+        parse_seconds,
+        synthesis_seconds: timer.elapsed().as_secs_f64(),
+    };
     *states = next;
     *drc = next_drc;
     *hoa = next_hoa;
-    Ok(result)
+    Ok((samples, counts))
 }

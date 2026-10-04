@@ -1102,7 +1102,7 @@ impl HoaPacketReport {
 /// Parse one outer packet, including embedded preroll, from initial HOA/DRC
 /// state. This is an initial-packet entry point, not random access to differential
 /// salient frames. Use `parse-packets --depth hoa` for stateful report sequences
-/// and `SqDecoder` for sequential PCM.
+/// and `Decoder` for sequential PCM.
 pub fn parse_hoa_packet(
     context: &HoaFrameContext,
     packet: &[u8],

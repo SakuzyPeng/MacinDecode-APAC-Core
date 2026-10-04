@@ -166,10 +166,10 @@ fn packet(
     w.align();
     w.0
 }
-fn value(d: &SqDecoder) -> Value {
+fn value(d: &Decoder) -> Value {
     serde_json::to_value(&d.drc.configuration).unwrap()
 }
-fn loudness(d: &SqDecoder) -> u64 {
+fn loudness(d: &Decoder) -> u64 {
     d.drc
         .configuration
         .as_ref()
@@ -186,26 +186,26 @@ fn loudness(d: &SqDecoder) -> u64 {
 fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
     let config = cookie();
     let active = packet(true, None, None, false);
-    let mut actual = SqDecoder::from_cookie(&config).unwrap();
-    let mut control = SqDecoder::from_cookie(&config).unwrap();
-    actual.decode_frame(&active).unwrap();
-    control.decode_frame(&active).unwrap();
+    let mut actual = Decoder::from_cookie(&config).unwrap();
+    let mut control = Decoder::from_cookie(&config).unwrap();
+    actual.decode_vec(&active).unwrap();
+    control.decode_vec(&active).unwrap();
     let before = value(&actual);
     let child = packet(true, Some((21, false, 0)), None, false);
     let bad = packet(true, Some((55, false, 0)), Some(&child), true);
-    assert!(actual.decode_frame(&bad).is_err());
+    assert!(actual.decode_vec(&bad).is_err());
     assert_eq!(value(&actual), before);
     let absent = packet(false, None, None, false);
     assert_eq!(
-        actual.decode_frame(&absent).unwrap(),
-        control.decode_frame(&absent).unwrap()
+        actual.decode_vec(&absent).unwrap(),
+        control.decode_vec(&absent).unwrap()
     );
     let mut invalid_inner = packet(false, Some((55, true, 0)), None, false);
     // The absent core ends at bit 8; the full header's base-channel field
     // occupies bits 12..22. Change its declared count from two to three.
     invalid_inner[21 / 8] |= 1 << (7 - 21 % 8);
     let rejected = packet(false, None, Some(&invalid_inner), false);
-    let error = actual.decode_frame(&rejected).unwrap_err();
+    let error = actual.decode_vec(&rejected).unwrap_err();
     assert_eq!(error.bit_offset, Some(24 + 22));
     assert_eq!(value(&actual), before);
     let good = packet(true, Some((55, false, 0)), Some(&child), false);
@@ -213,15 +213,15 @@ fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
     // Declarative updates, including the frames after they end, cannot alter
     // PCM under the independent off model. No native crossfade is reproduced.
     assert_eq!(
-        actual.decode_frame(&good).unwrap(),
-        control.decode_frame(&plain).unwrap()
+        actual.decode_vec(&good).unwrap(),
+        control.decode_vec(&plain).unwrap()
     );
     assert_eq!(loudness(&actual), 55);
     assert_eq!(actual.drc.previous_nodes[0].gain_eighth_db, 12);
     for _ in 0..2 {
         assert_eq!(
-            actual.decode_frame(&absent).unwrap(),
-            control.decode_frame(&absent).unwrap()
+            actual.decode_vec(&absent).unwrap(),
+            control.decode_vec(&absent).unwrap()
         );
     }
     actual.reset();
@@ -229,7 +229,7 @@ fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
     assert!(actual.drc.previous_nodes.is_empty());
     assert!(
         actual
-            .decode_frame(&absent)
+            .decode_vec(&absent)
             .unwrap()
             .iter()
             .all(|v| v.to_bits() == 0)
@@ -238,22 +238,22 @@ fn gain_metadata_and_both_overlaps_commit_only_with_whole_outer_packet() {
 #[test]
 fn incompatible_header_and_missing_gain_do_not_commit_metadata() {
     let config = cookie();
-    let mut decoder = SqDecoder::from_cookie(&config).unwrap();
+    let mut decoder = Decoder::from_cookie(&config).unwrap();
     let before = value(&decoder);
     let mut invalid = packet(false, Some((77, true, 0)), None, false);
     invalid[21 / 8] |= 1 << (7 - 21 % 8);
-    assert!(decoder.decode_frame(&invalid).is_err());
+    assert!(decoder.decode_vec(&invalid).is_err());
     assert_eq!(value(&decoder), before);
     let good = packet(false, Some((77, false, 0)), None, false);
     let mut missing = good.clone();
     missing.truncate(missing.len() - 2);
-    assert!(decoder.decode_frame(&missing).is_err());
+    assert!(decoder.decode_vec(&missing).is_err());
     assert_eq!(value(&decoder), before);
-    decoder.decode_frame(&good).unwrap();
+    decoder.decode_vec(&good).unwrap();
     assert_eq!(loudness(&decoder), 77);
     assert_eq!(decoder.drc.configuration.as_ref().unwrap().source, "cookie");
     decoder
-        .decode_frame(&packet(false, Some((99, true, 0)), None, false))
+        .decode_vec(&packet(false, Some((99, true, 0)), None, false))
         .unwrap();
     assert_eq!(loudness(&decoder), 99);
     assert_eq!(decoder.drc.configuration.as_ref().unwrap().source, "packet");
@@ -281,5 +281,5 @@ fn absent_core_still_parses_drc_and_only_the_encoder_zero_tail_is_allowed() {
             .unwrap()
             .packet_complete
     );
-    assert!(value(&SqDecoder::from_cookie(&cookie()).unwrap())["parameters"] != json!(null));
+    assert!(value(&Decoder::from_cookie(&cookie()).unwrap())["parameters"] != json!(null));
 }

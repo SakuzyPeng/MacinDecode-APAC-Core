@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     config::bits::BitReader,
     frame::{HoaFrameContext, parse_hoa_packet},
-    synthesis::SqDecoder,
+    synthesis::Decoder,
 };
 use serde_json::Value;
 fn data() -> Value {
@@ -34,18 +34,18 @@ fn actual_domains_preserve_output_dimensions_and_atomic_transactions() {
         let n = f["options"]["output_coefficients"].as_u64().unwrap() as usize;
         assert_eq!(context.channel_count(), n as u32);
         assert_eq!(context.maximum_preroll_bytes(), n as u64 * 2048);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        let initial = decoder.decode_frame(&first).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        let initial = decoder.decode_vec(&first).unwrap();
         assert_eq!(initial.len(), 1024 * n);
-        clean.decode_frame(&first).unwrap();
-        assert!(decoder.decode_frame(&bad).is_err());
+        clean.decode_vec(&first).unwrap();
+        assert!(decoder.decode_vec(&bad).is_err());
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&first).unwrap(), initial);
+        assert_eq!(decoder.decode_vec(&first).unwrap(), initial);
         let report = parse_hoa_packet(&context, &first).unwrap();
         let selection = report.hoa().dynamic_selection.as_ref().unwrap();
         assert_eq!(
@@ -144,16 +144,16 @@ fn invalid_final_mapping_rows_do_not_commit_description_or_output_state() {
     for f in data()["mapping"].as_array().unwrap() {
         let cookie = bytes(&f["cookie"]);
         let good = bytes(&f["packet"]);
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        decoder.decode_frame(&good).unwrap();
-        clean.decode_frame(&good).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        decoder.decode_vec(&good).unwrap();
+        clean.decode_vec(&good).unwrap();
         for invalid in f["errors"].as_array().unwrap() {
-            assert!(decoder.decode_frame(&bytes(invalid)).is_err());
+            assert!(decoder.decode_vec(&bytes(invalid)).is_err());
         }
         assert_eq!(
-            decoder.decode_frame(&good).unwrap(),
-            clean.decode_frame(&good).unwrap()
+            decoder.decode_vec(&good).unwrap(),
+            clean.decode_vec(&good).unwrap()
         );
     }
 }

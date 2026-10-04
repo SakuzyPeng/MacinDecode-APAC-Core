@@ -2,7 +2,7 @@ use super::*;
 use crate::{
     config::bits::BitReader,
     frame::{HoaFrameContext, HoaState, parse_hoa_packet, parse_hoa_packet_with_state},
-    synthesis::SqDecoder,
+    synthesis::Decoder,
 };
 use serde_json::Value;
 
@@ -67,9 +67,9 @@ fn element_counts_carriers_and_output_domains_are_independent() {
                 assert!(element.tns.is_empty() && element.bwe2.is_none());
             }
         }
-        let output = SqDecoder::from_cookie(&bytes(&f["cookie"]))
+        let output = Decoder::from_cookie(&bytes(&f["cookie"]))
             .unwrap()
-            .decode_frame(&bytes(&f["first"]))
+            .decode_vec(&bytes(&f["first"]))
             .unwrap();
         assert_eq!(output.len(), context.channel_count() as usize * 1024);
     }
@@ -84,10 +84,10 @@ fn new_elements_and_late_errors_preserve_all_packet_state() {
     for f in fixtures()["fixtures"].as_array().unwrap() {
         let cookie = bytes(&f["cookie"]);
         let context = HoaFrameContext::from_cookie(&cookie).unwrap();
-        let mut decoder = SqDecoder::from_cookie(&cookie).unwrap();
-        let mut clean = SqDecoder::from_cookie(&cookie).unwrap();
-        let initial = decoder.decode_frame(&bytes(&f["first"])).unwrap();
-        clean.decode_frame(&bytes(&f["first"])).unwrap();
+        let mut decoder = Decoder::from_cookie(&cookie).unwrap();
+        let mut clean = Decoder::from_cookie(&cookie).unwrap();
+        let initial = decoder.decode_vec(&bytes(&f["first"])).unwrap();
+        clean.decode_vec(&bytes(&f["first"])).unwrap();
         let mut state = HoaState::default();
         let mut drc = context.initial_drc_state();
         parse_hoa_packet_with_state(&context, &bytes(&f["first"]), &mut drc, &mut state).unwrap();
@@ -106,14 +106,14 @@ fn new_elements_and_late_errors_preserve_all_packet_state() {
                     .unwrap(),
                 saved_drc
             );
-            assert!(decoder.decode_frame(&bytes(bad)).is_err(), "{name}");
+            assert!(decoder.decode_vec(&bytes(bad)).is_err(), "{name}");
         }
         assert_eq!(
-            decoder.decode_frame(&bytes(&f["good"])).unwrap(),
-            clean.decode_frame(&bytes(&f["good"])).unwrap()
+            decoder.decode_vec(&bytes(&f["good"])).unwrap(),
+            clean.decode_vec(&bytes(&f["good"])).unwrap()
         );
         decoder.reset();
-        assert_eq!(decoder.decode_frame(&bytes(&f["first"])).unwrap(), initial);
+        assert_eq!(decoder.decode_vec(&bytes(&f["first"])).unwrap(), initial);
     }
 }
 

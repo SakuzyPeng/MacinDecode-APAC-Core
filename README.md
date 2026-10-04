@@ -19,12 +19,22 @@ target/debug/apac-tool --help
 
 | crate | 内容 |
 | --- | --- |
-| `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；默认不依赖 serde |
+| `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；`no_std` + `alloc`，默认只依赖 sha2 与 libm |
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、CAF／MP4 读取、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
 | `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |
 
 `apac-core` 的报告与状态类型只在 `serde` feature 下派生 `Serialize`（`apac-research` 开启它；结构化字段值经 serde_json 渲染以保持键排序）。`apac_core::config::Config::parse` 只做类型化解析，不记录字段；`parse_recorded` 另外返回字段记录，`parse-cookie` 输出的报告由 `apac_research::config::parse_cookie` 组装。
+
+`apac-core` 是 `#![no_std]` + `alloc` 库，只有单元测试链接 std。平方根使用 `libm::sqrt`：它与 `f64::sqrt` 一样按 IEEE 正确舍入，结果逐位相同。cookie 上限 8 MiB、包上限 16 MiB，因此 32 位目标上的位偏移不会溢出。发布前在两个无 std 目标上构建：
+
+```sh
+rustup +1.98.0 target add thumbv7em-none-eabihf wasm32v1-none
+cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf
+cargo +1.98.0 build -p apac-core --target thumbv7em-none-eabihf --features serde
+cargo +1.98.0 build -p apac-core --target wasm32v1-none
+cargo +1.98.0 build -p apac-core --target wasm32v1-none --features serde
+```
 
 `native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
 

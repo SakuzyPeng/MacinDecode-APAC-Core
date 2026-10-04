@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `apac-tool` is a research toolkit for Apple Positional Audio Codec (APAC), organized as a Cargo workspace (single `target/`, default member `apac-tool`):
 
-- `crates/apac-core` — portable pure Rust: cookie/config parsing, packet/frame parsing (SQ, CAC, TNS, BWE2, DRC, HOA, ASP, scene graph) and the experimental independent decoder (`Decoder`, in `synthesis`). Never calls Apple APIs. It is being restructured toward a `#![no_std]` + `alloc` decode API. Without features it depends only on `sha2` (no default features); the optional `serde` feature (enabled by apac-research, and by core's own tests through a self dev-dependency) gates every `Serialize`/`Deserialize` derive as `cfg_attr(feature = "serde", …)` and pulls in alloc-only `serde_json`, used just for the key-sorted rendering of structured `FieldValue`s. New core types follow the same `cfg_attr` pattern.
+- `crates/apac-core` — portable pure Rust: cookie/config parsing, packet/frame parsing (SQ, CAC, TNS, BWE2, DRC, HOA, ASP, scene graph) and the experimental independent decoder (`Decoder`, in `synthesis`). Never calls Apple APIs. It is `#![no_std]` + `alloc` (only unit tests link `std`, always by explicit `std::` paths). Without features it depends only on `sha2` (no default features) and `libm` (`libm::sqrt` is correctly rounded, so bit-identical to `f64::sqrt`); the optional `serde` feature (enabled by apac-research, and by core's own tests through a self dev-dependency) gates every `Serialize`/`Deserialize` derive as `cfg_attr(feature = "serde", …)` and pulls in alloc-only `serde_json`, used just for the key-sorted rendering of structured `FieldValue`s. New core types follow the same `cfg_attr` pattern.
 - `crates/apac-research` — std report layer: the `parse-cookie` `CookieReport`, `parse_packets` / `decode` drivers behind `parse-packets` / `decode-sq`, input dispatch, CAF/MP4 readers, packet-directory bundles, output budget, PCM compare, test signals. Optional `clap` feature derives `ValueEnum` for CLI enums.
 - `crates/apac-native` — macOS-only AudioToolbox reference code (`native`, `collect`, `replay`, `research`); the crate body is `#![cfg(target_os = "macos")]`. Its `build.rs` compiles the root-level `native/audio_toolbox.c`.
 - `crates/apac-tool` — the `apac-tool` binary plus the integration tests that run it (`CARGO_BIN_EXE_apac-tool` only exists in this package).
@@ -25,6 +25,10 @@ cargo +1.98.0 build --offline --workspace --bins --examples
 cargo +1.98.0 test --offline --workspace
 cargo +1.98.0 clippy --offline --workspace --all-targets -- -D warnings
 cargo +1.98.0 check --offline -p apac-core          # core without the serde feature
+# no_std builds (both targets, with and without --features serde); core code may not use std::
+# or float methods missing from core (sqrt etc.): use libm
+cargo +1.98.0 build --offline -p apac-core --target thumbv7em-none-eabihf
+cargo +1.98.0 build --offline -p apac-core --target wasm32v1-none --features serde
 cargo +1.98.0 fmt --all
 python3 -B -m unittest discover -s scripts -p 'test_*.py'
 

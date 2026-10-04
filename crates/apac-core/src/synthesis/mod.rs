@@ -9,6 +9,8 @@ mod asp_tests;
 mod channel_tests;
 mod channels;
 #[cfg(test)]
+mod checkpoint_tests;
+#[cfg(test)]
 mod drc_tests;
 mod hoa;
 #[cfg(test)]
@@ -193,6 +195,9 @@ pub struct Decoder {
     /// Retained by parsed packets, so moving this decoder preserves ownership
     /// and a replacement cannot reuse the identity of a dropped decoder.
     owner: Arc<()>,
+    /// Shared with clones and retained by checkpoints: a checkpoint restores
+    /// only into decoders of the same construction, whose contexts match it.
+    stream: Arc<()>,
     /// Counts commits and resets; a parsed packet is valid for one generation.
     generation: u64,
     /// Decoding records no syntax; tests switch to report parsing to prove
@@ -209,6 +214,7 @@ impl Clone for Decoder {
             access: self.access.clone(),
             scan: ScanWorkspace::default(),
             owner: Arc::new(()),
+            stream: Arc::clone(&self.stream),
             generation: self.generation,
             mode: self.mode,
         }
@@ -293,6 +299,7 @@ impl Decoder {
                 },
                 scan: ScanWorkspace::default(),
                 owner: Arc::new(()),
+                stream: Arc::new(()),
                 generation: 0,
                 mode: crate::frame::ParseMode::Decode,
             });
@@ -338,6 +345,7 @@ impl Decoder {
             access: channel_context,
             scan: ScanWorkspace::default(),
             owner: Arc::new(()),
+            stream: Arc::new(()),
             generation: 0,
             mode: crate::frame::ParseMode::Decode,
         })
@@ -388,6 +396,51 @@ impl Decoder {
         self.channels.fill(ChannelState::new());
         self.scan.numeric_elements = 0;
         self.generation += 1;
+    }
+    /// The stream state before the next packet, without synthesis history:
+    /// what [`Decoder::restore`] returns this decoder, or any of its clones,
+    /// to.
+    pub fn checkpoint(&self) -> Checkpoint {
+        Checkpoint {
+            stream: Arc::clone(&self.stream),
+            drc: self.drc.clone(),
+            state: match &self.engine {
+                Engine::Stereo { .. } | Engine::Channels { .. } => CheckpointState::Channels,
+                Engine::Hoa { state, .. } => CheckpointState::Hoa(state.clone()),
+                Engine::Composite { state, .. } => CheckpointState::Composite(state.clone()),
+            },
+        }
+    }
+    /// Return to the point between packets where `checkpoint` was taken.
+    ///
+    /// The result equals a reset decoder advanced ([`Decoder::advance`]) over
+    /// the packets before that point: the overlap is cleared, so decode the
+    /// predecessor of the first packet whose PCM is used. The checkpoint
+    /// taken before the first packet restores the initial state, from which
+    /// the first packet decodes directly. Only checkpoints of this decoder
+    /// and its clones are accepted; on error nothing changes.
+    pub fn restore(&mut self, checkpoint: &Checkpoint) -> Result<()> {
+        if !Arc::ptr_eq(&checkpoint.stream, &self.stream) {
+            return Err(DecodeError::new(
+                "SQ decoder",
+                "checkpoint belongs to a different decoder",
+            ));
+        }
+        match (&checkpoint.state, &mut self.engine) {
+            (CheckpointState::Channels, Engine::Stereo { .. } | Engine::Channels { .. }) => {}
+            (CheckpointState::Hoa(saved), Engine::Hoa { state, .. }) => *state = saved.clone(),
+            (CheckpointState::Composite(saved), Engine::Composite { state, .. }) => {
+                *state = saved.clone();
+            }
+            _ => unreachable!("a checkpoint matches the engine of its decoder"),
+        }
+        self.drc = checkpoint.drc.clone();
+        for channel in &mut self.channels {
+            channel.overlap.fill(0.);
+        }
+        self.scan.numeric_elements = 0;
+        self.generation += 1;
+        Ok(())
     }
     /// Decode one outer packet into `out` (at least 1024 × channel_count
     /// interleaved samples). On error the state is unchanged.
@@ -650,6 +703,26 @@ impl Decoder {
             _ => None,
         }
     }
+}
+
+/// The stream state between two packets, taken by [`Decoder::checkpoint`]:
+/// the DRC history and the HOA or component state that fast access
+/// ([`Decoder::advance`]) carries.
+///
+/// It holds no overlap and no configuration, so a seek index can keep many.
+/// [`Decoder::restore`] accepts it in the decoder that took it and in that
+/// decoder's clones.
+#[derive(Debug, Clone)]
+pub struct Checkpoint {
+    stream: Arc<()>,
+    drc: DrcState,
+    state: CheckpointState,
+}
+#[derive(Debug, Clone)]
+enum CheckpointState {
+    Channels,
+    Hoa(HoaState),
+    Composite(StreamState),
 }
 
 /// Borrowed decoder state: DRC history plus the composite or HOA state.

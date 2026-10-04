@@ -9,8 +9,10 @@
 //! - **Decoding** (crate root): parse a cookie once into a [`Config`], build a
 //!   [`Decoder`] and decode packets into interleaved `f32` PCM, 1024 frames
 //!   per packet. [`Decoder::advance`] moves the state without synthesis for
-//!   fast access; [`Decoder::parse`] and [`Decoder::synthesize`] split
-//!   [`Decoder::decode`] into its two stages. A failed call changes nothing.
+//!   fast access; [`Decoder::checkpoint`] and [`Decoder::restore`] save and
+//!   return to the state between packets for seeking; [`Decoder::parse`] and
+//!   [`Decoder::synthesize`] split [`Decoder::decode`] into its two stages.
+//!   A failed call changes nothing.
 //! - **Inspection** ([`inspect`]): the report layer. Packet and frame
 //!   parsers record syntax and stage results as serializable reports, and the
 //!   `*_with_state` variants follow a stream exactly as the decoder does.
@@ -83,7 +85,9 @@ pub use config::{Config, ParseError};
 pub use error::DecodeError;
 pub use frame::MAX_PACKET_BUFFER;
 pub use model::ChannelLayout;
-pub use synthesis::{AdvanceInfo, Decoder, FrameInfo, ParsedPacket, StreamInfo, StreamKind};
+pub use synthesis::{
+    AdvanceInfo, Checkpoint, Decoder, FrameInfo, ParsedPacket, StreamInfo, StreamKind,
+};
 
 /// Whether this build includes CAC inverse mixing via the `cac` feature.
 ///

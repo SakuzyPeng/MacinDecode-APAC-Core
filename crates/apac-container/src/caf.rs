@@ -38,7 +38,9 @@ fn digest_range<R: Source>(
 /// A retained chunk's payload range.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Chunk {
+    /// Payload offset from the start of the file.
     pub offset: u64,
+    /// Payload length.
     pub bytes: u64,
 }
 impl Chunk {
@@ -144,16 +146,22 @@ fn scan<R: Source>(file: &mut R) -> Result<Structure> {
 /// The structure, digests and verification state a CAF input report shows.
 #[derive(Debug, Clone)]
 pub struct CafSummary {
+    /// The retained chunks by type.
     pub chunks: BTreeMap<[u8; 4], Chunk>,
+    /// File length in bytes.
     pub file_bytes: u64,
+    /// Ignorable chunks (`free` and unknown types) that were skipped.
     pub skipped_chunks: u64,
     /// Digest of the header, chunk headers and retained chunk payloads.
     pub metadata_sha256: String,
     /// `"chan"` when a channel layout chunk was checked, else `"cookie"`.
     pub layout_source: &'static str,
+    /// The data chunk's edit count.
     pub edit_count: u32,
-    /// Digests of the current pass's audio bytes and packet identities.
+    /// Digest of the current pass's audio bytes.
     pub audio_sha256: String,
+    /// Digest of the current pass's packet identities (index, data offset,
+    /// size, duration and payload digest).
     pub packets_sha256: String,
     /// Whether the current pass reached the end and matched the first one.
     pub verified: bool,
@@ -388,6 +396,7 @@ impl<R: Source> CafReader<R> {
             format!("{:x}", self.packet_hash.clone().finalize()),
         )
     }
+    /// The validated stream description.
     pub fn track(&self) -> &Track {
         &self.track
     }
@@ -395,6 +404,7 @@ impl<R: Source> CafReader<R> {
     pub fn consumed_packets(&self) -> u64 {
         self.next
     }
+    /// The structure, digests and verification state for reports.
     pub fn summary(&self) -> CafSummary {
         let (audio_sha256, packets_sha256) = self.hashes();
         CafSummary {

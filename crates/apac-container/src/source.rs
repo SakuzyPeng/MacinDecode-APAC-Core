@@ -5,13 +5,17 @@ use apac_core::{Config, model::ChannelLayout};
 /// A sequential packet stream with its stream description. A pass starts at
 /// the first packet; implementations verify a pass when it reaches the end.
 pub trait PacketSource {
+    /// The source's error type; container readers use [`Error`].
     type Error;
+    /// The parsed cookie.
     fn config(&self) -> &Config;
+    /// The cookie bytes.
     fn cookie(&self) -> &[u8];
     /// The channel count the source declares.
     fn channels(&self) -> u32;
     /// The channel layout the source declares, if it has one.
     fn layout(&self) -> Option<&ChannelLayout>;
+    /// The packet table; decoding requires one.
     fn table(&self) -> Option<PacketTable>;
     /// `requested` frames from `start` inside the source's target window.
     fn range(&self, start: Option<u64>, requested: u64) -> Result<Range, Self::Error>;
@@ -20,6 +24,8 @@ pub trait PacketSource {
     /// Whether the source holds the whole stream, so a prefix may be scanned
     /// with state-only access.
     fn supports_fast_access(&self) -> bool;
+    /// The next packet of the current pass, or `None` at its end (after the
+    /// pass was verified).
     fn next_packet(&mut self) -> Result<Option<Packet>, Self::Error>;
     /// Start a new pass at the first packet.
     fn rewind(&mut self) -> Result<(), Self::Error>;

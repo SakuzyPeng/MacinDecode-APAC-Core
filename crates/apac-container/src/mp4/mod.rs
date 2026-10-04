@@ -142,16 +142,22 @@ fn cookie(file: &mut impl Source, s: &Structure) -> Result<(Vec<u8>, u32, Atom)>
 /// The file brands from `ftyp`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Brands {
+    /// The major brand.
     pub major: String,
+    /// The minor version.
     pub minor_version: u32,
+    /// The compatible brands, in file order.
     pub compatible: Vec<String>,
 }
 
 /// A retained box: its header offset, payload offset and end.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BoxRange {
+    /// Offset of the box header.
     pub offset: u64,
+    /// Offset of the payload, after the (extended) header.
     pub data_offset: u64,
+    /// Offset just past the box.
     pub end: u64,
 }
 
@@ -159,22 +165,34 @@ pub struct BoxRange {
 /// report shows.
 #[derive(Debug, Clone)]
 pub struct Mp4Summary {
+    /// The `ftyp` brands.
     pub brands: Brands,
+    /// The single audio track's identifier.
     pub track_id: u32,
     /// The sample entry's rate; zero when the cookie alone defines it.
     pub sample_entry_rate: u32,
+    /// The movie timescale (`mvhd`).
     pub movie_timescale: u32,
+    /// The single edit's duration, in movie timescale units; it equals the
+    /// movie and track durations.
     pub edit_duration: u64,
+    /// File length in bytes.
     pub file_bytes: u64,
+    /// The retained boxes by type (the first of repeated sample groups).
     pub boxes: BTreeMap<[u8; 4], BoxRange>,
+    /// Top-level `mdat` boxes.
     pub mdat_count: u64,
+    /// Ignorable boxes that were skipped.
     pub skipped_boxes: u64,
+    /// Sample group descriptions (`sgpd`), hashed but not interpreted.
     pub sgpd_count: u64,
+    /// Sample-to-group boxes (`sbgp`), hashed but not interpreted.
     pub sbgp_count: u64,
     /// Digest of every box header and retained box payload.
     pub metadata_sha256: String,
-    /// Digests of the current pass's audio bytes and packet identities.
+    /// Digest of the current pass's audio bytes.
     pub audio_sha256: String,
+    /// Digest of the current pass's packet identities.
     pub packets_sha256: String,
     /// Whether the current pass reached the end and matched the first one.
     pub verified: bool,
@@ -359,6 +377,7 @@ impl<R: Source> Mp4Reader<R> {
             format!("{:x}", self.packet_hash.clone().finalize()),
         )
     }
+    /// The validated stream description.
     pub fn track(&self) -> &Track {
         &self.track
     }
@@ -366,6 +385,7 @@ impl<R: Source> Mp4Reader<R> {
     pub fn consumed_packets(&self) -> u64 {
         self.index.next
     }
+    /// The structure, timeline, digests and verification state for reports.
     pub fn summary(&self) -> Mp4Summary {
         let (audio_sha256, packets_sha256) = self.hashes();
         Mp4Summary {

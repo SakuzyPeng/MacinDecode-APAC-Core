@@ -13,13 +13,19 @@ fn add(a: u64, b: u64) -> Result<u64> {
 /// Frame coordinates exclude priming; `raw_*` include it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Range {
+    /// First valid frame the source can supply.
     pub window_start_frame: u64,
+    /// End (exclusive) of the frames the source can supply.
     pub window_end_frame: u64,
+    /// First requested frame.
     pub start_frame: u64,
+    /// Frames requested from `start_frame`.
     pub requested_frames: u64,
     /// Frames actually available: the request clipped to the window.
     pub frames: u64,
+    /// `start_frame` counting priming frames.
     pub raw_start: u64,
+    /// End (exclusive) of the output counting priming frames.
     pub raw_end: u64,
     /// The range ends with the window, so decoding continues to the end of
     /// the input instead of stopping at `raw_end`.

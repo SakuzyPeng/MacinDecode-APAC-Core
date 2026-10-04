@@ -23,13 +23,20 @@ pub enum Access {
 /// index of the failing packet, if any), or a rejected request.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ReadError<E> {
+    /// The source failed: I/O, structure or integrity.
     Source(E),
+    /// The decoder rejected the configuration or a packet.
     Decode {
+        /// The decoder's error.
         error: DecodeError,
+        /// Source index of the failing packet; `None` for the configuration.
         packet_index: Option<u64>,
     },
+    /// The request or the source description was rejected.
     Invalid {
+        /// The failing stage (`"SQ access"`, `"SQ decoder"`, `"packet bundle"`).
         operation: &'static str,
+        /// The rejection text.
         message: String,
     },
 }
@@ -68,28 +75,41 @@ pub struct Timings {
 /// What the reader processed, accumulated over its life.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Stats {
-    /// Packets and frames advanced with state-only access.
+    /// Packets advanced with state-only access.
     pub prefix_packets: u64,
+    /// Frames (including embedded preroll frames) advanced with state-only
+    /// access.
     pub prefix_frames: u64,
-    /// Prefix packets, and their elements, whose spectra were dequantized.
+    /// Prefix packets whose spectra were dequantized.
     pub prefix_numeric_packets: u64,
+    /// Prefix elements whose spectra were dequantized.
     pub prefix_numeric_elements: u64,
     /// Present prefix elements only checked against finite-value bounds.
     pub prefix_bounded_elements: u64,
-    /// Fully decoded packets, and those of them wholly before the output.
+    /// Fully decoded packets.
     pub decoded_packets: u64,
+    /// Decoded packets wholly before the output.
     pub warmup_packets: u64,
+    /// Decoded stereo packets whose CPE was absent.
     pub cpe_absent_packets: u64,
+    /// Absent channel elements in decoded packets.
     pub absent_elements: u64,
+    /// Absent channel elements in embedded preroll frames.
     pub embedded_absent_elements: u64,
+    /// Embedded preroll frames synthesized.
     pub embedded_preroll_frames: u64,
+    /// Embedded preroll frames whose stereo CPE was absent.
     pub embedded_cpe_absent_frames: u64,
+    /// Frames carrying a complete DRC payload (parsed, not applied).
     pub drc_payload_frames: u64,
+    /// Frames whose DRC payload had no earlier gain node at or before the
+    /// frame start (no preceding parsed history).
     pub drc_missing_history_frames: u64,
     /// Output frames returned by `read`.
     pub saved_frames: u64,
     /// Source index of the first fully decoded packet.
     pub first_synthesis_packet: Option<u64>,
+    /// Time per stage.
     pub timings: Timings,
 }
 
@@ -107,6 +127,37 @@ enum PassState {
 }
 
 /// Decodes a frame range of a [`PacketSource`] into interleaved `f32` PCM.
+///
+/// ```no_run
+/// use apac_container::{Access, CafReader, Reader};
+/// use std::fs::File;
+///
+/// let caf = CafReader::new(File::open("input.caf")?)?;
+/// let mut reader = Reader::open(caf, None, None, Access::Sequential)?;
+/// let channels = reader.decoder().info().channel_count as usize;
+/// let mut pcm = vec![0f32; 1024 * channels];
+/// loop {
+///     let frames = reader.read(&mut pcm)?;
+///     if frames == 0 {
+///         break;
+///     }
+///     // use pcm[..frames * channels]
+/// }
+/// let (_source, _decoder, stats) = reader.finish()?;
+/// # let _ = stats;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// Integrity: every pass over the source starts at its first packet and is
+/// verified when it reaches the end. A pass is never abandoned unverified:
+/// before [`Reader::seek`] rewinds (and when [`Reader::open`] receives a
+/// source that was already read), the rest of the current pass is read and
+/// verified first.
+///
+/// Failures: after a packet fails to decode, `read` and `finish` are refused
+/// until a successful `seek` replays the prefix (the failed packet is never
+/// skipped). A source failure (read, verification or rewind) is terminal:
+/// `read`, `seek` and `finish` are refused afterwards.
 pub struct Reader<S> {
     source: S,
     decoder: Decoder,
@@ -181,18 +232,23 @@ impl<S: PacketSource> Reader<S> {
         }
         Ok(reader)
     }
+    /// The decoder, in the state after the last processed packet.
     pub fn decoder(&self) -> &Decoder {
         &self.decoder
     }
+    /// The packet source.
     pub fn source(&self) -> &S {
         &self.source
     }
+    /// The frame range being read (updated by [`Reader::seek`]).
     pub fn range(&self) -> &Range {
         &self.range
     }
+    /// The access mode chosen at open.
     pub fn access(&self) -> Access {
         self.access
     }
+    /// Counts and timings accumulated over the reader's life.
     pub fn stats(&self) -> &Stats {
         &self.stats
     }

@@ -5,6 +5,13 @@
 //! audio and packet digests; every later pass from the first packet is checked
 //! against them when it reaches the end, together with a rescan of the
 //! structure, so a file that changes while it is read is rejected.
+//!
+//! On top of the readers, [`PacketSource`] describes any packet input
+//! (containers here, packet bundles in `apac-research`), [`Range`] selects a
+//! frame window from its packet table, and [`Reader`] decodes that window
+//! into interleaved `f32` PCM with sequential or fast access, bidirectional
+//! seeking and per-pass integrity verification.
+#![warn(missing_docs)]
 use apac_core::{config::ParseError, error::DecodeError, model::ChannelLayout};
 use std::{
     fmt,
@@ -26,6 +33,7 @@ pub use range::Range;
 pub use reader::{Access, ReadError, Reader, Stats, Timings};
 pub use source::PacketSource;
 
+/// Result of container operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Byte input for the container readers.
@@ -55,7 +63,9 @@ impl<T: AsRef<[u8]>> Source for Cursor<T> {
 /// Where in the file an input error was found.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Position {
+    /// Byte offset of the offending field from the start of the file.
     pub byte_offset: u64,
+    /// The four-character chunk (CAF) or box (MP4) type holding it.
     pub chunk_type: String,
 }
 
@@ -64,13 +74,19 @@ pub struct Position {
 /// `"filesystem"`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Error {
+    /// The failing stage.
     pub operation: &'static str,
+    /// The rejection text, stable across releases.
     pub message: String,
+    /// Bit offset within the cookie or packet, when the syntax located it.
     pub bit_offset: Option<usize>,
+    /// Location in the file, when the failure is tied to one.
     pub position: Option<Position>,
+    /// The packet being processed, when the failure is tied to one.
     pub packet_index: Option<u64>,
 }
 impl Error {
+    /// An error without location.
     pub fn new(operation: &'static str, message: impl Into<String>) -> Self {
         Self {
             operation,
@@ -121,24 +137,34 @@ impl From<ParseError> for Error {
 /// The container's packet table, in audio frames.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PacketTable {
+    /// Frames of decoded audio, excluding priming and remainder.
     pub valid_frames: i64,
+    /// Encoder delay at the start of the first packet.
     pub priming_frames: i32,
+    /// Padding at the end of the last packet.
     pub remainder_frames: i32,
 }
 
 /// The validated stream a container declares.
 #[derive(Debug, Clone)]
 pub struct Track {
+    /// Declared sample rate in Hz (an integral, supported rate).
     pub sample_rate: f64,
+    /// Declared channel count, equal to the cookie's.
     pub channels: u32,
     /// The output layout the cookie defines (and the file agrees with).
     pub layout: ChannelLayout,
+    /// Number of packets in the file.
     pub packet_count: u64,
+    /// The packet table.
     pub table: PacketTable,
+    /// File length in bytes when it was opened.
     pub file_bytes: u64,
     /// The source revision when the file was opened.
     pub revision: Option<SystemTime>,
+    /// The magic cookie bytes.
     pub cookie: Vec<u8>,
+    /// The cookie, parsed once.
     pub config: apac_core::Config,
     /// The largest packet read so far.
     pub max_packet_bytes: u32,
@@ -147,8 +173,11 @@ pub struct Track {
 /// One packet with its source index and raw (priming-inclusive) frame.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Packet {
+    /// Packet index in the source, from zero.
     pub index: u64,
+    /// First frame of the packet, counting priming frames.
     pub raw_frame: u64,
+    /// The packet payload.
     pub bytes: Vec<u8>,
 }
 

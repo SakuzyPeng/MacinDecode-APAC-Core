@@ -1,4 +1,4 @@
-# MacinDecode
+# MacinDecode-APAC-Core
 
 Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM 解码与分析工具。
 

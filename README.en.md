@@ -67,7 +67,7 @@ for packet in packets {
 
 Streams that use CAC (channel pairs with a shared header) need the `cac` feature: `apac-core = { ..., features = ["cac"] }`. `apac_core::CAC_ENABLED` tells whether the core, after Cargo's feature unification, includes the CAC inverse mixing; without it, full decoding and fast prefix scanning both reject nonzero CAC gains.
 
-For files, `apac_container::Reader` wraps CAF/MP4 reading, range cropping and bidirectional `seek`; see `crates/apac-container/examples/decode_file.rs`, and `crates/apac-no-std-example` for `no_std` use. API docs:
+For files, `apac_container::Reader` wraps CAF/MP4 reading, range cropping and bidirectional `seek`; see `crates/apac-container/examples/decode_file.rs`, and `crates/apac-no-std-example` for `no_std` use. Players use `apac_container::Playback`: it opens a file reading metadata only and seeks frame-exactly at a cost bounded by decoder checkpoints; see `crates/apac-container/examples/playback.rs` and [the playback section](guide/decoding.md#播放media-与-playback) (Chinese). API docs:
 
 ```bash
 cargo doc --no-deps -p apac-core -p apac-container --open
@@ -118,7 +118,7 @@ apac-no-std-example ──→ core
 |---|---|---|
 | [`apac-core`](crates/apac-core) | cookie/ASC configuration, packet and frame parsing (SQ, CAC syntax, TNS, BWE2, DRC, HOA, ASP, scene graph), independent Float64 synthesis | ✅ |
 | [`apac-cac`](crates/apac-cac) | CAC inverse mixing and the `apac-cac-math-v1` rotation table, pulled in by `apac-core`'s `cac` feature | ✅ |
-| [`apac-container`](crates/apac-container) | CAF/MP4 reading, integrity checks, frame-range arithmetic and the `Reader` decode loop | — |
+| [`apac-container`](crates/apac-container) | CAF/MP4 reading, integrity checks, frame-range arithmetic and the `Reader` decode loop; `Media`/`Playback` for players | — |
 | [`apac-research`](crates/apac-research) | report assembly for `parse-cookie`, `parse-packets` and `decode-sq`; packet directories, output budget, PCM comparison, test signals | — |
 | [`apac-native`](crates/apac-native) | macOS AudioToolbox reference tools: collection, export, replay, reference decoding and test-signal encoding | — |
 | [`apac-tool`](crates/apac-tool) | the `apac-tool` command line and its integration tests | — |

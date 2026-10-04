@@ -119,7 +119,7 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 
 使用 CAC 的流需要 `apac-core` 的 `cac` feature（`apac-tool` 默认开启）；没有它时，`Decoder` 遇到非零 CAC 增益的帧返回 `cac-unavailable` 错误，状态不提交。
 
-`apac_core::Decoder` 是单包解码接口：`Decoder::new(&Config)`（或 `from_cookie`）按配置选择立体声、单 ASC 多声道、HOA 或组合流路径，不支持时返回带原因的错误；`info()` 给出采样率、声道数、每包 1024 帧、路径类型和布局；`decode(packet, &mut out)` 把 `1024 × channel_count` 个交错 Float32 样本写入调用方缓冲（不足时报错且不改状态），返回该包的统计 `FrameInfo`；`decode_vec` 返回新分配的样本；`advance(packet)` 只推进状态（快速定位用，之后须先完整解码前一包再导出 PCM）；`reset()` 回到初始状态。内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。解码路径不记录语法字段；backend、support_scope 等报告标识由 `apac_research::implementation` 根据所选路径给出。文件级入口为 `apac_research::decode::decode_sq` 和 `apac_research::decode::decode_sq_with_options`，后者接受 `(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
+`apac_core::Decoder` 是单包解码接口：`Decoder::new(&Config)`（或 `from_cookie`）按配置选择立体声、单 ASC 多声道、HOA 或组合流路径，不支持时返回带原因的错误；`info()` 给出采样率、声道数、每包 1024 帧、路径类型和布局；`decode(packet, &mut out)` 把 `1024 × channel_count` 个交错 Float32 样本写入调用方缓冲（不足时报错且不改状态），返回该包的统计 `FrameInfo`；`decode_vec` 返回新分配的样本；`advance(packet)` 只推进状态（快速定位用，之后须先完整解码前一包再导出 PCM）；`checkpoint()` 和 `restore(&checkpoint)` 保存、恢复两包之间的状态（见[播放](#播放media-与-playback)）；`reset()` 回到初始状态。内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。解码路径不记录语法字段；backend、support_scope 等报告标识由 `apac_research::implementation` 根据所选路径给出。文件级入口为 `apac_research::decode::decode_sq` 和 `apac_research::decode::decode_sq_with_options`，后者接受 `(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
 `apac_container::Reader` 把这个循环封装成范围解码接口，`decode-sq` 也走它：
 
@@ -147,6 +147,41 @@ let (source, decoder, stats) = reader.finish()?;   // 补读剩余包，完成�
 cargo run -p apac-container --example decode_file -- input.caf output.f32
 cargo run -p apac-container --example decode_file -- input.mp4 output.f32 --fast --start 48000 --frames 96000
 ```
+
+## 播放：`Media` 与 `Playback`
+
+`decode-sq` 和 `Reader` 面向核验：打开时完整读一遍文件，每一遍读到末尾都与首遍核对，往回定位前要补读剩余文件，快速模式也要从第 0 包扫描前缀。播放器需要的是快速打开和有上限的定位代价，`apac-container` 为此另外提供 `Media` 和 `Playback`。它们不改变 `decode-sq` 的行为和输出。
+
+```rust
+let media = apac_container::Media::open(std::fs::File::open(path)?)?; // 只读元数据
+let mut playback = apac_container::Playback::open(media)?;
+playback.extend_index(u64::MAX)?;    // 可选：先建好完整索引，例如在加载线程里
+playback.seek(frame)?;               // 有效音频帧，按帧精确
+let mut pcm = vec![0f32; 1024 * playback.decoder().info().channel_count as usize];
+while let n @ 1.. = playback.read(&mut pcm)? { /* pcm[..n × 声道数] 为交错样本 */ }
+```
+
+- **打开**：`Media::open` 按内容识别格式：以 `caff` 开头的是 CAF，其余按 MP4 处理。结构、描述、cookie、声道布局和时间线的检查与 `CafReader`／`Mp4Reader` 相同，拒绝文本也相同，但只读元数据：CAF 读块头和 `desc`、`kuki`、`chan`、`pakt` 的载荷，MP4 读 box 头、`moov` 内的叶子载荷和样本表表头。音频数据和逐包表项在读包时才读。
+- **读包**：`Media::read_packet(&mut cursor, &mut buf)` 按游标读一个包，并检查它在包表和音频数据的边界内。游标走到表末时，检查包表和音频数据是否被恰好用完，拒绝文本与已核验读取器相同。`PacketCursor` 很小且可复制，保存后能从任意位置重读；读取失败时游标不动。这条路径不计算摘要、不重扫结构，因此不核验文件在读取期间是否变化；需要这种保证时使用 `Reader`。
+- **输出**：`Playback::read` 输出有效音频（已裁掉 priming 和 remainder），交错 Float32，每次至多 1024 帧。从开头读或在任意 seek 之后读，结果都与同范围的 `decode-sq`、`Reader` 逐位相同。DRC／响度只读不处理、帧内 trimming 只记录，这两点都与 `decode-sq` 相同。
+- **检查点**：`Decoder::checkpoint` 保存两包之间的解析状态，即 DRC 历史以及 HOA 和组件状态，不含 overlap 和配置。`Decoder::restore` 只接受该解码器及其克隆的检查点，恢复后等于一个新解码器 `advance` 到同一位置。`Playback` 每隔 `checkpoint_interval` 包保留一个检查点，默认 64 包（48 kHz 下约 1.4 s）。数量超过 `max_checkpoints`（默认 1024）时，隔一个删一个并把间隔加倍，所以内存有上限；每个检查点通常只有几 KB。
+- **定位**：`seek(frame)` 只选起点：当前解码器离目标更近就原地继续，否则恢复目标前一包之前的最后一个检查点。下一次 `read` 先推进到目标前一包，完整解码它以重建 overlap，再输出目标帧。读包和 `extend_index` 经过检查点位置时都会保存检查点。索引覆盖目标后，一次 seek 至多推进 `间隔 − 1` 包、完整解码 2 包；索引尚未覆盖的位置要从最后一个检查点向前推进，代价随距离增长。
+- **建索引**：`extend_index(max_packets)` 用解码器的克隆只推进状态，处理至多 `max_packets` 包后返回；走到表末时返回 true，此后 `index_complete()` 也为 true。`indexed_frames()` 给出索引目前覆盖到的位置。库内不开线程，有两种用法：在加载线程里调用 `extend_index(u64::MAX)`，再把 `Playback` 交给解码线程（`Playback<File>` 是 `Send`）；或者在解码线程空闲时分批调用。
+- **错误**：解码失败时，播放停在失败的包上：错误带包序号，位置不变，重试会得到相同的错误。这里不跳包、不猜测状态，所以该包之后的位置无法到达，之前的位置仍可 seek。读源错误同样不移动位置，来源恢复后可以重试。
+
+`crates/apac-container/examples/playback.rs` 按播放器的方式解码：先打开，可选地建好完整索引，再 seek 并写出原始 Float32，同时打印各阶段耗时。输出与同范围的 `decode_file` 示例和 `decode-sq` 逐字节相同。
+
+```sh
+cargo run --release -p apac-container --example playback -- input.m4a output.f32 --index --start 480000 --frames 8192
+```
+
+参考耗时来自约 64 秒的合成 7.1、HOA 和组合流测试文件（release 构建）：
+- 打开不到 1 ms；
+- 不建索引时，seek 到接近末尾约需 0.2–0.9 s；
+- 建完整索引约需 0.13–0.74 s；
+- 建好后，同样的 seek 加首次读取约 3–13 ms。
+
+合成码流不代表真实素材，实际代价请在真实文件上测量。
 
 ## 离散声道状态验收
 

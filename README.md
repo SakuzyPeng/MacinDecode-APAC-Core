@@ -67,7 +67,7 @@ for packet in packets {
 
 解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。`apac_core::CAC_ENABLED` 表示当前 core 构建在 Cargo 合并依赖 feature 后是否包含 CAC 逆混合；关闭时完整解码和快速前缀扫描都拒绝非零 CAC 增益。
 
-从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`，完整示例见 `crates/apac-container/examples/decode_file.rs`；无 std 用法见 `crates/apac-no-std-example`。API 文档：
+从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`，完整示例见 `crates/apac-container/examples/decode_file.rs`；无 std 用法见 `crates/apac-no-std-example`。播放器使用 `apac_container::Playback`：打开时只读元数据，按帧精确 `seek`，代价由解码器检查点限定，示例见 `crates/apac-container/examples/playback.rs`，说明见[播放：`Media` 与 `Playback`](guide/decoding.md#播放media-与-playback)。API 文档：
 
 ```bash
 cargo doc --no-deps -p apac-core -p apac-container --open
@@ -118,7 +118,7 @@ apac-no-std-example ──→ core
 |---|---|---|
 | [`apac-core`](crates/apac-core) | cookie／ASC 配置、包与帧解析（SQ、CAC 语法、TNS、BWE2、DRC、HOA、ASP、场景图）、独立 Float64 合成 | ✅ |
 | [`apac-cac`](crates/apac-cac) | CAC 逆混合与 `apac-cac-math-v1` 旋转表；经 `apac-core` 的 `cac` feature 接入 | ✅ |
-| [`apac-container`](crates/apac-container) | CAF／MP4 读取、完整性核验、帧范围计算与 `Reader` 解码循环 | — |
+| [`apac-container`](crates/apac-container) | CAF／MP4 读取、完整性核验、帧范围计算与 `Reader` 解码循环；播放用的 `Media`／`Playback` | — |
 | [`apac-research`](crates/apac-research) | `parse-cookie`、`parse-packets`、`decode-sq` 的报告组装，包目录、输出限额、PCM 比较、测试信号 | — |
 | [`apac-native`](crates/apac-native) | macOS AudioToolbox 参考工具：采集、导出、回放、参考解码与测试信号编码 | — |
 | [`apac-tool`](crates/apac-tool) | `apac-tool` 命令行及其集成测试 | — |

@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import struct
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
-from generate_hoa_salient_measured import load_measurement, measured_book, replace_book
+from generate_hoa_salient_measured import load_measurements, measured_book, replace_book
 
 COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
@@ -79,10 +79,11 @@ def extract(path, order=3, quantization_bits=6):
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
     if (order, quantization_bits) == (3, 6):
-        measurement = load_measurement()
-        if result['modes'][1]['codebooks'][0] != measured_book(measurement):
-            raise ValueError('reference differs from the independently measured codebook')
-        result = replace_book(result, measurement)
+        for measurement in load_measurements():
+            mode, book = measurement['mode'], measurement['book']
+            if result['modes'][mode]['codebooks'][book] != measured_book(measurement):
+                raise ValueError(f'reference differs from measured codebook {mode}/{book}')
+            result = replace_book(result, measurement)
     return result
 
 

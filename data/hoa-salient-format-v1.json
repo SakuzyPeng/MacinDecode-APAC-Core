@@ -17,6 +17,13 @@
         "source_file": "hoa-salient-order3-q6-mode1-measured-v1.json",
         "source_sha256": "fbf918e045c9fcfeab316de37f4b67da201f4775729d76b0f1d74df7c4dc7a1c",
         "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 4,
+        "book": 0,
+        "source_file": "hoa-salient-order3-q6-mode4-cluster0-measured-v1.json",
+        "source_sha256": "1855ccfaa5e0ef1e080a5c29fa3565bd3b3162fb18e2875f9f0be75e4798d772",
+        "method": "public AudioConverter PCM black-box reconstruction"
       }
     ]
   },

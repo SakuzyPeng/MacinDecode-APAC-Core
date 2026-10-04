@@ -25,13 +25,13 @@ struct MeasuredCodebook {
 
 /// This book's canonical input is the frozen black-box measurement. The
 /// original format file keeps a generated packed copy for existing tools.
-fn measured_mode1() -> Vec<(usize, u32)> {
-    let data: MeasuredCodebook = data_json("hoa-salient-order3-q6-mode1-measured-v1.json");
+fn measured_codebook(file: &str, mode: usize, expected_sha256: &str) -> Vec<(usize, u32)> {
+    let data: MeasuredCodebook = data_json(file);
     assert_eq!(data.schema_version, 1);
     assert_eq!(data.profile, "apac-hoa-salient-measured-v1");
     assert_eq!(
         (data.order, data.quantization_bits, data.mode, data.book),
-        (3, 6, 1, 0)
+        (3, 6, mode, 0)
     );
     assert_eq!(data.entries.len(), 64);
     let book: Vec<_> = data
@@ -54,10 +54,7 @@ fn measured_mode1() -> Vec<(usize, u32)> {
         Sha256::digest(serde_json::to_vec(&book).expect("measured codebook JSON"))
     );
     assert_eq!(digest, data.book_sha256);
-    assert_eq!(
-        digest,
-        "296d730714d97de653c45cc487fa4fa94aebce9a49559da78e81215591e600ee"
-    );
+    assert_eq!(digest, expected_sha256);
     book
 }
 
@@ -161,7 +158,16 @@ fn refs(names: impl IntoIterator<Item = String>) -> String {
 }
 
 pub fn dictionaries(out: &mut Output) {
-    let measured = measured_mode1();
+    let measured_mode1 = measured_codebook(
+        "hoa-salient-order3-q6-mode1-measured-v1.json",
+        1,
+        "296d730714d97de653c45cc487fa4fa94aebce9a49559da78e81215591e600ee",
+    );
+    let measured_mode4 = measured_codebook(
+        "hoa-salient-order3-q6-mode4-cluster0-measured-v1.json",
+        4,
+        "08fa83f508549126a68be673c7f6065c15e8ea5c2279385e00ac6f180c943322",
+    );
     let mut constants = Vec::new();
     for order in 1usize..=10 {
         let coefficients = (order + 1).pow(2);
@@ -218,9 +224,14 @@ pub fn dictionaries(out: &mut Output) {
                 for (book_index, hex) in mode.codebooks.iter().enumerate() {
                     let packed_book =
                         packed::codebook(hex, precision).expect("built-in packed HOA codebook");
-                    let book = if (order, precision, mode_index, book_index) == (3, 6, 1, 0) {
+                    let measured = match (order, precision, mode_index, book_index) {
+                        (3, 6, 1, 0) => Some(&measured_mode1),
+                        (3, 6, 4, 0) => Some(&measured_mode4),
+                        _ => None,
+                    };
+                    let book = if let Some(measured) = measured {
                         assert_eq!(
-                            packed_book, measured,
+                            &packed_book, measured,
                             "packed copy of measured codebook differs"
                         );
                         measured.clone()

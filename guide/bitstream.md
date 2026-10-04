@@ -557,7 +557,9 @@ python3 -B scripts/validate_hoa_expanded_orders.py --binary target/release/apac-
 
 码表按原二叉树先序存储：一位区分内部节点和叶子，叶子随后携带与量化位数等宽的符号索引，左右路径恢复原始码长和码字。矩阵每项使用一位符号和二十位整数幅值，幅值除以一百万后舍入至 Float32，再恢复符号位，包括负零。生成器逐项检查原始 Float32 位模式；不能精确表示的数值会报错。两种编码均按高位优先排列，末字节补零；加载器校验长度、填充位以及完整树的深度和符号唯一性。
 
-三阶、六位量化、mode 1、book 0 的 64 项使用 `data/hoa-salient-order3-q6-mode1-measured-v1.json` 中的黑盒测量结果。构建直接读取这份原表，并检查映射摘要以及格式字典中打包副本的一致性；其余码表与矩阵沿用已有来源。`generate_hoa_salient_measured.py --write` 从测量原表重建打包副本和逐码表来源说明，`--candidate FILE` 可从摘要固定的本地冻结候选重建测量原表。构建和普通校验无需苹果组件或本地测量记录。
+三阶、六位量化的 mode 1／book 0 和 mode 4／cluster 0 两张 64 项码表，分别使用 `data/hoa-salient-order3-q6-mode1-measured-v1.json` 与 `data/hoa-salient-order3-q6-mode4-cluster0-measured-v1.json` 中的黑盒测量结果。构建直接读取这两份原表，并检查映射摘要以及格式字典中打包副本的一致性；其余码表与全部矩阵沿用已有来源。mode 4 的矩阵估计没有通过逐位精度门槛，未用于构建。
+
+`generate_hoa_salient_measured.py --write` 从测量原表重建两份打包副本和逐码表来源说明，`--candidate FILE` 可从摘要固定的本地冻结码表候选重建测量原表；可重复该参数同时提供两份候选。未提供候选的码表使用仓库内的测量原表，矩阵候选会被拒绝。构建和普通校验无需苹果组件或本地测量记录。
 
 `pack_hoa_salient_formats.py --check` 校验全部表摘要、共享内容及规范存储；省略 `--check` 可从完整或共享字典重新生成去重存储。`verify_hoa_salient_format.py --write` 同时生成字典与所需共享文件，并拒绝覆盖或复用内容不同的共享文件；三阶六位的测量码表须与原生观测一致，随后保留测量来源。无需原生组件即可执行存储校验：
 

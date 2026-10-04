@@ -2,27 +2,43 @@
 use crate::prelude::*;
 use sha2::{Digest, Sha256};
 
+/// `schema_version` of every JSON/JSONL record the tools write.
 pub const SCHEMA_VERSION: u32 = 1;
 
+/// Lowercase hexadecimal SHA-256 of `bytes`.
 pub fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
+/// One channel of a described layout, as Core Audio's
+/// `AudioChannelDescription`.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChannelDescription {
+    /// The channel label.
     pub label: u32,
+    /// Coordinate flags.
     pub flags: u32,
+    /// Coordinates, interpreted per `flags`.
     pub coordinates: [f32; 3],
 }
+/// The output channel layout, as Core Audio's `AudioChannelLayout` plus
+/// ambisonic properties for HOA layouts.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ChannelLayout {
+    /// Layout tag: the family in the high 16 bits, the channel count in the low.
     pub tag: u32,
+    /// Channel bitmap (zero for tagged layouts).
     pub bitmap: u32,
+    /// Channel descriptions (empty for tagged layouts).
     pub descriptions: Vec<ChannelDescription>,
+    /// Presentation name; not part of [`ChannelLayout::equivalent`].
     pub name: Option<String>,
+    /// Ambisonic order of a full-sphere HOA layout.
     pub ambisonic_order: Option<u32>,
+    /// Ambisonic channel ordering (`"ACN"`) of an HOA layout.
     pub ambisonic_channel_order: Option<String>,
+    /// Ambisonic normalization (`"SN3D"` or `"N3D"`) of an HOA layout.
     pub ambisonic_normalization: Option<String>,
 }
 impl ChannelLayout {
@@ -35,6 +51,8 @@ impl ChannelLayout {
             && self.ambisonic_channel_order == other.ambisonic_channel_order
             && self.ambisonic_normalization == other.ambisonic_normalization
     }
+    /// A tagged layout; HOA families (190 SN3D, 191 N3D) also get their
+    /// ambisonic properties.
     pub fn tagged(tag: u32, channels: u32, name: Option<String>) -> Self {
         let hoa = tag >> 16 == 190 || tag >> 16 == 191;
         let root = channels.isqrt();

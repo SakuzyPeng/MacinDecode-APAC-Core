@@ -9,26 +9,32 @@ use crate::prelude::*;
 pub const NUMERIC_PROFILE: &str = "apac-hoa-additive-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-additive-state-v1";
 
+/// How ambient contributions combine with salient recovery.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum AmbientCombination {
+    /// Ambient coefficients replace the recovered ones.
     #[default]
     Replace,
+    /// Ambient contributions are added to the recovered coefficients.
     Add,
 }
 
 /// Diagnostic Float64 ambient contribution; never rounded and fed back into recovery.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct AmbientContribution {
     pub transport_slot: u8,
     pub recovery_index: u8,
     pub scaled: Vec<f64>,
 }
 
+/// The additive ambient stage of a frame.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaAdditiveData {
     pub combination: AmbientCombination,
     pub numeric_profile: String,

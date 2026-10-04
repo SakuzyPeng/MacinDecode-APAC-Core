@@ -9,6 +9,7 @@ use crate::record::FieldValue;
 #[path = "hoa_salient_format.rs"]
 mod format;
 
+/// Profile of HOA streams with orders outside 1–3.
 pub const EXPANDED_PROFILE: &str = "apac-hoa-expanded-orders-v1";
 pub const EXPANDED_NUMERIC_PROFILE: &str = "apac-hoa-expanded-orders-math-v1";
 pub const EXPANDED_STATE_PROFILE: &str = "apac-hoa-expanded-orders-state-v1";
@@ -20,6 +21,7 @@ pub const COUNTS_NUMERIC_PROFILE: &str = "apac-hoa-salient-counts-math-v1";
 pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-salient-counts-state-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-salient-math-v1";
 pub const ORDER1_NUMERIC_PROFILE: &str = "apac-hoa-salient-order1-math-v1";
+/// Profile of order-1 salient descriptors.
 pub const ORDER1_PROFILE: &str = "apac-hoa-salient-order1-v1";
 pub const ORDER2_NUMERIC_PROFILE: &str = "apac-hoa-salient-order2-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-salient-state-v1";
@@ -49,6 +51,7 @@ mod expanded_orders_tests;
 #[path = "hoa_partial_tests.rs"]
 mod partial_tests;
 
+/// Salient descriptor history carried between frames.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientState {
@@ -99,8 +102,10 @@ impl SalientState {
     }
 }
 
+/// One salient component's descriptor in one band.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SalientDescriptor {
     pub component_index: usize,
     pub subband_index: usize,
@@ -127,8 +132,10 @@ pub struct SalientDescriptor {
     pub ambient_omitted_coefficients: Option<Vec<usize>>,
 }
 
+/// One frame's salient spatial syntax.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SalientSpatialData {
     #[cfg_attr(
         feature = "serde",
@@ -206,16 +213,20 @@ pub struct SalientSpatialData {
     pub descriptors: Vec<SalientDescriptor>,
 }
 
+/// One component's spatial band partition.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SalientSubbandInfo {
     pub component_index: usize,
     pub subband_count: usize,
     pub subband_ends: Vec<usize>,
     pub lines_per_window: Vec<usize>,
 }
+/// One salient component's order and its identifiers.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SalientComponentOrderInfo {
     pub component_index: usize,
     pub order: u8,
@@ -343,9 +354,11 @@ pub(super) fn numeric_profile(coefficients: usize) -> &'static str {
         _ => unreachable!("qualified descriptor dimension"),
     }
 }
+/// SHA-256 of the descriptor format tables for `coefficients` coefficients.
 pub fn format_sha256(coefficients: usize) -> &'static str {
     constants(coefficients).format.tables_sha256
 }
+/// SHA-256 of the salient numeric tables.
 pub fn math_sha256() -> &'static str {
     common_math().math_sha
 }

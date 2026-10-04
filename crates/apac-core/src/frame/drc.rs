@@ -8,6 +8,7 @@ use crate::config::{
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
 
+/// Version of the DRC payload parsing rules.
 pub const RULES_VERSION: &str = "apac-drc-payload-v1";
 const ROOT: &str = "ancillary.loudness_drc";
 const COEFF: &str = "ancillary.loudness_drc.coefficients[0]";
@@ -45,6 +46,7 @@ const GAIN_CODES: [(u16, usize); 25] = [
     (0x00e, 5),
 ];
 
+/// SHA-256 of the DRC gain codebook.
 pub fn codebook_sha256() -> String {
     let mut bytes = Vec::with_capacity(100);
     for (index, &(code, width)) in GAIN_CODES.iter().enumerate() {
@@ -55,8 +57,10 @@ pub fn codebook_sha256() -> String {
     crate::model::sha256(&bytes)
 }
 
+/// DRC coding parameters of one gain set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcParameters {
     pub coefficient_location: u8,
     pub gain_sequences: u8,
@@ -69,8 +73,10 @@ pub struct DrcParameters {
     pub frame_samples: u16,
     pub time_delta_min: u16,
 }
+/// The DRC declaration in effect, with its source and recorded fields.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcConfiguration {
     pub parameters: DrcParameters,
     #[cfg_attr(
@@ -312,8 +318,10 @@ impl DrcContext {
         }
     }
 }
+/// One decoded DRC gain node.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcNode {
     pub gain_eighth_db: i32,
     pub time: i32,
@@ -325,15 +333,19 @@ pub struct DrcNode {
     )]
     pub slope_index: Option<u8>,
 }
+/// One DRC time-delta codeword.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcTimeDelta {
     pub value: u32,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
+/// A DRC gain extension payload, recorded by digest.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcGainExtension {
     pub extension_type: u8,
     pub start_bit_offset: usize,
@@ -341,8 +353,10 @@ pub struct DrcGainExtension {
     pub payload_bits: usize,
     pub payload_sha256: String,
 }
+/// One frame's DRC payload (parsed, never applied).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcPayload {
     pub start_bit_offset: usize,
     pub header_end_bit_offset: usize,
@@ -378,8 +392,11 @@ pub struct DrcPayload {
     )]
     pub gain_extensions: Option<Vec<DrcGainExtension>>,
 }
+/// The packet report up to DRC (`parse-packets --depth drc`); the BWE2 report
+/// is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub bwe2: Bwe2Report,
@@ -395,16 +412,24 @@ pub struct DrcReport {
     pub drc: Option<DrcPayload>,
     pub drc_preroll: Option<Box<DrcReport>>,
 }
+/// DRC syntax state carried from packet to packet.
 #[derive(Debug, Clone)]
 pub struct DrcState {
+    /// Channels of the stream.
     pub channels: u64,
+    /// The DRC declaration in effect (cookie or in-band header).
     pub configuration: Option<DrcConfiguration>,
+    /// Gain nodes of the previous frame.
     pub previous_nodes: Vec<DrcNode>,
+    /// Gain nodes per sequence of the previous frame (shared syntax).
     pub previous_sequences: Vec<Vec<DrcNode>>,
+    /// Whether any frame used the shared DRC syntax.
     pub shared_syntax_used: bool,
+    /// Scene graph state, once an update was seen.
     pub scene_graph: Option<super::auxiliary::SceneGraphState>,
 }
 impl DrcState {
+    /// The initial state of a stereo stream.
     pub fn new(context: &FrameContext) -> Self {
         Self {
             channels: 2,
@@ -772,6 +797,7 @@ pub(super) fn read_payload(
 pub fn parse_drc(context: &FrameContext, packet: &[u8]) -> Result<DrcReport, ParseError> {
     parse_drc_with_state(context, packet, &mut DrcState::new(context))
 }
+/// [`parse_drc`] continuing and updating `state` (left unchanged on error).
 pub fn parse_drc_with_state(
     context: &FrameContext,
     packet: &[u8],

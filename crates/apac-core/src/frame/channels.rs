@@ -18,18 +18,26 @@ use crate::{
 };
 use alloc::collections::BTreeMap;
 
+/// State profile of mono and multichannel decoding.
 pub const STATE_PROFILE: &str = "apac-channel-state-v1";
+/// The syntactic kind of a channel element.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum ElementKind {
+    /// Single channel element.
     Sce,
+    /// Channel pair element.
     Cpe,
+    /// Low-frequency effects element.
     Lfe,
+    /// Extension element (HOA transport extensions).
     Extension,
 }
+/// One channel element the cookie declares, with its output mapping.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ElementConfiguration {
     pub element_index: usize,
     pub kind: ElementKind,
@@ -43,6 +51,8 @@ pub struct ElementConfiguration {
     )]
     pub transport_channels: Option<Vec<u8>>,
 }
+/// Frame context of a single-ASC mono or multichannel stream (also the
+/// transport layer of HOA streams).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ChannelFrameContext {
@@ -66,9 +76,12 @@ pub struct ChannelFrameContext {
     auxiliary: super::auxiliary::AuxiliaryConfiguration,
 }
 impl ChannelFrameContext {
+    /// Parse `cookie` and build the context.
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::from_config(&config::Config::parse(cookie)?))
     }
+    /// Build the context from a parsed configuration; check
+    /// [`ChannelFrameContext::rejection`] before parsing packets.
     pub fn from_config(config: &config::Config) -> Self {
         let count = config.global.channels.unwrap_or(0);
         let layout = crate::channel_layout::layout(count);
@@ -191,39 +204,50 @@ impl ChannelFrameContext {
             drc,
         }
     }
+    /// Output channels.
     pub fn channel_count(&self) -> u32 {
         u32::from(self.channel_count)
     }
+    /// The declared output layout, for qualified layouts.
     pub fn channel_layout(&self) -> Option<&ChannelLayout> {
         self.layout.as_ref()
     }
+    /// The layout profile of a supported discrete layout.
     pub fn channel_layout_profile(&self) -> Option<&'static str> {
         if self.hoa.is_some() || !self.is_supported() {
             return None;
         }
         crate::channel_layout::profile(self.channel_layout()?.tag)
     }
+    /// Output channel labels in layout order.
     pub fn channel_labels(&self) -> &[String] {
         &self.channel_labels
     }
+    /// Channel elements in wire order.
     pub fn elements(&self) -> &[ElementConfiguration] {
         &self.elements
     }
+    /// Sample rate in Hz.
     pub fn sample_rate_hz(&self) -> u64 {
         self.sample_rate_hz
     }
+    /// SHA-256 of the cookie.
     pub fn cookie_sha256(&self) -> &str {
         &self.cookie_sha256
     }
+    /// Largest embedded preroll accepted for this layout.
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.maximum_preroll_bytes
     }
+    /// Why the configuration is not supported, if it is not.
     pub fn rejection(&self) -> Option<&str> {
         self.rejection.as_deref()
     }
+    /// Whether the configuration is supported for packet parsing.
     pub fn is_supported(&self) -> bool {
         self.rejection.is_none()
     }
+    /// The DRC state a stream starts from.
     pub fn initial_state(&self) -> DrcState {
         DrcState {
             channels: u64::from(self.channel_count),
@@ -235,8 +259,10 @@ impl ChannelFrameContext {
         }
     }
 }
+/// One channel element of a packet report, through every stage.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ElementReport {
     pub configuration: ElementConfiguration,
     pub present: bool,
@@ -264,15 +290,20 @@ pub struct ElementReport {
     )]
     pub extension: Option<super::HoaExtensionData>,
 }
+/// An embedded preroll frame and its report.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ChannelPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<ChannelPacketReport>,
 }
+/// The packet report of a mono, multichannel or HOA transport packet; the frame
+/// report is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ChannelPacketReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
@@ -566,12 +597,14 @@ fn extensions(
     Ok(())
 }
 
+/// Parse one packet from the initial DRC state.
 pub fn parse_channel_packet(
     context: &ChannelFrameContext,
     packet: &[u8],
 ) -> Result<ChannelPacketReport, ParseError> {
     parse_channel_packet_with_state(context, packet, &mut context.initial_state())
 }
+/// Parse one packet, continuing and updating `state` (left unchanged on error).
 pub fn parse_channel_packet_with_state(
     context: &ChannelFrameContext,
     packet: &[u8],
@@ -617,9 +650,12 @@ pub(super) fn parse_hoa_transport(
     Ok(report)
 }
 
+/// Reusable buffers for state-only scanning; pass a default one to report
+/// parsers.
 #[derive(Default)]
 pub struct ScanWorkspace {
     quantized: Vec<Vec<i32>>,
+    /// Elements whose spectra were dequantized while scanning.
     pub numeric_elements: u64,
 }
 

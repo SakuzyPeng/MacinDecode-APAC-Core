@@ -5,23 +5,29 @@ use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
 
+/// Individual channel stream window information.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct IcsInfo {
     pub block_type: u8,
     pub max_sfb: usize,
     pub window_groups: Vec<u32>,
 }
+/// One codebook section.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Section {
     pub group: usize,
     pub start_band: usize,
     pub end_band: usize,
     pub codebook: u8,
 }
+/// One channel's spectral syntax and dequantized spectrum.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ChannelSpectrum {
     pub channel_index: u8,
     pub ics: IcsInfo,
@@ -36,8 +42,11 @@ pub struct ChannelSpectrum {
     pub spectral_bit_offset: usize,
     pub end_bit_offset: usize,
 }
+/// The packet report up to the spectra (`parse-packets --depth spectrum`); the
+/// prefix report is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SpectrumReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
@@ -342,6 +351,7 @@ pub(super) fn materialize_at_rate(channel: &mut ChannelSpectrum, rate: u64) {
     }
 }
 
+/// Parse a stereo packet through the left spectrum (and a shared-ICS right one).
 pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumReport, ParseError> {
     parse_spectrum_with(context, packet, ParseMode::Report)
 }

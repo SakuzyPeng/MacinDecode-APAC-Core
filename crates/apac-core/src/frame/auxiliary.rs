@@ -4,8 +4,10 @@ use crate::config::{Config, FieldExt, ParseError};
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
 
+/// The trimming declaration of a packet (parsed, never applied).
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TrimmingDeclaration {
     pub profile: String,
     pub start_bit_offset: usize,
@@ -66,14 +68,17 @@ impl AuxiliaryConfiguration {
     }
 }
 
+/// Scene graph positions and the running history digest carried between packets.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SceneGraphState {
     positions: Vec<crate::config::passive::PositionSyntax>,
     history_sha256: String,
 }
+/// An in-band scene graph update.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct SceneGraphPayload {
     pub profile: String,
     pub start_bit_offset: usize,
@@ -136,8 +141,10 @@ pub(crate) fn read_graph(
         processing_applied: false,
     }))
 }
+/// A bounded auxiliary payload, recorded but not interpreted.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct AuxiliaryPayload {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,

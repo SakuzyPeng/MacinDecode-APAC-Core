@@ -15,41 +15,63 @@ use serde::{Serialize, Serializer, ser::SerializeMap};
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ConfigField {
+    /// Field name, as reports print it (e.g. `global.profile_id`).
     pub name: String,
+    /// Bit offset from the start of the cookie or packet.
     pub bit_offset: usize,
+    /// Bits the field occupies.
     pub bit_length: usize,
+    /// The decoded value.
     pub value: FieldValue,
 }
 
+/// What a [`FieldValue::Digest`] count measures.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DigestUnit {
+    /// The payload length is in bits.
     Bits,
+    /// The payload length is in bytes.
     Bytes,
 }
 
+/// A recorded value; serialized exactly as reports print it.
 #[derive(Debug, Clone, PartialEq)]
 pub enum FieldValue {
+    /// A flag.
     Bool(bool),
+    /// An unsigned integer.
     U64(u64),
+    /// A signed integer.
     I64(i64),
+    /// A string.
     Str(Cow<'static, str>),
+    /// A list of unsigned integers.
     U64s(Vec<u64>),
+    /// A list of signed integers.
     I64s(Vec<i64>),
     /// `{"bits"|"bytes": count, "sha256": digest}` for opaque payloads.
     Digest {
+        /// What `count` measures.
         unit: DigestUnit,
+        /// The payload length.
         count: usize,
+        /// SHA-256 of the payload.
         sha256: String,
     },
     /// `{"ordering": …}`.
     Ordering(&'static str),
+    /// Passive scene position shapes.
     Positions(Vec<PositionSyntax>),
+    /// One channel's TNS syntax.
     Tns(Box<TnsChannel>),
+    /// Stereo BWE2 syntax.
     Bwe2(Box<Bwe2Data>),
+    /// One element's BWE2 syntax.
     ElementBwe2(Box<ElementBwe2Data>),
 }
 
 impl FieldValue {
+    /// A digest of an opaque payload.
     pub fn digest(unit: DigestUnit, count: usize, data: &[u8]) -> Self {
         Self::Digest {
             unit,
@@ -57,6 +79,7 @@ impl FieldValue {
             sha256: crate::model::sha256(data),
         }
     }
+    /// The value as an unsigned integer, if it is a (non-negative) integer.
     pub fn as_u64(&self) -> Option<u64> {
         match *self {
             Self::U64(v) => Some(v),
@@ -64,18 +87,21 @@ impl FieldValue {
             _ => None,
         }
     }
+    /// The value as a flag.
     pub fn as_bool(&self) -> Option<bool> {
         match *self {
             Self::Bool(v) => Some(v),
             _ => None,
         }
     }
+    /// The value as a string.
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Str(v) => Some(v),
             _ => None,
         }
     }
+    /// The value as a list of unsigned integers.
     pub fn as_u64s(&self) -> Option<&[u64]> {
         match self {
             Self::U64s(v) => Some(v),

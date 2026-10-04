@@ -6,8 +6,10 @@ use super::{
 use crate::prelude::*;
 use crate::record::{DigestUnit, FieldValue};
 
+/// The encoding shape of one passive scene position (coordinates stay encoded).
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct PositionSyntax {
     pub parent_dynamic: bool,
     pub range_dynamic: bool,

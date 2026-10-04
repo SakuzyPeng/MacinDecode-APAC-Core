@@ -7,16 +7,21 @@ use crate::config::{DrcDeclaration, Field, FieldExt, ParseError};
 use crate::prelude::*;
 use crate::record::FieldValue;
 
+/// Profile of the shared (multi-sequence) DRC syntax.
 pub const PROFILE: &str = "apac-hoa-shared-drc-syntax-v1";
+/// Coding parameters of one shared DRC gain sequence.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcSequenceParameters {
     pub sequence_index: usize,
     pub gain_set_index: usize,
     pub parameters: DrcParameters,
 }
+/// One gain sequence of a shared DRC payload.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DrcGainSequence {
     pub sequence_index: usize,
     pub gain_set_index: usize,

@@ -6,18 +6,23 @@ use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
 
+/// The CAC arithmetic profile.
 pub const NUMERIC_PROFILE: &str = "apac-cac-math-v1";
 
+/// One run-length coded CAC gain run.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct CacRun {
     pub gain_index: u8,
     pub repeat_code: u8,
     pub bit_offset: usize,
     pub bit_length: usize,
 }
+/// CAC syntax of a shared-ICS channel pair.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct CacData {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -25,15 +30,20 @@ pub struct CacData {
     /// Group-major, one gain index for each active SFB, shared by its windows.
     pub gain_indices: Vec<Vec<u8>>,
 }
+/// One channel's spectrum after CAC.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct CacChannelSpectrum {
     pub channel_index: u8,
     /// Window-major Float32 spectrum, after CAC and before TNS.
     pub scaled: Vec<f32>,
 }
+/// The packet report up to CAC (`parse-packets --depth cac`); the spectrum
+/// report is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct CacReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub spectrum: SpectrumReport,
@@ -74,6 +84,7 @@ fn math() -> &'static Math {
     };
     &MATH
 }
+/// SHA-256 of the CAC numeric tables.
 pub fn math_sha256() -> &'static str {
     math().tables_sha256
 }
@@ -247,6 +258,7 @@ pub(super) fn apply_channels_at_rate(
     ])
 }
 
+/// Parse a stereo packet through CAC, stopping at TNS.
 pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, ParseError> {
     parse_cac_with(context, packet, ParseMode::Report)
 }

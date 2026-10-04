@@ -1,5 +1,6 @@
 //! Shared sampling-rate buckets and bounded SFB/TNS format tables.
 
+/// Profile of the shared configuration syntax.
 pub const PROFILE: &str = "apac-hoa-shared-configuration-v1";
 pub const RATES: [u64; 13] = [
     96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350,

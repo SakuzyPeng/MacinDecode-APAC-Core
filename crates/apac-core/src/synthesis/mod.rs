@@ -251,15 +251,23 @@ pub enum StreamKind {
 /// Output description of a qualified stream.
 #[derive(Debug, Clone, Copy)]
 pub struct StreamInfo<'a> {
+    /// Output sample rate in Hz.
     pub sample_rate_hz: u64,
+    /// Interleaved output channels.
     pub channel_count: u32,
     /// PCM frames each outer packet produces.
     pub frame_samples: u32,
+    /// The decoding path.
     pub kind: StreamKind,
+    /// The output channel layout.
     pub layout: &'a crate::model::ChannelLayout,
 }
 
 impl Decoder {
+    /// Parse `cookie` and build the decoder ([`Config::parse`] then
+    /// [`Decoder::new`]).
+    ///
+    /// [`Config::parse`]: crate::Config::parse
     pub fn from_cookie(cookie: &[u8]) -> Result<Self> {
         Self::new(&crate::config::Config::parse(cookie)?)
     }
@@ -340,6 +348,7 @@ impl Decoder {
         self.mode = crate::frame::ParseMode::Report;
         self
     }
+    /// The output description.
     pub fn info(&self) -> StreamInfo<'_> {
         let (kind, sample_rate_hz) = match &self.engine {
             Engine::Stereo { .. } => (StreamKind::Stereo, self.access.sample_rate_hz()),
@@ -361,6 +370,8 @@ impl Decoder {
             _ => self.channels.len() as u32,
         }
     }
+    /// Return to the initial state, as after [`Decoder::new`]; the next packet
+    /// must be decodable from a fresh state.
     pub fn reset(&mut self) {
         match &mut self.engine {
             Engine::Stereo { context } => self.drc = DrcState::new(context),
@@ -626,9 +637,12 @@ impl Decoder {
     pub fn transport(&self) -> &ChannelFrameContext {
         &self.access
     }
+    /// The declared components of a composite stream.
     pub fn components(&self) -> Option<&[crate::frame::StreamComponentConfiguration]> {
         self.composite().map(|c| c.components())
     }
+    /// The HOA context of component `index` (of a composite stream, or index 0
+    /// of a single-ASC HOA stream).
     pub fn hoa_component(&self, index: usize) -> Option<&HoaFrameContext> {
         match &self.engine {
             Engine::Composite { context, .. } => context.hoa_component(index),
@@ -640,8 +654,11 @@ impl Decoder {
 
 /// Borrowed decoder state: DRC history plus the composite or HOA state.
 pub struct MetadataState<'a> {
+    /// DRC syntax history.
     pub drc: &'a DrcState,
+    /// Per-component state of a composite stream.
     pub components: Option<&'a crate::frame::stream::StreamState>,
+    /// HOA state of a single-ASC HOA stream.
     pub hoa: Option<&'a crate::frame::HoaState>,
 }
 /// What one decoded outer packet contained.
@@ -649,13 +666,18 @@ pub struct MetadataState<'a> {
 pub struct FrameInfo {
     /// The current frame's stereo CPE was absent (exact zero spectrum).
     pub cpe_absent: bool,
+    /// Absent channel elements in the current frame.
     pub absent_elements: u64,
+    /// Absent channel elements in embedded preroll frames.
     pub embedded_absent_elements: u64,
     /// Embedded preroll frames synthesized before the current frame.
     pub embedded_preroll_frames: u64,
+    /// Embedded preroll frames whose stereo CPE was absent.
     pub embedded_cpe_absent: u64,
     /// Frames carrying a complete DRC payload (parsed, not applied).
     pub drc_payload_frames: u64,
+    /// Frames whose DRC payload had no earlier gain node at or before the frame
+    /// start.
     pub drc_missing_history_frames: u64,
 }
 /// A packet parsed by [`Decoder::parse`], awaiting [`Decoder::synthesize`].
@@ -691,10 +713,14 @@ enum Parsed {
 pub struct AdvanceInfo {
     /// Frames scanned, embedded preroll frames included.
     pub frames: u64,
+    /// Present channel elements in the scanned frames.
     pub present_elements: u64,
     /// Present elements whose spectra were dequantized to advance state.
     pub numeric_elements: u64,
+    /// Frames carrying a complete DRC payload (parsed, not applied).
     pub drc_payload_frames: u64,
+    /// Frames whose DRC payload had no earlier gain node at or before the frame
+    /// start.
     pub drc_missing_history_frames: u64,
 }
 impl AdvanceInfo {

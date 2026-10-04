@@ -26,9 +26,11 @@ impl Constants {
 fn constants() -> &'static Constants {
     &crate::tables::BWE2
 }
+/// SHA-256 of the BWE2 bitstream format description (`data/bwe2-format-v1.json`).
 pub fn format_sha256() -> &'static str {
     constants().format_sha
 }
+/// SHA-256 of the BWE2 numeric tables (`data/bwe2-math-v2.json`).
 pub fn math_sha256() -> &'static str {
     constants().math_sha
 }
@@ -285,8 +287,10 @@ fn lsf_envelope(lsf: &[f64; 16], bins: usize) -> Vec<f64> {
         })
         .collect()
 }
+/// Diagnostic LPC/LSF analysis of one BWE2 restoration, recorded in reports.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Analysis {
     pub conditioned_lsf: [f64; 16],
     pub source_lpc: [f64; 17],

@@ -7,11 +7,15 @@
 use super::{ConfigField, ParseError, ParseStatus, passive::PositionSyntax};
 use crate::prelude::*;
 
+/// A wire value and the bit offset where the cookie syntax read it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Located<T> {
+    /// The decoded value.
     pub value: T,
+    /// Bit offset of the field from the start of the cookie.
     pub bit_offset: usize,
 }
+/// A cookie field: `None` when the syntax did not reach it.
 pub type Field<T> = Option<Located<T>>;
 
 pub(crate) trait FieldExt<T> {
@@ -277,15 +281,19 @@ impl Config {
             extensions: Vec::new(),
         }
     }
+    /// Whether the whole cookie was parsed ([`ParseStatus::Complete`]).
     pub fn is_complete(&self) -> bool {
         self.status == ParseStatus::Complete
     }
+    /// How far the syntax was parsed; decoding requires `Complete`.
     pub fn status(&self) -> &ParseStatus {
         &self.status
     }
+    /// SHA-256 of the cookie bytes.
     pub fn cookie_sha256(&self) -> &str {
         &self.cookie_sha256
     }
+    /// Cookie length in bytes.
     pub fn cookie_bytes(&self) -> usize {
         self.cookie_bytes
     }
@@ -293,9 +301,11 @@ impl Config {
     pub fn sample_rate_hz(&self) -> Option<u64> {
         self.global.sample_rate_hz
     }
+    /// Derived global channel count, when the syntax reached it.
     pub fn channels(&self) -> Option<u64> {
         self.global.channels
     }
+    /// Derived frame length in samples, when the syntax reached a known index.
     pub fn frame_samples(&self) -> Option<u64> {
         self.global.frame_samples
     }

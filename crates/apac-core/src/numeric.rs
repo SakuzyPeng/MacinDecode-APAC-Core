@@ -1,5 +1,6 @@
 //! Fixed IEEE constants for the independent SQ mathematical profile.
 //! Generated offline from formulas; no runtime transcendental functions.
+/// The SQ arithmetic profile: fixed IEEE constants, Float64 synthesis.
 pub const PROFILE: &str = "apac-sq-math-v1";
 
 pub struct Transform {

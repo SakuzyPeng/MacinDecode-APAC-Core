@@ -8,28 +8,37 @@ pub const COUNTS_STATE_PROFILE: &str = "apac-hoa-ambient-counts-state-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-ambient-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-static-ambient-state-v1";
 
+/// The ambient transform mode a configuration declares.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(tag = "mode", rename_all = "snake_case"))]
 pub enum AmbientTransform {
+    /// No transform.
     #[default]
     Disabled,
+    /// One fixed transform for every frame.
     Fixed {
+        /// The transform index.
         index: u8,
     },
+    /// Each frame selects its transform.
     PerFrame,
 }
 
+/// One ambient coefficient's spectrum after the transform.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct AmbientSpectrum {
     pub transport_slot: u8,
     pub acn_index: u8,
     pub scaled: Vec<f32>,
 }
 
+/// The static ambient stage of a frame.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StaticAmbientData {
     pub explicit_selection: bool,
     pub selection: Vec<u8>,
@@ -45,6 +54,7 @@ pub struct StaticAmbientData {
 pub fn format_sha256() -> &'static str {
     crate::tables::HOA_AMBIENT_FORMAT_SHA256
 }
+/// SHA-256 of the static ambient numeric tables.
 pub fn math_sha256() -> &'static str {
     crate::tables::HOA_AMBIENT_MATH_SHA256
 }

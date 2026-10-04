@@ -5,10 +5,13 @@ use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
 
+/// The TNS arithmetic profile.
 pub const NUMERIC_PROFILE: &str = "apac-tns-math-v1";
 
+/// One TNS filter.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TnsFilter {
     pub length: usize,
     pub order: usize,
@@ -36,8 +39,10 @@ pub struct TnsFilter {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
+/// One window's TNS filters.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TnsWindow {
     pub window_index: usize,
     pub resolution: Option<usize>,
@@ -45,8 +50,10 @@ pub struct TnsWindow {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
+/// One channel's TNS syntax.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TnsChannel {
     pub channel_index: u8,
     pub present: bool,
@@ -55,14 +62,19 @@ pub struct TnsChannel {
     pub end_bit_offset: usize,
     pub windows: Vec<TnsWindow>,
 }
+/// One channel's spectrum after TNS.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TnsChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
+/// The packet report up to TNS (`parse-packets --depth tns`); the CAC report is
+/// flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct TnsReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub cac: CacReport,
@@ -258,6 +270,7 @@ pub(super) fn apply(input: &[f32], channel: &TnsChannel) -> Result<Vec<f32>, Par
     Ok(output)
 }
 
+/// Parse a stereo packet through TNS, stopping at BWE2.
 pub fn parse_tns(context: &FrameContext, packet: &[u8]) -> Result<TnsReport, ParseError> {
     parse_tns_with(context, packet, ParseMode::Report)
 }

@@ -153,9 +153,12 @@ pub struct FrameContext {
     packet_configuration: packet_config::PacketConfiguration,
 }
 impl FrameContext {
+    /// Parse `cookie` and build the context.
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::from_config(&config::Config::parse(cookie)?))
     }
+    /// Build the context from a parsed configuration; check
+    /// [`FrameContext::is_supported`] before parsing packets.
     pub fn from_config(config: &config::Config) -> Self {
         let global = &config.global;
         let component = config.component(0);
@@ -229,9 +232,11 @@ impl FrameContext {
             unsupported_reason,
         }
     }
+    /// Whether the configuration is supported for stereo packet parsing.
     pub fn is_supported(&self) -> bool {
         self.unsupported_reason.is_none()
     }
+    /// SHA-256 of the cookie.
     pub fn cookie_sha256(&self) -> &str {
         &self.cookie_sha256
     }
@@ -244,16 +249,21 @@ impl FrameContext {
     }
 }
 
+/// A span of packet bits left unparsed.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct UnparsedRange {
     pub bit_offset: usize,
     pub bit_length: usize,
     pub reason: String,
 }
 
+/// The packet prefix report (`parse-packets --depth prefix`): framing, status
+/// and recorded syntax; every deeper report flattens it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct FrameReport {
     pub schema_version: u32,
     pub cookie_sha256: String,
@@ -553,6 +563,7 @@ impl Parser<'_> {
     }
 }
 
+/// Parse the packet prefix of a stereo packet.
 pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport, ParseError> {
     parse_frame_with(context, packet, ParseMode::Report)
 }

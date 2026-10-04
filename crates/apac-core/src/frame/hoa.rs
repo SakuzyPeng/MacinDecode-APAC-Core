@@ -10,12 +10,16 @@ use crate::{
     model::ChannelLayout,
 };
 
+/// Arithmetic profile of the ambient-only HOA path.
 pub const NUMERIC_PROFILE: &str = "apac-hoa-ambient-math-v1";
+/// State profile of the ambient-only HOA path.
 pub const STATE_PROFILE: &str = "apac-hoa-ambient-state-v1";
 pub const MIXED_NUMERIC_PROFILE: &str = "apac-hoa-mixed-math-v1";
 pub const MIXED_STATE_PROFILE: &str = "apac-hoa-mixed-state-v1";
+/// Profile of extended HOA transport layouts.
 pub const TRANSPORT_PROFILE: &str = "apac-hoa-transports-v1";
 pub const TRANSPORT_STATE_PROFILE: &str = "apac-hoa-transports-state-v1";
+/// Profile of HOA streams declaring an explicit (partial) dimension.
 pub const PARTIAL_PROFILE: &str = "apac-hoa-partial-domain-v1";
 pub const PARTIAL_NUMERIC_PROFILE: &str = "apac-hoa-partial-domain-math-v1";
 pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
@@ -26,8 +30,11 @@ pub const PARTIAL_STATE_PROFILE: &str = "apac-hoa-partial-domain-state-v1";
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct SalientComponentConfiguration {
+    /// The component's order.
     pub order: u8,
+    /// Spatial bands the component's descriptors cover.
     pub subband_count: usize,
+    /// Coefficients each descriptor carries.
     pub coefficient_count: usize,
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -473,6 +480,8 @@ fn profile_channel_limit(profile: u8, level: u8) -> Option<u64> {
         .copied()
 }
 
+/// Frame context of a single-ASC HOA stream: the transport layer plus the HOA
+/// configuration that recovery reads.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HoaFrameContext {
@@ -481,9 +490,12 @@ pub struct HoaFrameContext {
     pub(super) configuration: HoaConfiguration,
 }
 impl HoaFrameContext {
+    /// Parse `cookie` and build the context.
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::from_config(&config::Config::parse(cookie)?))
     }
+    /// Build the context from a parsed configuration; check
+    /// [`HoaFrameContext::rejection`] before parsing packets.
     pub fn from_config(config: &config::Config) -> Self {
         let mut shape = HoaConfiguration::selected(config);
         let global = &config.global;
@@ -738,33 +750,43 @@ impl HoaFrameContext {
             configuration: shape,
         }
     }
+    /// Whether the configuration is supported.
     pub fn is_supported(&self) -> bool {
         self.transport.is_supported()
     }
+    /// Why the configuration is not supported, if it is not.
     pub fn rejection(&self) -> Option<&str> {
         self.transport.rejection()
     }
+    /// Output channels (HOA coefficients).
     pub fn channel_count(&self) -> u32 {
         u32::from(self.configuration.channels)
     }
+    /// Sample rate in Hz.
     pub fn sample_rate_hz(&self) -> u64 {
         self.configuration.sample_rate_hz
     }
+    /// The rate whose scale-factor band tables this stream uses.
     pub fn sfb_sample_rate_hz(&self) -> u64 {
         super::sfb::rate(self.sample_rate_hz()).sfb_rate
     }
+    /// Whether the cookie uses the shared configuration syntax.
     pub fn shared_configuration_enabled(&self) -> bool {
         self.configuration.shared_configuration
     }
+    /// SHA-256 of the cookie.
     pub fn cookie_sha256(&self) -> &str {
         self.transport.cookie_sha256()
     }
+    /// The output HOA layout.
     pub fn channel_layout(&self) -> &ChannelLayout {
         self.transport.channel_layout().expect("fixed HOA layout")
     }
+    /// Whether a source layout precedes the HOA recovery.
     pub fn source_layout_enabled(&self) -> bool {
         self.configuration.source_layout.extended
     }
+    /// The static core-carrier remapping, if declared.
     pub fn static_remapping(&self) -> Option<&super::HoaStaticRemapping> {
         self.configuration.static_remapping.as_deref()
     }
@@ -772,36 +794,47 @@ impl HoaFrameContext {
     pub fn source_normalization(&self) -> Option<&'static str> {
         self.configuration.source_layout.normalization()
     }
+    /// Largest embedded preroll accepted.
     pub fn maximum_preroll_bytes(&self) -> u64 {
         self.transport.maximum_preroll_bytes()
     }
+    /// The cookie's profile.
     pub fn profile_id(&self) -> u8 {
         self.configuration.profile_id
     }
+    /// The cookie's level.
     pub fn level_id(&self) -> u8 {
         self.configuration.level_id
     }
+    /// Whether the overall order is outside 1–3 (expanded-orders profile).
     pub fn expanded_orders(&self) -> bool {
         self.configuration.expanded_orders()
     }
+    /// Salient descriptor quantization width.
     pub fn quantization_bits(&self) -> u8 {
         self.configuration.quantization_bits
     }
+    /// Whether salient descriptors use a width other than 6 bits.
     pub fn quantization_extended(&self) -> bool {
         self.configuration.quantization_extended()
     }
+    /// Number of salient components.
     pub fn salient_components(&self) -> usize {
         usize::from(self.configuration.salient_components)
     }
+    /// Whether the ambient component count differs from the qualified default.
     pub fn ambient_count_extended(&self) -> bool {
         self.configuration.ambient_count_extended()
     }
+    /// Number of ambient components.
     pub fn ambient_components(&self) -> usize {
         usize::from(self.configuration.ambient_components)
     }
+    /// Core (SQ-coded) channels.
     pub fn core_channels(&self) -> usize {
         usize::from(self.configuration.core_channels)
     }
+    /// Transport carriers, including extension elements.
     pub fn transport_channels(&self) -> usize {
         usize::from(self.configuration.transport_channels)
     }
@@ -809,6 +842,7 @@ impl HoaFrameContext {
     pub fn transport_elements(&self) -> &[super::ElementConfiguration] {
         self.transport.elements()
     }
+    /// The declared overall order.
     pub fn order(&self) -> u8 {
         self.configuration.order
     }
@@ -816,15 +850,19 @@ impl HoaFrameContext {
     pub fn full_order(&self) -> bool {
         self.configuration.full_order
     }
+    /// The spatial control flags.
     pub fn spatial_controls(&self) -> super::HoaSpatialControls {
         self.configuration.controls
     }
+    /// Whether the spatial controls select the spatial-controls profiles.
     pub fn controls_extended(&self) -> bool {
         self.configuration.controls_extended()
     }
+    /// The order of the output layout.
     pub fn output_order(&self) -> u8 {
         (self.configuration.channels - 1).isqrt()
     }
+    /// Coefficients in the recovery domain.
     pub fn recovery_slot_count(&self) -> usize {
         usize::from(self.configuration.recovery_slots)
     }
@@ -832,30 +870,40 @@ impl HoaFrameContext {
     pub fn dynamic_subband_count(&self) -> Option<usize> {
         self.configuration.dynamic_subbands.map(usize::from)
     }
+    /// Whether frames carry a dynamic selection.
     pub fn dynamic_selection_enabled(&self) -> bool {
         self.configuration.dynamic_method.is_some()
     }
+    /// Whether dynamic selection runs in a domain other than the qualified
+    /// 16-coefficient full order.
     pub fn dynamic_domains_extended(&self) -> bool {
         self.configuration.dynamic_domains_extended()
     }
+    /// Arithmetic profile of the recovery stage.
     pub fn recovery_numeric_profile(&self) -> &'static str {
         self.configuration.recovery_numeric_profile()
     }
+    /// Arithmetic profile of the whole HOA path.
     pub fn numeric_profile(&self) -> &'static str {
         self.configuration.numeric_profile()
     }
+    /// Whether the ambient selection is static.
     pub fn static_ambient_enabled(&self) -> bool {
         self.configuration.static_ambient
     }
+    /// Whether the transport differs from one SQ carrier per output coefficient.
     pub fn transport_extended(&self) -> bool {
         self.configuration.transport_extended()
     }
+    /// How ambient contributions combine with salient recovery.
     pub fn ambient_combination(&self) -> super::AmbientCombination {
         self.configuration.ambient_combination
     }
+    /// The ambient coefficient indices.
     pub fn ambient_selection(&self) -> &[u8] {
         self.configuration.ambient_indices()
     }
+    /// The ambient transform mode.
     pub fn ambient_transform(&self) -> AmbientTransform {
         self.configuration.ambient_transform
     }
@@ -882,19 +930,25 @@ impl HoaFrameContext {
             self.salient_component_configurations().try_into().ok()?;
         Some(components.map(|c| c.order))
     }
+    /// Whether salient components use orders, counts or widths beyond the
+    /// qualified five order-3 components.
     pub fn component_orders_extended(&self) -> bool {
         self.configuration.component_orders_extended()
     }
+    /// Per-component order information, when component orders are extended.
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
         self.configuration.component_order_info()
     }
+    /// Arithmetic profile of salient descriptors, when there are any.
     pub fn descriptor_numeric_profile(&self) -> Option<&'static str> {
         (self.configuration.salient_components != 0)
             .then(|| self.configuration.descriptor_numeric_profile())
     }
+    /// State profile of the selected HOA path.
     pub fn state_profile(&self) -> &'static str {
         self.configuration.state_profile()
     }
+    /// The DRC state a stream starts from.
     pub fn initial_drc_state(&self) -> DrcState {
         self.transport.initial_state()
     }
@@ -908,27 +962,34 @@ pub struct HoaState {
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
+    /// The in-frame configuration in effect, once one was received.
     pub frame_configuration: Option<super::hoa_controls::HoaFrameConfiguration>,
+    /// The last frame's global spatial coding mode.
     pub last_global_coding_mode: u8,
     #[cfg_attr(
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
+    /// Salient descriptor history.
     pub salient: Option<Box<super::hoa_salient::SalientState>>,
     #[cfg_attr(
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
+    /// The last per-frame ambient transform index.
     pub last_ambient_transform: Option<u8>,
     #[cfg_attr(
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
+    /// The last dynamic selection mapping (rows of target coefficients).
     pub last_dynamic_mapping: Option<Vec<Vec<u8>>>,
 }
 
+/// One frame's HOA spatial syntax.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaSpatialData {
     #[cfg_attr(
         feature = "serde",
@@ -957,20 +1018,26 @@ pub struct HoaSpatialData {
     )]
     pub ambient: Option<StaticAmbientData>,
 }
+/// One recovered HOA coefficient's spectrum.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaCoefficientSpectrum {
     pub acn_index: u8,
     pub scaled: Vec<f32>,
 }
+/// One recovery-domain slot's spectrum.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct RecoverySlotSpectrum {
     pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
+/// Transport and output mapping of a mixed salient/ambient frame.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaMixedMapping {
     pub ambient_transport_channels: Vec<u8>,
     pub salient_transport_channels: Vec<u8>,
@@ -978,8 +1045,10 @@ pub struct HoaMixedMapping {
     pub unused_transport_channels: Vec<u8>,
     pub descriptor_numeric_profile: String,
 }
+/// The HOA part of a packet report.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaFrameInfo {
     #[cfg_attr(
         feature = "serde",
@@ -1078,13 +1147,16 @@ impl Default for HoaFrameInfo {
         }
     }
 }
+/// The packet report of an HOA packet.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaPacketReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub packet: ChannelPacketReport,
 }
 impl HoaPacketReport {
+    /// The HOA part of the report.
     pub fn hoa(&self) -> &HoaFrameInfo {
         self.packet.hoa.as_ref().expect("HOA parser report")
     }
@@ -1105,6 +1177,8 @@ pub fn parse_hoa_packet(
         &mut HoaState::default(),
     )
 }
+/// Parse one outer packet, continuing and updating the DRC and HOA state (left
+/// unchanged on error).
 pub fn parse_hoa_packet_with_state(
     context: &HoaFrameContext,
     packet: &[u8],
@@ -1255,14 +1329,19 @@ pub(super) fn restore(
 
 /// Container/decoder dispatch uses the ASC discriminator, not channel count.
 pub enum DecodedFrameContext {
+    /// A mono or multichannel stream.
     Channels(ChannelFrameContext),
+    /// A single-ASC HOA stream.
     Hoa(HoaFrameContext),
+    /// A composite stream.
     Stream(Box<super::StreamFrameContext>),
 }
 impl DecodedFrameContext {
+    /// Parse `cookie` and select the context.
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         Self::from_config(&config::Config::parse(cookie)?)
     }
+    /// Select the context for a parsed configuration.
     pub fn from_config(config: &config::Config) -> Result<Self, ParseError> {
         if config.is_composite() {
             return super::StreamFrameContext::from_config(config)
@@ -1274,6 +1353,7 @@ impl DecodedFrameContext {
             Ok(Self::Channels(ChannelFrameContext::from_config(config)))
         }
     }
+    /// Why the configuration is not supported, if it is not.
     pub fn rejection(&self) -> Option<&str> {
         match self {
             Self::Channels(c) => c.rejection(),
@@ -1281,6 +1361,7 @@ impl DecodedFrameContext {
             Self::Stream(c) => c.rejection(),
         }
     }
+    /// Sample rate in Hz.
     pub fn sample_rate_hz(&self) -> u64 {
         match self {
             Self::Channels(c) => c.sample_rate_hz(),
@@ -1288,6 +1369,7 @@ impl DecodedFrameContext {
             Self::Stream(c) => c.sample_rate_hz(),
         }
     }
+    /// Output channels.
     pub fn channel_count(&self) -> u32 {
         match self {
             Self::Channels(c) => c.channel_count(),
@@ -1295,6 +1377,7 @@ impl DecodedFrameContext {
             Self::Stream(c) => c.channel_count(),
         }
     }
+    /// The output layout, for qualified layouts.
     pub fn channel_layout(&self) -> Option<&ChannelLayout> {
         match self {
             Self::Channels(c) => c.channel_layout(),

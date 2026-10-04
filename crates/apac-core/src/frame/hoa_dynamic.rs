@@ -8,8 +8,10 @@ use crate::config::ParseError;
 use crate::prelude::*;
 
 pub const NUMERIC_PROFILE: &str = "apac-hoa-dynamic-selection-math-v1";
+/// Profile of dynamic selection with fewer than eight effective bands.
 pub const SUBBAND_PROFILE: &str = "apac-hoa-dynamic-subbands-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-dynamic-selection-state-v1";
+/// Profile of dynamic selection outside the 16-coefficient full order.
 pub const DOMAINS_PROFILE: &str = "apac-hoa-dynamic-domains-v1";
 pub const DOMAINS_NUMERIC_PROFILE: &str = "apac-hoa-dynamic-domains-math-v1";
 pub const DOMAINS_STATE_PROFILE: &str = "apac-hoa-dynamic-domains-state-v1";
@@ -47,18 +49,25 @@ pub(super) fn boundaries(count: usize, method: usize, short: bool) -> &'static [
     }
 }
 
+/// How a frame encodes its dynamic selection.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum DynamicSelectionEncoding {
+    /// Explicit target indices.
     IndexList,
+    /// A coefficient bitmap.
     Bitmap,
+    /// The identity mapping.
     Identity,
+    /// The first coefficients in order.
     Prefix,
 }
 
+/// One band's dynamic target coefficients.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DynamicBandMapping {
     pub subband_index: usize,
     pub target_acn_indices: Vec<u8>,
@@ -66,15 +75,19 @@ pub struct DynamicBandMapping {
     pub end_bit_offset: usize,
 }
 
+/// One internal ambient slot's spectrum.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct InternalAmbientSpectrum {
     pub transport_slot: u8,
     pub slot_index: u8,
     pub scaled: Vec<f32>,
 }
+/// The ambient stage of a dynamic-selection frame.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct InternalAmbientData {
     pub explicit_selection: bool,
     pub selection: Vec<u8>,
@@ -108,8 +121,10 @@ impl From<StaticAmbientData> for InternalAmbientData {
     }
 }
 
+/// One frame's dynamic selection.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct DynamicSelectionData {
     #[cfg_attr(
         feature = "serde",

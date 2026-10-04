@@ -6,6 +6,7 @@ use crate::{
     model::{ChannelDescription, ChannelLayout},
 };
 
+/// Profile of HOA source layouts.
 pub const PROFILE: &str = "apac-hoa-source-layout-format-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-source-layout-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-source-layout-state-v1";
@@ -283,14 +284,18 @@ impl SourceLayout {
     }
 }
 
+/// One source-layout channel's spectrum.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaSourceChannelSpectrum {
     pub channel_index: u8,
     pub scaled: Vec<f32>,
 }
+/// The source-layout stage of a frame.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaSourceLayoutData {
     pub format_profile: String,
     pub format_sha256: String,

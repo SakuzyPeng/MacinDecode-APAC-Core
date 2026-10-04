@@ -14,18 +14,24 @@ use crate::{
 };
 use alloc::collections::BTreeMap;
 
+/// Profile of composite (multiple-ASC) streams.
 pub const PROFILE: &str = "apac-hoa-multiple-asc-v1";
+/// State profile of composite streams.
 pub const STATE_PROFILE: &str = "apac-hoa-multiple-asc-state-v1";
 
+/// One contiguous output range of a component.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StreamOutputRange {
     pub source_start: usize,
     pub output_start: usize,
     pub channels: usize,
 }
+/// One declared component of a composite stream and its output routing.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StreamComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -54,8 +60,10 @@ pub struct StreamComponentConfiguration {
     pub parameter_0: u64,
     pub parameter_1: u64,
 }
+/// One component of the additional-ASC branch.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct AdditionalComponentConfiguration {
     pub component_index: usize,
     pub component_type: u8,
@@ -70,6 +78,7 @@ struct Component {
     core: ChannelFrameContext,
     hoa: Option<Box<HoaFrameContext>>,
 }
+/// Frame context of a composite stream.
 #[derive(Debug, Clone)]
 pub struct StreamFrameContext {
     cookie_sha256: String,
@@ -87,9 +96,12 @@ pub struct StreamFrameContext {
 }
 
 impl StreamFrameContext {
+    /// Parse `cookie` and build the context.
     pub fn from_cookie(cookie: &[u8]) -> Result<Self, ParseError> {
         Self::from_config(&config::Config::parse(cookie)?)
     }
+    /// Build the context from a parsed configuration; check
+    /// [`StreamFrameContext::rejection`] before parsing packets.
     pub fn from_config(config: &config::Config) -> Result<Self, ParseError> {
         let global = &config.global;
         let channels = global.channels.unwrap_or(0).min(255) as u32;
@@ -355,15 +367,19 @@ impl StreamFrameContext {
             rejection: (!rejected.is_empty()).then(|| rejected.join("; ")),
         })
     }
+    /// Whether the configuration is supported.
     pub fn is_supported(&self) -> bool {
         self.rejection.is_none()
     }
+    /// Why the configuration is not supported, if it is not.
     pub fn rejection(&self) -> Option<&str> {
         self.rejection.as_deref()
     }
+    /// The declared components.
     pub fn components(&self) -> &[StreamComponentConfiguration] {
         &self.information
     }
+    /// The additional-ASC components.
     pub fn additional_components(&self) -> &[AdditionalComponentConfiguration] {
         &self.additional
     }
@@ -371,15 +387,19 @@ impl StreamFrameContext {
     pub fn hoa_component(&self, index: usize) -> Option<&HoaFrameContext> {
         self.components.get(index).and_then(|c| c.hoa.as_deref())
     }
+    /// Output channels.
     pub fn channel_count(&self) -> u32 {
         self.channels
     }
+    /// Sample rate in Hz.
     pub fn sample_rate_hz(&self) -> u64 {
         self.sample_rate_hz
     }
+    /// The output layout.
     pub fn channel_layout(&self) -> &ChannelLayout {
         &self.layout
     }
+    /// The per-component state a stream starts from.
     pub fn initial_state(&self) -> StreamState {
         StreamState {
             hoa: self
@@ -389,6 +409,7 @@ impl StreamFrameContext {
                 .collect(),
         }
     }
+    /// The DRC state a stream starts from.
     pub fn initial_drc_state(&self) -> DrcState {
         DrcState {
             channels: u64::from(self.channels),
@@ -409,13 +430,16 @@ impl StreamFrameContext {
             .sum()
     }
 }
+/// Per-component state of a composite stream.
 #[derive(Debug, Clone, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct StreamState {
     hoa: Vec<Option<HoaState>>,
 }
+/// One component of a composite packet report.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StreamComponentReport {
     pub configuration: StreamComponentConfiguration,
     pub start_bit_offset: usize,
@@ -428,15 +452,20 @@ pub struct StreamComponentReport {
     )]
     pub hoa: Option<HoaFrameInfo>,
 }
+/// An embedded preroll frame and its report.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StreamPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub report: Box<StreamPacketReport>,
 }
+/// The packet report of a composite packet; the frame report is flattened into
+/// it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct StreamPacketReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub frame: FrameReport,
@@ -457,6 +486,7 @@ pub struct StreamPacketReport {
     pub drc_processing_applied: bool,
 }
 
+/// Parse one outer packet from the initial state.
 pub fn parse_stream_packet(
     context: &StreamFrameContext,
     packet: &[u8],
@@ -470,6 +500,9 @@ pub fn parse_stream_packet(
         &mut ScanWorkspace::default(),
     )
 }
+/// Parse one outer packet in `mode`, continuing and updating the DRC and
+/// component state (left unchanged on error). `scratch` is reused between
+/// calls.
 pub fn parse_with_state(
     context: &StreamFrameContext,
     packet: &[u8],

@@ -19,6 +19,7 @@ mod scenes;
 use alloc::collections::BTreeMap;
 use core::fmt;
 
+/// Largest cookie accepted by the parser.
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 // Bit positions are `usize`: on 32-bit targets every input bit must stay
 // addressable, which also bounds the parsers' unchecked `len() * 8`.
@@ -38,17 +39,24 @@ use parser::InBand;
 pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
 pub use passive::PositionSyntax;
 
+/// How far the cookie syntax was parsed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum ParseStatus {
+    /// Every field was parsed.
     Complete,
+    /// The syntax stopped early (truncation or an unparsed branch); see the
+    /// recorded unknown ranges.
     Partial,
+    /// The cookie is not a standalone `dapa` configuration this parser reads.
     Unsupported,
 }
 
+/// A span of cookie bits left unparsed, with its raw bytes and the reason.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct UnknownRange {
     pub bit_offset: usize,
     pub bit_length: usize,
@@ -58,8 +66,10 @@ pub struct UnknownRange {
     pub reason: String,
 }
 
+/// A non-fatal remark recorded at a bit offset.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Diagnostic {
     pub bit_offset: usize,
     pub message: String,
@@ -69,12 +79,18 @@ pub struct Diagnostic {
 /// values, unparsed ranges and diagnostics. Decoding never reads it.
 #[derive(Debug, Clone, Default)]
 pub struct Recording {
+    /// Field events in stream order.
     pub fields: Vec<ConfigField>,
+    /// Values derived from fields (rates, counts, layout tags), by name.
     pub derived: BTreeMap<String, FieldValue>,
+    /// Spans left unparsed.
     pub unknown_ranges: Vec<UnknownRange>,
+    /// Non-fatal remarks.
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// A syntax error in a cookie or packet: where it was found, its class and a
+/// stable message.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ParseError {
@@ -82,13 +98,17 @@ pub struct ParseError {
         feature = "serde",
         serde(default, skip_serializing_if = "Option::is_none")
     )]
+    /// The channel element being parsed, for multichannel packets.
     pub element_index: Option<usize>,
+    /// Bit offset from the start of the cookie or packet.
     pub bit_offset: usize,
     /// A fixed error class such as "truncated" or "max-sfb".
     pub kind: &'static str,
+    /// The error text, stable across releases.
     pub message: Cow<'static, str>,
 }
 impl ParseError {
+    /// An error at `bit_offset` without element index.
     pub fn new(
         bit_offset: usize,
         kind: &'static str,

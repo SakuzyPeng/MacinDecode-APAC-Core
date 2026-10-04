@@ -1,6 +1,8 @@
 //! Per-component spatial grids; lower counts share the verified dynamic tables.
 
+/// Profile of salient components with their own band counts.
 pub const SUBBAND_PROFILE: &str = "apac-hoa-salient-subbands-v1";
+/// Profile of the alternative salient band partitions.
 pub const PARTITION_PROFILE: &str = "apac-hoa-salient-partition-v1";
 /// Generated from `data/hoa-salient-subbands-format-v1.json` (method 0) and
 /// `data/hoa-salient-subbands-format-v2.json` (methods 1 and 2) by the build script.

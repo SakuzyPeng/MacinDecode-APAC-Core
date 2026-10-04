@@ -8,9 +8,12 @@ use crate::{
     config::{ConfigField, ParseError, bits::BitReader},
 };
 
+/// The BWE2 arithmetic profile.
 pub const NUMERIC_PROFILE: &str = bwe2_math::PROFILE;
+/// One channel's BWE2 envelope parameters as read from the wire.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2Parameters {
     pub lsf_indices: [u16; 2],
     pub gain_indices: Vec<u8>,
@@ -18,24 +21,30 @@ pub struct Bwe2Parameters {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
 }
+/// One channel's BWE2 activity and parameter source.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2ChannelData {
     pub channel_index: u8,
     pub active: bool,
     pub parameter_source_channel: Option<u8>,
     pub parameters: Option<Bwe2Parameters>,
 }
+/// Stereo BWE2 syntax.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2Data {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
     pub control_bits: [bool; 2],
     pub channels: Vec<Bwe2ChannelData>,
 }
+/// One copy-up region of the spectral restoration.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2Region {
     pub window_index: usize,
     pub source_start_line: usize,
@@ -44,8 +53,10 @@ pub struct Bwe2Region {
     pub target_end_line: usize,
     pub repetitions: usize,
 }
+/// One channel's spectrum after BWE2.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2ChannelSpectrum {
     pub channel_index: u8,
     pub regions: Vec<Bwe2Region>,
@@ -54,8 +65,11 @@ pub struct Bwe2ChannelSpectrum {
     pub analysis: Option<bwe2_math::Analysis>,
     pub scaled: Vec<f32>,
 }
+/// The packet report up to BWE2 (`parse-packets --depth bwe2`); the TNS report
+/// is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct Bwe2Report {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub tns: TnsReport,
@@ -67,8 +81,10 @@ pub struct Bwe2Report {
     pub bwe2: Option<Bwe2Data>,
     pub channels_after_bwe2: Vec<Bwe2ChannelSpectrum>,
 }
+/// One channel element's BWE2 syntax.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct ElementBwe2Data {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -188,6 +204,7 @@ pub(super) fn regions_at_rate(ics: &IcsInfo, rate: u64) -> (usize, Vec<Bwe2Regio
         .collect();
     (cutoff, result)
 }
+/// Parse a stereo packet through BWE2, stopping before core alignment.
 pub fn parse_bwe2(context: &FrameContext, packet: &[u8]) -> Result<Bwe2Report, ParseError> {
     parse_bwe2_with(context, packet, ParseMode::Report)
 }

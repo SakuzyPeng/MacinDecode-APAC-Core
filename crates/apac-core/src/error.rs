@@ -4,17 +4,22 @@ use crate::config::ParseError;
 use crate::prelude::*;
 use core::fmt;
 
+/// Result of decoder operations.
 pub type Result<T> = core::result::Result<T, DecodeError>;
 
+/// A decoder failure; decoder state is unchanged when one is returned.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodeError {
     /// The failing stage, e.g. "SQ synthesis" or "HOA packet".
     pub operation: &'static str,
+    /// The error text, stable across releases.
     pub message: String,
+    /// Bit offset in the packet or cookie, when the syntax located the failure.
     pub bit_offset: Option<usize>,
 }
 
 impl DecodeError {
+    /// An error without position.
     pub fn new(operation: &'static str, message: impl Into<String>) -> Self {
         Self {
             operation,

@@ -4,10 +4,13 @@ use super::{Bwe2Report, FrameContext, FrameReport, Parser, UnparsedRange, packet
 use crate::config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader};
 use crate::prelude::*;
 
+/// State profile of stereo ASP packets.
 pub const STATE_PROFILE: &str = "apac-asp-state-v1";
 
+/// Everything after the core: ancillary data, trimming and padding.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct PacketTail {
     pub core_end_bit_offset: usize,
     pub ancillary_start_bit_offset: usize,
@@ -33,8 +36,10 @@ pub struct PacketTail {
     pub packet_end_bit_offset: usize,
 }
 
+/// An embedded preroll frame and its report.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct EmbeddedPreroll {
     pub start_bit_offset: usize,
     pub end_bit_offset: usize,
@@ -42,8 +47,11 @@ pub struct EmbeddedPreroll {
     pub report: Box<PacketReport>,
 }
 
+/// The complete stereo packet report (`parse-packets --depth packet`); the
+/// BWE2 report is flattened into it.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct PacketReport {
     #[cfg_attr(feature = "serde", serde(flatten))]
     pub bwe2: Bwe2Report,
@@ -73,12 +81,14 @@ pub struct PacketReport {
     pub drc_processing_applied: Option<bool>,
 }
 impl PacketReport {
+    /// The prefix report.
     pub fn frame(&self) -> &FrameReport {
         &self.bwe2.tns.cac.spectrum.frame
     }
     fn frame_mut(&mut self) -> &mut FrameReport {
         &mut self.bwe2.tns.cac.spectrum.frame
     }
+    /// Whether the frame's stereo CPE was absent.
     pub fn cpe_absent(&self) -> bool {
         // The flag is what the recorded presence field says, when recorded.
         debug_assert!(
@@ -115,6 +125,7 @@ pub fn parse_packet(context: &FrameContext, packet: &[u8]) -> Result<PacketRepor
     parse_packet_with_state(context, packet, &mut super::DrcState::new(context))
 }
 
+/// [`parse_packet`] continuing and updating `state` (left unchanged on error).
 pub fn parse_packet_with_state(
     context: &FrameContext,
     packet: &[u8],

@@ -2,6 +2,7 @@
 use crate::config::HoaAsc;
 use crate::prelude::*;
 
+/// Profile of the static core-carrier remapping.
 pub const PROFILE: &str = "apac-hoa-static-remapping-v1";
 pub const NUMERIC_PROFILE: &str = "apac-hoa-static-remapping-math-v1";
 pub const STATE_PROFILE: &str = "apac-hoa-static-remapping-state-v1";
@@ -10,8 +11,10 @@ pub fn format_sha256() -> &'static str {
     crate::tables::HOA_REMAPPING_FORMAT_SHA256
 }
 
+/// The static core-carrier remapping a configuration declares.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
 pub struct HoaStaticRemapping {
     pub format_profile: String,
     pub format_sha256: String,

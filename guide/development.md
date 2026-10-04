@@ -48,6 +48,8 @@ cargo +1.98.0 build -p apac-no-std-example --target wasm32v1-none
 - **检查**（`apac_core::inspect`）：报告层，含包／帧报告解析器、各类上下文（`FrameContext`、`ChannelFrameContext`、`HoaFrameContext`、`StreamFrameContext`、`DecodedFrameContext`）、带状态解析（`*_with_state`、`ParseMode`、`ScanWorkspace`、`DrcState`、`HoaState`、`StreamState`）、报告与状态类型和 `MetadataState`。`parse-packets` 和 `decode-sq` 的报告都由这一层组装。
 - **标识**（`apac_core::identity`）：冻结的 profile 字符串和格式／数学表 SHA-256，与已发布报告中的值一致。
 
+除 macOS 专用的 `apac-native`（AudioToolbox FFI）外，所有 crate 都通过 `[lints] workspace = true` 继承根 `Cargo.toml` 的 `unsafe_code = "forbid"`，测试、示例和构建脚本同样适用；新增 crate 也应继承。
+
 `frame`、`synthesis` 是私有模块，没有 `#[doc(hidden)]` 接口。`apac-core` 和 `apac-container` 开启 `missing_docs`，所有公开项都有文档；序列化报告类型只在类型上写文档，字段即报告 JSON 的键。生成文档：
 
 ```sh

@@ -8,6 +8,10 @@ version = "0.1.0"
 edition = "2024"
 license = "MIT"
 
+[workspace.lints.rust]
+# Every crate except the macOS-only apac-native (AudioToolbox FFI) opts in with `[lints] workspace = true`.
+unsafe_code = "forbid"
+
 [workspace.dependencies]
 apac-cac = { path = "crates/apac-cac" }
 apac-core = { path = "crates/apac-core" }

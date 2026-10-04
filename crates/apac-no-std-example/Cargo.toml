@@ -14,3 +14,6 @@ apac-core.workspace = true
 # Host tests decode CAC fixtures.
 apac-core = { workspace = true, features = ["cac"] }
 serde_json.workspace = true
+
+[lints]
+workspace = true

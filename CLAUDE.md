@@ -77,6 +77,7 @@ Some Python tests require macOS (`afconvert`/AudioToolbox) and skip elsewhere. T
 
 ## Invariants when changing code
 
+- **No `unsafe` outside `apac-native`.** The workspace sets `[workspace.lints.rust] unsafe_code = "forbid"`; every crate except `apac-native` (AudioToolbox FFI) opts in with `[lints] workspace = true`, which covers tests, examples and build scripts too. New crates opt in as well. In edition 2024 this also rules out calls such as `std::env::set_var`.
 - **Numeric identity is frozen.** Profile strings (e.g. `apac-sq-math-v1`, `apac-hoa-shared-configuration-v1`), `BACKEND`, data-file hashes and the order of floating-point operations are part of published results. Don't alter existing arithmetic order or data files; introduce new behavior under a new/optional profile or report field and keep existing reports byte-compatible.
 - **Restructuring guard.** While the no_std decode API refactor is in progress, library APIs may break but CLI output must stay byte-identical (PCM, `parse-cookie`/`parse-packets` JSON, error text, exit codes). Never regenerate `crates/apac-research/tests/golden/refactor-v1.json` to make a change pass; the Python unittest failures recorded at the baseline (6 HOA/TNS cases) must stay exactly the same set.
 - After touching anything in `data/`, the corresponding `generate_*.py --check` must still pass.

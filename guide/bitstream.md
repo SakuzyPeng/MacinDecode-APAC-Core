@@ -188,7 +188,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 
 ## HOA
 
-### HOA 系数解码（实验性）
+### HOA 系数解码
 
 纯 Rust SQ 后端从合格 HOA ASC 输出交错系数 PCM，不进行空间渲染或播放增益处理。按 cookie 的完整字段及 ASC 类型分派，声道数量本身不构成资格。
 
@@ -202,7 +202,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 | 公共配置 | 单 HOA ASC、44.1／48 kHz、1024 帧、中性场景；profile 5 level 0／1／2 及 profile 0 level 0 的已核实通道上限 |
 | 输出与访问 | ACN/SN3D、显式源声道标签及下述内置源布局还原；包目录、CAF、受限 MP4／M4A，范围请求从包零顺序推进 |
 
-LRVQ 与外层 ASP 重配置尚未开放；HOA CAF／MP4 支持下述 fast 访问模式。DRC／响度关闭，保留 `experimental=true`。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
+LRVQ 与外层 ASP 重配置尚未开放；HOA CAF／MP4 支持下述 fast 访问模式。DRC／响度关闭；报告中的 `experimental` 字段含义见 [decoding.md](decoding.md)。下文说明各数学及状态规则的默认配置与扩展，实际支持范围以本表及完整资格检查为准。
 
 ### 源布局与归一化
 

@@ -1,7 +1,7 @@
 //! Implementation regression snapshot for the restructuring work.
 //!
 //! Every frozen fixture that carries a hex cookie is replayed through the
-//! cookie parser, the per-packet parse reports and the experimental decoder.
+//! cookie parser, the per-packet parse reports and the independent decoder.
 //! The recorded digests describe this implementation, not independent truth:
 //! they only prove that a refactor left the observable results unchanged.
 //! Regenerate deliberately with `APAC_GOLDEN_WRITE=1 cargo test --test golden_decode`.

@@ -10,7 +10,7 @@ APAC (Apple Positional Audio Codec) is Apple's codec for spatial audio, carrying
 
 This project does **not** perform spatial rendering, DRC/loudness/EQ processing, or real-time playback.
 
-The decoder follows its own numeric model, defined by formulas and a fixed order of operations, and deliberately does not reproduce the numeric details of Apple's native implementation. By design it is therefore not bit-identical to the AudioToolbox reference; the two are compared within a tolerance (see [numeric relationship to Apple's reference](guide/support.md#与苹果参考的数值关系), in Chinese). The project is experimental.
+The decoder follows its own numeric model, defined by formulas and a fixed order of operations, and deliberately does not reproduce the numeric details of Apple's native implementation. By design it is therefore not bit-identical to the AudioToolbox reference; the two are compared within a tolerance (see [numeric relationship to Apple's reference](guide/support.md#与苹果参考的数值关系), in Chinese).
 
 This is an independent implementation written for interoperability and research. It is not affiliated with, sponsored by, or endorsed by Apple Inc. Apple and AudioToolbox are trademarks of Apple Inc.; APAC and related names are used only to describe compatibility.
 
@@ -195,6 +195,6 @@ The project code is released under [MIT](LICENSE). The AAC Huffman codebooks and
 ### Disclaimer
 
 - The repository contains no Apple binaries, decompiled code, SDK files or source media. Format constants that were observed or transcribed name their source inside each data file; third-party data is listed in [THIRD_PARTY.md](THIRD_PARTY.md).
-- The decoder is experimental, outputs its own numeric model, is by design not bit-identical to Apple's reference, and has not been validated for production use. The software is provided "as is", without warranty of any kind, express or implied (see [LICENSE](LICENSE)).
+- The decoder outputs its own numeric model and is by design not bit-identical to Apple's reference. The software is provided "as is", without warranty of any kind, express or implied (see [LICENSE](LICENSE)).
 - APAC and related audio technologies may be covered by third-party patents. The project's license grants no patent rights; evaluate the patent and legal requirements of your jurisdiction before using or distributing it in a product.
 - When processing audio with this project, respect the copyright and license terms of that content.

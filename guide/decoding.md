@@ -4,7 +4,7 @@
 
 返回 [README](../README.md)。
 
-## 实验性 `decode-sq INPUT`
+## `decode-sq INPUT`
 
 从自包含包目录或 [bitstream.md](bitstream.md) 所列布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
@@ -113,7 +113,7 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 
 访问计时分别记录初始化核验（含配置准备）、第二遍读取／收尾核验、前缀扫描、完整包解析与合成、独立合成耗时及总耗时；跨平台摘要排除计时。总计时截至最终解码报告写入之前，性能脚本另测包括进程启动在内的端到端时间，交替模式、丢弃首次热身并比较重复测量中位数。实际收益取决于工具启用情况、目标位置和 I/O。
 
-显式访问模式入口为 `apac_research::decode::decode_sq_with_access(input, destination, SqDecodeOptions { start_frame, frames }, SqAccessMode::Fast, limit)`；`SqDecodeOptions` 和 `SqAccessMode` 均从 `apac_research::decode` 导入，也可使用 `SqAccessMode::Sequential`。省略 CLI 访问选项时，旧报告形状和默认行为不变。数值模型、后端及容器规则标识保持原样，DRC／响度处理关闭、experimental=true 和默认 128 MiB 限额仍适用。
+显式访问模式入口为 `apac_research::decode::decode_sq_with_access(input, destination, SqDecodeOptions { start_frame, frames }, SqAccessMode::Fast, limit)`；`SqDecodeOptions` 和 `SqAccessMode` 均从 `apac_research::decode` 导入，也可使用 `SqAccessMode::Sequential`。省略 CLI 访问选项时，旧报告形状和默认行为不变。数值模型、后端及容器规则标识保持原样，DRC／响度处理关闭和默认 128 MiB 限额仍适用。报告中的 `experimental` 字段是冻结报告格式的一部分，始终为 `true`，验收脚本也依赖它；它不表示解码器的成熟度。
 
 ## 库接口
 

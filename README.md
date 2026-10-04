@@ -837,6 +837,25 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 
 `apac_core::Decoder` 是单包解码接口：`Decoder::new(&Config)`（或 `from_cookie`）按配置选择立体声、单 ASC 多声道、HOA 或组合流路径，不支持时返回带原因的错误；`info()` 给出采样率、声道数、每包 1024 帧、路径类型和布局；`decode(packet, &mut out)` 把 `1024 × channel_count` 个交错 Float32 样本写入调用方缓冲（不足时报错且不改状态），返回该包的统计 `FrameInfo`；`decode_vec` 返回新分配的样本；`advance(packet)` 只推进状态（快速定位用，之后须先完整解码前一包再导出 PCM）；`reset()` 回到初始状态。内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。解码路径不记录语法字段；backend、support_scope 等报告标识由 `apac_research::implementation` 根据所选路径给出。文件级入口为 `apac_research::decode::decode_sq` 和 `apac_research::decode::decode_sq_with_options`，后者接受 `(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
+`apac_container::Reader` 把这个循环封装成范围解码接口，`decode-sq` 也走它：
+
+```rust
+let source = apac_container::CafReader::new(std::fs::File::open(path)?)?; // 或 Mp4Reader
+let mut reader = apac_container::Reader::open(source, Some(start), Some(frames), Access::Fast)?;
+let mut pcm = vec![0f32; 1024 * reader.decoder().info().channel_count as usize];
+while let n @ 1.. = reader.read(&mut pcm)? { /* pcm[..n × 声道数] 为交错样本 */ }
+reader.seek(other_start)?;                         // 双向；终点不变
+let (source, decoder, stats) = reader.finish()?;   // 补读剩余包，完成一致性校验
+```
+
+- **数据来源**：`PacketSource` 统一 CAF、MP4（`apac-container`）和包目录（`apac-research`）。它提供流描述、帧范围、首包序号、是否允许快速访问，以及按遍读取的包。每一遍都从首包开始，读到末尾时与打开时的首遍核对，并重新扫描结构。
+- **打开**：`Reader::open` 的检查顺序和拒绝文本与 `decode-sq` 一致。快速访问只用于 CAF/MP4；HOA 和组合流必须包含第 0 包；声道数和布局必须与 cookie 一致。
+- **读取**：`read` 每次返回下一包中落在范围内的帧数，读完返回 0。`read_with` 另外在输出起点那一包之前回调，供报告记录 `metadata_before_output_sha256`。`Sequential` 从首包起逐包完整解码；`Fast` 对输出前一包之前的前缀只推进状态，从那一包起完整解码。
+- **定位**：`seek(frame)` 接受窗口起点到当前范围终点之间的任意帧，结果与在该点新打开的 Reader 逐位相同。
+  - 向前跳时，若剩余包的处理方式与新 Reader 完全一致（尚未越过它要完整解码的第一包，且没有读了却未解码的包），就在当前这一遍继续；
+  - 否则倒回首包、重置解码器、重放前缀，新的一遍读到末尾时重新校验，所以两遍之间被修改的文件会被拒绝。
+- **统计**：`stats()` 给出 `decode-sq` 报告所用的计数（前缀扫描、完整解码、预热、缺席元素、内嵌帧、DRC 帧、保存帧）和各阶段耗时。
+
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
 
 ```sh

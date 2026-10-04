@@ -1,5 +1,6 @@
 //! Real-media streaming check driven by validate_hoa_media.py.
 use crate::{input::Input, synthesis::Decoder};
+use apac_container::{Packet, PacketSource};
 
 fn media_decoder(cookie: &[u8]) -> Decoder {
     let decoder = Decoder::from_cookie(cookie).unwrap();
@@ -40,7 +41,12 @@ fn hoa_media_stream_digest() {
     let prime = table.priming_frames as u64;
     let end = prime + table.valid_frames as u64;
     let mut samples = vec![0f32; 16384];
-    while let Some((index, raw, packet)) = source.next_packet().unwrap() {
+    while let Some(Packet {
+        index,
+        raw_frame: raw,
+        bytes: packet,
+    }) = source.next_packet().unwrap()
+    {
         let counts = decoder
             .decode(&packet, &mut samples)
             .unwrap_or_else(|e| panic!("packet {index}: {e}"));

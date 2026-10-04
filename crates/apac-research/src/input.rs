@@ -2,9 +2,9 @@
 use crate::{
     error::{Error, FilePosition, Result},
     model::*,
-    packets::{PacketBundle, ReplayRange},
+    packets::PacketBundle,
 };
-use apac_container::{CafReader, Mp4Reader, Track};
+use apac_container::{CafReader, Mp4Reader, Packet, PacketSource, Range, Track};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, fs::File, io::Read, path::Path, time::SystemTime};
 
@@ -99,6 +99,76 @@ impl Mp4Input {
     }
 }
 
+macro_rules! dispatch {
+    ($self:ident, $v:ident => $bundle:expr, $container:expr) => {
+        match $self {
+            Input::Bundle($v) => $bundle,
+            Input::Caf($v) => {
+                let $v = &$v.reader;
+                $container
+            }
+            Input::Mp4($v) => {
+                let $v = &$v.reader;
+                $container
+            }
+        }
+    };
+}
+macro_rules! dispatch_mut {
+    ($self:ident, $v:ident => $bundle:expr, $container:expr) => {
+        match $self {
+            Input::Bundle($v) => $bundle,
+            Input::Caf($v) => {
+                let $v = &mut $v.reader;
+                $container
+            }
+            Input::Mp4($v) => {
+                let $v = &mut $v.reader;
+                $container
+            }
+        }
+    };
+}
+impl PacketSource for Input {
+    type Error = Error;
+    fn config(&self) -> &crate::config::Config {
+        dispatch!(self, v => v.config(), PacketSource::config(v))
+    }
+    fn cookie(&self) -> &[u8] {
+        dispatch!(self, v => v.cookie(), PacketSource::cookie(v))
+    }
+    fn channels(&self) -> u32 {
+        dispatch!(self, v => PacketSource::channels(&**v), v.channels())
+    }
+    fn layout(&self) -> Option<&ChannelLayout> {
+        dispatch!(self, v => PacketSource::layout(&**v), v.layout())
+    }
+    fn table(&self) -> Option<apac_container::PacketTable> {
+        dispatch!(self, v => PacketSource::table(&**v), v.table())
+    }
+    fn range(&self, start: Option<u64>, requested: u64) -> Result<Range> {
+        dispatch!(self, v => PacketSource::range(&**v, start, requested), Ok(v.range(start, requested)?))
+    }
+    fn first_packet_index(&self) -> u64 {
+        dispatch!(self, v => PacketSource::first_packet_index(&**v), v.first_packet_index())
+    }
+    fn supports_fast_access(&self) -> bool {
+        dispatch!(self, v => PacketSource::supports_fast_access(&**v), v.supports_fast_access())
+    }
+    fn next_packet(&mut self) -> Result<Option<Packet>> {
+        dispatch_mut!(self, v => PacketSource::next_packet(&mut **v), Ok(PacketSource::next_packet(v)?))
+    }
+    fn rewind(&mut self) -> Result<()> {
+        dispatch_mut!(self, v => PacketSource::rewind(&mut **v), Ok(PacketSource::rewind(v)?))
+    }
+    fn consumed_packets(&self) -> u64 {
+        dispatch!(self, v => PacketSource::consumed_packets(&**v), PacketSource::consumed_packets(v))
+    }
+    fn verify_remaining(&mut self) -> Result<()> {
+        dispatch_mut!(self, v => PacketSource::verify_remaining(&mut **v), Ok(PacketSource::verify_remaining(v)?))
+    }
+}
+
 /// The file description of a validated container track.
 fn file_info(path: &Path, container: &str, track: &Track) -> FileInfo {
     FileInfo {
@@ -160,15 +230,6 @@ impl Input {
             }
         }
     }
-    pub(super) fn is_container(&self) -> bool {
-        !matches!(self, Self::Bundle(_))
-    }
-    pub(super) fn first_packet_index(&self) -> u64 {
-        match self {
-            Self::Bundle(v) => v.manifest().start_packet,
-            Self::Caf(_) | Self::Mp4(_) => 0,
-        }
-    }
     pub(super) fn info(&self) -> &FileInfo {
         match self {
             Self::Bundle(v) => &v.manifest().file,
@@ -176,58 +237,8 @@ impl Input {
             Self::Mp4(v) => &v.info,
         }
     }
-    pub(super) fn config(&self) -> &crate::config::Config {
-        match self {
-            Self::Bundle(v) => v.config(),
-            Self::Caf(v) => &v.reader.track().config,
-            Self::Mp4(v) => &v.reader.track().config,
-        }
-    }
     pub(super) fn cookie(&self) -> &[u8] {
-        match self {
-            Self::Bundle(v) => v.cookie(),
-            Self::Caf(v) => &v.reader.track().cookie,
-            Self::Mp4(v) => &v.reader.track().cookie,
-        }
-    }
-    pub(super) fn range(&self, start: Option<u64>, frames: u64) -> Result<ReplayRange> {
-        match self {
-            Self::Bundle(v) => v.range(start, frames),
-            Self::Caf(_) | Self::Mp4(_) => {
-                let table = self.info().packet_table.value.as_ref().unwrap();
-                crate::packets::frame_range(0, table.valid_frames as u64, table, start, frames)
-            }
-        }
-    }
-    pub(super) fn next_packet(&mut self) -> Result<Option<(u64, u64, Vec<u8>)>> {
-        match self {
-            Self::Bundle(v) => v
-                .next_packet()?
-                .map(|(p, b)| Ok((p.packet_index, p.raw_frame()?, b)))
-                .transpose(),
-            Self::Caf(v) => Ok(v
-                .reader
-                .next_packet()?
-                .map(|p| (p.index, p.raw_frame, p.bytes))),
-            Self::Mp4(v) => Ok(v
-                .reader
-                .next_packet()?
-                .map(|p| (p.index, p.raw_frame, p.bytes))),
-        }
-    }
-    pub(super) fn consumed_packets(&self) -> u64 {
-        match self {
-            Self::Bundle(v) => v.consumed_packets(),
-            Self::Caf(v) => v.reader.consumed_packets(),
-            Self::Mp4(v) => v.reader.consumed_packets(),
-        }
-    }
-    pub(super) fn verify_remaining(&mut self) -> Result<()> {
-        match self {
-            Self::Bundle(v) => v.verify_remaining(),
-            Self::Caf(v) => Ok(v.reader.verify_remaining()?),
-            Self::Mp4(v) => Ok(v.reader.verify_remaining()?),
-        }
+        PacketSource::cookie(self)
     }
     pub(super) fn report(&self) -> Value {
         match self {

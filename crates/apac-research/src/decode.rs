@@ -3,7 +3,8 @@ use crate::{
     model::*,
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
 };
-use crate::{implementation, input::Input, synthesis::Decoder};
+use crate::{implementation, input::Input, packets::ReplayRange, synthesis::Decoder};
+use apac_container::PacketSource;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
@@ -88,7 +89,7 @@ fn decode_with_access(
     }
     let mut bundle = Input::open(input)?;
     let preparation_seconds = total_timer.elapsed().as_secs_f64();
-    if fast && !bundle.is_container() {
+    if fast && !bundle.supports_fast_access() {
         return Err(Error::new(
             "SQ access",
             "fast access requires a CAF/MP4 file",
@@ -100,10 +101,12 @@ fn decode_with_access(
         .value
         .clone()
         .ok_or_else(|| Error::new("SQ decoder", "missing packet table"))?;
-    let range = bundle.range(
-        options.start_frame,
-        options.frames.unwrap_or((table.valid_frames as u64).max(1)),
-    )?;
+    let range: ReplayRange = bundle
+        .range(
+            options.start_frame,
+            options.frames.unwrap_or((table.valid_frames as u64).max(1)),
+        )?
+        .into();
     let mut decoder = Decoder::new(bundle.config())?;
     let channels = decoder.info().channel_count;
     let backend = implementation::backend(&decoder);
@@ -166,7 +169,12 @@ fn decode_with_access(
         let timer = Instant::now();
         let next = bundle.next_packet()?;
         read_seconds += timer.elapsed().as_secs_f64();
-        let Some((packet_index, raw, bytes)) = next else {
+        let Some(apac_container::Packet {
+            index: packet_index,
+            raw_frame: raw,
+            bytes,
+        }) = next
+        else {
             break;
         };
         if !range.drain_to_eof && raw >= range.raw_end {

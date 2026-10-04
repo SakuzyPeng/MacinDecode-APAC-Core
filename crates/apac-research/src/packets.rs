@@ -4,6 +4,7 @@ use crate::{
     error::{Error, Result},
     model::*,
 };
+use apac_container::{Packet, PacketSource, Range};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -497,8 +498,7 @@ impl PacketBundle {
     }
 
     pub fn range(&self, start: Option<u64>, requested: u64) -> Result<ReplayRange> {
-        let table = required(&self.manifest.file.packet_table, "packet table")?;
-        frame_range(self.window_start, self.window_end, table, start, requested)
+        Ok(PacketSource::range(self, start, requested)?.into())
     }
 
     fn rewind(&mut self) -> Result<()> {
@@ -655,36 +655,88 @@ impl PacketBundle {
 }
 
 /// Common valid-audio cropping; input access/dependency policy belongs to the reader.
-pub(crate) fn frame_range(
-    window_start: u64,
-    window_end: u64,
-    table: &PacketTable,
-    start: Option<u64>,
-    requested: u64,
-) -> Result<ReplayRange> {
-    if requested == 0 {
-        return Err(invalid("frame count must be positive"));
+impl From<Range> for ReplayRange {
+    fn from(range: Range) -> Self {
+        Self {
+            window_start_frame: range.window_start_frame,
+            window_end_frame: range.window_end_frame,
+            start_frame: range.start_frame,
+            requested_frames: range.requested_frames,
+            frames: range.frames,
+            raw_start: range.raw_start,
+            raw_end: range.raw_end,
+            drain_to_eof: range.drain_to_eof,
+            clipped_by: range.clipped_by,
+        }
     }
-    let start = start.unwrap_or(window_start);
-    if start < window_start || start > window_end {
-        return Err(invalid("frame start is outside the target window"));
+}
+impl From<&PacketTable> for apac_container::PacketTable {
+    fn from(table: &PacketTable) -> Self {
+        Self {
+            valid_frames: table.valid_frames,
+            priming_frames: table.priming_frames,
+            remainder_frames: table.remainder_frames,
+        }
     }
-    let requested_end = add(start, requested)?;
-    let end = requested_end.min(window_end);
-    let prime = table.priming_frames as u64;
-    Ok(ReplayRange {
-        window_start_frame: window_start,
-        window_end_frame: window_end,
-        start_frame: start,
-        requested_frames: requested,
-        frames: end - start,
-        raw_start: add(prime, start)?,
-        raw_end: add(prime, end)?,
-        drain_to_eof: end == window_end,
-        clipped_by: (end < requested_end).then_some(if end == table.valid_frames as u64 {
-            "source_eof"
-        } else {
-            "window_end"
-        }),
-    })
+}
+
+/// A bundle's pass covers its exported packets from `start_packet`; the
+/// target window is the valid audio of its replay window.
+impl PacketSource for PacketBundle {
+    type Error = Error;
+    fn config(&self) -> &config::Config {
+        &self.config
+    }
+    fn cookie(&self) -> &[u8] {
+        &self.cookie
+    }
+    fn channels(&self) -> u32 {
+        self.manifest.file.format.channels
+    }
+    fn layout(&self) -> Option<&ChannelLayout> {
+        self.manifest.file.layout.value.as_ref()
+    }
+    fn table(&self) -> Option<apac_container::PacketTable> {
+        self.manifest
+            .file
+            .packet_table
+            .value
+            .as_ref()
+            .map(Into::into)
+    }
+    fn range(&self, start: Option<u64>, requested: u64) -> Result<Range> {
+        let table = required(&self.manifest.file.packet_table, "packet table")?;
+        Ok(Range::new(
+            (self.window_start, self.window_end),
+            &table.into(),
+            start,
+            requested,
+        )?)
+    }
+    fn first_packet_index(&self) -> u64 {
+        self.manifest.start_packet
+    }
+    fn supports_fast_access(&self) -> bool {
+        false
+    }
+    fn next_packet(&mut self) -> Result<Option<Packet>> {
+        PacketBundle::next_packet(self)?
+            .map(|(record, bytes)| {
+                Ok(Packet {
+                    index: record.packet_index,
+                    raw_frame: record.raw_frame()?,
+                    bytes,
+                })
+            })
+            .transpose()
+    }
+    fn rewind(&mut self) -> Result<()> {
+        PacketBundle::rewind(self)
+    }
+    fn consumed_packets(&self) -> u64 {
+        self.next
+    }
+    fn verify_remaining(&mut self) -> Result<()> {
+        PacketBundle::verify_remaining(self)
+    }
 }

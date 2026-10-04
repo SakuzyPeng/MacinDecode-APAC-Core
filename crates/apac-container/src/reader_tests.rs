@@ -433,3 +433,93 @@ fn a_short_output_buffer_is_rejected() {
         Err(ReadError::Invalid { .. })
     ));
 }
+
+fn state(decoder: &Decoder) -> String {
+    let state = decoder.metadata_state();
+    format!("{:?}", (state.drc, state.components, state.hoa))
+}
+/// PCM and final decoder state of a fresh reader from `start` to the end of
+/// the whole valid audio.
+fn fresh(stream: &Stream, start: u64, access: Access) -> (Vec<u32>, String) {
+    let valid = stream.packets.len() as u64 * 1024 - (PRIMING + REMAINDER) as u64;
+    let frames = (start < valid).then(|| valid - start);
+    let mut reader = open(stream, Some(start), frames, access);
+    let pcm = read_all(&mut reader);
+    (pcm, state(reader.decoder()))
+}
+
+#[test]
+fn seeking_equals_a_fresh_reader_and_rewinds_only_when_needed() {
+    for stream in streams() {
+        let valid = stream.packets.len() as u64 * 1024 - (PRIMING + REMAINDER) as u64;
+        for access in [Access::Sequential, Access::Fast] {
+            let name = format!("{} {access:?}", stream.name);
+            let mut reader = Reader::open(probe(&stream), None, None, access).unwrap();
+            let mut buffer = vec![0f32; reader.samples.len()];
+            assert!(reader.read(&mut buffer).unwrap() > 0);
+            // (target, rewinds expected so far): forward within reach
+            // continues; backward, or after the pass ended, rewinds.
+            for (target, rewinds) in [
+                (3 * 1024, 0),
+                (1000, 1),
+                (valid - 5, 2),
+                (0, 3),
+                (valid, 3),
+                (2500, 4),
+            ] {
+                reader.seek(target).unwrap();
+                let pcm = read_all(&mut reader);
+                assert_eq!(
+                    (pcm, state(reader.decoder())),
+                    fresh(&stream, target, access),
+                    "{name} seek {target}"
+                );
+                assert_eq!(reader.source().rewinds, rewinds, "{name} seek {target}");
+            }
+            assert!(reader.seek(valid + 1).is_err());
+            let (source, _, _) = reader.finish().unwrap();
+            assert!(source.inner.summary().verified);
+        }
+    }
+}
+
+#[test]
+fn a_range_stopped_early_rewinds_on_any_seek() {
+    let stream = &streams()[0];
+    for access in [Access::Sequential, Access::Fast] {
+        let mut reader = Reader::open(probe(stream), Some(1), Some(5), access).unwrap();
+        read_all(&mut reader);
+        // The packet past the range was read without being decoded.
+        reader.seek(3).unwrap();
+        assert_eq!(reader.source().rewinds, 1);
+        let mut expected = open(stream, Some(3), Some(3), access);
+        assert_eq!(read_all(&mut reader), read_all(&mut expected));
+        assert!(reader.seek(7).is_err());
+        assert!(reader.finish().is_ok());
+    }
+}
+
+#[test]
+fn a_file_changed_between_passes_fails_the_next_pass() {
+    let stream = &streams()[0];
+    let file = Shared::new(&stream.file);
+    let source = CafReader::new(file.clone()).unwrap();
+    let mut reader = Reader::open(source, None, None, Access::Sequential).unwrap();
+    read_all(&mut reader);
+    reader.seek(0).unwrap();
+    // A byte of the stream description: decoding is unaffected, the
+    // structure digest is not.
+    file.change(8 + 12 + 12, &[1]);
+    let mut buffer = vec![0f32; reader.samples.len()];
+    let error = loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => panic!("changed file passed verification"),
+            Ok(_) => {}
+            Err(error) => break error,
+        }
+    };
+    match error {
+        ReadError::Source(e) => assert_eq!(e.message, "input changed during reading"),
+        other => panic!("{other:?}"),
+    }
+}

@@ -104,6 +104,8 @@ pub struct Reader<S> {
     /// The current pass is over: the source ended, or a packet past the
     /// range was read (and not decoded).
     ended: bool,
+    /// The decoder has processed every packet read in the current pass.
+    fed: bool,
 }
 impl<S: PacketSource> Reader<S> {
     /// Check the source against its decoder and select `frames` (default:
@@ -162,6 +164,7 @@ impl<S: PacketSource> Reader<S> {
             samples,
             stats: Stats::default(),
             ended: false,
+            fed: true,
         })
     }
     pub fn decoder(&self) -> &Decoder {
@@ -219,6 +222,7 @@ impl<S: PacketSource> Reader<S> {
             let raw = packet.raw_frame;
             if !range.drain_to_eof && raw >= range.raw_end {
                 self.ended = true;
+                self.fed = false;
                 break;
             }
             if range.frames != 0 && raw / 1024 == range.raw_start / 1024 {
@@ -275,6 +279,39 @@ impl<S: PacketSource> Reader<S> {
             }
         }
         Ok(0)
+    }
+    /// Restart the output at `frame` (a valid-audio frame from the window
+    /// start up to the current range end), keeping the range end. The result
+    /// equals a reader opened at `frame` with the same end and access mode.
+    ///
+    /// When every packet still to be processed would be processed the same
+    /// way by such a reader, reading continues in the current pass: forward,
+    /// before the packet that a fresh reader decodes first. Otherwise the
+    /// source is rewound to its first packet and the decoder reset, and the
+    /// prefix is replayed; the new pass is verified again at its end.
+    pub fn seek(&mut self, frame: u64) -> Result<(), ReadError<S::Error>> {
+        let range = self.range.starting_at(frame).ok_or_else(|| {
+            invalid(
+                "SQ access",
+                "seek position lies outside the window or past the range end",
+            )
+        })?;
+        let next = self.source.first_packet_index() + self.source.consumed_packets();
+        let first_decoded = (range.frames != 0).then(|| {
+            let target = range.raw_start / 1024;
+            match self.access {
+                Access::Sequential => target,
+                Access::Fast => target.saturating_sub(1),
+            }
+        });
+        if !self.fed || first_decoded.is_some_and(|first| next > first) {
+            self.source.rewind().map_err(ReadError::Source)?;
+            self.decoder.reset();
+            self.fed = true;
+        }
+        self.ended = false;
+        self.range = range;
+        Ok(())
     }
     /// Complete the source's integrity checks (reading packets the range
     /// did not need) and return the source, decoder and statistics.

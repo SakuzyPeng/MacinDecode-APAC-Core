@@ -150,7 +150,7 @@ cargo run -p apac-container --example decode_file -- input.mp4 output.f32 --fast
 
 ## 离散声道状态验收
 
-新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置为 `apac-sq-math-v2`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
+新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置为 `apac-sq-math-v2`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v11`（`apac-sq-math-v2` 起由 v10 升级；v10 对应 `apac-sq-math-v1`），状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。
 
 ```sh
 # 冻结的 2,268 个状态序列；正式测试不依赖研究目录或苹果文件

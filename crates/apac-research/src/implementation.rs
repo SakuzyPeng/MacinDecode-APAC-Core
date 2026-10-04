@@ -5,7 +5,7 @@ use crate::{identity, inspect};
 use apac_core::{Decoder, StreamKind};
 
 /// Stereo SQ with neutral scene metadata and ASP.
-pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10";
+pub const BACKEND: &str = "rust_sq_cac_tns_bwe2_drc_off_f64_fft_v11";
 pub const QUALIFICATION: &str = "independent_math_reference";
 pub const ACCESS_PROFILE: &str = "apac-sq-access-v1";
 pub const HOA_ACCESS_PROFILE: &str = "apac-hoa-access-v1";

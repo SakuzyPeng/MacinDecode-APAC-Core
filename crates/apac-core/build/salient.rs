@@ -3,6 +3,63 @@
 use crate::emit::{self, Output};
 use crate::{data_json, packed, trie_build};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
+
+#[derive(Deserialize)]
+struct MeasuredWord {
+    symbol: usize,
+    codeword: String,
+    bit_length: usize,
+}
+#[derive(Deserialize)]
+struct MeasuredCodebook {
+    schema_version: u8,
+    profile: String,
+    order: usize,
+    quantization_bits: u8,
+    mode: usize,
+    book: usize,
+    book_sha256: String,
+    entries: Vec<MeasuredWord>,
+}
+
+/// This book's canonical input is the frozen black-box measurement. The
+/// original format file keeps a generated packed copy for existing tools.
+fn measured_mode1() -> Vec<(usize, u32)> {
+    let data: MeasuredCodebook = data_json("hoa-salient-order3-q6-mode1-measured-v1.json");
+    assert_eq!(data.schema_version, 1);
+    assert_eq!(data.profile, "apac-hoa-salient-measured-v1");
+    assert_eq!(
+        (data.order, data.quantization_bits, data.mode, data.book),
+        (3, 6, 1, 0)
+    );
+    assert_eq!(data.entries.len(), 64);
+    let book: Vec<_> = data
+        .entries
+        .iter()
+        .enumerate()
+        .map(|(symbol, entry)| {
+            assert_eq!(entry.symbol, symbol);
+            assert!((1..=32).contains(&entry.bit_length));
+            assert_eq!(entry.codeword.len(), entry.bit_length);
+            assert!(entry.codeword.bytes().all(|b| b == b'0' || b == b'1'));
+            (
+                entry.bit_length,
+                u32::from_str_radix(&entry.codeword, 2).expect("measured codeword"),
+            )
+        })
+        .collect();
+    let digest = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&book).expect("measured codebook JSON"))
+    );
+    assert_eq!(digest, data.book_sha256);
+    assert_eq!(
+        digest,
+        "296d730714d97de653c45cc487fa4fa94aebce9a49559da78e81215591e600ee"
+    );
+    book
+}
 
 #[derive(Deserialize)]
 struct SharedMode {
@@ -104,6 +161,7 @@ fn refs(names: impl IntoIterator<Item = String>) -> String {
 }
 
 pub fn dictionaries(out: &mut Output) {
+    let measured = measured_mode1();
     let mut constants = Vec::new();
     for order in 1usize..=10 {
         let coefficients = (order + 1).pow(2);
@@ -158,8 +216,17 @@ pub fn dictionaries(out: &mut Output) {
                 ));
                 let mut mode_tries = Vec::new();
                 for (book_index, hex) in mode.codebooks.iter().enumerate() {
-                    let book =
+                    let packed_book =
                         packed::codebook(hex, precision).expect("built-in packed HOA codebook");
+                    let book = if (order, precision, mode_index, book_index) == (3, 6, 1, 0) {
+                        assert_eq!(
+                            packed_book, measured,
+                            "packed copy of measured codebook differs"
+                        );
+                        measured.clone()
+                    } else {
+                        packed_book
+                    };
                     assert_eq!(book.len(), 1usize << precision);
                     let codes: Vec<u32> = book.iter().map(|v| v.1).collect();
                     let bits: Vec<usize> = book.iter().map(|v| v.0).collect();

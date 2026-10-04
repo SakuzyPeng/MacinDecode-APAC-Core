@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import struct
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
+from generate_hoa_salient_measured import load_measurement, measured_book, replace_book
 
 COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,10 +74,16 @@ def extract(path, order=3, quantization_bits=6):
                           signs=bool(read(address+48, 1)[0]), matrices_f32=matrices))
     values = dict(order=order, quantization_bits=quantization_bits, modes=modes)
     digest = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
-    return dict(schema_version=1, format_profile=(f'apac-hoa-salient-order{order}-q{quantization_bits}-format-v1' if quantization_bits!=6 else f'apac-hoa-salient-order{order}-format-v1' if order!=3 else 'apac-hoa-salient-format-v1'),
+    result = dict(schema_version=1, format_profile=(f'apac-hoa-salient-order{order}-q{quantization_bits}-format-v1' if quantization_bits!=6 else f'apac-hoa-salient-order{order}-format-v1' if order!=3 else 'apac-hoa-salient-format-v1'),
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
+    if (order, quantization_bits) == (3, 6):
+        measurement = load_measurement()
+        if result['modes'][1]['codebooks'][0] != measured_book(measurement):
+            raise ValueError('reference differs from the independently measured codebook')
+        result = replace_book(result, measurement)
+    return result
 
 
 def main():

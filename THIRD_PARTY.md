@@ -39,7 +39,7 @@ Source recovery uses independently implemented Float64 compensated sums and a se
 
 ## Rules behind recorded HOA format constants
 
-Several HOA format files were first recorded from the AudioCodecs reference. Their bytes are unchanged, because their digests are published identities, but the following values are now re-derived from independent rules by `scripts/hoa_rules_oracle.py --check` and `scripts/generate_hoa_shared_config_format.py --vo-aacenc DIR --check`:
+Several HOA format files were first recorded from the AudioCodecs reference. The following values are now re-derived from independent rules by `scripts/hoa_rules_oracle.py --check` and `scripts/generate_hoa_shared_config_format.py --vo-aacenc DIR --check`, preserving their published table identities:
 
 | Constants | File | Rule | Agreement |
 | --- | --- | --- | --- |
@@ -49,4 +49,18 @@ Several HOA format files were first recorded from the AudioCodecs reference. The
 | Static ambient sign tables | `hoa-static-ambient-tables-v1.json` | row orders of the 4×4 Sylvester–Hadamard matrix, divisor 2, inverse by transpose | exact |
 | Source-layout matrices of the 18 full-rank layouts | `hoa-source-layout-format-v1.json` | (order + 1) · pinv(Y), Y the real N3D spherical harmonics (ACN order, no Condon–Shortley phase) at the speaker directions, LFE excluded | at most 4.1e-7 relative to the largest entry, the Float32 rounding of the reference; not bit-identical, so the recorded bits stay |
 
-These remain recorded observations: the profile/level table; the speaker directions per layout (inferred from the matrices, all round angles); the three Hadamard row orders; the matrices of the 18 rank-deficient layouts (horizontal speakers with height or higher-order coefficients have no unique pseudo-inverse, and the recorded values come from the reference's near-singular inversion); and the data-trained dictionaries — salient Huffman codebooks, mode-4 cluster matrices (orthogonal, with no closed form), spatial-control mean coefficients, BWE2 and CAC codebooks.
+These retain their original observation provenance: the profile/level table; the speaker directions per layout (inferred from the matrices, all round angles); the three Hadamard row orders; the matrices of the 18 rank-deficient layouts (horizontal speakers with height or higher-order coefficients have no unique pseudo-inverse, and the recorded values come from the reference's near-singular inversion); and the data-trained dictionaries — salient Huffman codebooks except the measured book below, mode-4 cluster matrices (orthogonal, with no closed form), spatial-control mean coefficients, BWE2 and CAC codebooks.
+
+## Independently reconstructed HOA salient codebook
+
+The 64-symbol Huffman codebook for **order 3, six-bit quantization, mode 1, book 0** is now sourced from `data/hoa-salient-order3-q6-mode1-measured-v1.json`. Its codewords were independently reconstructed through controlled bitstreams and PCM returned by Apple's public AudioConverter API. This source replacement applies to that codebook only.
+
+The experiment used code commit `880640456ad3119f098cec1a08592699fcd74be6` and the arm64 reference on macOS 27.0 / 26A428, with AudioCodecs component SHA-256 `826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd`. It reused known bitstream syntax and the public-source AAC tables for the carrier, calibrated the 64 symbols using mode 0's fixed-width coding, then recovered the prefix tree from observable PCM. Discovery did not consult the recorded salient dictionaries, debugger snapshots or internal decoder state; it used the existing tool's native replay path.
+
+The candidate was frozen and validated before comparison with the recorded table. All **64 codewords and lengths matched exactly**. Across two carrier amplitudes, all 152 validation cases, including mixed-symbol sequences and extra padding, produced PCM bit-identical to the corresponding mode 0 controls. The frozen candidate SHA-256 is `85abb44d580e5002cb56fca1eff950d554025b444759d485b243ef70299b9622`.
+
+The measurement file contains only the 64 symbol/codeword/length mappings and provenance metadata. `scripts/generate_hoa_salient_measured.py --candidate FILE --check` reproduces it from the hash-pinned frozen candidate. Without `--candidate`, `--check` verifies the committed measurement and its generated packed copy in `data/hoa-salient-format-v1.json` (`modes[1].codebooks[0]`); `--write` regenerates that copy and its per-codebook source metadata.
+
+The Rust build reads the measured file directly for this book, verifies its mapping digest, and requires the packed copy to agree. The format JSON retains its initial x86_64 extraction record under `source.original_observation`, identifies the measured replacement separately, and keeps the remaining tables under their original provenance. All table values and the published semantic digest are unchanged.
+
+The experiment is identified as `hoa-blackbox-order3-q6-mode1-v1`. Its prototype and raw evidence are retained locally under `reports/` and are not distributed or required for builds. The source replacement does not change the project's licensing declarations.

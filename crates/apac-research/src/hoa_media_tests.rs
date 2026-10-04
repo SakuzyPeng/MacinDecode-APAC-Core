@@ -1,15 +1,18 @@
 //! Real-media streaming check driven by validate_hoa_media.py.
 use crate::{input::Input, synthesis::Decoder};
-use apac_container::{Packet, PacketSource};
+use apac_container::{Access, Reader};
 
-fn media_decoder(cookie: &[u8]) -> Decoder {
-    let decoder = Decoder::from_cookie(cookie).unwrap();
-    assert!(crate::implementation::hoa_numeric_profile(&decoder).is_some());
+fn check_media_decoder(decoder: &Decoder) {
+    assert!(crate::implementation::hoa_numeric_profile(decoder).is_some());
     assert_eq!(
         decoder.info().channel_count,
         16,
         "HOA media validation requires exactly 16 output channels"
     );
+}
+fn media_decoder(cookie: &[u8]) -> Decoder {
+    let decoder = Decoder::from_cookie(cookie).unwrap();
+    check_media_decoder(&decoder);
     decoder
 }
 
@@ -29,42 +32,34 @@ fn hoa_media_stream_digest() {
         .create_new(true)
         .open(destination)
         .unwrap();
-    let mut source = Input::open(&path).unwrap();
+    let source = Input::open(&path).unwrap();
     let info = source.info().clone();
     let table = info.packet_table.value.clone().unwrap();
-    let mut decoder = media_decoder(source.cookie());
+    // The whole valid audio, decoded sequentially from packet zero.
+    let mut reader = Reader::open(source, None, None, Access::Sequential).unwrap();
+    check_media_decoder(reader.decoder());
     let mut hash = Sha256::new();
-    let mut packets = 0u64;
     let mut frames = 0u64;
-    let mut drc_payload_frames = 0u64;
-    let mut embedded_frames = 0u64;
-    let prime = table.priming_frames as u64;
-    let end = prime + table.valid_frames as u64;
     let mut samples = vec![0f32; 16384];
-    while let Some(Packet {
-        index,
-        raw_frame: raw,
-        bytes: packet,
-    }) = source.next_packet().unwrap()
-    {
-        let counts = decoder
-            .decode(&packet, &mut samples)
-            .unwrap_or_else(|e| panic!("packet {index}: {e}"));
-        drc_payload_frames += counts.drc_payload_frames;
-        embedded_frames += counts.embedded_preroll_frames;
-        let first = raw.max(prime);
-        let last = (raw + 1024).min(end);
-        if first < last {
-            let mut buffer = Vec::with_capacity((last - first) as usize * 64);
-            for v in &samples[((first - raw) * 16) as usize..((last - raw) * 16) as usize] {
-                buffer.extend(v.to_le_bytes());
-            }
-            hash.update(buffer);
-            frames += last - first;
+    loop {
+        let n = reader.read(&mut samples).unwrap_or_else(|e| {
+            let e = crate::error::Error::from(e);
+            panic!("packet {:?}: {e}", e.packet_index)
+        });
+        if n == 0 {
+            break;
         }
-        packets += 1;
+        let mut buffer = Vec::with_capacity(n * 64);
+        for v in &samples[..n * 16] {
+            buffer.extend(v.to_le_bytes());
+        }
+        hash.update(buffer);
+        frames += n as u64;
     }
-    source.verify_remaining().unwrap();
+    let (source, decoder, stats) = reader.finish().unwrap();
+    let packets = stats.decoded_packets;
+    let drc_payload_frames = stats.drc_payload_frames;
+    let embedded_frames = stats.embedded_preroll_frames;
     assert_eq!(frames, table.valid_frames as u64);
     assert_eq!(Some(packets), info.packet_count.value);
     let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::frame::HOA_NUMERIC_PROFILE,"layout":decoder.info().layout,"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});

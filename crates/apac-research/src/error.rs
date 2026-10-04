@@ -92,6 +92,24 @@ impl From<apac_container::Error> for Error {
         result
     }
 }
+impl From<apac_container::ReadError<Error>> for Error {
+    fn from(error: apac_container::ReadError<Error>) -> Self {
+        match error {
+            apac_container::ReadError::Source(error) => error,
+            apac_container::ReadError::Decode {
+                error,
+                packet_index,
+            } => {
+                let mut result = Self::from(error);
+                result.packet_index = packet_index;
+                result
+            }
+            apac_container::ReadError::Invalid { operation, message } => {
+                Self::new(operation, message)
+            }
+        }
+    }
+}
 impl From<serde_json::Error> for Error {
     fn from(e: serde_json::Error) -> Self {
         Self::io("JSON", e)

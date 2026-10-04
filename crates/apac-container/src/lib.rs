@@ -16,12 +16,14 @@ use std::{
 mod caf;
 mod mp4;
 mod range;
+mod reader;
 mod source;
 #[cfg(test)]
 mod test_source;
 pub use caf::{CafReader, CafSummary, Chunk};
 pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
 pub use range::Range;
+pub use reader::{Access, ReadError, Reader, Stats, Timings};
 pub use source::PacketSource;
 
 pub type Result<T> = std::result::Result<T, Error>;

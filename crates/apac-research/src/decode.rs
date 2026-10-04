@@ -4,7 +4,7 @@ use crate::{
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
 };
 use crate::{implementation, input::Input, packets::ReplayRange, synthesis::Decoder};
-use apac_container::PacketSource;
+use apac_container::{Access, PacketSource, Reader};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
@@ -87,56 +87,29 @@ fn decode_with_access(
             "fast access requires a CAF/MP4 file",
         ));
     }
-    let mut bundle = Input::open(input)?;
+    let bundle = Input::open(input)?;
     let preparation_seconds = total_timer.elapsed().as_secs_f64();
-    if fast && !bundle.supports_fast_access() {
-        return Err(Error::new(
-            "SQ access",
-            "fast access requires a CAF/MP4 file",
-        ));
-    }
     let info = bundle.info().clone();
+    let mut reader = Reader::open(
+        bundle,
+        options.start_frame,
+        options.frames,
+        if fast {
+            Access::Fast
+        } else {
+            Access::Sequential
+        },
+    )?;
     let table = info
         .packet_table
         .value
         .clone()
-        .ok_or_else(|| Error::new("SQ decoder", "missing packet table"))?;
-    let range: ReplayRange = bundle
-        .range(
-            options.start_frame,
-            options.frames.unwrap_or((table.valid_frames as u64).max(1)),
-        )?
-        .into();
-    let mut decoder = Decoder::new(bundle.config())?;
-    let channels = decoder.info().channel_count;
-    let backend = implementation::backend(&decoder);
-    let state_profile = implementation::state_profile(&decoder);
-    let support_scope = implementation::support_scope(&decoder);
-    if implementation::hoa_numeric_profile(&decoder).is_some() && bundle.first_packet_index() != 0 {
-        return Err(Error::new(
-            "SQ access",
-            "HOA input must include packet zero to establish sequential state",
-        ));
-    }
-    if info.format.channels != channels {
-        return Err(Error::new(
-            "SQ decoder",
-            "input channel count disagrees with decoder",
-        ));
-    }
-    if let Some(layout) = &info.layout.value
-        && !layout.equivalent(decoder.info().layout)
-    {
-        return Err(Error::new(
-            "SQ decoder",
-            format!(
-                "input channel layout disagrees with decoder: expected cookie layout tag {:#010x}, zero bitmap and no descriptions",
-                decoder.info().layout.tag
-            ),
-        ));
-    }
-    let mut absent_elements = 0u64;
-    let mut embedded_absent_elements = 0u64;
+        .expect("checked by the reader");
+    let range = ReplayRange::from(*reader.range());
+    let channels = reader.decoder().info().channel_count;
+    let backend = implementation::backend(reader.decoder());
+    let state_profile = implementation::state_profile(reader.decoder());
+    let support_scope = implementation::support_scope(reader.decoder());
     let out = OutputDir::create(destination, Budget::new(limit))?;
     out.budget.ensure(
         pcm_bytes(range.frames, channels)?
@@ -145,104 +118,54 @@ fn decode_with_access(
     )?;
     let mut writer = out.writer("pcm.f32le")?;
     let mut hash = Sha256::new();
-    let synthesis_start = (range.frames != 0).then(|| (range.raw_start / 1024).saturating_sub(1));
-    let mut prefix_packets = 0u64;
-    let mut prefix_frames = 0u64;
-    let mut numeric_prefix_packets = 0u64;
-    let mut numeric_prefix_elements = 0u64;
-    let mut bounded_prefix_elements = 0u64;
-    let mut first_synthesis_packet = None;
     let mut state_before_output = None;
-    let (mut read_seconds, mut scan_seconds, mut synthesis_seconds) = (0., 0., 0.);
-    let (mut full_parse_seconds, mut render_seconds) = (0., 0.);
-    let mut saved = 0;
-    let (mut drc_frames, mut drc_missing_history) = (0u64, 0u64);
-    let (
-        mut decoded_packets,
-        mut warmup_packets,
-        mut absent_packets,
-        mut embedded_frames,
-        mut embedded_absent,
-    ) = (0u64, 0u64, 0u64, 0u64, 0u64);
     let mut samples = vec![0f32; 1024 * channels as usize];
     loop {
-        let timer = Instant::now();
-        let next = bundle.next_packet()?;
-        read_seconds += timer.elapsed().as_secs_f64();
-        let Some(apac_container::Packet {
-            index: packet_index,
-            raw_frame: raw,
-            bytes,
-        }) = next
-        else {
-            break;
-        };
-        if !range.drain_to_eof && raw >= range.raw_end {
-            break;
-        }
-        if access.is_some() && range.frames != 0 && raw / 1024 == range.raw_start / 1024 {
-            state_before_output = Some(metadata_sha256(&decoder));
-        }
-        if fast && synthesis_start.is_none_or(|start| packet_index < start) {
-            let timer = Instant::now();
-            let counts = decoder.advance(&bytes).map_err(|e| {
-                let mut e = Error::from(e);
-                e.packet_index = Some(packet_index);
-                e
-            })?;
-            scan_seconds += timer.elapsed().as_secs_f64();
-            prefix_packets += 1;
-            prefix_frames += counts.frames;
-            numeric_prefix_packets += u64::from(counts.numeric_elements != 0);
-            numeric_prefix_elements += counts.numeric_elements;
-            bounded_prefix_elements += counts.present_elements - counts.numeric_elements;
-            drc_frames += counts.drc_payload_frames;
-            drc_missing_history += counts.drc_missing_history_frames;
-            continue;
-        }
-        first_synthesis_packet.get_or_insert(packet_index);
-        let timer = Instant::now();
-        let decoded = decoder.parse(&bytes).and_then(|parsed| {
-            full_parse_seconds += timer.elapsed().as_secs_f64();
-            let render = Instant::now();
-            let frame = decoder.synthesize(parsed, &mut samples);
-            render_seconds += render.elapsed().as_secs_f64();
-            frame
-        });
-        let frame = &decoded.map_err(|e| {
-            let mut e = Error::from(e);
-            e.packet_index = Some(packet_index);
-            e
+        let frames = reader.read_with(&mut samples, |decoder| {
+            if access.is_some() {
+                state_before_output = Some(metadata_sha256(decoder));
+            }
         })?;
-        synthesis_seconds += timer.elapsed().as_secs_f64();
-        drc_frames += frame.drc_payload_frames;
-        drc_missing_history += frame.drc_missing_history_frames;
-        decoded_packets += 1;
-        warmup_packets += u64::from(raw + 1024 <= range.raw_start);
-        absent_packets += u64::from(frame.cpe_absent);
-        absent_elements += frame.absent_elements;
-        embedded_absent_elements += frame.embedded_absent_elements;
-        embedded_frames += frame.embedded_preroll_frames;
-        embedded_absent += frame.embedded_cpe_absent;
-        let first = raw.max(range.raw_start);
-        let last = (raw + 1024).min(range.raw_end);
-        if first < last {
-            let bytes = pcm_to_le(
-                &samples[((first - raw) * u64::from(channels)) as usize
-                    ..((last - raw) * u64::from(channels)) as usize],
-            )?;
-            writer.write_all(&bytes)?;
-            hash.update(&bytes);
-            saved += last - first;
+        if frames == 0 {
+            break;
         }
+        let bytes = pcm_to_le(&samples[..frames * channels as usize])?;
+        writer.write_all(&bytes)?;
+        hash.update(&bytes);
     }
-    let timer = Instant::now();
-    bundle.verify_remaining()?;
-    read_seconds += timer.elapsed().as_secs_f64();
+    let (bundle, decoder, stats) = reader.finish()?;
     writer.finish()?;
+    let saved = stats.saved_frames;
     if saved != range.frames {
         return Err(Error::new("SQ decoder", "incomplete PCM frame range"));
     }
+    let seconds = |d: std::time::Duration| d.as_secs_f64();
+    let timings = stats.timings;
+    let (read_seconds, scan_seconds, synthesis_seconds) = (
+        seconds(timings.read),
+        seconds(timings.scan),
+        seconds(timings.packet),
+    );
+    let (full_parse_seconds, render_seconds) =
+        (seconds(timings.parse), seconds(timings.synthesize));
+    let (drc_frames, drc_missing_history) =
+        (stats.drc_payload_frames, stats.drc_missing_history_frames);
+    let (decoded_packets, warmup_packets, absent_packets, embedded_frames, embedded_absent) = (
+        stats.decoded_packets,
+        stats.warmup_packets,
+        stats.cpe_absent_packets,
+        stats.embedded_preroll_frames,
+        stats.embedded_cpe_absent_frames,
+    );
+    let (absent_elements, embedded_absent_elements) =
+        (stats.absent_elements, stats.embedded_absent_elements);
+    let (prefix_packets, prefix_frames) = (stats.prefix_packets, stats.prefix_frames);
+    let (numeric_prefix_packets, numeric_prefix_elements, bounded_prefix_elements) = (
+        stats.prefix_numeric_packets,
+        stats.prefix_numeric_elements,
+        stats.prefix_bounded_elements,
+    );
+    let first_synthesis_packet = stats.first_synthesis_packet;
     let mut pcm = PcmInfo {
         schema_version: SCHEMA_VERSION,
         complete: true,

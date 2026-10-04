@@ -12,7 +12,7 @@ mod tests;
 use crate::{Error, Packet, PacketTable, Position, Result, Source, Track};
 use apac_core::{
     config::{self, MAX_COOKIE_BYTES},
-    research_support::frame::{self, DecodedFrameContext},
+    inspect::DecodedFrameContext,
 };
 use boxes::{Atom, Structure, atom, invalid, read, scan, u32be, u64be};
 use sha2::{Digest, Sha256};
@@ -112,7 +112,8 @@ fn cookie(file: &mut impl Source, s: &Structure) -> Result<(Vec<u8>, u32, Atom)>
         return Err(entry.error("requires version 0 apac, data reference 1 and the observed 2-channel/16-bit placeholders"));
     }
     let rate = u32be(&fields[24..]);
-    if rate & 0xffff != 0 || (rate != 0 && frame::sfb::index(u64::from(rate >> 16)).is_none()) {
+    if rate & 0xffff != 0 || (rate != 0 && !config::is_supported_sample_rate(u64::from(rate >> 16)))
+    {
         return Err(entry.error("requires an integral supported sample rate"));
     }
     let mut found = None;

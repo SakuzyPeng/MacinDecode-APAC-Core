@@ -3,7 +3,7 @@
 //! reference.
 use super::*;
 use crate::{CafReader, Error, Packet, PacketTable, test_source::Shared};
-use apac_core::{model::ChannelLayout, synthesis::StreamKind};
+use apac_core::{StreamKind, model::ChannelLayout};
 use serde_json::Value;
 
 const PRIMING: i32 = 300;

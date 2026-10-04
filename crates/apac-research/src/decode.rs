@@ -3,8 +3,9 @@ use crate::{
     model::*,
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
 };
-use crate::{implementation, input::Input, packets::ReplayRange, synthesis::Decoder};
+use crate::{implementation, input::Input, packets::ReplayRange};
 use apac_container::{Access, PacketSource, Reader};
+use apac_core::Decoder;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
@@ -36,7 +37,7 @@ pub(crate) fn metadata_sha256(decoder: &Decoder) -> String {
         value["previous_sequences"] = json!(drc.previous_sequences);
     }
     if drc.shared_syntax_used {
-        value["shared_drc_syntax_profile"] = json!(apac_core::frame::HOA_SHARED_DRC_PROFILE);
+        value["shared_drc_syntax_profile"] = json!(crate::identity::HOA_SHARED_DRC_PROFILE);
     }
     if let Some(graph) = &drc.scene_graph {
         value["scene_graph"] = json!(graph);
@@ -199,21 +200,21 @@ fn decode_with_access(
                 "packet_state_profile":state_profile,
                 "support_scope":support_scope,
                 "drc_processing":"off", "loudness_normalization":"off",
-                "drc_rules_version":crate::frame::DRC_RULES_VERSION,
-                "drc_codebook_sha256":crate::frame::drc_codebook_sha256(),
+                "drc_rules_version":crate::identity::DRC_RULES_VERSION,
+                "drc_codebook_sha256":crate::identity::drc_codebook_sha256(),
                 "drc_payloads_complete":true,
-                "numeric_profile":crate::synthesis::NUMERIC_PROFILE,
-                "cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,
-                "cac_tables_sha256":crate::frame::cac_math_sha256(),
-                "tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,
-                "tns_tables_sha256":crate::frame::tns_math_sha256(),
-                "bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,
-                "bwe2_format_sha256":crate::bwe2_math::format_sha256(),
-                "bwe2_tables_sha256":crate::bwe2_math::math_sha256(),
+                "numeric_profile":crate::identity::NUMERIC_PROFILE,
+                "cac_numeric_profile":crate::identity::CAC_NUMERIC_PROFILE,
+                "cac_tables_sha256":crate::identity::cac_math_sha256(),
+                "tns_numeric_profile":crate::identity::TNS_NUMERIC_PROFILE,
+                "tns_tables_sha256":crate::identity::tns_math_sha256(),
+                "bwe2_numeric_profile":crate::identity::BWE2_NUMERIC_PROFILE,
+                "bwe2_format_sha256":crate::identity::bwe2_format_sha256(),
+                "bwe2_tables_sha256":crate::identity::bwe2_math_sha256(),
                 "qualification":implementation::QUALIFICATION,
                 "compiler":env!("APAC_BUILD_RUSTC"),
                 "debug_assertions":cfg!(debug_assertions),
-                "tables_sha256":crate::numeric::tables_sha256()
+                "tables_sha256":crate::identity::numeric_tables_sha256()
             })),
         )]),
         all_finite: true,
@@ -242,10 +243,10 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        value["hoa_multiple_asc_profile"] = json!(crate::frame::stream::PROFILE);
+        value["hoa_multiple_asc_profile"] = json!(crate::identity::STREAM_PROFILE);
         value["components"] = json!(components);
         value["hoa_shared_config_format_sha256"] =
-            json!(crate::frame::hoa_shared_config_format_sha256());
+            json!(crate::identity::hoa_shared_config_format_sha256());
         if let Some(context) = decoder.composite()
             && !context.additional_components().is_empty()
         {
@@ -260,8 +261,8 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        value["shared_drc_syntax_profile"] = json!(crate::frame::HOA_SHARED_DRC_PROFILE);
-        value["shared_drc_format_sha256"] = json!(crate::frame::hoa_shared_drc_format_sha256());
+        value["shared_drc_syntax_profile"] = json!(crate::identity::HOA_SHARED_DRC_PROFILE);
+        value["shared_drc_format_sha256"] = json!(crate::identity::hoa_shared_drc_format_sha256());
     }
     if let Some(context) = decoder.hoa() {
         let value = pcm
@@ -272,18 +273,18 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         if context.shared_configuration_enabled() {
-            value["hoa_shared_config_profile"] = json!(crate::frame::HOA_SHARED_CONFIG_PROFILE);
+            value["hoa_shared_config_profile"] = json!(crate::identity::HOA_SHARED_CONFIG_PROFILE);
             value["hoa_shared_config_format_sha256"] =
-                json!(crate::frame::hoa_shared_config_format_sha256());
+                json!(crate::identity::hoa_shared_config_format_sha256());
             value["hoa_sfb_sample_rate_hz"] = json!(context.sfb_sample_rate_hz());
         }
         if let Some(mapping) = context.static_remapping() {
             value["hoa_static_remapping"] = json!(mapping);
         }
         if context.source_layout_enabled() {
-            value["hoa_source_layout_profile"] = json!(crate::frame::HOA_SOURCE_LAYOUT_PROFILE);
+            value["hoa_source_layout_profile"] = json!(crate::identity::HOA_SOURCE_LAYOUT_PROFILE);
             value["hoa_source_layout_format_sha256"] =
-                json!(crate::frame::hoa_source_layout_format_sha256());
+                json!(crate::identity::hoa_source_layout_format_sha256());
             value["hoa_source_layout"] = json!(context.channel_layout());
             value["hoa_source_channel_count"] = json!(context.channel_count());
             if let Some(normalization) = context.source_normalization() {
@@ -292,34 +293,36 @@ fn decode_with_access(
         }
         if context.controls_extended() {
             value["hoa_spatial_controls_profile"] =
-                json!(crate::frame::HOA_SPATIAL_CONTROLS_PROFILE);
+                json!(crate::identity::HOA_SPATIAL_CONTROLS_PROFILE);
             value["hoa_spatial_controls_format_sha256"] =
-                json!(crate::frame::hoa_spatial_controls_format_sha256());
+                json!(crate::identity::hoa_spatial_controls_format_sha256());
             value["hoa_spatial_controls"] = json!(context.spatial_controls());
             if context.spatial_controls().flag_b {
                 value["hoa_frame_configuration_state_sha256"] =
-                    json!(crate::frame::hoa_frame_configuration_state_sha256());
+                    json!(crate::identity::hoa_frame_configuration_state_sha256());
             }
         }
         if context.dynamic_domains_extended() {
-            value["hoa_dynamic_domains_profile"] = json!(crate::frame::HOA_DYNAMIC_DOMAINS_PROFILE);
+            value["hoa_dynamic_domains_profile"] =
+                json!(crate::identity::HOA_DYNAMIC_DOMAINS_PROFILE);
             value["hoa_dynamic_domains_format_sha256"] =
-                json!(crate::frame::hoa_dynamic_domains_format_sha256());
+                json!(crate::identity::hoa_dynamic_domains_format_sha256());
         }
         if !context.full_order() {
-            value["hoa_partial_domain_profile"] = json!(crate::frame::HOA_PARTIAL_PROFILE);
+            value["hoa_partial_domain_profile"] = json!(crate::identity::HOA_PARTIAL_PROFILE);
             value["hoa_full_order"] = json!(false);
             value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
             value["hoa_output_coefficient_count"] = json!(context.channel_count());
         }
         if context.expanded_orders() {
-            value["hoa_expanded_orders_profile"] = json!(crate::frame::HOA_EXPANDED_ORDERS_PROFILE);
-            value["hoa_expanded_math_sha256"] = json!(crate::frame::hoa_expanded_math_sha256());
+            value["hoa_expanded_orders_profile"] =
+                json!(crate::identity::HOA_EXPANDED_ORDERS_PROFILE);
+            value["hoa_expanded_math_sha256"] = json!(crate::identity::hoa_expanded_math_sha256());
         }
         if context.transport_extended() {
-            value["hoa_transport_profile"] = json!(crate::frame::HOA_TRANSPORT_PROFILE);
+            value["hoa_transport_profile"] = json!(crate::identity::HOA_TRANSPORT_PROFILE);
             value["hoa_transport_format_sha256"] =
-                json!(crate::frame::hoa_transport_format_sha256());
+                json!(crate::identity::hoa_transport_format_sha256());
             value["hoa_transport_channels"] = json!(context.transport_channels());
             value["hoa_core_channels"] = json!(context.core_channels());
             value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
@@ -377,14 +380,14 @@ fn decode_with_access(
                 .any(|c| c.order == 1)
             {
                 value["hoa_salient_order1_profile"] =
-                    json!(crate::frame::HOA_SALIENT_ORDER1_PROFILE);
+                    json!(crate::identity::HOA_SALIENT_ORDER1_PROFILE);
             }
         } else {
-            value["hoa_format_sha256"] = json!(crate::frame::hoa_salient_format_sha256(
+            value["hoa_format_sha256"] = json!(crate::identity::hoa_salient_format_sha256(
                 context.recovery_slot_count()
             ));
         }
-        value["hoa_tables_sha256"] = json!(crate::frame::hoa_salient_math_sha256());
+        value["hoa_tables_sha256"] = json!(crate::identity::hoa_salient_math_sha256());
         if let Some(context) = decoder.hoa()
             && (context.ambient_components() != 0 || context.dynamic_selection_enabled())
         {
@@ -399,8 +402,8 @@ fn decode_with_access(
             .value
             .as_mut()
             .unwrap();
-        value["hoa_ambient_format_sha256"] = json!(crate::frame::hoa_ambient_format_sha256());
-        value["hoa_ambient_tables_sha256"] = json!(crate::frame::hoa_ambient_math_sha256());
+        value["hoa_ambient_format_sha256"] = json!(crate::identity::hoa_ambient_format_sha256());
+        value["hoa_ambient_tables_sha256"] = json!(crate::identity::hoa_ambient_math_sha256());
     }
     if let Some(context) = decoder.hoa()
         && context.dynamic_selection_enabled()
@@ -414,13 +417,13 @@ fn decode_with_access(
             .unwrap();
         value["hoa_recovery_numeric_profile"] = json!(context.recovery_numeric_profile());
         value["hoa_dynamic_format_sha256"] = json!(if context.dynamic_domains_extended() {
-            crate::frame::hoa_dynamic_domains_format_sha256()
+            crate::identity::hoa_dynamic_domains_format_sha256()
         } else if context.spatial_controls().flag_f {
-            crate::frame::hoa_dynamic_format_sha256(
+            crate::identity::hoa_dynamic_format_sha256(
                 context.dynamic_subband_count().expect("dynamic bands"),
             )
         } else {
-            crate::frame::hoa_spatial_controls_format_sha256()
+            crate::identity::hoa_spatial_controls_format_sha256()
         });
         value["hoa_internal_order"] = json!(context.order());
         if let Some(order) = context.channel_layout().ambisonic_order {
@@ -434,11 +437,12 @@ fn decode_with_access(
         value["hoa_recovery_slot_count"] = json!(context.recovery_slot_count());
         if let Some(count) = context.dynamic_subband_count().filter(|&n| n < 8) {
             value["hoa_dynamic_subband_count"] = json!(count);
-            value["hoa_dynamic_subband_profile"] = json!(crate::frame::HOA_DYNAMIC_SUBBAND_PROFILE);
+            value["hoa_dynamic_subband_profile"] =
+                json!(crate::identity::HOA_DYNAMIC_SUBBAND_PROFILE);
         }
     }
     if let Some(context) = decoder.hoa()
-        && context.ambient_combination() == crate::frame::AmbientCombination::Add
+        && context.ambient_combination() == crate::inspect::AmbientCombination::Add
     {
         let value = pcm
             .decoder_settings
@@ -473,24 +477,24 @@ fn decode_with_access(
             .as_mut()
             .unwrap();
         value["hoa_salient_subband_counts"] = json!(counts);
-        value["hoa_salient_subband_profile"] = json!(crate::frame::HOA_SALIENT_SUBBAND_PROFILE);
+        value["hoa_salient_subband_profile"] = json!(crate::identity::HOA_SALIENT_SUBBAND_PROFILE);
         value["hoa_salient_subband_format_sha256"] =
             json!(if decoder.hoa().unwrap().spatial_controls().flag_f {
-                crate::frame::hoa_salient_subbands_format_sha256(method)
+                crate::identity::hoa_salient_subbands_format_sha256(method)
             } else {
-                crate::frame::hoa_spatial_controls_format_sha256()
+                crate::identity::hoa_spatial_controls_format_sha256()
             });
         if method != 0 {
             value["hoa_salient_partition_method"] = json!(method);
             value["hoa_salient_partition_profile"] =
-                json!(crate::frame::HOA_SALIENT_PARTITION_PROFILE);
+                json!(crate::identity::HOA_SALIENT_PARTITION_PROFILE);
         }
     }
     out.json("pcm.json", &pcm)?;
-    let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":crate::synthesis::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":implementation::QUALIFICATION,"backend":backend,"native_apis_used":false,
+    let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":crate::identity::NUMERIC_PROFILE,"cac_numeric_profile":crate::identity::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::identity::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::identity::tns_math_sha256(),"bwe2_numeric_profile":crate::identity::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::identity::bwe2_format_sha256(),"bwe2_tables_sha256":crate::identity::bwe2_math_sha256(),"numerical_qualification":implementation::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,
         "drc_processing":"off","loudness_normalization":"off",
-        "drc_rules_version":crate::frame::DRC_RULES_VERSION,
+        "drc_rules_version":crate::identity::DRC_RULES_VERSION,
         "drc_payloads_complete":true,"drc_payload_frames":drc_frames,
         "drc_frames_without_prior_gain_node":drc_missing_history,
         "packets":decoded_packets,"integrity_checked_packets":bundle.consumed_packets(),

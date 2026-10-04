@@ -1,6 +1,7 @@
 //! Real-media streaming check driven by validate_hoa_media.py.
-use crate::{input::Input, synthesis::Decoder};
+use crate::input::Input;
 use apac_container::{Access, Reader};
+use apac_core::Decoder;
 
 fn check_media_decoder(decoder: &Decoder) {
     assert!(crate::implementation::hoa_numeric_profile(decoder).is_some());
@@ -62,7 +63,7 @@ fn hoa_media_stream_digest() {
     let embedded_frames = stats.embedded_preroll_frames;
     assert_eq!(frames, table.valid_frames as u64);
     assert_eq!(Some(packets), info.packet_count.value);
-    let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::frame::HOA_NUMERIC_PROFILE,"layout":decoder.info().layout,"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
+    let report = serde_json::json!({"passed":true,"packets":packets,"valid_frames":frames,"pcm_sha256":format!("{:x}",hash.finalize()),"channels":16,"numeric_profile":crate::identity::HOA_NUMERIC_PROFILE,"layout":decoder.info().layout,"input":source.report(),"drc_payload_frames":drc_payload_frames,"embedded_frames":embedded_frames,"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
     serde_json::to_writer_pretty(&mut output, &report).unwrap();
     output.write_all(b"\n").unwrap();
 }

@@ -1,7 +1,7 @@
 //! Report identifiers of the independent decoder: backend, support scope and
 //! state, numeric and layout profiles. They name the path a configuration
 //! selected in `decode-sq` reports; the core decoder does not carry them.
-use crate::frame;
+use crate::{identity, inspect};
 use apac_core::{Decoder, StreamKind};
 
 /// Stereo SQ with neutral scene metadata and ASP.
@@ -71,7 +71,7 @@ pub fn backend(decoder: &Decoder) -> &'static str {
             HOA_COUNTS_BACKEND
         } else if context.component_orders_extended() {
             HOA_COMPONENT_ORDERS_BACKEND
-        } else if context.ambient_combination() == frame::AmbientCombination::Add {
+        } else if context.ambient_combination() == inspect::AmbientCombination::Add {
             HOA_ADDITIVE_BACKEND
         } else if context.dynamic_selection_enabled() {
             HOA_DYNAMIC_BACKEND
@@ -93,15 +93,15 @@ pub fn backend(decoder: &Decoder) -> &'static str {
 }
 pub fn state_profile(decoder: &Decoder) -> &'static str {
     if decoder.composite().is_some() {
-        return frame::stream::STATE_PROFILE;
+        return identity::STREAM_STATE_PROFILE;
     }
     if let Some(context) = decoder.hoa() {
         return context.state_profile();
     }
     if decoder.info().kind == StreamKind::Channels {
-        frame::CHANNEL_STATE_PROFILE
+        identity::CHANNEL_STATE_PROFILE
     } else {
-        frame::STATE_PROFILE
+        identity::PACKET_STATE_PROFILE
     }
 }
 pub fn support_scope(decoder: &Decoder) -> &'static str {
@@ -142,7 +142,7 @@ pub fn support_scope(decoder: &Decoder) -> &'static str {
         if context.salient_components() != 0 && context.salient_components() != 5 {
             return "hoa_variable_salient_counts_sq_drc_off";
         }
-        if context.ambient_combination() == frame::AmbientCombination::Add {
+        if context.ambient_combination() == inspect::AmbientCombination::Add {
             return if context.dynamic_selection_enabled() {
                 "hoa_dynamic9_to16_additive_sq_drc_off"
             } else if context.order() == 2 {

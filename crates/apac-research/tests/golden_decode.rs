@@ -5,8 +5,8 @@
 //! The recorded digests describe this implementation, not independent truth:
 //! they only prove that a refactor left the observable results unchanged.
 //! Regenerate deliberately with `APAC_GOLDEN_WRITE=1 cargo test --test golden_decode`.
-use apac_core::frame;
-use apac_core::synthesis::Decoder;
+use apac_core::Decoder;
+use apac_core::inspect;
 use apac_research::config::parse_cookie;
 use serde::Serialize;
 use serde_json::{Map, Value, json};
@@ -99,23 +99,23 @@ fn report(cookie: &[u8], packet: &[u8]) -> Value {
     let stream = field("global.component_count").is_some_and(|v| v.as_u64() > Some(1))
         || field("global.additional_asc_present").is_some_and(|v| v == true);
     if stream {
-        return match frame::StreamFrameContext::from_cookie(cookie) {
-            Ok(c) => outcome(frame::parse_stream_packet(&c, packet)),
+        return match inspect::StreamFrameContext::from_cookie(cookie) {
+            Ok(c) => outcome(inspect::parse_stream_packet(&c, packet)),
             Err(e) => json!({"context_error": e.to_string()}),
         };
     }
     if field("components[0].type").is_some_and(|v| v == 2) {
-        return match frame::HoaFrameContext::from_cookie(cookie) {
-            Ok(c) => outcome(frame::parse_hoa_packet(&c, packet)),
+        return match inspect::HoaFrameContext::from_cookie(cookie) {
+            Ok(c) => outcome(inspect::parse_hoa_packet(&c, packet)),
             Err(e) => json!({"context_error": e.to_string()}),
         };
     }
-    let channels = match frame::ChannelFrameContext::from_cookie(cookie) {
-        Ok(c) => outcome(frame::parse_channel_packet(&c, packet)),
+    let channels = match inspect::ChannelFrameContext::from_cookie(cookie) {
+        Ok(c) => outcome(inspect::parse_channel_packet(&c, packet)),
         Err(e) => json!({"context_error": e.to_string()}),
     };
-    let stereo = match frame::FrameContext::from_cookie(cookie) {
-        Ok(c) => outcome(frame::parse_packet(&c, packet)),
+    let stereo = match inspect::FrameContext::from_cookie(cookie) {
+        Ok(c) => outcome(inspect::parse_packet(&c, packet)),
         Err(e) => json!({"context_error": e.to_string()}),
     };
     json!({"channels": channels, "stereo": stereo})

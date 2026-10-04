@@ -13,7 +13,7 @@ use std::{
     path::{Component, Path},
 };
 
-pub use apac_core::frame::MAX_PACKET_BUFFER;
+pub use apac_core::MAX_PACKET_BUFFER;
 pub const MAX_PREROLL_PACKETS: u64 = 4096;
 const MAX_METADATA: u64 = 1024 * 1024;
 const MAX_INDEX_LINE: u64 = 65536;

@@ -49,6 +49,17 @@ impl ChannelLayout {
                 .then(|| if tag >> 16 == 190 { "SN3D" } else { "N3D" }.into()),
         }
     }
+    /// The qualified discrete layout for a channel count (Mono, Stereo, 5.1,
+    /// 7.1, 7.1.4 and 22.2), tagged with its layout family; `None` for any
+    /// other count, which only a qualified HOA configuration can carry.
+    pub fn discrete(channels: u32) -> Option<Self> {
+        let layout = crate::channel_layout::layout(u64::from(channels))?;
+        Some(Self::tagged(
+            ((layout.family as u32) << 16) | channels,
+            channels,
+            Some(layout.name.into()),
+        ))
+    }
 }
 
 #[cfg(test)]
@@ -60,5 +71,20 @@ mod tests {
         for n in (0..=1 << 20).chain(squares).chain([u32::MAX]) {
             assert_eq!(n.isqrt(), former(n), "{n}");
         }
+    }
+    #[test]
+    fn discrete_layouts_match_the_tagged_family_layouts() {
+        use super::ChannelLayout;
+        for channels in 0..=256u32 {
+            let former = crate::channel_layout::layout(u64::from(channels)).map(|layout| {
+                ChannelLayout::tagged(
+                    ((layout.family as u32) << 16) | channels,
+                    channels,
+                    Some(layout.name.into()),
+                )
+            });
+            assert_eq!(ChannelLayout::discrete(channels), former, "{channels}");
+        }
+        assert_eq!(ChannelLayout::discrete(2).unwrap().tag, (101 << 16) | 2);
     }
 }

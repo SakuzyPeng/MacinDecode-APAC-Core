@@ -1,6 +1,6 @@
 //! Synthetic syntax only: no real media cookie or packet is embedded here.
+use apac_core::Decoder;
 use apac_core::frame::{FrameContext, FrameReport, parse_frame, parse_packet};
-use apac_core::synthesis::Decoder;
 use apac_research::config::{ParseStatus, parse_cookie};
 use apac_research::packets::MAX_PACKET_BUFFER;
 use serde_json::json;
@@ -533,7 +533,7 @@ mod bundles {
 
 mod spectrum_tests {
     use super::*;
-    use apac_core::frame::parse_spectrum;
+    use apac_core::inspect::parse_spectrum;
 
     fn book(name: &str) -> serde_json::Value {
         serde_json::from_str::<serde_json::Value>(include_str!("../../../data/sq-codebooks.json"))
@@ -683,8 +683,8 @@ mod spectrum_tests {
 
 mod synthesis_tests {
     use super::*;
-    use apac_core::frame::parse_spectrum;
-    use apac_core::synthesis::Decoder;
+    use apac_core::Decoder;
+    use apac_core::inspect::parse_spectrum;
     fn packet(block: u64, active: bool) -> Vec<u8> {
         let mut b = Bits::default();
         b.fields(&[
@@ -841,8 +841,8 @@ mod synthesis_tests {
 
 mod cac_tests {
     use super::*;
+    use apac_core::Decoder;
     use apac_core::frame::{parse_cac, parse_spectrum};
-    use apac_core::synthesis::Decoder;
 
     pub(super) fn packet(block: u64, gain: usize) -> Vec<u8> {
         let books: serde_json::Value =
@@ -1020,8 +1020,8 @@ mod cac_tests {
 
 mod tns_tests {
     use super::*;
+    use apac_core::Decoder;
     use apac_core::frame::{parse_cac, parse_tns};
-    use apac_core::synthesis::Decoder;
     fn packet(order: u64, length: u64, bwe: u64) -> Vec<u8> {
         let source = super::cac_tests::packet(0, 9);
         let end = parse_cac(&context(), &source)
@@ -1101,8 +1101,8 @@ mod tns_tests {
 
 mod bwe2_tests {
     use super::*;
-    use apac_core::frame::parse_bwe2;
-    use apac_core::synthesis::Decoder;
+    use apac_core::Decoder;
+    use apac_core::inspect::parse_bwe2;
     fn bytes(hex: &str) -> Vec<u8> {
         let (pairs, remainder) = hex.as_bytes().as_chunks::<2>();
         assert!(remainder.is_empty());

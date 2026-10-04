@@ -1,7 +1,7 @@
 //! Sequential run/table cursors, independent of packet count in memory usage.
 use super::boxes::{Atom, MediaCursor, Structure, invalid, u32be, u64be};
 use crate::{Result, Source};
-use apac_core::frame::MAX_PACKET_BUFFER;
+use apac_core::MAX_PACKET_BUFFER;
 
 #[derive(Clone, Copy)]
 struct Table {

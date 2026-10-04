@@ -1,7 +1,7 @@
 //! Range-limited PCM decoding over a [`PacketSource`]: packet selection,
 //! priming and range cropping, sequential or fast (state-only prefix) access.
 use crate::{PacketSource, Range};
-use apac_core::{Decoder, error::DecodeError, synthesis::StreamKind};
+use apac_core::{Decoder, StreamKind, error::DecodeError};
 use std::{
     fmt,
     time::{Duration, Instant},

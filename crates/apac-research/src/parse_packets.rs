@@ -1,4 +1,4 @@
-use crate::frame::{
+use crate::inspect::{
     FrameContext, parse_bwe2, parse_cac, parse_frame, parse_packet_with_state, parse_spectrum,
     parse_tns,
 };
@@ -76,7 +76,7 @@ pub fn parse_packets_with_depth(
         depth
     };
     let stream_context = if depth == ParseDepth::Stream {
-        Some(crate::frame::StreamFrameContext::from_config(&config)?)
+        Some(crate::inspect::StreamFrameContext::from_config(&config)?)
     } else {
         None
     };
@@ -85,19 +85,19 @@ pub fn parse_packets_with_depth(
         .map(|c| c.initial_state())
         .unwrap_or_default();
     let channel_context = if depth == ParseDepth::Channels {
-        Some(crate::frame::ChannelFrameContext::from_config(&config))
+        Some(crate::inspect::ChannelFrameContext::from_config(&config))
     } else {
         None
     };
     let hoa_context = if depth == ParseDepth::Hoa {
-        Some(crate::frame::HoaFrameContext::from_config(&config))
+        Some(crate::inspect::HoaFrameContext::from_config(&config))
     } else {
         None
     };
-    let mut hoa_state = crate::frame::HoaState::default();
+    let mut hoa_state = crate::inspect::HoaState::default();
     let mut hoa_complete = 0u64;
     let mut drc_state = channel_context.as_ref().map_or_else(
-        || crate::frame::drc::DrcState::new(&context),
+        || crate::inspect::DrcState::new(&context),
         |c| c.initial_state(),
     );
     if let Some(hoa) = &hoa_context {
@@ -163,13 +163,13 @@ pub fn parse_packets_with_depth(
             .ok_or_else(|| Error::new("parse-packets", "unexpected packet EOF"))?;
         if packet.packet_index < start {
             if let Some(context) = &stream_context {
-                let previous = crate::frame::stream::parse_with_state(
+                let previous = crate::inspect::parse_stream_packet_with_state(
                     context,
                     &bytes,
                     &mut drc_state,
                     &mut stream_state,
-                    crate::frame::ParseMode::Report,
-                    &mut crate::frame::ScanWorkspace::default(),
+                    crate::inspect::ParseMode::Report,
+                    &mut crate::inspect::ScanWorkspace::default(),
                 )
                 .map_err(|e| {
                     let mut error: Error = e.into();
@@ -189,7 +189,7 @@ pub fn parse_packets_with_depth(
                 }
             }
             if let Some(context) = &hoa_context {
-                let previous = crate::frame::parse_hoa_packet_with_state(
+                let previous = crate::inspect::parse_hoa_packet_with_state(
                     context,
                     &bytes,
                     &mut drc_state,
@@ -213,13 +213,16 @@ pub fn parse_packets_with_depth(
                 }
             }
             if let Some(context) = &channel_context {
-                let result =
-                    crate::frame::parse_channel_packet_with_state(context, &bytes, &mut drc_state)
-                        .map_err(|e| {
-                            let mut e: Error = e.into();
-                            e.packet_index = Some(packet.packet_index);
-                            e
-                        })?;
+                let result = crate::inspect::parse_channel_packet_with_state(
+                    context,
+                    &bytes,
+                    &mut drc_state,
+                )
+                .map_err(|e| {
+                    let mut e: Error = e.into();
+                    e.packet_index = Some(packet.packet_index);
+                    e
+                })?;
                 if !result.packet_complete {
                     let mut e = Error::new(
                         "parse-packets",
@@ -233,13 +236,13 @@ pub fn parse_packets_with_depth(
         }
         eprintln!("parse packet {}", packet.packet_index);
         let result = match depth {
-            ParseDepth::Stream => crate::frame::stream::parse_with_state(
+            ParseDepth::Stream => crate::inspect::parse_stream_packet_with_state(
                 stream_context.as_ref().expect("stream context"),
                 &bytes,
                 &mut drc_state,
                 &mut stream_state,
-                crate::frame::ParseMode::Report,
-                &mut crate::frame::ScanWorkspace::default(),
+                crate::inspect::ParseMode::Report,
+                &mut crate::inspect::ScanWorkspace::default(),
             )
             .map(|report| {
                 for component in &report.components {
@@ -259,7 +262,7 @@ pub fn parse_packets_with_depth(
                     Some(serde_json::to_value(report).expect("finite stream report")),
                 )
             }),
-            ParseDepth::Hoa => crate::frame::parse_hoa_packet_with_state(
+            ParseDepth::Hoa => crate::inspect::parse_hoa_packet_with_state(
                 hoa_context.as_ref().expect("HOA context"),
                 &bytes,
                 &mut drc_state,
@@ -280,7 +283,7 @@ pub fn parse_packets_with_depth(
                     Some(serde_json::to_value(report).expect("finite HOA packet")),
                 )
             }),
-            ParseDepth::Channels => crate::frame::parse_channel_packet_with_state(
+            ParseDepth::Channels => crate::inspect::parse_channel_packet_with_state(
                 channel_context.as_ref().expect("channel context"),
                 &bytes,
                 &mut drc_state,
@@ -352,26 +355,24 @@ pub fn parse_packets_with_depth(
                 )
             }),
             ParseDepth::Drc => {
-                crate::frame::drc::parse_drc_with_state(&context, &bytes, &mut drc_state).map(
-                    |drc| {
-                        let bwe2 = &drc.bwe2;
-                        let tns = &bwe2.tns;
-                        let cac = &tns.cac;
-                        spectra += u64::from(cac.spectrum.spectrum_complete);
-                        left += u64::from(!cac.spectrum.channels.is_empty());
-                        right += u64::from(cac.spectrum.channels.len() == 2);
-                        absent += u64::from(cac.spectrum.frame.cpe_absent);
-                        cac_complete += u64::from(cac.cac_complete);
-                        shared_ics += u64::from(cac.shared_ics);
-                        tns_complete += u64::from(tns.tns_complete);
-                        bwe2_complete += u64::from(bwe2.bwe2_complete);
-                        drc_complete += u64::from(drc.drc_complete);
-                        (
-                            cac.spectrum.frame.clone(),
-                            Some(serde_json::to_value(drc).expect("DRC integer report")),
-                        )
-                    },
-                )
+                crate::inspect::parse_drc_with_state(&context, &bytes, &mut drc_state).map(|drc| {
+                    let bwe2 = &drc.bwe2;
+                    let tns = &bwe2.tns;
+                    let cac = &tns.cac;
+                    spectra += u64::from(cac.spectrum.spectrum_complete);
+                    left += u64::from(!cac.spectrum.channels.is_empty());
+                    right += u64::from(cac.spectrum.channels.len() == 2);
+                    absent += u64::from(cac.spectrum.frame.cpe_absent);
+                    cac_complete += u64::from(cac.cac_complete);
+                    shared_ics += u64::from(cac.shared_ics);
+                    tns_complete += u64::from(tns.tns_complete);
+                    bwe2_complete += u64::from(bwe2.bwe2_complete);
+                    drc_complete += u64::from(drc.drc_complete);
+                    (
+                        cac.spectrum.frame.clone(),
+                        Some(serde_json::to_value(drc).expect("DRC integer report")),
+                    )
+                })
             }
             ParseDepth::Packet => {
                 parse_packet_with_state(&context, &bytes, &mut drc_state).map(|packet| {

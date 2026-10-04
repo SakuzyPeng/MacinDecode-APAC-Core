@@ -1,5 +1,5 @@
 //! Compact exhaustive syntax acceptance. Input templates/truth are Python-authored.
-use apac_core::frame::{ChannelFrameContext, parse_channel_packet};
+use apac_core::inspect::{ChannelFrameContext, parse_channel_packet};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{fs::OpenOptions, io::Write, path::PathBuf};

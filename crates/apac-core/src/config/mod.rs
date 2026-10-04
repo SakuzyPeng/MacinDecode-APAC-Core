@@ -24,6 +24,12 @@ pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
 // addressable, which also bounds the parsers' unchecked `len() * 8`.
 const _: () = assert!(MAX_COOKIE_BYTES <= u32::MAX as usize / 8);
 
+/// Whether `hz` is one of the sample rates the configuration syntax can
+/// describe (its sample-rate index table).
+pub fn is_supported_sample_rate(hz: u64) -> bool {
+    crate::frame::sfb::index(hz).is_some()
+}
+
 pub use crate::record::{ConfigField, DigestUnit, FieldValue};
 pub(crate) use model::*;
 pub use model::{Config, Field, Located};
@@ -118,4 +124,21 @@ fn parse_with(data: &[u8], record: bool) -> Result<(Config, Option<Recording>), 
         return Err(ParseError::new(0, "input-limit", "cookie exceeds 8 MiB"));
     }
     parser::parse(data, record)
+}
+
+#[cfg(test)]
+mod sample_rate_tests {
+    #[test]
+    fn supported_sample_rates_are_the_index_table() {
+        let rates = [
+            96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350,
+        ];
+        for hz in 0..=200_000 {
+            assert_eq!(
+                super::is_supported_sample_rate(hz),
+                rates.contains(&hz),
+                "{hz}"
+            );
+        }
+    }
 }

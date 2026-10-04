@@ -4,10 +4,10 @@
 //! No packet index or unknown chunk payload is retained in memory.
 use crate::{Error, Packet, PacketTable, Result, Source, Track, read_at};
 use apac_core::{
+    MAX_PACKET_BUFFER,
     config::{self, MAX_COOKIE_BYTES},
-    frame::MAX_PACKET_BUFFER,
+    inspect::DecodedFrameContext,
     model::ChannelLayout,
-    research_support::{channel_layout, frame},
 };
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, time::SystemTime};
@@ -191,7 +191,7 @@ impl<R: Source> CafReader<R> {
             .map(|b| u32::from_be_bytes(*b))
             .collect();
         let channels = ints[4];
-        let layout = channel_layout::layout(u64::from(channels));
+        let layout = ChannelLayout::discrete(channels);
         let hoa_count = (1..=255).contains(&channels);
         if layout.is_none() && !hoa_count {
             return Err(invalid(
@@ -201,7 +201,8 @@ impl<R: Source> CafReader<R> {
             ));
         }
         let expected = [u32::from_be_bytes(*b"apac"), 0, 0, 1024, channels, 0];
-        if !rate.is_finite() || rate.fract() != 0. || frame::sfb::index(rate as u64).is_none() {
+        if !rate.is_finite() || rate.fract() != 0. || !config::is_supported_sample_rate(rate as u64)
+        {
             return Err(invalid(
                 b"desc",
                 desc.offset,
@@ -229,7 +230,7 @@ impl<R: Source> CafReader<R> {
             e
         })?;
         let output_layout = if parsed.has_hoa_component() {
-            let context = frame::DecodedFrameContext::from_config(&parsed)?;
+            let context = DecodedFrameContext::from_config(&parsed)?;
             if let Some(reason) = context.rejection() {
                 return Err(Error::new(
                     "SQ decoder",
@@ -241,18 +242,13 @@ impl<R: Source> CafReader<R> {
                 .expect("qualified stream layout")
                 .clone()
         } else {
-            let layout = layout.ok_or_else(|| {
+            layout.ok_or_else(|| {
                 invalid(
                     b"kuki",
                     kuki.offset,
                     "this channel count requires a qualified HOA ASC",
                 )
-            })?;
-            ChannelLayout::tagged(
-                ((layout.family as u32) << 16) | channels,
-                channels,
-                Some(layout.name.into()),
-            )
+            })?
         };
         let layout_tag = output_layout.tag;
         for (key, value, want) in [

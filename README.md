@@ -849,11 +849,12 @@ let (source, decoder, stats) = reader.finish()?;   // 补读剩余包，完成�
 ```
 
 - **数据来源**：`PacketSource` 统一 CAF、MP4（`apac-container`）和包目录（`apac-research`）。它提供流描述、帧范围、首包序号、是否允许快速访问，以及按遍读取的包。每一遍都从首包开始，读到末尾时与打开时的首遍核对，并重新扫描结构。
-- **打开**：`Reader::open` 的检查顺序和拒绝文本与 `decode-sq` 一致。快速访问只用于 CAF/MP4；HOA 和组合流必须包含第 0 包；声道数和布局必须与 cookie 一致。
+- **打开**：`Reader::open` 的配置检查顺序和拒绝文本与 `decode-sq` 一致。快速访问只用于 CAF/MP4；HOA 和组合流必须包含第 0 包；声道数和布局必须与 cookie 一致。传入已消费过包的来源（包括 `finish` 返回的来源）时，先补完当前遍的完整性校验，再倒回首包建立完整解码历史。
 - **读取**：`read` 每次返回下一包中落在范围内的帧数，读完返回 0。`read_with` 另外在输出起点那一包之前回调，供报告记录 `metadata_before_output_sha256`。`Sequential` 从首包起逐包完整解码；`Fast` 对输出前一包之前的前缀只推进状态，从那一包起完整解码。
 - **定位**：`seek(frame)` 接受窗口起点到当前范围终点之间的任意帧，结果与在该点新打开的 Reader 逐位相同。
   - 向前跳时，若剩余包的处理方式与新 Reader 完全一致（尚未越过它要完整解码的第一包，且没有读了却未解码的包），就在当前这一遍继续；
-  - 否则倒回首包、重置解码器、重放前缀，新的一遍读到末尾时重新校验，所以两遍之间被修改的文件会被拒绝。
+  - 否则先补读当前遍剩余的包并完成校验，成功后才倒回首包、重置解码器、重放前缀；新的一遍读到末尾时再次校验。此前已返回 PCM 对应的摘要不会因 seek 丢失，这也意味着回退可能需要读取剩余文件。
+- **失败恢复**：包解码失败后，后续 `read` 和 `finish` 会拒绝，必须先成功 `seek`，再从首包重放前缀；失败包不会被定位操作跳过。来源读取、校验或回退失败会使该 Reader 终止使用，后续 `read`、`seek` 和 `finish` 均拒绝。
 - **统计**：`stats()` 给出 `decode-sq` 报告所用的计数（前缀扫描、完整解码、预热、缺席元素、内嵌帧、DRC 帧、保存帧）和各阶段耗时。
 
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置保持 `apac-sq-math-v1`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v10`，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。

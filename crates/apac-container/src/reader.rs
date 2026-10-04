@@ -93,6 +93,19 @@ pub struct Stats {
     pub timings: Timings,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PassState {
+    Reading,
+    /// A packet beyond the range was read but not decoded.
+    RangeEnd,
+    /// The source ended and verified the current pass.
+    Eof,
+    /// A consumed packet did not commit; seek must replay the prefix.
+    DecodeFailed,
+    /// The source's position or integrity is uncertain; do not reuse it.
+    SourceFailed,
+}
+
 /// Decodes a frame range of a [`PacketSource`] into interleaved `f32` PCM.
 pub struct Reader<S> {
     source: S,
@@ -101,15 +114,13 @@ pub struct Reader<S> {
     range: Range,
     samples: Vec<f32>,
     stats: Stats,
-    /// The current pass is over: the source ended, or a packet past the
-    /// range was read (and not decoded).
-    ended: bool,
-    /// The decoder has processed every packet read in the current pass.
-    fed: bool,
+    state: PassState,
 }
 impl<S: PacketSource> Reader<S> {
     /// Check the source against its decoder and select `frames` (default:
     /// the whole valid audio) from `start` (default: the window start).
+    /// A source already read in its current pass is verified to the end,
+    /// then rewound so the new decoder starts at the first packet.
     pub fn open(
         source: S,
         start: Option<u64>,
@@ -156,16 +167,19 @@ impl<S: PacketSource> Reader<S> {
             ));
         }
         let samples = vec![0f32; 1024 * info.channel_count as usize];
-        Ok(Self {
+        let mut reader = Self {
             source,
             decoder,
             access,
             range,
             samples,
             stats: Stats::default(),
-            ended: false,
-            fed: true,
-        })
+            state: PassState::Reading,
+        };
+        if reader.source.consumed_packets() != 0 {
+            reader.restart_pass()?;
+        }
+        Ok(reader)
     }
     pub fn decoder(&self) -> &Decoder {
         &self.decoder
@@ -182,6 +196,34 @@ impl<S: PacketSource> Reader<S> {
     pub fn stats(&self) -> &Stats {
         &self.stats
     }
+    fn check_failed(&self) -> Result<(), ReadError<S::Error>> {
+        match self.state {
+            PassState::SourceFailed => Err(invalid(
+                "SQ access",
+                "reader cannot continue after a source error",
+            )),
+            PassState::DecodeFailed => Err(invalid(
+                "SQ access",
+                "seek is required after a packet decode failure",
+            )),
+            _ => Ok(()),
+        }
+    }
+    /// Never discard a pass that may have supplied output until verified.
+    /// A failure during verification or rewind leaves this reader unusable.
+    fn restart_pass(&mut self) -> Result<(), ReadError<S::Error>> {
+        self.state = PassState::SourceFailed;
+        let timer = Instant::now();
+        let restarted = self
+            .source
+            .verify_remaining()
+            .and_then(|()| self.source.rewind());
+        self.stats.timings.read += timer.elapsed();
+        restarted.map_err(ReadError::Source)?;
+        self.decoder.reset();
+        self.state = PassState::Reading;
+        Ok(())
+    }
     /// [`Reader::read_with`] without observing the output start.
     pub fn read(&mut self, out: &mut [f32]) -> Result<usize, ReadError<S::Error>> {
         self.read_with(out, |_| {})
@@ -191,11 +233,14 @@ impl<S: PacketSource> Reader<S> {
     /// channels). Returns the frame count; zero once the range is complete.
     /// `on_output_start` sees the decoder just before the packet holding the
     /// first output frame is processed.
+    /// After a decode failure, seek before reading again. A source error
+    /// permanently rejects further reads, seeks and `finish`.
     pub fn read_with(
         &mut self,
         out: &mut [f32],
         mut on_output_start: impl FnMut(&Decoder),
     ) -> Result<usize, ReadError<S::Error>> {
+        self.check_failed()?;
         let channels = self.samples.len() / 1024;
         if out.len() < self.samples.len() {
             return Err(invalid(
@@ -211,20 +256,21 @@ impl<S: PacketSource> Reader<S> {
         let fast = self.access == Access::Fast;
         let synthesis_start =
             (range.frames != 0).then(|| (range.raw_start / 1024).saturating_sub(1));
-        while !self.ended {
+        while self.state == PassState::Reading {
             let timer = Instant::now();
+            self.state = PassState::SourceFailed;
             let next = self.source.next_packet();
             self.stats.timings.read += timer.elapsed();
             let Some(packet) = next.map_err(ReadError::Source)? else {
-                self.ended = true;
+                self.state = PassState::Eof;
                 break;
             };
             let raw = packet.raw_frame;
             if !range.drain_to_eof && raw >= range.raw_end {
-                self.ended = true;
-                self.fed = false;
+                self.state = PassState::RangeEnd;
                 break;
             }
+            self.state = PassState::DecodeFailed;
             if range.frames != 0 && raw / 1024 == range.raw_start / 1024 {
                 on_output_start(&self.decoder);
             }
@@ -236,6 +282,7 @@ impl<S: PacketSource> Reader<S> {
             if fast && synthesis_start.is_none_or(|start| packet.index < start) {
                 let timer = Instant::now();
                 let counts = self.decoder.advance(&packet.bytes).map_err(failed)?;
+                self.state = PassState::Reading;
                 stats.timings.scan += timer.elapsed();
                 stats.prefix_packets += 1;
                 stats.prefix_frames += counts.frames;
@@ -258,6 +305,7 @@ impl<S: PacketSource> Reader<S> {
                 frame
             });
             let frame = decoded.map_err(failed)?;
+            self.state = PassState::Reading;
             stats.timings.packet += timer.elapsed();
             stats.drc_payload_frames += frame.drc_payload_frames;
             stats.drc_missing_history_frames += frame.drc_missing_history_frames;
@@ -287,9 +335,13 @@ impl<S: PacketSource> Reader<S> {
     /// When every packet still to be processed would be processed the same
     /// way by such a reader, reading continues in the current pass: forward,
     /// before the packet that a fresh reader decodes first. Otherwise the
-    /// source is rewound to its first packet and the decoder reset, and the
-    /// prefix is replayed; the new pass is verified again at its end.
+    /// current pass is verified to its end before the source is rewound and
+    /// the decoder reset. The prefix is replayed; the new pass is verified
+    /// again at its end. This also replays a packet that failed to decode.
     pub fn seek(&mut self, frame: u64) -> Result<(), ReadError<S::Error>> {
+        if self.state == PassState::SourceFailed {
+            self.check_failed()?;
+        }
         let range = self.range.starting_at(frame).ok_or_else(|| {
             invalid(
                 "SQ access",
@@ -304,18 +356,21 @@ impl<S: PacketSource> Reader<S> {
                 Access::Fast => target.saturating_sub(1),
             }
         });
-        if !self.fed || first_decoded.is_some_and(|first| next > first) {
-            self.source.rewind().map_err(ReadError::Source)?;
-            self.decoder.reset();
-            self.fed = true;
+        if matches!(self.state, PassState::RangeEnd | PassState::DecodeFailed)
+            || first_decoded.is_some_and(|first| next > first)
+        {
+            self.restart_pass()?;
         }
-        self.ended = false;
+        self.state = PassState::Reading;
         self.range = range;
         Ok(())
     }
     /// Complete the source's integrity checks (reading packets the range
     /// did not need) and return the source, decoder and statistics.
+    /// A failed decode requires a successful seek first; source errors are
+    /// terminal and cannot be cleared by finishing.
     pub fn finish(mut self) -> Result<(S, Decoder, Stats), ReadError<S::Error>> {
+        self.check_failed()?;
         let timer = Instant::now();
         self.source.verify_remaining().map_err(ReadError::Source)?;
         self.stats.timings.read += timer.elapsed();

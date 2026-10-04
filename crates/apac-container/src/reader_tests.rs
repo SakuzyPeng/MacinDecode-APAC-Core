@@ -256,9 +256,11 @@ fn reads_equal_the_former_decode_loop_in_both_access_modes() {
 }
 
 /// Wraps a source to count rewinds or misdescribe the stream.
-struct Probe<S> {
+struct Probe<S: PacketSource> {
     inner: S,
     rewinds: usize,
+    rewind_error: Option<S::Error>,
+    verification_error: Option<S::Error>,
     fast: bool,
     first: u64,
     extra_channels: u32,
@@ -270,6 +272,8 @@ impl<S: PacketSource> Probe<S> {
         Self {
             inner,
             rewinds: 0,
+            rewind_error: None,
+            verification_error: None,
             fast: true,
             first: 0,
             extra_channels: 0,
@@ -309,13 +313,15 @@ impl<S: PacketSource> PacketSource for Probe<S> {
     }
     fn rewind(&mut self) -> Result<(), S::Error> {
         self.rewinds += 1;
-        self.inner.rewind()
+        self.inner.rewind()?;
+        self.rewind_error.take().map_or(Ok(()), Err)
     }
     fn consumed_packets(&self) -> u64 {
         self.inner.consumed_packets()
     }
     fn verify_remaining(&mut self) -> Result<(), S::Error> {
-        self.inner.verify_remaining()
+        self.inner.verify_remaining()?;
+        self.verification_error.take().map_or(Ok(()), Err)
     }
 }
 fn probe(stream: &Stream) -> Probe<CafReader<Shared>> {
@@ -522,4 +528,201 @@ fn a_file_changed_between_passes_fails_the_next_pass() {
         ReadError::Source(e) => assert_eq!(e.message, "input changed during reading"),
         other => panic!("{other:?}"),
     }
+}
+
+#[test]
+fn reused_sources_restart_with_complete_decoder_history() {
+    for stream in streams() {
+        for access in [Access::Sequential, Access::Fast] {
+            let mut original = open(&stream, None, None, access);
+            let expected = read_all(&mut original);
+            let (finished, _, _) = original.finish().unwrap();
+            let mut partial = CafReader::new(Shared::new(&stream.file)).unwrap();
+            partial.next_packet().unwrap().unwrap();
+            for source in [finished, partial] {
+                let mut reader = Reader::open(Probe::new(source), None, None, access).unwrap();
+                assert_eq!(reader.source().rewinds, 1);
+                assert_eq!(reader.source().consumed_packets(), 0);
+                assert_eq!(
+                    read_all(&mut reader),
+                    expected,
+                    "{} {access:?}",
+                    stream.name
+                );
+                assert_eq!(reader.stats().saved_frames, reader.range().frames);
+                let (source, _, _) = reader.finish().unwrap();
+                assert!(source.inner.summary().verified);
+            }
+        }
+    }
+}
+
+#[test]
+fn failed_decodes_require_seek_and_replay_the_failed_packet() {
+    let stream = &streams()[0];
+    let cookie = CafReader::new(Shared::new(&stream.file))
+        .unwrap()
+        .track()
+        .cookie
+        .clone();
+    let mut packets = vec![stream.packets[0].clone(); 6];
+    packets[0] = vec![0xff];
+    let file = caf(&cookie, &packets).unwrap();
+    let valid = packets.len() as u64 * 1024 - (PRIMING + REMAINDER) as u64;
+    for access in [Access::Sequential, Access::Fast] {
+        // Exercise both full decoding and a state-only prefix failure, then
+        // seek forward to ordinary output or an empty range at EOF.
+        for start in [0, 3072] {
+            for target in [4096, valid] {
+                let source = Probe::new(CafReader::new(Shared::new(&file)).unwrap());
+                let mut reader = Reader::open(source, Some(start), None, access).unwrap();
+                let mut buffer = vec![0.5; reader.samples.len()];
+                let initial = reader.read(&mut buffer).unwrap_err();
+                assert!(matches!(
+                    initial,
+                    ReadError::Decode {
+                        packet_index: Some(0),
+                        ..
+                    }
+                ));
+                assert!(matches!(
+                    reader.read(&mut buffer),
+                    Err(ReadError::Invalid { .. })
+                ));
+                assert_eq!(reader.source().consumed_packets(), 1);
+                assert!(buffer.iter().all(|&v| v == 0.5));
+                assert!(reader.seek(valid + 1).is_err());
+                reader.seek(target).unwrap();
+                assert_eq!(reader.source().rewinds, 1);
+                let source = CafReader::new(Shared::new(&file)).unwrap();
+                let mut fresh = Reader::open(source, Some(target), None, access).unwrap();
+                assert_eq!(reader.read(&mut buffer), fresh.read(&mut buffer));
+                assert!(matches!(reader.finish(), Err(ReadError::Invalid { .. })));
+            }
+        }
+    }
+}
+
+#[test]
+fn a_source_read_error_cannot_be_cleared_by_seek_or_finish() {
+    let stream = &streams()[0];
+    let file = Shared::new(&stream.file);
+    let source = CafReader::new(file.clone()).unwrap();
+    let data_offset = source.summary().chunks[b"data"].offset + 4;
+    let mut reader = Reader::open(source, None, None, Access::Sequential).unwrap();
+    file.truncate(data_offset);
+    let mut buffer = vec![0.5; reader.samples.len()];
+    assert!(matches!(
+        reader.read(&mut buffer),
+        Err(ReadError::Source(_))
+    ));
+    file.change_quietly(0, &stream.file);
+    assert!(matches!(
+        reader.read(&mut buffer),
+        Err(ReadError::Invalid { .. })
+    ));
+    assert!(matches!(reader.seek(0), Err(ReadError::Invalid { .. })));
+    assert!(matches!(reader.finish(), Err(ReadError::Invalid { .. })));
+}
+
+#[test]
+fn verification_and_rewind_errors_leave_the_reader_unusable() {
+    let stream = &streams()[0];
+    for during_rewind in [false, true] {
+        let mut source = probe(stream);
+        let error = Error::new("test source", "one-shot restart error");
+        if during_rewind {
+            source.rewind_error = Some(error.clone());
+        } else {
+            source.verification_error = Some(error.clone());
+        }
+        let mut reader = Reader::open(source, None, None, Access::Sequential).unwrap();
+        let mut buffer = vec![0f32; reader.samples.len()];
+        assert!(reader.read(&mut buffer).unwrap() > 0);
+        let range = *reader.range();
+        assert_eq!(reader.seek(1), Err(ReadError::Source(error)));
+        assert_eq!(*reader.range(), range);
+        assert_eq!(reader.source().rewinds, usize::from(during_rewind));
+        // The injected error has been consumed, but retrying must not erase
+        // the failure even when the source would now allow another pass.
+        assert!(matches!(reader.seek(3072), Err(ReadError::Invalid { .. })));
+        assert!(matches!(
+            reader.read(&mut buffer),
+            Err(ReadError::Invalid { .. })
+        ));
+        assert!(matches!(reader.finish(), Err(ReadError::Invalid { .. })));
+    }
+}
+
+/// A same-size, valid mutation whose PCM differs after priming. Keeping the
+/// packet boundaries and revision unchanged isolates the per-pass digest.
+fn changed_first_packet(stream: &Stream) -> Vec<u8> {
+    let source = CafReader::new(Shared::new(&stream.file)).unwrap();
+    let cookie = &source.track().cookie;
+    let first = &stream.packets[0];
+    let baseline = Decoder::from_cookie(cookie)
+        .unwrap()
+        .decode_vec(first)
+        .unwrap();
+    let skip = PRIMING as usize * source.channels() as usize;
+    (0..first.len() * 8)
+        .find_map(|bit| {
+            let mut bytes = first.clone();
+            bytes[bit / 8] ^= 1 << (bit % 8);
+            let pcm = Decoder::from_cookie(cookie)
+                .unwrap()
+                .decode_vec(&bytes)
+                .ok()?;
+            pcm[skip..]
+                .iter()
+                .zip(&baseline[skip..])
+                .any(|(a, b)| a.to_bits() != b.to_bits())
+                .then_some(bytes)
+        })
+        .expect("fixture admits a valid audio mutation")
+}
+
+#[test]
+fn seeking_verifies_audio_already_returned_before_discarding_a_pass() {
+    let stream = &streams()[0];
+    let changed = changed_first_packet(stream);
+    for access in [Access::Sequential, Access::Fast] {
+        let file = Shared::new(&stream.file);
+        let source = CafReader::new(file.clone()).unwrap();
+        let data_offset = source.summary().chunks[b"data"].offset + 4;
+        let mut reader = Reader::open(source, None, None, access).unwrap();
+        file.change_quietly(data_offset, &changed);
+        let mut buffer = vec![0f32; reader.samples.len()];
+        let n = reader.read(&mut buffer).unwrap();
+        let mut clean = open(stream, None, None, access);
+        let mut expected = vec![0f32; buffer.len()];
+        assert_eq!(clean.read(&mut expected).unwrap(), n);
+        assert_ne!(buffer, expected);
+        file.change_quietly(data_offset, &stream.packets[0]);
+        let error = reader.seek(0).unwrap_err();
+        assert!(matches!(error, ReadError::Source(Error { ref message, .. })
+            if message == "audio or packet boundaries changed after validation"));
+        assert!(matches!(reader.seek(3072), Err(ReadError::Invalid { .. })));
+        assert!(matches!(
+            reader.read(&mut buffer),
+            Err(ReadError::Invalid { .. })
+        ));
+        assert!(matches!(reader.finish(), Err(ReadError::Invalid { .. })));
+    }
+}
+
+#[test]
+fn reopening_a_source_preserves_its_unfinished_integrity_check() {
+    let stream = &streams()[0];
+    let file = Shared::new(&stream.file);
+    let mut source = CafReader::new(file.clone()).unwrap();
+    let data_offset = source.summary().chunks[b"data"].offset + 4;
+    file.change_quietly(data_offset, &changed_first_packet(stream));
+    source.next_packet().unwrap().unwrap();
+    file.change_quietly(data_offset, &stream.packets[0]);
+    assert!(matches!(
+        Reader::open(source, None, None, Access::Sequential),
+        Err(ReadError::Source(Error { ref message, .. }))
+            if message == "audio or packet boundaries changed after validation"
+    ));
 }

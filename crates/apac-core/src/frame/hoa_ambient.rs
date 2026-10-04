@@ -261,7 +261,7 @@ mod tests {
             let end = row["bits"].as_u64().unwrap() as usize;
             for cut in 0..=end {
                 let mut parser = super::super::Parser {
-                    capture: true,
+                    mode: crate::frame::ParseMode::Report,
                     bits: BitReader::new(&raw),
                     report: template.clone(),
                 };

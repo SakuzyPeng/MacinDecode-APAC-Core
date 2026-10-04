@@ -101,7 +101,7 @@ pub(super) fn read(
             payload.push(parser.bits.read(8)? as u8);
         }
         let sha256 = crate::model::sha256(&payload);
-        if parser.capture && start != end {
+        if parser.mode.record() && start != end {
             parser.report.fields.push(crate::config::ConfigField {
                 name: format!("{prefix}.extension.payload_sha256"),
                 bit_offset: start,

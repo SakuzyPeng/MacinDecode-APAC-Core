@@ -202,7 +202,7 @@ fn symbol(
     for width in 1..=16 {
         code = (code << 1) | parser.bits.read(1)? as u16;
         if let Some(entry) = table.iter().find(|e| e.width == width && e.code == code) {
-            if parser.capture {
+            if parser.mode.record() {
                 parser.report.fields.push(crate::config::ConfigField {
                     name: name.to_string(),
                     bit_offset: start,
@@ -256,7 +256,7 @@ pub(super) fn read_sequence(
                 ));
             }
         }
-        if parser.capture {
+        if parser.mode.record() {
             parser.report.fields.push(crate::config::ConfigField {
                 name: format!("{root}.node_count"),
                 bit_offset: at,
@@ -296,7 +296,7 @@ pub(super) fn read_sequence(
                     "shared DRC nodes must advance",
                 ));
             }
-            if parser.capture {
+            if parser.mode.record() {
                 parser.report.fields.push(crate::config::ConfigField {
                     name: format!("{root}.time_deltas[{i}]"),
                     bit_offset: at,
@@ -350,7 +350,7 @@ pub(super) fn read_sequence(
         } else {
             let delta = super::drc::gain_delta(&mut parser.bits)?;
             gain += delta;
-            if parser.capture {
+            if parser.mode.record() {
                 parser.report.fields.push(crate::config::ConfigField {
                     name: format!("{root}.gain_deltas[{i}]"),
                     bit_offset: at,

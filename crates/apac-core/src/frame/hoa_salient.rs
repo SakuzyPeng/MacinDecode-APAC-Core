@@ -361,7 +361,7 @@ fn huffman_for_bits(
     let start = parser.bits.position();
     let value = constants_for_bits(coefficients, precision).tries[mode][book]
         .read(&mut parser.bits)? as u16;
-    if parser.capture {
+    if parser.mode.record() {
         parser.report.fields.push(ConfigField {
             name: name.to_string(),
             bit_offset: start,
@@ -1147,7 +1147,7 @@ mod tests {
             let configuration = context.configuration;
             for limit in 0..=end {
                 let mut parser = Parser {
-                    capture: true,
+                    mode: crate::frame::ParseMode::Report,
                     bits: BitReader::new(&raw),
                     report: template.clone(),
                 };
@@ -1301,7 +1301,7 @@ mod tests {
             let end = row["bits"].as_u64().unwrap() as usize;
             for cut in 0..=end {
                 let mut parser = super::super::Parser {
-                    capture: true,
+                    mode: crate::frame::ParseMode::Report,
                     bits: BitReader::new(&raw),
                     report: template.clone(),
                 };

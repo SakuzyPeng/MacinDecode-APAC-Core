@@ -101,11 +101,13 @@ pub use cac::NUMERIC_PROFILE as CAC_NUMERIC_PROFILE;
 #[doc(hidden)]
 pub use cac::math_sha256 as cac_math_sha256;
 pub use cac::{CacChannelSpectrum, CacData, CacReport, CacRun, parse_cac};
+pub(crate) use channels::parse_channel_packet_with_mode;
 pub use drc::{
     DrcConfiguration, DrcNode, DrcParameters, DrcPayload, DrcReport, DrcTimeDelta, parse_drc,
 };
 pub use hoa::PARTIAL_PROFILE as HOA_PARTIAL_PROFILE;
 pub use hoa::TRANSPORT_PROFILE as HOA_TRANSPORT_PROFILE;
+pub(crate) use hoa::parse_hoa_packet_with_mode;
 #[doc(hidden)]
 pub use hoa::{DecodedFrameContext, HoaState, parse_hoa_packet_with_state};
 pub use hoa::{
@@ -125,6 +127,7 @@ pub use hoa_dynamic::{
     DynamicBandMapping, DynamicSelectionData, DynamicSelectionEncoding, InternalAmbientData,
     InternalAmbientSpectrum,
 };
+pub(crate) use packet::parse_packet_with_mode;
 pub use packet::{EmbeddedPreroll, PacketReport, PacketTail, STATE_PROFILE, parse_packet};
 pub use spectrum::{ChannelSpectrum, IcsInfo, Section, SpectrumReport, parse_spectrum};
 pub use tns::NUMERIC_PROFILE as TNS_NUMERIC_PROFILE;
@@ -280,6 +283,9 @@ pub struct FrameReport {
     /// The embedded ASP preroll frame's bit range, when one is present.
     #[cfg_attr(feature = "serde", serde(skip))]
     pub preroll: Option<(usize, usize)>,
+    /// Where the stereo prefix's left ICS starts; the spectrum stage resumes there.
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub left_ics_bit_offset: Option<usize>,
     /// Only the first present core payload's start is known, never its end.
     pub payload_bit_offset: Option<usize>,
     pub component_end_bit_offset: Option<usize>,
@@ -287,8 +293,30 @@ pub struct FrameReport {
     pub diagnostics: Vec<Diagnostic>,
 }
 
+/// What a packet parse produces besides its decisions and state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum ParseMode {
+    /// Packet reports: recorded syntax and every spectrum.
+    Report,
+    /// Synthesis: every spectrum, no recorded syntax.
+    Decode,
+    /// Fast access: state only; spectra only where state depends on them.
+    Scan,
+}
+impl ParseMode {
+    /// Record field events and derived values.
+    pub fn record(self) -> bool {
+        self == Self::Report
+    }
+    /// Evaluate dequantized spectra and the values synthesis reads.
+    pub fn spectra(self) -> bool {
+        self != Self::Scan
+    }
+}
+
 struct Parser<'a> {
-    capture: bool,
+    mode: ParseMode,
     bits: BitReader<'a>,
     report: FrameReport,
 }
@@ -298,7 +326,7 @@ impl Parser<'_> {
     fn take(&mut self, name: impl core::fmt::Display, width: usize) -> Result<u64, ParseError> {
         let start = self.bits.position();
         let value = self.bits.read(width)?;
-        if self.capture {
+        if self.mode.record() {
             self.report.fields.push(ConfigField {
                 name: name.to_string(),
                 bit_offset: start,
@@ -310,14 +338,14 @@ impl Parser<'_> {
     }
     fn flag(&mut self, name: impl core::fmt::Display) -> Result<bool, ParseError> {
         let value = self.take(name, 1)? != 0;
-        if self.capture {
+        if self.mode.record() {
             self.report.fields.last_mut().expect("recorded field").value = FieldValue::from(value);
         }
         Ok(value)
     }
     /// A derived value, kept only when recording.
     fn derived(&mut self, name: impl core::fmt::Display, value: impl FnOnce() -> FieldValue) {
-        if self.capture {
+        if self.mode.record() {
             self.report.derived.insert(name.to_string(), value());
         }
     }
@@ -345,7 +373,7 @@ impl Parser<'_> {
                 break;
             }
         }
-        if self.capture {
+        if self.mode.record() {
             self.report.fields.push(ConfigField {
                 name: name.to_string(),
                 bit_offset: start,
@@ -538,6 +566,13 @@ impl Parser<'_> {
 }
 
 pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport, ParseError> {
+    parse_frame_with(context, packet, ParseMode::Report)
+}
+pub(crate) fn parse_frame_with(
+    context: &FrameContext,
+    packet: &[u8],
+    mode: ParseMode,
+) -> Result<FrameReport, ParseError> {
     if packet.len() > MAX_PACKET_BUFFER {
         return Err(ParseError::new(0, "input-limit", "packet exceeds 16 MiB"));
     }
@@ -545,7 +580,7 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
         return Err(ParseError::new(0, "truncated", "empty packet"));
     }
     let mut parser = Parser {
-        capture: true,
+        mode,
         bits: BitReader::new(packet),
         report: FrameReport {
             schema_version: SCHEMA_VERSION,
@@ -560,6 +595,7 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
             stop_bit_offset: 0,
             cpe_absent: false,
             preroll: None,
+            left_ics_bit_offset: None,
             payload_bit_offset: None,
             component_end_bit_offset: None,
             unknown_ranges: vec![],
@@ -591,6 +627,7 @@ pub fn parse_frame(context: &FrameContext, packet: &[u8]) -> Result<FrameReport,
         // Keep the dispatch explicit without treating exploratory support as a milestone.
         return parser.finish("lrvq_prefix_deferred", false, false);
     }
+    parser.report.left_ics_bit_offset = Some(parser.bits.position());
     parser.ics(&format_args!("{prefix}.left_ics"))?;
     parser.finish("sq_left_channel_stream", true, true)
 }

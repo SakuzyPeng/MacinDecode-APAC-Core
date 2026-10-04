@@ -99,7 +99,7 @@ fn frame_configuration_rejects_every_bit_truncation_without_partial_state() {
         let end = f["frame_configuration"]["end_bit_offset"].as_u64().unwrap() as usize;
         for cut in start..end {
             let mut parser = Parser {
-                capture: true,
+                mode: crate::frame::ParseMode::Report,
                 bits: BitReader::new(&raw),
                 report: template.clone(),
             };

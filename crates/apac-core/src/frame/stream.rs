@@ -1,4 +1,5 @@
 //! Multiple coded ASCs, independent core states, and one outer packet transaction.
+use super::ParseMode;
 use super::{
     ChannelFrameContext, ElementReport, FrameReport, HoaFrameContext, HoaFrameInfo, HoaState,
     PacketTail, Parser, UnparsedRange,
@@ -465,7 +466,7 @@ pub fn parse_stream_packet(
         packet,
         &mut context.initial_drc_state(),
         &mut context.initial_state(),
-        true,
+        ParseMode::Report,
         &mut ScanWorkspace::default(),
     )
 }
@@ -474,7 +475,7 @@ pub fn parse_with_state(
     packet: &[u8],
     drc_state: &mut DrcState,
     state: &mut StreamState,
-    capture: bool,
+    mode: ParseMode,
     scratch: &mut ScanWorkspace,
 ) -> Result<StreamPacketReport, ParseError> {
     if packet.is_empty() || packet.len() > super::MAX_PACKET_BUFFER {
@@ -497,13 +498,14 @@ pub fn parse_with_state(
         stop_bit_offset: 0,
         cpe_absent: false,
         preroll: None,
+        left_ics_bit_offset: None,
         payload_bit_offset: None,
         component_end_bit_offset: None,
         unknown_ranges: vec![],
         diagnostics: vec![],
     };
     let mut parser = Parser {
-        capture,
+        mode,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
@@ -537,7 +539,7 @@ pub fn parse_with_state(
             &packet[start / 8..end / 8],
             &mut next_drc,
             &mut next,
-            capture,
+            mode,
             scratch,
         )
         .map_err(|mut e| {
@@ -576,7 +578,7 @@ pub fn parse_with_state(
             start,
             code,
             &mut next.hoa[index],
-            capture,
+            mode,
             scratch,
         )
         .map_err(|mut error| {
@@ -627,9 +629,9 @@ pub fn parse_with_state(
         scene = Some(present);
         if present {
             let (update, scenes, end) =
-                config::parse_scene_at(packet, parser.bits.position(), capture)?;
+                config::parse_scene_at(packet, parser.bits.position(), mode.record())?;
             parser.bits.skip(end - parser.bits.position())?;
-            if capture {
+            if mode.record() {
                 parser.report.fields.extend(update.fields);
             }
             if !update.complete

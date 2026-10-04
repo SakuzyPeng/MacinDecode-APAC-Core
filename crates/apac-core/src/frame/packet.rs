@@ -1,7 +1,6 @@
 //! Complete, bounded ASP packets for the qualified stereo DRC-off route.
-use super::{
-    Bwe2Report, FrameContext, FrameReport, Parser, UnparsedRange, packet_config, parse_bwe2,
-};
+use super::ParseMode;
+use super::{Bwe2Report, FrameContext, FrameReport, Parser, UnparsedRange, packet_config};
 use crate::config::{self, Diagnostic, ParseError, ParseStatus, bits::BitReader};
 use crate::prelude::*;
 
@@ -81,13 +80,14 @@ impl PacketReport {
         &mut self.bwe2.tns.cac.spectrum.frame
     }
     pub fn cpe_absent(&self) -> bool {
-        // The flag is what the recorded presence field says.
-        debug_assert_eq!(
-            self.frame().cpe_absent,
-            self.frame().fields.iter().any(|f| {
-                f.name == "components[0].tce[0].present"
-                    && f.value == crate::record::FieldValue::Bool(false)
-            })
+        // The flag is what the recorded presence field says, when recorded.
+        debug_assert!(
+            self.frame().fields.is_empty()
+                || self.frame().cpe_absent
+                    == self.frame().fields.iter().any(|f| {
+                        f.name == "components[0].tce[0].present"
+                            && f.value == crate::record::FieldValue::Bool(false)
+                    })
         );
         self.frame().cpe_absent
     }
@@ -120,9 +120,17 @@ pub fn parse_packet_with_state(
     packet: &[u8],
     state: &mut super::DrcState,
 ) -> Result<PacketReport, ParseError> {
+    parse_packet_with_mode(context, packet, state, ParseMode::Report)
+}
+pub(crate) fn parse_packet_with_mode(
+    context: &FrameContext,
+    packet: &[u8],
+    state: &mut super::DrcState,
+    mode: ParseMode,
+) -> Result<PacketReport, ParseError> {
     let mut next_state = state.clone();
     let mut result = PacketReport {
-        bwe2: parse_bwe2(context, packet)?,
+        bwe2: super::bwe2::parse_bwe2_with(context, packet, mode)?,
         packet_complete: false,
         packet_state_profile: STATE_PROFILE.into(),
         packet_tail: None,
@@ -154,16 +162,17 @@ pub fn parse_packet_with_state(
         .unknown_ranges
         .retain(|r| !(r.bit_offset == position && r.bit_length == packet.len() * 8 - position));
     if let Some((start, end)) = result.frame().preroll {
-        let nested = parse_packet_with_state(context, &packet[start / 8..end / 8], &mut next_state)
-            .map_err(|mut error| {
-                error.message = format!(
-                    "embedded preroll at relative bit {}: {}",
-                    error.bit_offset, error.message
-                )
-                .into();
-                error.bit_offset += start;
-                error
-            })?;
+        let nested =
+            parse_packet_with_mode(context, &packet[start / 8..end / 8], &mut next_state, mode)
+                .map_err(|mut error| {
+                    error.message = format!(
+                        "embedded preroll at relative bit {}: {}",
+                        error.bit_offset, error.message
+                    )
+                    .into();
+                    error.bit_offset += start;
+                    error
+                })?;
         let frame = result.frame_mut();
         frame
             .unknown_ranges
@@ -197,7 +206,7 @@ pub fn parse_packet_with_state(
         });
     }
     let mut parser = Parser {
-        capture: true,
+        mode,
         bits: BitReader::new(packet),
         report: result.frame().clone(),
     };
@@ -216,7 +225,7 @@ pub fn parse_packet_with_state(
         scene_update = Some(present);
         if present {
             let (scene, scenes, end) =
-                config::parse_scene_at(packet, parser.bits.position(), true)?;
+                config::parse_scene_at(packet, parser.bits.position(), mode.record())?;
             parser.bits.skip(end - parser.bits.position())?;
             parser.report.fields.extend(scene.fields);
             if !scene.complete {

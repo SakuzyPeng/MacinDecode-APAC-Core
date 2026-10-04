@@ -132,7 +132,7 @@ fn extension_lengths_are_bounded_at_every_bit_and_preserve_the_following_payload
         let end = e["end"].as_u64().unwrap() as usize;
         for limit in start..=end {
             let mut parser = Parser {
-                capture: true,
+                mode: crate::frame::ParseMode::Report,
                 bits: BitReader::new(&packet),
                 report: template.clone(),
             };

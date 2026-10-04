@@ -1,4 +1,5 @@
 //! Restricted channel ASC: each element is immediately followed by its BWE2 data.
+use super::ParseMode;
 use super::{
     CacChannelSpectrum, CacData, ChannelSpectrum, DrcPayload, FrameReport, PacketTail, Parser,
     TnsChannel, TnsChannelSpectrum, UnparsedRange,
@@ -352,7 +353,7 @@ fn read_element(
     } else {
         parser.ics_at_rate(&ics_name, context.sample_rate_hz)?
     };
-    let buffer = if parser.capture {
+    let buffer = if parser.mode.spectra() {
         Vec::new()
     } else {
         scratch.quantized.pop().unwrap_or_default()
@@ -378,7 +379,7 @@ fn read_element(
         } else {
             parser.ics_at_rate(&format_args!("{prefix}.right_ics"), context.sample_rate_hz)?
         };
-        let buffer = if parser.capture {
+        let buffer = if parser.mode.spectra() {
             Vec::new()
         } else {
             scratch.quantized.pop().unwrap_or_default()
@@ -392,14 +393,14 @@ fn read_element(
         )?);
         if shared {
             let data = cac::read_data_at(parser, &left, &format_args!("{prefix}.cac"))?;
-            if parser.capture {
+            if parser.mode.spectra() {
                 element.channels_after_cac =
                     cac::apply_channels_at_rate(&element.channels, &data, context.sample_rate_hz)?;
             }
             element.cac = Some(data);
         }
     }
-    if parser.capture && element.channels_after_cac.is_empty() {
+    if parser.mode.spectra() && element.channels_after_cac.is_empty() {
         element.channels_after_cac = element
             .channels
             .iter()
@@ -411,8 +412,8 @@ fn read_element(
     }
     // Capturing syntax/report details is independent of evaluating spectra.
     // HOA restoration and its numeric checks always require every carrier.
-    let evaluate = parser.capture || context.hoa.is_some();
-    if evaluate && !parser.capture {
+    let evaluate = parser.mode.spectra() || context.hoa.is_some();
+    if evaluate && !parser.mode.spectra() {
         ensure_numeric(element, scratch, context.sample_rate_hz)?;
     }
     element.spectrum_complete = true;
@@ -426,7 +427,7 @@ fn read_element(
                 context.sample_rate_hz,
                 channel_index,
             )?;
-            if parser.capture {
+            if parser.mode.record() {
                 parser.report.fields.push(config::ConfigField {
                     name: format!("{prefix}.tns[{channel_index}]"),
                     bit_offset: data.start_bit_offset,
@@ -497,7 +498,7 @@ fn extensions(
     if element.bwe2_applicable {
         let ics: Vec<_> = element.channels.iter().map(|c| c.ics.clone()).collect();
         let data = bwe2::read_element_data(&mut parser.bits, &ics)?;
-        if parser.capture {
+        if parser.mode.record() {
             parser.report.fields.push(config::ConfigField {
                 name: format!(
                     "components[0].bwe2[{}]",
@@ -528,7 +529,7 @@ fn extensions(
                     element.channels_after_cac[index].scaled.clone();
             }
             let ics = &element.channels[index].ics;
-            let (cutoff, regions) = if parser.capture {
+            let (cutoff, regions) = if parser.mode.spectra() {
                 bwe2::regions_at_rate(ics, rate)
             } else {
                 (bwe2::cutoff_at_rate(ics, rate), Vec::new())
@@ -540,7 +541,7 @@ fn extensions(
                 &ics.window_groups,
                 p.lsf_indices,
                 &p.gain_indices,
-                parser.capture,
+                parser.mode.spectra(),
             )
             .map_err(|s| ParseError::new(parser.bits.position(), "bwe2-numeric", s))?;
             (scaled, analysis, regions)
@@ -577,11 +578,19 @@ pub fn parse_channel_packet_with_state(
     packet: &[u8],
     state: &mut DrcState,
 ) -> Result<ChannelPacketReport, ParseError> {
+    parse_channel_packet_with_mode(context, packet, state, ParseMode::Report)
+}
+pub(crate) fn parse_channel_packet_with_mode(
+    context: &ChannelFrameContext,
+    packet: &[u8],
+    state: &mut DrcState,
+    mode: ParseMode,
+) -> Result<ChannelPacketReport, ParseError> {
     parse_impl(
         context,
         packet,
         state,
-        true,
+        mode,
         &mut ScanWorkspace::default(),
         &mut None,
     )
@@ -592,13 +601,14 @@ pub(super) fn parse_hoa_transport(
     packet: &[u8],
     drc: &mut DrcState,
     hoa: &mut super::hoa::HoaState,
+    mode: ParseMode,
 ) -> Result<ChannelPacketReport, ParseError> {
     let mut next = Some(hoa.clone());
     let report = parse_impl(
         context,
         packet,
         drc,
-        true,
+        mode,
         &mut ScanWorkspace::default(),
         &mut next,
     )?;
@@ -621,7 +631,7 @@ pub fn scan_channel_packet(
     scratch: &mut ScanWorkspace,
 ) -> Result<ChannelPacketReport, ParseError> {
     scratch.numeric_elements = 0;
-    parse_impl(context, packet, state, false, scratch, &mut None)
+    parse_impl(context, packet, state, ParseMode::Scan, scratch, &mut None)
 }
 
 pub fn scan_hoa_packet(
@@ -632,7 +642,7 @@ pub fn scan_hoa_packet(
     scratch: &mut ScanWorkspace,
 ) -> Result<ChannelPacketReport, ParseError> {
     let mut next = Some(hoa.clone());
-    let report = parse_impl(context, packet, state, false, scratch, &mut next)?;
+    let report = parse_impl(context, packet, state, ParseMode::Scan, scratch, &mut next)?;
     if report.packet_complete {
         *hoa = next.expect("HOA state");
     }
@@ -643,7 +653,7 @@ fn parse_impl(
     context: &ChannelFrameContext,
     packet: &[u8],
     state: &mut DrcState,
-    capture: bool,
+    mode: ParseMode,
     scratch: &mut ScanWorkspace,
     hoa_state: &mut Option<super::hoa::HoaState>,
 ) -> Result<ChannelPacketReport, ParseError> {
@@ -656,12 +666,12 @@ fn parse_impl(
     }
     let frame = FrameReport {
         schema_version: SCHEMA_VERSION,
-        cookie_sha256: if capture {
+        cookie_sha256: if mode.spectra() {
             context.cookie_sha256.clone()
         } else {
             String::new()
         },
-        packet_sha256: if capture || context.drc.present || context.hoa.is_some() {
+        packet_sha256: if mode.spectra() || context.drc.present || context.hoa.is_some() {
             sha256(packet)
         } else {
             String::new()
@@ -675,13 +685,14 @@ fn parse_impl(
         stop_bit_offset: 0,
         cpe_absent: false,
         preroll: None,
+        left_ics_bit_offset: None,
         payload_bit_offset: None,
         component_end_bit_offset: None,
         unknown_ranges: vec![],
         diagnostics: vec![],
     };
     let mut parser = Parser {
-        capture,
+        mode,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
@@ -706,7 +717,7 @@ fn parse_impl(
             context,
             &packet[start / 8..end / 8],
             &mut next,
-            capture,
+            mode,
             scratch,
             &mut next_hoa,
         )
@@ -770,9 +781,9 @@ fn parse_impl(
         scene_update = Some(present);
         if present {
             let (scene, scenes, end) =
-                config::parse_scene_at(packet, parser.bits.position(), capture)?;
+                config::parse_scene_at(packet, parser.bits.position(), mode.record())?;
             parser.bits.skip(end - parser.bits.position())?;
-            if capture {
+            if mode.record() {
                 parser.report.fields.extend(scene.fields);
             }
             if !scene.complete {
@@ -792,7 +803,7 @@ fn parse_impl(
         let payload = drc::read_payload(&mut parser, &mut next, context.sample_rate_hz)?;
         result.drc_history_sufficient = Some(next.history_sufficient());
         next.advance(&payload);
-        if capture {
+        if mode.spectra() {
             result.drc = Some(payload);
         }
         result.drc_complete = Some(true);
@@ -900,10 +911,10 @@ fn read_core(
             )));
         }
         let element = result.elements.last_mut().expect("recorded element");
-        let evaluate = parser.capture || context.hoa.is_some();
+        let evaluate = parser.mode.spectra() || context.hoa.is_some();
         extensions(parser, element, scratch, context.sample_rate_hz, evaluate)
             .map_err(|e| element_error(e, element.configuration.element_index))?;
-        if !parser.capture {
+        if !parser.mode.spectra() {
             for channel in element.channels.drain(..) {
                 scratch.quantized.push(channel.quantized);
             }
@@ -932,7 +943,7 @@ fn read_core(
         {
             let (restored, additive) =
                 super::hoa_additive::restore(result, &mut spatial, state, shape)?;
-            if parser.capture {
+            if parser.mode.spectra() {
                 result.hoa.as_mut().expect("HOA context").additive = Some(additive);
             }
             restored
@@ -963,7 +974,7 @@ fn read_core(
                 &result.frame.packet_sha256,
             );
         }
-        let internal = (parser.capture && shape.source_layout.extended).then(|| {
+        let internal = (parser.mode.spectra() && shape.source_layout.extended).then(|| {
             restored
                 .iter()
                 .map(|s| super::HoaCoefficientSpectrum {
@@ -1012,7 +1023,7 @@ fn read_core(
             hoa.core_channels = usize::from(shape.core_channels);
             hoa.mixed = shape.mixed_mapping();
         }
-        if parser.capture {
+        if parser.mode.spectra() {
             hoa.dynamic_selection = dynamic;
             hoa.spatial = Some(spatial);
         }
@@ -1030,7 +1041,7 @@ fn read_core(
             );
             hoa.channels_after_hoa = internal;
             hoa.spectral_stage = "hoa_internal_coefficients_before_source_layout".into();
-        } else if parser.capture {
+        } else if parser.mode.spectra() {
             hoa.channels_after_hoa = restored;
         }
         hoa.hoa_complete = true;
@@ -1105,7 +1116,7 @@ pub(super) fn parse_core_at(
     start: usize,
     code: u64,
     state: &mut Option<super::hoa::HoaState>,
-    capture: bool,
+    mode: ParseMode,
     scratch: &mut ScanWorkspace,
 ) -> Result<ChannelPacketReport, ParseError> {
     let frame = FrameReport {
@@ -1121,13 +1132,14 @@ pub(super) fn parse_core_at(
         stop_bit_offset: start,
         cpe_absent: false,
         preroll: None,
+        left_ics_bit_offset: None,
         payload_bit_offset: Some(start),
         component_end_bit_offset: None,
         unknown_ranges: vec![],
         diagnostics: vec![],
     };
     let mut parser = Parser {
-        capture,
+        mode,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };

@@ -106,7 +106,7 @@ pub(crate) fn read_graph(
             parser.bits.data(),
             parser.bits.position(),
             &mut graph.positions,
-            parser.capture,
+            parser.mode.record(),
         )?;
         if !report.complete {
             return Err(ParseError::new(
@@ -116,7 +116,7 @@ pub(crate) fn read_graph(
             ));
         }
         parser.bits.skip(end - parser.bits.position())?;
-        if parser.capture {
+        if parser.mode.record() {
             parser.report.fields.extend(report.fields);
         }
         graph.history_sha256 = provenance_sha256(
@@ -195,7 +195,7 @@ pub(crate) fn read(
             data.push(parser.bits.read(8)? as u8);
         }
         let digest = crate::model::sha256(&data);
-        if parser.capture {
+        if parser.mode.record() {
             parser.report.fields.push(crate::config::ConfigField {
                 name: "ancillary.custom_data.payload".into(),
                 bit_offset: start,

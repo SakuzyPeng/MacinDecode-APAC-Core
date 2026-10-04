@@ -1,9 +1,10 @@
 //! Atomic dynamic-channel synthesis; the existing per-channel math is unchanged.
 use super::{ChannelState, FrameInfo};
+use crate::frame::ParseMode;
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
-    frame::{ChannelFrameContext, ChannelPacketReport, DrcState, parse_channel_packet_with_state},
+    frame::{ChannelFrameContext, ChannelPacketReport, DrcState},
 };
 
 /// Parse one packet against a copy of the DRC state; nothing is committed.
@@ -11,14 +12,16 @@ pub(super) fn parse(
     context: &ChannelFrameContext,
     state: &DrcState,
     packet: &[u8],
+    mode: ParseMode,
 ) -> Result<(ChannelPacketReport, DrcState)> {
     let mut next_state = state.clone();
     let decoded =
-        parse_channel_packet_with_state(context, packet, &mut next_state).map_err(|e| {
-            let mut error = DecodeError::new("SQ channels", e.to_string());
-            error.bit_offset = Some(e.bit_offset);
-            error
-        })?;
+        crate::frame::parse_channel_packet_with_mode(context, packet, &mut next_state, mode)
+            .map_err(|e| {
+                let mut error = DecodeError::new("SQ channels", e.to_string());
+                error.bit_offset = Some(e.bit_offset);
+                error
+            })?;
     if !decoded.packet_complete {
         let mut e = DecodeError::new(
             "SQ decoder",

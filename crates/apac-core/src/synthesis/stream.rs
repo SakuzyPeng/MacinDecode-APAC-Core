@@ -1,5 +1,6 @@
 //! Atomic multi-component synthesis using the unchanged per-output transforms.
 use super::{ChannelState, FrameInfo};
+use crate::frame::ParseMode;
 use crate::prelude::*;
 use crate::{
     error::{DecodeError, Result},
@@ -15,6 +16,7 @@ pub(super) fn parse(
     drc: &DrcState,
     state: &StreamState,
     packet: &[u8],
+    mode: ParseMode,
 ) -> Result<(StreamPacketReport, DrcState, StreamState)> {
     let mut next_drc = drc.clone();
     let mut next_state = state.clone();
@@ -23,7 +25,7 @@ pub(super) fn parse(
         packet,
         &mut next_drc,
         &mut next_state,
-        true,
+        mode,
         &mut ScanWorkspace::default(),
     )
     .map_err(|e| {

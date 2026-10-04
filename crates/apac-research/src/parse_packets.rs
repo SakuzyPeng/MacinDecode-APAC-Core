@@ -168,7 +168,7 @@ pub fn parse_packets_with_depth(
                     &bytes,
                     &mut drc_state,
                     &mut stream_state,
-                    true,
+                    crate::frame::ParseMode::Report,
                     &mut crate::frame::ScanWorkspace::default(),
                 )
                 .map_err(|e| {
@@ -238,7 +238,7 @@ pub fn parse_packets_with_depth(
                 &bytes,
                 &mut drc_state,
                 &mut stream_state,
-                true,
+                crate::frame::ParseMode::Report,
                 &mut crate::frame::ScanWorkspace::default(),
             )
             .map(|report| {

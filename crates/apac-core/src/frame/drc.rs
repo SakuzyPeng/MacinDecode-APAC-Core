@@ -1,5 +1,6 @@
 //! Bounded APAC UniDRC gain payloads. Gain values are exact eighth-decibel
 //! integers; parsing does not select a DRC instruction or apply audio gains.
+use super::ParseMode;
 use super::{Bwe2Report, FrameContext, Parser, packet_config, parse_bwe2};
 use crate::config::{
     self, Config, ConfigField, DrcDeclaration, FieldExt, ParseError, ParseStatus, bits::BitReader,
@@ -478,7 +479,7 @@ pub(super) fn time_delta(bits: &mut BitReader<'_>, ratio: u32) -> Result<u32, Pa
     })
 }
 fn field(parser: &mut Parser<'_>, name: impl core::fmt::Display, start: usize, value: FieldValue) {
-    if !parser.capture {
+    if !parser.mode.record() {
         return;
     }
     parser.report.fields.push(ConfigField {
@@ -530,7 +531,7 @@ fn gain_extensions(
             data[i / 8] |= (parser.bits.read(1)? as u8) << (7 - i % 8);
         }
         let sha = crate::model::sha256(&data);
-        if parser.capture {
+        if parser.mode.record() {
             parser.report.fields.push(ConfigField {
                 name: format!("{root}.opaque_payload"),
                 bit_offset: payload_start,
@@ -563,10 +564,10 @@ pub(super) fn read_payload(
         start,
         rate,
         state.channels,
-        parser.capture,
+        parser.mode.record(),
     )?;
     parser.bits.skip(header_end - start)?;
-    if parser.capture {
+    if parser.mode.record() {
         parser.report.fields.extend(header.fields);
     }
     if !header.complete {
@@ -821,7 +822,7 @@ pub fn parse_drc_with_state(
         out.drc_preroll = Some(Box::new(inner));
     }
     let mut parser = Parser {
-        capture: true,
+        mode: ParseMode::Report,
         bits: BitReader::new(packet),
         report: frame.clone(),
     };
@@ -895,6 +896,7 @@ mod tests {
             stop_bit_offset: 0,
             cpe_absent: false,
             preroll: None,
+            left_ics_bit_offset: None,
             payload_bit_offset: None,
             component_end_bit_offset: None,
             unknown_ranges: Vec::new(),
@@ -946,7 +948,7 @@ mod tests {
         // No header, constant gain, negative magnitude 255, no extension.
         let data = raw("00111111111010100101");
         let mut p = Parser {
-            capture: true,
+            mode: ParseMode::Report,
             bits: BitReader::new(&data),
             report: report(),
         };
@@ -957,7 +959,7 @@ mod tests {
         assert_eq!(p.bits.read(8).unwrap(), 0xa5);
         for end in 0..12 {
             let mut p = Parser {
-                capture: true,
+                mode: ParseMode::Report,
                 bits: BitReader::new(&data),
                 report: report(),
             };
@@ -972,7 +974,7 @@ mod tests {
     fn oversized_node_count_and_nonterminating_extension_are_errors() {
         let count = raw(&format!("01{}1", "0".repeat(256)));
         let mut p = Parser {
-            capture: true,
+            mode: ParseMode::Report,
             bits: BitReader::new(&count),
             report: report(),
         };
@@ -982,7 +984,7 @@ mod tests {
         );
         let extension = raw("0000000000010001");
         let mut p = Parser {
-            capture: true,
+            mode: ParseMode::Report,
             bits: BitReader::new(&extension),
             report: report(),
         };
@@ -996,7 +998,7 @@ mod tests {
         let wire = "000000000001000100000101010000";
         let data = raw(&format!("{wire}101101"));
         let mut parser = Parser {
-            capture: true,
+            mode: ParseMode::Report,
             bits: BitReader::new(&data),
             report: report(),
         };
@@ -1009,7 +1011,7 @@ mod tests {
             let mut bits = BitReader::new(&data);
             bits.set_end(end).unwrap();
             let mut parser = Parser {
-                capture: true,
+                mode: ParseMode::Report,
                 bits,
                 report: report(),
             };

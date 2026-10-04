@@ -1,5 +1,6 @@
 //! SQ spectra before CAC, TNS and synthesis. No native APIs or FFT are used.
-use super::{FrameContext, FrameReport, Parser, parse_frame};
+use super::ParseMode;
+use super::{FrameContext, FrameReport, Parser};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
@@ -179,7 +180,7 @@ impl Parser<'_> {
         for (group, scales) in factors.iter_mut().enumerate() {
             let mut band = 0;
             while band < ics.max_sfb {
-                let name = if self.capture {
+                let name = if self.mode.record() {
                     format!("{prefix}.sections[{}]", sections.len())
                 } else {
                     String::new()
@@ -230,7 +231,7 @@ impl Parser<'_> {
                                 "scale factor outside -256..255",
                             ));
                         }
-                        if self.capture {
+                        if self.mode.record() {
                             self.report.fields.push(ConfigField {
                                 name: format!(
                                     "{prefix}.groups[{group}].bands[{sfb}].scale_factor_delta"
@@ -255,7 +256,7 @@ impl Parser<'_> {
         let spectral_bit_offset = self.bits.position();
         quantized.resize(1024, 0);
         quantized.fill(0);
-        let mut scaled = if self.capture {
+        let mut scaled = if self.mode.spectra() {
             vec![0.; 1024]
         } else {
             Vec::new()
@@ -279,7 +280,7 @@ impl Parser<'_> {
                         for &q in &values[..length] {
                             let index = window * window_size + line;
                             quantized[index] = q;
-                            if self.capture {
+                            if self.mode.spectra() {
                                 scaled[index] =
                                     inverse(q, factors[section.group][band].expect("nonzero band"));
                             }
@@ -290,7 +291,7 @@ impl Parser<'_> {
             }
         }
         let end_bit_offset = self.bits.position();
-        if self.capture && end_bit_offset > spectral_bit_offset {
+        if self.mode.record() && end_bit_offset > spectral_bit_offset {
             self.report.fields.push(ConfigField {
                 name: format!("{prefix}.spectral_codewords"),
                 bit_offset: spectral_bit_offset,
@@ -342,7 +343,14 @@ pub(super) fn materialize_at_rate(channel: &mut ChannelSpectrum, rate: u64) {
 }
 
 pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumReport, ParseError> {
-    let mut report = parse_frame(context, packet)?;
+    parse_spectrum_with(context, packet, ParseMode::Report)
+}
+pub(crate) fn parse_spectrum_with(
+    context: &FrameContext,
+    packet: &[u8],
+    mode: ParseMode,
+) -> Result<SpectrumReport, ParseError> {
+    let mut report = super::parse_frame_with(context, packet, mode)?;
     let stage = "scaled_before_cac_tns".to_owned();
     if report.stop_reason != "sq_left_channel_stream" {
         return Ok(SpectrumReport {
@@ -354,22 +362,21 @@ pub fn parse_spectrum(context: &FrameContext, packet: &[u8]) -> Result<SpectrumR
         });
     }
     let payload = report.payload_bit_offset;
-    let left_start = report
-        .fields
-        .iter()
-        .find(|f| f.name == "components[0].tce[0].left_ics.block_type")
-        .expect("confirmed ICS")
-        .bit_offset;
+    let left_start = report.left_ics_bit_offset.expect("confirmed ICS");
+    debug_assert!(
+        !mode.record()
+            || report
+                .fields
+                .iter()
+                .find(|f| f.name == "components[0].tce[0].left_ics.block_type")
+                .is_some_and(|f| f.bit_offset == left_start)
+    );
     report.fields.retain(|f| f.bit_offset < left_start);
     report.unknown_ranges.pop(); // The prefix's opaque tail; retain embedded preroll.
     report.diagnostics.pop();
     let mut bits = BitReader::new(packet);
     bits.skip(left_start)?;
-    let mut parser = Parser {
-        bits,
-        report,
-        capture: true,
-    };
+    let mut parser = Parser { bits, report, mode };
     let left = parser.ics(&"components[0].tce[0].left_ics")?;
     let mut channels = vec![parser.stream(left, 0)?];
     let shared = parser.flag("components[0].tce[0].shared_ics")?;

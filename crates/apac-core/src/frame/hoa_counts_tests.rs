@@ -195,7 +195,7 @@ fn count_dependent_spatial_payloads_reject_each_bit_truncation() {
         let end = f["bits"].as_u64().unwrap() as usize;
         for limit in 0..=end {
             let mut parser = Parser {
-                capture: false,
+                mode: crate::frame::ParseMode::Scan,
                 bits: BitReader::new(&raw),
                 report: template.clone(),
             };

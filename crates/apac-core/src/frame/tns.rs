@@ -1,5 +1,6 @@
 //! Per-window APAC TNS syntax and a Float64 synthesis lattice, before BWE2.
-use super::{CacReport, FrameContext, IcsInfo, Parser, parse_cac};
+use super::ParseMode;
+use super::{CacReport, FrameContext, IcsInfo, Parser};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
@@ -258,7 +259,14 @@ pub(super) fn apply(input: &[f32], channel: &TnsChannel) -> Result<Vec<f32>, Par
 }
 
 pub fn parse_tns(context: &FrameContext, packet: &[u8]) -> Result<TnsReport, ParseError> {
-    let mut cac = parse_cac(context, packet)?;
+    parse_tns_with(context, packet, ParseMode::Report)
+}
+pub(crate) fn parse_tns_with(
+    context: &FrameContext,
+    packet: &[u8],
+    mode: ParseMode,
+) -> Result<TnsReport, ParseError> {
+    let mut cac = super::cac::parse_cac_with(context, packet, mode)?;
     let mut tns = Vec::new();
     let mut channels_after_tns = Vec::new();
     if cac.cac_complete {
@@ -287,24 +295,22 @@ pub fn parse_tns(context: &FrameContext, packet: &[u8]) -> Result<TnsReport, Par
                 &cac.channels_after_cac[channel.channel_index as usize].scaled,
                 &parameters,
             )?;
-            report.fields.push(ConfigField {
-                name: format!("components[0].tce[0].tns[{}]", channel.channel_index),
-                bit_offset: parameters.start_bit_offset,
-                bit_length: parameters.end_bit_offset - parameters.start_bit_offset,
-                value: FieldValue::Tns(Box::new(parameters.clone())),
-            });
+            if mode.record() {
+                report.fields.push(ConfigField {
+                    name: format!("components[0].tce[0].tns[{}]", channel.channel_index),
+                    bit_offset: parameters.start_bit_offset,
+                    bit_length: parameters.end_bit_offset - parameters.start_bit_offset,
+                    value: FieldValue::Tns(Box::new(parameters.clone())),
+                });
+            }
             channels_after_tns.push(TnsChannelSpectrum {
                 channel_index: channel.channel_index,
                 scaled,
             });
             tns.push(parameters);
         }
-        cac.spectrum.frame = Parser {
-            bits,
-            report,
-            capture: true,
-        }
-        .finish("sq_after_tns_before_bwe2", true, false)?;
+        cac.spectrum.frame =
+            Parser { bits, report, mode }.finish("sq_after_tns_before_bwe2", true, false)?;
         cac.spectrum.frame.payload_bit_offset = payload;
     }
     Ok(TnsReport {

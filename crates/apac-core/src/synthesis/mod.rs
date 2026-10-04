@@ -16,13 +16,15 @@ mod hoa_access_tests;
 #[cfg(test)]
 mod hoa_tests;
 #[cfg(test)]
+mod mode_tests;
+#[cfg(test)]
 mod shared_tests;
 mod stream;
 use crate::{
     error::{DecodeError, Result},
     frame::{
         ChannelFrameContext, DrcState, FrameContext, HoaFrameContext, HoaState, PacketReport,
-        ScanWorkspace, StreamFrameContext, parse_packet_with_state, stream::StreamState,
+        ScanWorkspace, StreamFrameContext, stream::StreamState,
     },
 };
 pub const NUMERIC_PROFILE: &str = crate::numeric::PROFILE;
@@ -191,6 +193,9 @@ pub struct Decoder {
     scan: ScanWorkspace,
     /// Counts commits and resets; a parsed packet is valid for one generation.
     generation: u64,
+    /// Decoding records no syntax; tests switch to report parsing to prove
+    /// that recording never changes a decision.
+    mode: crate::frame::ParseMode,
 }
 impl Clone for Decoder {
     fn clone(&self) -> Self {
@@ -202,6 +207,7 @@ impl Clone for Decoder {
             access: self.access.clone(),
             scan: ScanWorkspace::default(),
             generation: self.generation,
+            mode: self.mode,
         }
     }
 }
@@ -276,6 +282,7 @@ impl Decoder {
                 },
                 scan: ScanWorkspace::default(),
                 generation: 0,
+                mode: crate::frame::ParseMode::Decode,
             });
         }
         let (channel_context, hoa_context) = match decoded_context {
@@ -319,7 +326,14 @@ impl Decoder {
             access: channel_context,
             scan: ScanWorkspace::default(),
             generation: 0,
+            mode: crate::frame::ParseMode::Decode,
         })
+    }
+    /// The same decoder parsing packets as reports, with recorded syntax.
+    #[cfg(test)]
+    pub(crate) fn recording(mut self) -> Self {
+        self.mode = crate::frame::ParseMode::Report;
+        self
     }
     pub fn info(&self) -> StreamInfo<'_> {
         let (kind, sample_rate_hz) = match &self.engine {
@@ -391,11 +405,13 @@ impl Decoder {
         let body = match &self.engine {
             Engine::Stereo { context } => {
                 let mut drc = self.drc.clone();
-                let report = parse_packet_with_state(context, packet, &mut drc).map_err(|e| {
-                    let mut error = DecodeError::new("SQ spectrum", e.to_string());
-                    error.bit_offset = Some(e.bit_offset);
-                    error
-                })?;
+                let report =
+                    crate::frame::parse_packet_with_mode(context, packet, &mut drc, self.mode)
+                        .map_err(|e| {
+                            let mut error = DecodeError::new("SQ spectrum", e.to_string());
+                            error.bit_offset = Some(e.bit_offset);
+                            error
+                        })?;
                 if !report.packet_complete {
                     let frame = report.frame();
                     let mut error = DecodeError::new(
@@ -413,15 +429,17 @@ impl Decoder {
                 Parsed::Stereo { report, drc }
             }
             Engine::Channels { context } => {
-                let (report, drc) = channels::parse(context, &self.drc, packet)?;
+                let (report, drc) = channels::parse(context, &self.drc, packet, self.mode)?;
                 Parsed::Channels { report, drc }
             }
             Engine::Hoa { context, state } => {
-                let (report, drc, state) = hoa::parse(context, &self.drc, state, packet)?;
+                let (report, drc, state) =
+                    hoa::parse(context, &self.drc, state, packet, self.mode)?;
                 Parsed::Hoa { report, drc, state }
             }
             Engine::Composite { context, state } => {
-                let (report, drc, state) = stream::parse(context, &self.drc, state, packet)?;
+                let (report, drc, state) =
+                    stream::parse(context, &self.drc, state, packet, self.mode)?;
                 Parsed::Composite { report, drc, state }
             }
         };
@@ -526,7 +544,7 @@ impl Decoder {
                     packet,
                     &mut next,
                     &mut state,
-                    false,
+                    crate::frame::ParseMode::Scan,
                     &mut self.scan,
                 )
                 .map(|r| r.packet_complete.then(|| AdvanceInfo::from_stream(&r)));

@@ -1,5 +1,6 @@
 //! Bounded two-channel BWE2 syntax, after TNS and before core alignment.
-use super::{FrameContext, IcsInfo, Parser, TnsReport, parse_tns};
+use super::ParseMode;
+use super::{FrameContext, IcsInfo, Parser, TnsReport};
 use crate::prelude::*;
 use crate::record::FieldValue;
 use crate::{
@@ -188,7 +189,14 @@ pub(super) fn regions_at_rate(ics: &IcsInfo, rate: u64) -> (usize, Vec<Bwe2Regio
     (cutoff, result)
 }
 pub fn parse_bwe2(context: &FrameContext, packet: &[u8]) -> Result<Bwe2Report, ParseError> {
-    let mut tns = parse_tns(context, packet)?;
+    parse_bwe2_with(context, packet, ParseMode::Report)
+}
+pub(crate) fn parse_bwe2_with(
+    context: &FrameContext,
+    packet: &[u8],
+    mode: ParseMode,
+) -> Result<Bwe2Report, ParseError> {
+    let mut tns = super::tns::parse_tns_with(context, packet, mode)?;
     let mut data = None;
     let mut output = Vec::new();
     if tns.tns_complete {
@@ -245,18 +253,19 @@ pub fn parse_bwe2(context: &FrameContext, packet: &[u8]) -> Result<Bwe2Report, P
                 scaled,
             });
         }
-        report.fields.push(ConfigField {
-            name: "components[0].bwe2".into(),
-            bit_offset: parsed.start_bit_offset,
-            bit_length: parsed.end_bit_offset - parsed.start_bit_offset,
-            value: FieldValue::Bwe2(Box::new(parsed.clone())),
-        });
-        tns.cac.spectrum.frame = Parser {
-            bits,
-            report,
-            capture: true,
+        if mode.record() {
+            report.fields.push(ConfigField {
+                name: "components[0].bwe2".into(),
+                bit_offset: parsed.start_bit_offset,
+                bit_length: parsed.end_bit_offset - parsed.start_bit_offset,
+                value: FieldValue::Bwe2(Box::new(parsed.clone())),
+            });
         }
-        .finish("sq_after_bwe2_before_core_alignment", true, false)?;
+        tns.cac.spectrum.frame = Parser { bits, report, mode }.finish(
+            "sq_after_bwe2_before_core_alignment",
+            true,
+            false,
+        )?;
         tns.cac.spectrum.frame.payload_bit_offset = payload;
         data = Some(parsed);
     }

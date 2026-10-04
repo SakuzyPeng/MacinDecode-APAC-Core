@@ -49,7 +49,7 @@ fn first_order_payloads_and_zero_width_descriptions_preserve_following_bits() {
         let end = row["bits"].as_u64().unwrap() as usize;
         for limit in 0..=end {
             let mut p = Parser {
-                capture: false,
+                mode: crate::frame::ParseMode::Scan,
                 bits: BitReader::new(&raw),
                 report: template.clone(),
             };

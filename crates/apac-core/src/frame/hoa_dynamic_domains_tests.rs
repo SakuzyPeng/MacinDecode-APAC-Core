@@ -83,7 +83,7 @@ fn general_mapping_payloads_preserve_following_bits_and_zero_unselected_outputs(
                 || (cut > 0 && (cut - 1) % ((end - 1) / 8) == 0)
         }) {
             let mut parser = Parser {
-                capture: true,
+                mode: crate::frame::ParseMode::Report,
                 bits: BitReader::new(&raw),
                 report: template.clone(),
             };

@@ -1,6 +1,7 @@
 //! Shared-ICS SQ spectra and bounded CAC before TNS. No inter-frame CAC state.
+use super::ParseMode;
 use super::spectrum::{Codebook, Trie};
-use super::{FrameContext, IcsInfo, Parser, SpectrumReport, parse_spectrum};
+use super::{FrameContext, IcsInfo, Parser, SpectrumReport};
 use crate::config::{ConfigField, ParseError, bits::BitReader};
 use crate::prelude::*;
 use crate::record::FieldValue;
@@ -142,7 +143,7 @@ pub(super) fn read_data_at(
 ) -> Result<CacData, ParseError> {
     let start = parser.bits.position();
     let (runs, indices) = decode_runs(&mut parser.bits, ics.max_sfb * ics.window_groups.len())?;
-    if parser.capture {
+    if parser.mode.record() {
         for (i, run) in runs.iter().enumerate() {
             let gain_bits = books().gain.bits[usize::from(run.gain_index)];
             for (name, value, offset, length) in [
@@ -247,7 +248,14 @@ pub(super) fn apply_channels_at_rate(
 }
 
 pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, ParseError> {
-    let mut spectrum = parse_spectrum(context, packet)?;
+    parse_cac_with(context, packet, ParseMode::Report)
+}
+pub(crate) fn parse_cac_with(
+    context: &FrameContext,
+    packet: &[u8],
+    mode: ParseMode,
+) -> Result<CacReport, ParseError> {
+    let mut spectrum = super::spectrum::parse_spectrum_with(context, packet, mode)?;
     let shared = spectrum.frame.stop_reason == "shared_ics_cac_deferred";
     let (cac, channels_after_cac) = if shared {
         let position = spectrum.frame.stop_bit_offset;
@@ -263,11 +271,7 @@ pub fn parse_cac(context: &FrameContext, packet: &[u8]) -> Result<CacReport, Par
         report.diagnostics.pop();
         let mut bits = BitReader::new(packet);
         bits.skip(position)?;
-        let mut parser = Parser {
-            bits,
-            report,
-            capture: true,
-        };
+        let mut parser = Parser { bits, report, mode };
         let ics = spectrum.channels[0].ics.clone();
         let right = parser.stream(ics.clone(), 1)?;
         spectrum.channels.push(right);

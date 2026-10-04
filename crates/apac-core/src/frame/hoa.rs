@@ -1120,7 +1120,16 @@ pub fn parse_hoa_packet_with_state(
     drc: &mut DrcState,
     state: &mut HoaState,
 ) -> Result<HoaPacketReport, ParseError> {
-    super::channels::parse_hoa_transport(&context.transport, packet, drc, state)
+    parse_hoa_packet_with_mode(context, packet, drc, state, super::ParseMode::Report)
+}
+pub(crate) fn parse_hoa_packet_with_mode(
+    context: &HoaFrameContext,
+    packet: &[u8],
+    drc: &mut DrcState,
+    state: &mut HoaState,
+    mode: super::ParseMode,
+) -> Result<HoaPacketReport, ParseError> {
+    super::channels::parse_hoa_transport(&context.transport, packet, drc, state, mode)
         .map(|packet| HoaPacketReport { packet })
 }
 

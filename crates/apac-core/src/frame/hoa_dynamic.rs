@@ -393,7 +393,7 @@ mod tests {
             let listed = row["truth"]["encoding"] == "index_list";
             for cut in 0..=end {
                 let mut parser = Parser {
-                    capture: true,
+                    mode: crate::frame::ParseMode::Report,
                     bits: BitReader::new(&raw),
                     report: template.clone(),
                 };
@@ -482,7 +482,7 @@ mod tests {
             let listed = row["truth"]["encoding"] == "index_list";
             for cut in 0..=end {
                 let mut parser = Parser {
-                    capture: true,
+                    mode: crate::frame::ParseMode::Report,
                     bits: BitReader::new(&raw),
                     report: template.clone(),
                 };
@@ -558,7 +558,7 @@ mod tests {
             .packet
             .frame;
         let mut parser = Parser {
-            capture: true,
+            mode: crate::frame::ParseMode::Report,
             bits: BitReader::new(&[]),
             report: template,
         };

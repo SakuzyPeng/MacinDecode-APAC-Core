@@ -1,0 +1,13 @@
+[package]
+name = "apac-no-std-example"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Example: decoding APAC packets with apac-core in a no_std + alloc crate"
+
+[dependencies]
+# No features: the decoding API needs neither serde nor std.
+apac-core.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true

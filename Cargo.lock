@@ -85,6 +85,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "apac-no-std-example"
+version = "0.1.0"
+dependencies = [
+ "apac-core",
+ "serde_json",
+]
+
+[[package]]
 name = "apac-research"
 version = "0.1.0"
 dependencies = [

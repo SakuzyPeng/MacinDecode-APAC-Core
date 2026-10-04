@@ -20,6 +20,9 @@ use alloc::collections::BTreeMap;
 use core::fmt;
 
 pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
+// Bit positions are `usize`: on 32-bit targets every input bit must stay
+// addressable, which also bounds the parsers' unchecked `len() * 8`.
+const _: () = assert!(MAX_COOKIE_BYTES <= u32::MAX as usize / 8);
 
 pub use crate::record::{ConfigField, DigestUnit, FieldValue};
 pub(crate) use model::*;

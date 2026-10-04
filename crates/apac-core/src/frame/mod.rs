@@ -143,6 +143,9 @@ use alloc::collections::BTreeMap;
 
 /// Largest single packet accepted by every parser and packet store.
 pub const MAX_PACKET_BUFFER: usize = 16 * 1024 * 1024;
+// Bit positions are `usize`: on 32-bit targets every input bit must stay
+// addressable, which also bounds the parsers' unchecked `len() * 8`.
+const _: () = assert!(MAX_PACKET_BUFFER <= u32::MAX as usize / 8);
 
 /// Immutable configuration-derived context. An unsupported context still permits
 /// reporting the ASP frame type when its enclosing configuration is verified.

@@ -59,6 +59,49 @@ fn measured_codebook(file: &str, mode: usize, expected_sha256: &str) -> Vec<(usi
 }
 
 #[derive(Deserialize)]
+struct MeasuredMatrix {
+    schema_version: u8,
+    profile: String,
+    order: usize,
+    mode: usize,
+    cluster: usize,
+    rows: usize,
+    columns: usize,
+    storage: String,
+    matrix_sha256: String,
+    matrix_f32: Vec<u32>,
+}
+
+/// Order-3 dictionaries share this matrix across all four quantization widths.
+fn measured_cluster0_matrix() -> Vec<u32> {
+    let data: MeasuredMatrix =
+        data_json("hoa-salient-order3-mode4-cluster0-matrix-measured-v1.json");
+    assert_eq!(data.schema_version, 1);
+    assert_eq!(data.profile, "apac-hoa-salient-measured-matrix-v1");
+    assert_eq!(
+        (data.order, data.mode, data.cluster, data.rows, data.columns),
+        (3, 4, 0, 16, 16)
+    );
+    assert_eq!(data.storage, "row-major");
+    assert_eq!(data.matrix_f32.len(), 256);
+    assert!(
+        data.matrix_f32
+            .iter()
+            .all(|&word| f32::from_bits(word).is_finite())
+    );
+    let digest = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&data.matrix_f32).expect("measured matrix JSON"))
+    );
+    assert_eq!(digest, data.matrix_sha256);
+    assert_eq!(
+        digest,
+        "87a5fbe1a977b1312d8d1093425ee3217d87ad4dfc77a7855b0290e8b9861c19"
+    );
+    data.matrix_f32
+}
+
+#[derive(Deserialize)]
 struct SharedMode {
     mode: usize,
     group_indices: Vec<usize>,
@@ -125,6 +168,23 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     assert_eq!(data.matrix_encoding, packed::MATRIX_ENCODING);
     assert_eq!(data.order, order);
     assert_eq!(data.modes.len(), 6);
+    let measured = (order == 3).then(|| {
+        assert_eq!(data.modes[4].mode, 4);
+        let index = data.modes[4].matrix_indices[0];
+        assert!(index < data.matrices_f32.len());
+        let users: Vec<_> = data
+            .modes
+            .iter()
+            .flat_map(|mode| {
+                mode.matrix_indices
+                    .iter()
+                    .enumerate()
+                    .filter_map(move |(cluster, &i)| (i == index).then_some((mode.mode, cluster)))
+            })
+            .collect();
+        assert_eq!(users, [(4, 0)]);
+        (index, measured_cluster0_matrix())
+    });
     let group_names = data
         .groups
         .iter()
@@ -134,7 +194,17 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     let mut matrix_lengths = Vec::new();
     let mut matrix_names = Vec::new();
     for (i, hex) in data.matrices_f32.iter().enumerate() {
-        let words = packed::matrix(hex, (order + 1).pow(4)).expect("built-in packed HOA matrix");
+        let packed_words =
+            packed::matrix(hex, (order + 1).pow(4)).expect("built-in packed HOA matrix");
+        let words = if let Some((_, words)) = measured.as_ref().filter(|(index, _)| *index == i) {
+            assert_eq!(
+                &packed_words, words,
+                "packed copy of measured matrix differs"
+            );
+            words.clone()
+        } else {
+            packed_words
+        };
         matrix_lengths.push(words.len());
         matrix_names.push(out.array(
             false,

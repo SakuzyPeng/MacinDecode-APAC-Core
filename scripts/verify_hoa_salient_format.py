@@ -12,6 +12,7 @@ from pathlib import Path
 import struct
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
 from generate_hoa_salient_measured import load_measurements, measured_book, replace_book
+from generate_hoa_salient_measured_matrix import load_measurement as load_matrix_measurement, measured_matrix, replace_matrix
 
 COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
@@ -84,6 +85,11 @@ def extract(path, order=3, quantization_bits=6):
             if result['modes'][mode]['codebooks'][book] != measured_book(measurement):
                 raise ValueError(f'reference differs from measured codebook {mode}/{book}')
             result = replace_book(result, measurement)
+    if order == 3:
+        measurement = load_matrix_measurement()
+        if result['modes'][4]['matrices_f32'][0] != measured_matrix(measurement):
+            raise ValueError('reference differs from measured mode-4 cluster-0 matrix')
+        result = replace_matrix(result, measurement)
     return result
 
 

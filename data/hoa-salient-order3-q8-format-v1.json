@@ -2,10 +2,23 @@
   "schema_version": 3,
   "format_profile": "apac-hoa-salient-order3-q8-format-v1",
   "source": {
-    "component": "AudioCodecs 7.0",
-    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
-    "architecture": "x86_64",
-    "method": "shared spatial encoder/decoder wire dictionaries"
+    "method": "mixed sources with per-table replacements",
+    "original_observation": {
+      "component": "AudioCodecs 7.0",
+      "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+      "architecture": "x86_64",
+      "method": "shared spatial encoder/decoder wire dictionaries"
+    },
+    "remaining_tables": "original_observation",
+    "matrix_replacements": [
+      {
+        "mode": 4,
+        "cluster": 0,
+        "source_file": "hoa-salient-order3-mode4-cluster0-matrix-measured-v1.json",
+        "source_sha256": "410345a9b07544104bfae974c778b14f8a1f61cf8d6b87f09a6e690a88ccc462",
+        "method": "public AudioConverter PCM reconstruction with calibration-weighted reanalysis"
+      }
+    ]
   },
   "tables_sha256": "d799f383c754514ed7aa673ae06dfd0d3546b8ecf42dfcadd26b3e41b5e59227",
   "order": 3,

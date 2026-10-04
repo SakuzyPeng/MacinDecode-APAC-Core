@@ -123,12 +123,15 @@ def replace_book(value, measurement):
         source_sha256=hashlib.sha256(json_bytes(measurement)).hexdigest(),
         method=SOURCES[mode]['method'],
     ))
-    result['source'] = dict(
-        method='mixed sources with per-codebook replacements',
+    source = result['source'] if 'original_observation' in result['source'] else {}
+    source.update(
+        method=('mixed sources with per-table replacements' if source.get('matrix_replacements')
+                else 'mixed sources with per-codebook replacements'),
         original_observation=original,
         remaining_tables='original_observation',
         codebook_replacements=sorted(replacements, key=lambda entry: (entry['mode'], entry['book'])),
     )
+    result['source'] = source
     # The independently recovered words exactly preserve the published identity.
     check_digest(result)
     return result

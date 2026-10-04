@@ -35,7 +35,7 @@ class MeasuredCodebookTests(unittest.TestCase):
     def test_replacements_compose_without_losing_the_other_source(self):
         current = format_for(3, 6)
         original = copy.deepcopy(current)
-        original['source'] = original['source']['original_observation']
+        del original['source']['codebook_replacements']
         for order in ((1, 4), (4, 1)):
             result = original
             for mode in order:

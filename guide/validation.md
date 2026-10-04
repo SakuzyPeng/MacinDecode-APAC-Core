@@ -156,7 +156,7 @@ python3 -B scripts/compare_reports.py reports/portable-suite-before reports/port
 
 `validate_packet_native.py` 和 `validate_drc_native.py` 把编码控制的完整 PCM 对照单列为 `native_pcm_comparison`，保留原 `atol=1e-6, rtol=1e-5`、逐样本差异和首个位置。发生超差时仍保存包、捕获及两份 PCM 到报告对应的 `.failures/`，继续检查剩余控制；不删除压力输入，也不调整增益或容差。
 
-默认 `passed` 表示规定的原生结构／状态检查通过，`qualification=native_structure_and_state`、`independent_math_verified=false` 明确它不是数学验收。长度、非有限值、参数、边界、处理关闭和延迟检查仍是硬条件；人工单位／状态控制的既有数值条件也保留。独立数学正确性由相应 Decimal 验证器另行证明。
+默认 `passed` 表示规定的原生结构／状态检查通过，`qualification=native_structure_and_state`、`independent_math_verified=false` 明确它不是数学验收。长度、非有限值、参数、边界、处理关闭和延迟检查仍是硬条件；人工单位／状态控制的既有数值条件也保留。DRC 的 8 个预滚／元数据更新状态用例只要 PCM 超差，就保留失败证据并退出 1，不受 `--require-native-pcm` 影响。独立数学正确性由相应 Decimal 验证器另行证明。
 
 需要把完整编码控制的原生 PCM 兼容性也作为硬条件时，加 `--require-native-pcm`。`structural_passed` 保存结构结论，兼容性计数及结果保持可见；结构失败退出 1，结构通过但显式要求的 PCM 兼容性失败退出 2，满足所选条件退出 0。旧报告不改写。
 

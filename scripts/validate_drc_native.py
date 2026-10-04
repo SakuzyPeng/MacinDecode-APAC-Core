@@ -113,12 +113,14 @@ def state_controls(binary,report):
             if not selected:continue
             prerolls+=int(kind=='preroll')
             item=dict(rate=rate,index=index,kind=kind,passed=False)
-            with workspace(report,f'state-{rate}-{index}',retain=lambda: not item.get('pcm_metrics',{}).get('passed',True)) as root:
+            with workspace(report,f'state-{rate}-{index}') as root:
                 payloads=[written_packet(c,rate,options)[0] for c in seq]
                 written_bundle(root/'packets',payloads,rate,**options)
                 item['input_sha256']=identity((root/'packets/cookie.bin').read_bytes(),payloads)
                 report['state_controls'].append(item)
                 inspect_bundle(binary,root/'packets',root,1024*len(seq),item)
+                # Artificial state controls retain their hard numerical gate.
+                require(item['pcm_metrics']['passed'],'native DRC state control exceeds original tolerance')
                 item['passed']=True
     require(len(report['state_controls'])==8,'metadata/preroll controls missing')
 

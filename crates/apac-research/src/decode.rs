@@ -3,7 +3,7 @@ use crate::{
     model::*,
     output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
 };
-use crate::{input::Input, synthesis::Decoder};
+use crate::{implementation, input::Input, synthesis::Decoder};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
@@ -106,10 +106,10 @@ fn decode_with_access(
     )?;
     let mut decoder = Decoder::new(bundle.config())?;
     let channels = decoder.info().channel_count;
-    let backend = decoder.backend();
-    let state_profile = decoder.state_profile();
-    let support_scope = decoder.support_scope();
-    if decoder.hoa_numeric_profile().is_some() && bundle.first_packet_index() != 0 {
+    let backend = implementation::backend(&decoder);
+    let state_profile = implementation::state_profile(&decoder);
+    let support_scope = implementation::support_scope(&decoder);
+    if implementation::hoa_numeric_profile(&decoder).is_some() && bundle.first_packet_index() != 0 {
         return Err(Error::new(
             "SQ access",
             "HOA input must include packet zero to establish sequential state",
@@ -279,7 +279,7 @@ fn decode_with_access(
                 "bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,
                 "bwe2_format_sha256":crate::bwe2_math::format_sha256(),
                 "bwe2_tables_sha256":crate::bwe2_math::math_sha256(),
-                "qualification":crate::synthesis::QUALIFICATION,
+                "qualification":implementation::QUALIFICATION,
                 "compiler":env!("APAC_BUILD_RUSTC"),
                 "debug_assertions":cfg!(debug_assertions),
                 "tables_sha256":crate::numeric::tables_sha256()
@@ -287,7 +287,7 @@ fn decode_with_access(
         )]),
         all_finite: true,
     };
-    if let Some(profile) = decoder.channel_layout_profile() {
+    if let Some(profile) = implementation::channel_layout_profile(&decoder) {
         pcm.decoder_settings
             .get_mut("implementation")
             .unwrap()
@@ -295,7 +295,7 @@ fn decode_with_access(
             .as_mut()
             .unwrap()["channel_layout_profile"] = json!(profile);
     }
-    if let Some(profile) = decoder.hoa_numeric_profile() {
+    if let Some(profile) = implementation::hoa_numeric_profile(&decoder) {
         pcm.decoder_settings
             .get_mut("implementation")
             .unwrap()
@@ -556,7 +556,7 @@ fn decode_with_access(
         }
     }
     out.json("pcm.json", &pcm)?;
-    let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":crate::synthesis::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":crate::synthesis::QUALIFICATION,"backend":backend,"native_apis_used":false,
+    let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":crate::synthesis::NUMERIC_PROFILE,"cac_numeric_profile":crate::frame::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::frame::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::frame::tns_math_sha256(),"bwe2_numeric_profile":crate::frame::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::bwe2_math::format_sha256(),"bwe2_tables_sha256":crate::bwe2_math::math_sha256(),"numerical_qualification":implementation::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,
         "drc_processing":"off","loudness_normalization":"off",
         "drc_rules_version":crate::frame::DRC_RULES_VERSION,
@@ -567,7 +567,7 @@ fn decode_with_access(
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
         "raw_frames_decoded":decoded_packets*1024,
         "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
-    if let Some(profile) = decoder.channel_layout_profile() {
+    if let Some(profile) = implementation::channel_layout_profile(&decoder) {
         report["channel_layout_profile"] = json!(profile);
     }
     if channels != 2 || decoder.composite().is_some() {
@@ -576,14 +576,14 @@ fn decode_with_access(
         report["absent_elements"] = json!(absent_elements);
         report["embedded_absent_elements"] = json!(embedded_absent_elements);
     }
-    if let Some(profile) = decoder.hoa_numeric_profile() {
+    if let Some(profile) = implementation::hoa_numeric_profile(&decoder) {
         report["hoa_numeric_profile"] = json!(profile);
     }
     if let Some(mode) = access {
-        let profile = if decoder.hoa_numeric_profile().is_some() {
-            crate::synthesis::HOA_ACCESS_PROFILE
+        let profile = if implementation::hoa_numeric_profile(&decoder).is_some() {
+            implementation::HOA_ACCESS_PROFILE
         } else {
-            crate::synthesis::ACCESS_PROFILE
+            implementation::ACCESS_PROFILE
         };
         report["access"] = json!({"profile":profile,"mode":mode,
             "verification_scope":"full_input","prefix_scanned_packets":prefix_packets,

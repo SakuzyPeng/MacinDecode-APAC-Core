@@ -2,6 +2,7 @@ mod caf;
 pub mod compare;
 pub mod config;
 pub mod decode;
+pub mod implementation;
 mod input;
 pub mod model;
 mod mp4;

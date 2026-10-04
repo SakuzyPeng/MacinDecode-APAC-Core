@@ -8,7 +8,6 @@ use crate::{
         stream::{self, StreamState},
     },
 };
-pub(super) const BACKEND: &str = "rust_hoa_multiple_asc_sq_drc_off_f64_fft_v1";
 /// Parse one packet against copies of the DRC and component state; nothing
 /// is committed.
 pub(super) fn parse(

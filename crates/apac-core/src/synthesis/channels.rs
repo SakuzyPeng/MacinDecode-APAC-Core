@@ -5,7 +5,6 @@ use crate::{
     error::{DecodeError, Result},
     frame::{ChannelFrameContext, ChannelPacketReport, DrcState, parse_channel_packet_with_state},
 };
-pub(super) const BACKEND: &str = "rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v1";
 
 /// Parse one packet against a copy of the DRC state; nothing is committed.
 pub(super) fn parse(

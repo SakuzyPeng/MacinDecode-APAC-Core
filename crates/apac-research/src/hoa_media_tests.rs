@@ -21,7 +21,7 @@ fn hoa_media_stream_digest() {
     let info = source.info().clone();
     let table = info.packet_table.value.clone().unwrap();
     let mut decoder = Decoder::from_cookie(source.cookie()).unwrap();
-    assert!(decoder.hoa_numeric_profile().is_some());
+    assert!(crate::implementation::hoa_numeric_profile(&decoder).is_some());
     let mut hash = Sha256::new();
     let mut packets = 0u64;
     let mut frames = 0u64;

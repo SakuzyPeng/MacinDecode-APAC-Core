@@ -155,10 +155,6 @@ fn salient_history_and_all_coefficient_overlaps_roll_back_and_reset() {
         serde_json::from_str(include_str!("../../../../data/hoa-salient-state-v1.json")).unwrap();
     let cookie = bytes(&f["cookie"]);
     let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-    assert_eq!(
-        decoder.hoa_numeric_profile(),
-        Some("apac-hoa-salient-math-v1")
-    );
     let first = bytes(&f["first"]);
     decoder.decode_vec(&first).unwrap();
     let before = snapshot(&decoder);
@@ -260,7 +256,6 @@ fn mixed_hoa_rolls_back_all_output_history_and_drc_and_resets() {
         );
         assert_eq!(context.state_profile(), "apac-hoa-mixed-state-v1");
         let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-        assert_eq!(decoder.backend(), "rust_hoa_mixed_sq_drc_off_f64_fft_v1");
         let first = bytes(&f["first"]);
         assert_eq!(
             decoder.decode_vec(&first).unwrap().len(),
@@ -328,14 +323,6 @@ fn static_ambient_selector_descriptor_overlap_and_drc_commit_atomically() {
     for f in data["fixtures"].as_array().unwrap() {
         let cookie = bytes(&f["cookie"]);
         let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-        assert_eq!(
-            decoder.hoa_numeric_profile(),
-            Some("apac-hoa-static-ambient-math-v1")
-        );
-        assert_eq!(
-            decoder.backend(),
-            "rust_hoa_static_ambient_sq_drc_off_f64_fft_v1"
-        );
         let first = bytes(&f["first"]);
         decoder.decode_vec(&first).unwrap();
         let before = snapshot(&decoder);
@@ -389,10 +376,6 @@ fn dynamic_hoa_dimensions_mapping_state_and_all_outputs_are_atomic() {
         );
         assert_eq!(context.maximum_preroll_bytes(), 32768);
         let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-        assert_eq!(
-            decoder.backend(),
-            "rust_hoa_dynamic_selection_sq_drc_off_f64_fft_v1"
-        );
         let first = bytes(&f["first"]);
         assert_eq!(decoder.decode_vec(&first).unwrap().len(), 16384);
         let before = snapshot(&decoder);
@@ -452,8 +435,6 @@ fn additive_history_transform_mapping_and_output_overlap_are_atomic() {
             }
         );
         let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-        assert_eq!(decoder.backend(), "rust_hoa_additive_sq_drc_off_f64_fft_v1");
-        assert_eq!(decoder.state_profile(), "apac-hoa-additive-state-v1");
         let first = bytes(&f["first"]);
         assert_eq!(
             decoder.decode_vec(&first).unwrap().len(),
@@ -719,14 +700,6 @@ fn component_orders_keep_sixteen_outputs_and_commit_all_history_atomically() {
                 .is_supported()
         );
         let mut decoder = Decoder::from_cookie(&cookie).unwrap();
-        assert_eq!(
-            decoder.backend(),
-            "rust_hoa_component_orders_sq_drc_off_f64_fft_v1"
-        );
-        assert_eq!(
-            decoder.state_profile(),
-            "apac-hoa-component-orders-state-v1"
-        );
         assert_eq!(
             decoder.info().layout.ambisonic_order,
             Some(u32::from(output_order))

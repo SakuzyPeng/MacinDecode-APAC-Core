@@ -75,9 +75,9 @@ fn cookie_record(cookie: &[u8]) -> Value {
         "decoder": match Decoder::from_cookie(cookie) {
             Ok(d) => json!({
                 "channels": d.info().channel_count,
-                "backend": d.backend(),
-                "state_profile": d.state_profile(),
-                "support_scope": d.support_scope(),
+                "backend": apac_research::implementation::backend(&d),
+                "state_profile": apac_research::implementation::state_profile(&d),
+                "support_scope": apac_research::implementation::support_scope(&d),
                 "layout": sha(d.info().layout),
             }),
             Err(e) => json!({"error": e.to_string()}),

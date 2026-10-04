@@ -2,7 +2,7 @@
 
 Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM 解码与分析工具。
 
-> **实验性项目**，与 Apple 无关。解码器按独立公式定义的固定数值模型实现，不调用苹果音频接口；与 AudioToolbox 参考输出的数值差异由验收脚本另行统计，不承诺逐位一致。
+> **实验性项目**，与 Apple 无关。解码器按独立公式定义的固定数值模型实现，不调用苹果音频接口，并刻意不复现苹果原生实现的数值细节，因此在设计上不与 AudioToolbox 参考逐位一致；两者的差异由验收脚本按容差统计，原因见 [guide/support.md](guide/support.md#与苹果参考的数值关系)。
 
 - **`apac-core`**：`#![no_std]` + `alloc` 的解码库，解析 magic cookie 并把数据包解码为交错 Float32 PCM。不依赖文件系统、时钟或平台浮点库，可在嵌入式和 WebAssembly 目标上构建。
 - **`apac-cac`**：CAC（声道对齐编码）的逆混合运算，独立成 crate。`apac-core` 通过 `cac` feature 接入它，`apac-tool` 默认开启。不开启时仍完整读取和报告 CAC 语法，但遇到使用非零 CAC 增益的帧会明确拒绝。
@@ -100,6 +100,6 @@ cargo doc --no-deps -p apac-core -p apac-container --open
 
 - 本项目是为互操作和研究目的独立编写的实现，与 Apple Inc. 无关，未获 Apple 授权、赞助或认可。Apple 和 AudioToolbox 是 Apple Inc. 的商标；文中提及 APAC 等名称仅用于说明兼容对象。
 - 仓库不包含苹果二进制、反编译代码、SDK 文件或源媒体。`data/` 中观测或转录所得的格式常量在各自文件内注明来源，第三方数据详见 [THIRD_PARTY.md](THIRD_PARTY.md)。
-- 解码器是实验性实现，输出不保证与苹果参考逐位一致，也未经生产环境验证。软件按“原样”提供，不附带任何明示或默示担保（见 [LICENSE](LICENSE)）。
+- 解码器是实验性实现，按自身数值模型输出，设计上不与苹果参考逐位一致，也未经生产环境验证。软件按“原样”提供，不附带任何明示或默示担保（见 [LICENSE](LICENSE)）。
 - APAC 及相关音频技术可能受第三方专利保护。本项目的许可证不授予任何专利许可；在产品中使用或分发之前，请自行评估所在法域的专利与法律要求。
 - 使用本项目处理音频时，请遵守相应内容的版权与许可条款。

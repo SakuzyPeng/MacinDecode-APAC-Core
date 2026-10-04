@@ -10,6 +10,19 @@ Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/a
 
 当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。CAC 逆混合在独立的 `apac-cac` crate 中；不含它的构建（`apac-tool --no-default-features`，或不开 `cac` feature 的 `apac-core`）只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放不在当前交付范围。
 
+## 与苹果参考的数值关系
+
+本项目的数值模型由公式和固定运算顺序定义（`apac-sq-math-v1`、`apac-cac-math-v1` 等），在各平台、各构建上逐位相同。它与苹果原生解码器的差异是刻意选择的结果，不是有待修正的缺陷：
+
+| 环节 | 苹果原生实现（已观测） | 本项目 |
+| --- | --- | --- |
+| 调制常量 | 三角函数值先截断到十位小数，再转为 Float32 | 由 Decimal 按公式计算，直接正确舍入为 IEEE 位模式 |
+| 窗口乘加 | `vDSP_vma`，乘、加分别舍入 | Float64，乘、加分别舍入，不使用融合乘加（FMA） |
+| DFT | `vDSP_DFT_Execute` 的输出随缓冲区内存对齐而变化，同一输入不一定得到同一结果 | 固定顺序的 radix-2 DIT FFT，结果确定 |
+| CAC 旋转 | arm64e 上使用 FMLA／FMADD 融合乘加，强相消时出现可观测的 FMA 残差 | 两次乘积与求和分别舍入，不融合 |
+
+由于 DFT 输出依赖内存对齐，苹果原生解码器本身没有唯一的数值真值，逐位对齐既做不到，也没有意义。因此与苹果参考比较时采用容差 `abs(reference-candidate) <= 1e-6 + 1e-5 * abs(reference)`；逐位比较只用于本项目自身的跨平台、跨构建一致性。对齐差异的诊断方法见 [validation.md](validation.md#历史正弦窗与苹果合成参考)。
+
 ## 共享配置与组合 HOA 流
 
 共享配置与多 ASC 默认使用顺序解码，CAF／MP4 可使用 `--access fast`；跨平台一致性以对应冻结提交的验收报告为准。此前已发布配置的标识和数值运算顺序保留。新规则使用 `apac-hoa-shared-configuration-v1`、`apac-hoa-multiple-asc-v1` 及可选报告字段。外层 ASP 重配置仍按绑定参考的未实现边界拒绝。

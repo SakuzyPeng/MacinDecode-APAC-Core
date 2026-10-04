@@ -95,7 +95,7 @@ fn failed_scans_preserve_all_state_and_exact_decoder_error() {
 fn bounded_constants_and_extreme_finite_spectra_cannot_overflow_synthesis() {
     let tables = crate::numeric::tables();
     // All inverse/gain entries are nonnegative and monotone (numeric unit test).
-    let maximum = tables.inverse[8191] * tables.gains[511];
+    let maximum = (tables.inverse[8191] * tables.gains[511]) as f32;
     assert!(maximum.is_finite());
     assert!(f64::from(maximum) < 2f64.powi(58));
     for n in [128, 1024] {

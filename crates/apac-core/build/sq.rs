@@ -45,28 +45,28 @@ struct RawTransform {
 struct RawTables {
     numeric_profile: String,
     tables_sha256: String,
-    inverse_quantizer_f32: Vec<u32>,
-    gains_f32: Vec<u32>,
+    inverse_quantizer_f64: Vec<u64>,
+    gains_f64: Vec<u64>,
     transforms: BTreeMap<String, RawTransform>,
 }
 
 /// `numeric::tables()`: inverse quantizer, gains and both transform sizes.
 pub fn numeric(out: &mut Output) {
-    let mut raw: RawTables = data_json("sq-math-v1.json");
-    assert_eq!(raw.numeric_profile, "apac-sq-math-v1");
-    assert_eq!(raw.inverse_quantizer_f32.len(), 8192);
-    assert_eq!(raw.gains_f32.len(), 512);
+    let mut raw: RawTables = data_json("sq-math-v2.json");
+    assert_eq!(raw.numeric_profile, "apac-sq-math-v2");
+    assert_eq!(raw.inverse_quantizer_f64.len(), 8192);
+    assert_eq!(raw.gains_f64.len(), 512);
     let inverse = out.array(
         false,
         "SQ_INVERSE",
-        "f32",
-        raw.inverse_quantizer_f32.iter().map(|&b| emit::f32_bits(b)),
+        "f64",
+        raw.inverse_quantizer_f64.iter().map(|&b| emit::f64_bits(b)),
     );
     let gains = out.array(
         false,
         "SQ_GAINS",
-        "f32",
-        raw.gains_f32.iter().map(|&b| emit::f32_bits(b)),
+        "f64",
+        raw.gains_f64.iter().map(|&b| emit::f64_bits(b)),
     );
     let mut transform = |n: usize| {
         let data = raw.transforms.remove(&n.to_string()).expect("SQ size");

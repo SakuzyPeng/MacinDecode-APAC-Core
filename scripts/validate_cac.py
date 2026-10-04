@@ -59,7 +59,7 @@ def inspect(binary, directory, root, count):
 def check_expected(report, truth):
     require(report['cac_complete'] and report['spectrum_complete'], 'incomplete shared channel pair')
     require(report['shared_ics']==truth['shared_ics'] and report['cac']==truth['cac'], 'CAC parameters or boundaries differ')
-    require(report['cac_numeric_profile']==PROFILE and report['numeric_profile']=='apac-sq-math-v1', 'numerical profile differs')
+    require(report['cac_numeric_profile']==PROFILE and report['numeric_profile']=='apac-sq-math-v2', 'numerical profile differs')
     require(report['output_stage']=='scaled_after_cac_before_tns', 'wrong CAC output stage')
     require(len(report['channels'])==len(report['channels_after_cac'])==2, 'wrong channel count')
     for actual, expected in zip(report['channels'], truth['channels']):

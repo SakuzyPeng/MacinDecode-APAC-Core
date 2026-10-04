@@ -2,6 +2,7 @@
 """Hash-gated native state/boundary controls and no-DRC encoder packet windows."""
 import argparse
 from collections import defaultdict
+from native_pcm import compare as compare_native_pcm, finalize as finalize_native_pcm
 from contextlib import contextmanager
 from datetime import datetime,timezone
 import hashlib
@@ -25,11 +26,10 @@ from validate_cac import digest,pcm_stop
 
 
 @contextmanager
-def workspace(report,label):
+def workspace(report,label,retain=None):
     with tempfile.TemporaryDirectory(prefix='apac-native-state-') as tmp:
         root=Path(tmp)
-        try:yield root
-        except Exception:
+        def preserve():
             target=report['failure_directory']/label;target.mkdir(parents=True)
             selected=[root/name for name in ('packets','native-state.json','native-pcm','rust-pcm') if (root/name).exists()]
             size=sum(p.stat().st_size for item in selected for p in (item.rglob('*') if item.is_dir() else [item]) if p.is_file())
@@ -37,7 +37,12 @@ def workspace(report,label):
             for item in selected:
                 if item.is_dir():shutil.copytree(item,target/item.name)
                 else:shutil.copyfile(item,target/item.name)
+        try:yield root
+        except Exception:
+            preserve()
             raise
+        else:
+            if retain is not None and retain():preserve()
 
 
 def encoded_absence(report):
@@ -145,7 +150,7 @@ def artificial(binary,report):
                     cursor=0
                     for index,kind,_,seq in batch:
                         n=len(seq);samples=raw[cursor*8192:(cursor+n)*8192];other=candidate[cursor*8192:(cursor+n)*8192]
-                        metrics=compare_pcm(struct.unpack('<'+str(len(samples)//4)+'f',samples),struct.unpack('<'+str(len(other)//4)+'f',other))
+                        metrics=compare_pcm(struct.unpack('<'+str(len(other)//4)+'f',other),struct.unpack('<'+str(len(samples)//4)+'f',samples))
                         relevant=[e for e in checked if cursor<=e['sequence']<cursor+n]
                         if kind!='joint_tools':require(metrics['passed'],'native basis/state control exceeds original tolerance: '+json.dumps(metrics))
                         report['artificial'].append(dict(rate=rate,index=index,kind=kind,passed=True,
@@ -161,7 +166,7 @@ def controls(binary,report):
     specs += [(rate,'sine',extra) for rate in (48000,44100) for extra in (['--quality','96'],['--bitrate','256000'])]
     for rate,signal,extra in specs:
         item=dict(rate=rate,signal=signal,settings=extra,passed=False);report['controls'].append(item)
-        with workspace(report,f'control-{rate}-{signal}-{len(report["controls"])}') as root:
+        with workspace(report,f'control-{rate}-{signal}-{len(report["controls"])}',retain=lambda: not item.get('native_float_metrics',{}).get('passed',True)) as root:
             command(binary,'fixture','--out',root/'fixture','--signals',signal,'--sample-rate',rate,'--duration',2,
                     '--seed',1,'--drc-configuration','none',*extra)
             generated=root/'fixture'/signal;encoder=json.loads((generated/'manifest.json').read_text())
@@ -177,10 +182,8 @@ def controls(binary,report):
             decoded=command(binary,'decode-sq',root/'packets','--out',root/'rust-pcm')
             full=(root/'rust-pcm/pcm.f32le').read_bytes();raw=(root/'native-pcm/pcm.f32le').read_bytes()
             require(len(full)==len(raw),'native/Rust valid-frame duration differs')
-            item['native_float_metrics']=compare_pcm(struct.unpack('<'+str(len(raw)//4)+'f',raw),struct.unpack('<'+str(len(full)//4)+'f',full))
-            item['pcm_sha256']=hashlib.sha256(full).hexdigest();item['pcm']=decoded
-            require(item['native_float_metrics']['passed'],
-                    'native encoder control exceeds original tolerance: '+json.dumps(item['native_float_metrics']))
+            compare_native_pcm(item,full,raw,'native_float_metrics')
+            item['pcm']=decoded
             refresh=next((i for i,r in enumerate(rows) if r['embedded_preroll'] is not None),None)
             targets=[('start',0),('refresh',refresh if refresh is not None else len(rows)//2),('tail',max(0,len(rows)-4))]
             index=[json.loads(line) for line in (root/'packets/packets.jsonl').read_text().splitlines()]
@@ -223,11 +226,12 @@ def representatives(binary,report,baseline):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))
+    parser.add_argument('--require-native-pcm',action='store_true',help='Require encoder PCM compatibility too; mismatch exits 2, independently of mathematical correctness.')
     args=parser.parse_args()
     if sys.platform!='darwin':parser.error('native packet validation requires macOS')
     if args.output.exists():parser.error('refusing to overwrite report')
     binary=args.binary.resolve(strict=True)
-    report=dict(schema_version=1,mode='native_state_diagnostic',state_profile=PROFILE,component_sha256=COMPONENT_SHA256,
+    report=dict(schema_version=1,mode='native_state_diagnostic',state_profile=PROFILE,component_sha256=COMPONENT_SHA256,require_native_pcm=args.require_native_pcm,
         code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True,encoding='utf-8').strip(),
         tested_worktree_dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True,encoding='utf-8').strip()),
         source_sha256=source_digest(),tool_sha256=sha256_file(binary),artificial=[],controls=[],representatives=[],errors=[],
@@ -238,10 +242,11 @@ def main():
     except Exception as error:report['errors'].append(str(error))
     report['failure_directory']=str(report['failure_directory'])
     report['passed']=not report['errors'] and len(report['artificial'])==2220 and len(report['controls'])==16 and len(report['representatives'])==15
+    exit_code=finalize_native_pcm(report,report['controls'],'native_float_metrics')
     report['finished_utc']=datetime.now(timezone.utc).isoformat()
     require(len(json.dumps(report).encode())<=LIMIT,'native report exceeds 128 MiB');write_json(args.output,report)
-    print(json.dumps(dict(passed=report['passed'],artificial=len(report['artificial']),controls=len(report['controls']),errors=report['errors'])))
-    return 0 if report['passed'] else 1
+    print(json.dumps(dict(passed=report['passed'],qualification=report['qualification'],independent_math_verified=False,structural_passed=report['structural_passed'],native_pcm_comparison=report['native_pcm_comparison'],artificial=len(report['artificial']),controls=len(report['controls']),errors=report['errors'])))
+    return exit_code
 
 
 if __name__=='__main__':sys.exit(main())

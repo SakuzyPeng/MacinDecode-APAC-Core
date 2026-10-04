@@ -138,7 +138,7 @@ def check_spectra(binary, report, reference=None):
                         check_expected(actual, expected, report['spectral_metrics'])
                         require(bytes_of([v for c in actual['channels'] for v in c['scaled']], 'f')
                                 == bytes_of([v for c in expected for v in c['scaled']], 'f'),
-                                'spectrum differs from separately rounded mathematical value')
+                                'spectrum differs from single-rounded mathematical value')
                         record = dict(rate=rate, index=first+i, kind=case['kind'], passed=True,
                                       input_sha256=hashlib.sha256(cookie(rate)+payload).hexdigest(),
                                       **spectra_fingerprints(actual['channels']))
@@ -240,8 +240,8 @@ def main():
     report = dict(schema_version=1, numeric_profile=PROFILE, mode='bit_exact_regression' if args.regression_report else 'bit_exact_replay' if args.reference_report else 'independent_math',
                   code_commit=subprocess.check_output(['git', '-C', str(ROOT), 'rev-parse', 'HEAD'], text=True, encoding="utf-8").strip(),
                   tested_worktree_dirty=bool(subprocess.check_output(['git', '-C', str(ROOT), 'status', '--porcelain'], text=True, encoding="utf-8").strip()),
-                  source_sha256=source_digest(), tables_sha256=sha256_file(ROOT / 'data/sq-math-v1.json'),
-                  constant_model_sha256=json.loads((ROOT / 'data/sq-math-v1.json').read_text(encoding="utf-8"))['tables_sha256'],
+                  source_sha256=source_digest(), tables_sha256=sha256_file(ROOT / 'data/sq-math-v2.json'),
+                  constant_model_sha256=json.loads((ROOT / 'data/sq-math-v2.json').read_text(encoding="utf-8"))['tables_sha256'],
                   tool_sha256=sha256_file(binary), platform=platform.platform(), architecture=platform.machine(),
                   python=sys.version, started_utc=datetime.now(timezone.utc).isoformat(), atol=1e-6, rtol=1e-5,
                   implementation=None, spectra=[], pcm=[], errors=[], spectral_metrics=metrics())

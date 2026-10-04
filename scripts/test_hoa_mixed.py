@@ -55,18 +55,11 @@ class MixedHoaTests(unittest.TestCase):
             root=self.path(); bundle(root,[pack('10001'+bits(capacity+1,16))],order=order)
             p=self.run_tool('parse-packets',root,'--depth','hoa','--output',root/'parsed'); self.assertEqual(p.returncode,1,p.stderr)
             self.assertEqual(json.loads((root/'parsed').read_text())['error']['kind'],'preroll-size')
-    def test_configuration_restrictions_are_not_widened(self):
-        raw=cookie(order=3); path=self.path(); path.write_bytes(raw)
-        parsed=json.loads(self.run_tool('parse-cookie',path).stdout); wire=''.join(format(v,'08b') for v in raw)
-        variants=[('components[0].hoa.flag_a','0'),('components[0].hoa.ambient_components_encoded','0101'),
-                  ('components[0].hoa.parameter_1','01'),('components[0].hoa.salient[4].order','10')]
-        for name,encoded in variants:
-            field=next(f for f in parsed['fields'] if f['name']==name); at=field['bit_offset']
-            cfg=pack(wire[:at]+encoded+wire[at+field['bit_length']:]); cfg=len(cfg).to_bytes(4,'big')+cfg[4:]
-            root=self.path(); bundle(root,[packet({})[0]]); (root/'cookie.bin').write_bytes(cfg)
-            m=json.loads((root/'manifest.json').read_text()); m['file']['cookie']['value']=dict(bytes=len(cfg),sha256=hashlib.sha256(cfg).hexdigest()); (root/'manifest.json').write_text(json.dumps(m))
-            out=self.path(); p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,1,name); self.assertFalse(out.exists())
-            self.assertIn(name,p.stderr); self.assertIn('cookie bit',p.stderr)
+    def test_expanded_mixed_configurations_have_matching_payloads(self):
+        from portable_tools import assert_hoa_configuration
+        for change in (dict(coefficient_count=16), dict(ambient_count=5),
+                       dict(spatial_method=1), dict(component_orders=[3, 3, 3, 3, 2])):
+            assert_hoa_configuration(self, dict(order=3, path='replace', counts=[4]*5, **change))
     def test_fast_layout_budget_and_overwrite(self):
         for order in (2,3):
             n=(order+1)**2; raw=[packet(basis(n-1,4,1,order=order),order=order)[0]]*3

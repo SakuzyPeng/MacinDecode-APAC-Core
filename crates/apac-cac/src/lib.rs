@@ -29,7 +29,8 @@ include!(concat!(env!("OUT_DIR"), "/rotations.rs"));
 /// Inverse mixing of one spectral line pair for a CAC gain index (0..=34).
 ///
 /// Index 0 returns the pair unchanged. The two products and their sum each round
-/// separately to Float32, and a zero result is returned as +0.
+/// separately in Float64; each output is then converted to Float32. A zero
+/// result is returned as +0.
 ///
 /// # Panics
 ///

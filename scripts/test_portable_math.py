@@ -3,6 +3,7 @@ import copy
 from decimal import Decimal as D, localcontext
 import json
 import os
+import struct
 from pathlib import Path
 import tempfile
 import unittest
@@ -12,13 +13,43 @@ from generate_sq_math import DESTINATION, document
 from portable_tools import required_binary
 from sq_math import ieee_bits, inverse_magnitude, sin_pi, cos_pi
 from sq_oracle import cosine_grid, direct_imdct, scaled_channel
-from spectrum_vectors import frame
+from spectrum_vectors import frame, bundle
+from sq_oracle import Decoder
+from validate_replay import command
 from validate_portable import COUNTS, compare_pcm, finalize, match_record, validate_reference
 
 
 class MathematicalTests(unittest.TestCase):
     def test_constants_reproduce_at_both_precisions(self):
         self.assertEqual(json.loads(DESTINATION.read_text()), document())
+
+    def test_v1_constants_remain_reproducible_as_historical_data(self):
+        self.assertEqual(json.loads(DESTINATION.with_name('sq-math-v1.json').read_text()),
+                         document('apac-sq-math-v1'))
+
+    def test_single_rounding_pcm_against_decimal_across_windows_and_gains(self):
+        binary = required_binary()
+        with tempfile.TemporaryDirectory(prefix='sq-v2-math-') as temporary:
+            for rate in (44100, 48000):
+                for sf, q in ((98, 3), (198, 3), (255, 8191)):
+                    signal = dict(gain=sf, left={0: (11, [q, -q], sf)}, right={1: (11, [-q, q], sf)})
+                    for short in (False, True):
+                        with self.subTest(rate=rate, sf=sf, q=q, short=short):
+                            sequence = ([{}, signal, signal, {}, {}] if not short else
+                                        [dict(block=1), dict(signal, block=2, grouping=0x55),
+                                         dict(signal, block=2, grouping=0x55), dict(block=3), {}])
+                            generated = [frame(case, rate) for case in sequence]
+                            root = Path(temporary)/f'{rate}-{sf}-{short}'
+                            root.mkdir()
+                            bundle(root/'packets', [raw for raw, _ in generated], rate)
+                            result = command(binary, 'decode-sq', root/'packets', '--out', root/'pcm')
+                            self.assertEqual(result['numeric_profile'], 'apac-sq-math-v2')
+                            raw = (root/'pcm/pcm.f32le').read_bytes()
+                            actual = struct.unpack(f'<{len(raw)//4}f', raw)
+                            decoder = Decoder()
+                            expected = [x for _, truth in generated for x in decoder.decode(truth)]
+                            metrics = compare_pcm(actual, expected)
+                            self.assertTrue(metrics['passed'], metrics)
 
     def test_ieee_rounding_ties_subnormals_carry_and_signed_zero(self):
         with localcontext() as ctx:

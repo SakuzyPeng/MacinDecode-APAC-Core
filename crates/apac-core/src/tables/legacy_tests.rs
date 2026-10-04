@@ -48,9 +48,6 @@ fn data(name: &str) -> String {
     std::fs::read_to_string(path).expect("data file")
 }
 
-fn bits32(values: &[f32]) -> Vec<u32> {
-    values.iter().map(|v| v.to_bits()).collect()
-}
 fn bits64(values: &[f64]) -> Vec<u64> {
     values.iter().map(|v| v.to_bits()).collect()
 }
@@ -92,16 +89,16 @@ fn sq_numeric_tables_match_the_json_loader() {
     struct RawTables {
         numeric_profile: String,
         tables_sha256: String,
-        inverse_quantizer_f32: Vec<u32>,
-        gains_f32: Vec<u32>,
+        inverse_quantizer_f64: Vec<u64>,
+        gains_f64: Vec<u64>,
         transforms: BTreeMap<String, RawTransform>,
     }
-    let mut raw: RawTables = serde_json::from_str(&data("sq-math-v1.json")).unwrap();
+    let mut raw: RawTables = serde_json::from_str(&data("sq-math-v2.json")).unwrap();
     assert_eq!(raw.numeric_profile, crate::numeric::PROFILE);
     let tables = crate::numeric::tables();
     assert_eq!(tables.sha256, raw.tables_sha256);
-    assert_eq!(bits32(tables.inverse), raw.inverse_quantizer_f32);
-    assert_eq!(bits32(tables.gains), raw.gains_f32);
+    assert_eq!(bits64(tables.inverse), raw.inverse_quantizer_f64);
+    assert_eq!(bits64(tables.gains), raw.gains_f64);
     for n in [128, 1024] {
         let data = raw.transforms.remove(&n.to_string()).unwrap();
         let mut window: Vec<_> = data.window_f64.into_iter().map(f64::from_bits).collect();

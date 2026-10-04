@@ -27,13 +27,12 @@ class SalientTests(unittest.TestCase):
             root=self.path();bundle(root,[bytes.fromhex(f['first']),bytes.fromhex(f[key])],drc=True,rich=True);out=self.path()
             p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1,key);error=json.loads(p.stderr)['error'];self.assertEqual(error['packet_index'],1);self.assertIn('bit_offset',error)
             self.assertTrue((out/'.incomplete.json').is_file());self.assertFalse((out/'decode-sq.json').exists())
-    def test_fixed_configuration_rejects_other_split_method_order_and_rate(self):
-        raw=cookie();cfg=self.path();cfg.write_bytes(raw);parsed=json.loads(self.run_tool('parse-cookie',cfg).stdout)
-        for name,value in [('components[0].hoa.parameter_1',1),('components[0].hoa.salient[4].order',2),('global.sample_rate_index',5)]:
-            field=next(f for f in parsed['fields'] if f['name']==name);wire=''.join(format(v,'08b') for v in raw);start=field['bit_offset'];changed=pack(wire[:start]+bits(value,field['bit_length'])+wire[start+field['bit_length']:])
-            root=self.path();bundle(root,[packet({})[0]]);(root/'cookie.bin').write_bytes(changed);m=json.loads((root/'manifest.json').read_text());m['file']['cookie']['value']=dict(bytes=len(changed),sha256=hashlib.sha256(changed).hexdigest())
-            if name=='global.sample_rate_index':m['file']['format']['sample_rate']=32000
-            (root/'manifest.json').write_text(json.dumps(m));out=self.path();p=self.run_tool('decode-sq',root,'--out',out);self.assertEqual(p.returncode,1);self.assertIn(name,p.stderr);self.assertFalse(out.exists())
+    def test_expanded_partition_order_and_rate_use_matching_payloads(self):
+        from portable_tools import assert_hoa_configuration
+        for change, rate in ((dict(spatial_method=1), 48000),
+                             (dict(component_orders=[3, 3, 3, 3, 2]), 48000),
+                             ({}, 32000)):
+            assert_hoa_configuration(self, dict(order=3, counts=[4]*5, **change), rate)
     def test_fast_empty_range_budget_and_overwrite(self):
         payloads=[packet(basis(15,4,1))[0]]*3
         for encoder in (caf,mp4):

@@ -564,7 +564,7 @@ mod spectrum_tests {
             let end = b.1;
             let bytes = b.opaque();
             let parsed = parse_spectrum(&context(), &bytes).unwrap();
-            assert_eq!(parsed.numeric_profile.as_deref(), Some("apac-sq-math-v1"));
+            assert_eq!(parsed.numeric_profile.as_deref(), Some("apac-sq-math-v2"));
             check_coverage(&bytes, &parsed.frame);
             assert_eq!(parsed.frame.payload_bit_offset, Some(12));
             assert_eq!(parsed.frame.stop_bit_offset, end);

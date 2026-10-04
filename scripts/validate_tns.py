@@ -276,7 +276,7 @@ def main():
                 tested_worktree_dirty=bool(subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain'],text=True,encoding='utf-8').strip()),
                 source_sha256=source_digest(),tables_sha256=sha256_file(DESTINATION),
                 constant_model_sha256=json.loads(DESTINATION.read_text())['tables_sha256'],
-                upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v1.json','cac-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
+                upstream_constants={name:sha256_file(ROOT/'data'/name) for name in ('sq-math-v2.json','cac-math-v1.json','sq-codebooks.json','cac-codebooks.json')},
                 tool_sha256=sha256_file(binary),platform=platform.platform(),architecture=platform.machine(),python=sys.version,
                 mode='native_diagnostic' if args.native_only else 'bit_exact_replay' if args.reference_report else 'independent_math',
                 implementation=None,atol=1e-6,rtol=1e-5,spectra=[],pcm=[],errors=[],native_artificial=[],real=[],

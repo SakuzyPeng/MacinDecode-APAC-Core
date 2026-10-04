@@ -2,7 +2,7 @@
 
 Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM 解码与分析工具。
 
-> **实验性项目**，与 Apple 无关。解码器按独立公式定义的固定数值模型实现，不调用苹果音频接口，并刻意不复现苹果原生实现的数值细节，因此在设计上不与 AudioToolbox 参考逐位一致；两者的差异由验收脚本按容差统计，原因见 [guide/support.md](guide/support.md#与苹果参考的数值关系)。
+> **实验性项目**，与 Apple 无关。解码器按独立公式定义的固定数值模型实现，不调用苹果音频接口，并刻意不复现苹果原生实现的数值细节，因此在设计上不与 AudioToolbox 参考逐位一致；SQ 默认数值配置为 `apac-sq-math-v2`，反量化相乘后只舍入一次到 Float32。两者的差异由验收脚本按容差统计，原因见 [guide/support.md](guide/support.md#与苹果参考的数值关系)。
 
 - **`apac-core`**：`#![no_std]` + `alloc` 的解码库，解析 magic cookie 并把数据包解码为交错 Float32 PCM。不依赖文件系统、时钟或平台浮点库，可在嵌入式和 WebAssembly 目标上构建。
 - **`apac-cac`**：CAC（声道对齐编码）的逆混合运算，独立成 crate。`apac-core` 通过 `cac` feature 接入它，`apac-tool` 默认开启。不开启时仍完整读取和报告 CAC 语法，但遇到使用非零 CAC 增益的帧会明确拒绝。

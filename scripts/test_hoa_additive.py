@@ -32,21 +32,40 @@ class AdditiveHoaTests(unittest.TestCase):
                 p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,1,key)
                 e=json.loads(p.stderr)['error']; self.assertEqual(e['packet_index'],1); self.assertIn('bit_offset',e)
                 self.assertTrue((out/'.incomplete.json').is_file()); self.assertFalse((out/'decode-sq.json').exists())
-    def test_non_mixed_addition_and_other_structures_are_rejected(self):
+    def test_addition_flag_with_one_source_kind_is_accepted(self):
         import hoa_vectors as ambient
         import hoa_salient_vectors as salient
         import hoa_dynamic_vectors as dynamic
-        for module,options in ((ambient,dict(order=1)),(salient,dict(order=2)),(dynamic,dict(mixed=False))):
-            raw=module.cookie(**options); cfg=self.path(); cfg.write_bytes(raw)
-            report=json.loads(self.run_tool('parse-cookie',cfg).stdout); field=next(f for f in report['fields'] if f['name']=='components[0].hoa.flag_d')
-            wire=''.join(format(v,'08b') for v in raw); at=field['bit_offset']; changed=pack(wire[:at]+'1'+wire[at+1:])
-            root=self.path(); module.bundle(root,[module.packet({},**options)[0]],**options); self.change_cookie(root,changed)
-            out=self.path(); p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,1); self.assertFalse(out.exists()); self.assertIn('hoa.flag_d',p.stderr)
-        original=cookie(order=2); cfg=self.path(); cfg.write_bytes(original); report=json.loads(self.run_tool('parse-cookie',cfg).stdout); wire=''.join(format(v,'08b') for v in original)
-        for name,value in [('components[0].hoa.ambient_components_encoded',5),('components[0].hoa.parameter_2_minus_six',1),('components[0].hoa.salient[0].order',1)]:
-            f=next(f for f in report['fields'] if f['name']==name); at=f['bit_offset']; changed=pack(wire[:at]+bits(value,f['bit_length'])+wire[at+f['bit_length']:])
-            root=self.path(); bundle(root,[packet({},order=2)[0]],order=2); self.change_cookie(root,changed); out=self.path()
-            p=self.run_tool('decode-sq',root,'--out',out); self.assertEqual(p.returncode,1); self.assertFalse(out.exists()); self.assertIn('hoa-tce-channels' if name.endswith('ambient_components_encoded') else name,p.stderr)
+        for module, options in ((ambient, dict(order=1)), (salient, dict(order=2)), (dynamic, dict(mixed=False))):
+            raw = module.cookie(**options); cfg = self.path(); cfg.write_bytes(raw)
+            report = json.loads(self.run_tool('parse-cookie', cfg).stdout)
+            field = next(f for f in report['fields'] if f['name'] == 'components[0].hoa.flag_d')
+            wire = ''.join(format(v, '08b') for v in raw); at = field['bit_offset']
+            changed = pack(wire[:at] + '1' + wire[at+1:])
+            root = self.path(); module.bundle(root, [module.packet({}, **options)[0]], **options)
+            before = self.path(); result = self.run_tool('decode-sq', root, '--out', before)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.change_cookie(root, changed)
+            after = self.path(); result = self.run_tool('decode-sq', root, '--out', after)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((before/'pcm.f32le').read_bytes(), (after/'pcm.f32le').read_bytes())
+
+    def test_additive_wide_quantization_and_ragged_orders_use_matching_payloads(self):
+        from portable_tools import assert_hoa_configuration
+        for change in (dict(quantization_bits=7), dict(component_orders=[1, 2, 2, 2, 2])):
+            assert_hoa_configuration(self, dict(order=2, path='add', counts=[4]*5, **change))
+
+    def test_additive_carrier_shortage_still_rejects_before_output(self):
+        raw = cookie(order=2); cfg = self.path(); cfg.write_bytes(raw)
+        report = json.loads(self.run_tool('parse-cookie', cfg).stdout)
+        f = next(f for f in report['fields'] if f['name'] == 'components[0].hoa.ambient_components_encoded')
+        wire = ''.join(format(v, '08b') for v in raw); at = f['bit_offset']
+        changed = pack(wire[:at] + bits(5, f['bit_length']) + wire[at+f['bit_length']:])
+        root = self.path(); bundle(root, [packet({}, order=2)[0]], order=2)
+        self.change_cookie(root, changed); out = self.path()
+        result = self.run_tool('decode-sq', root, '--out', out)
+        self.assertEqual(result.returncode, 1); self.assertIn('hoa-tce-channels', result.stderr)
+        self.assertFalse(out.exists())
     def test_addition_does_not_accept_old_omitted_wire_as_full_descriptors(self):
         import hoa_mixed_vectors as old
         root=self.path(); old.bundle(root,[old.packet({},order=2)[0]],order=2); self.change_cookie(root,cookie(order=2)); out=self.path()

@@ -132,8 +132,8 @@ fn tuple(bits: &mut BitReader<'_>, cb: u8) -> Result<([i32; 4], usize), ParseErr
     }
     Ok((values, size))
 }
-/// Formula-generated, separately rounded inverse quantizer and gain, followed
-/// by one f32 product. Every entry is a fixed IEEE value, independent of libm.
+/// Formula-generated Float64 factors, multiplied before the only Float32 cast.
+/// The generator verifies single-rounding equivalence over the entire SQ domain.
 fn inverse(q: i32, sf: i16) -> f32 {
     if q == 0 {
         return 0.;
@@ -141,7 +141,7 @@ fn inverse(q: i32, sf: i16) -> f32 {
     let tables = crate::numeric::tables();
     let magnitude = tables.inverse[q.unsigned_abs() as usize];
     let gain = tables.gains[(sf + 256) as usize];
-    (if q < 0 { -magnitude } else { magnitude }) * gain
+    ((if q < 0 { -magnitude } else { magnitude }) * gain) as f32
 }
 impl Parser<'_> {
     pub(super) fn stream(
@@ -323,7 +323,7 @@ impl Parser<'_> {
     }
 }
 
-/// Materialize the exact same separately rounded values only when a tool needs
+/// Materialize the same single-rounded values only when a tool needs
 /// them. Untouched zero-codebook/out-of-band lines remain defined positive zero.
 pub(super) fn materialize_at_rate(channel: &mut ChannelSpectrum, rate: u64) {
     if !channel.scaled.is_empty() {
@@ -411,6 +411,20 @@ pub(crate) fn parse_spectrum_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dequantization_rounds_once_across_gain_exponents() {
+        // RN32(3^(4/3) * 2^(-1/2)), independently checked at 100/200 digits.
+        // The v1 separately rounded factors produced the next larger Float32.
+        let base = 3.059_473_3_f32;
+        for exponent in -88_i64..=39 {
+            let sf = (98 + 4 * exponent) as i16;
+            let expected = (i64::from(base.to_bits()) + (exponent << 23)) as u32;
+            assert_eq!(inverse(3, sf).to_bits(), expected);
+            assert_eq!(inverse(-3, sf).to_bits(), expected | 0x8000_0000);
+            assert_eq!(inverse(0, sf).to_bits(), 0);
+        }
+    }
     fn put(out: &mut Vec<bool>, value: u32, width: usize) {
         out.extend((0..width).rev().map(|i| value & (1 << i) != 0));
     }

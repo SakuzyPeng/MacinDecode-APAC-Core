@@ -1,6 +1,6 @@
 //! Sequential run/table cursors, independent of packet count in memory usage.
 use super::boxes::{Atom, MediaCursor, Structure, invalid, u32be, u64be};
-use crate::{Result, Source};
+use crate::{OpenMode, Result, Source};
 use apac_core::MAX_PACKET_BUFFER;
 
 #[derive(Clone, Copy, Debug)]
@@ -23,6 +23,68 @@ impl Table {
         self.atom.take(file, 8 + u64::from(index) * self.width)
     }
 }
+
+/// The optional composition table must describe exactly one zero offset
+/// for each sample. Playback checks runs as samples are reached.
+#[derive(Clone, Copy, Debug)]
+struct Composition {
+    table: Table,
+    run: u32,
+    total: u64,
+}
+impl Composition {
+    fn read_run(&mut self, file: &mut impl Source) -> Result<()> {
+        let raw = self.table.row::<8>(file, self.run)?;
+        let n = u32be(&raw);
+        if n == 0 || u32be(&raw[4..]) != 0 {
+            return Err(self
+                .table
+                .atom
+                .error("zero run or unsupported nonzero composition offset"));
+        }
+        self.total += u64::from(n);
+        self.run += 1;
+        Ok(())
+    }
+    fn check(&mut self, file: &mut impl Source, sample: u64, count: u32) -> Result<()> {
+        let eof = sample == u64::from(count);
+        while self.run < self.table.count && (eof || self.total <= sample) {
+            self.read_run(file)?;
+        }
+        if (eof && self.total != u64::from(count)) || (!eof && self.total <= sample) {
+            return Err(self
+                .table
+                .atom
+                .error("composition count differs from sample count"));
+        }
+        Ok(())
+    }
+}
+
+/// A single lookahead entry suffices to validate the ordered sync samples.
+#[derive(Clone, Copy, Debug)]
+struct SyncSamples {
+    table: Table,
+    row: u32,
+    previous: u32,
+}
+impl SyncSamples {
+    fn check(&mut self, file: &mut impl Source, sample: u64, count: u32) -> Result<()> {
+        while self.row < self.table.count && u64::from(self.previous) <= sample {
+            let value = u32be(&self.table.row::<4>(file, self.row)?);
+            if value <= self.previous || value > count {
+                return Err(self
+                    .table
+                    .atom
+                    .error("sync sample index out of range or not increasing"));
+            }
+            self.previous = value;
+            self.row += 1;
+        }
+        Ok(())
+    }
+}
+
 /// A sample cursor: where the next sample's size, chunk and duration are
 /// read. It is small and `Copy`, so a position can be saved and restored.
 #[derive(Clone, Copy, Debug)]
@@ -43,10 +105,12 @@ pub(crate) struct Index {
     next_run: Option<(u32, u32)>,
     time_run: u32,
     time_left: u32,
+    composition: Option<Composition>,
+    sync: Option<SyncSamples>,
     media: MediaCursor,
 }
 impl Index {
-    pub(super) fn open(file: &mut impl Source, s: &Structure) -> Result<Self> {
+    pub(super) fn open(file: &mut impl Source, s: &Structure, mode: OpenMode) -> Result<Self> {
         let sizes = s.get(b"stsz")?;
         sizes.full(file, &[0])?;
         let raw = sizes.take::<8>(file, 4)?;
@@ -77,32 +141,36 @@ impl Index {
         {
             return Err(sizes.error("empty sample/chunk/time tables disagree"));
         }
-        if let Some(&a) = s.boxes.get(b"ctts") {
-            let table = Table::open(file, a, 8, &[0, 1])?;
-            let mut total = 0u64;
-            for i in 0..table.count {
-                let raw = table.row::<8>(file, i)?;
-                let n = u32be(&raw);
-                if n == 0 || u32be(&raw[4..]) != 0 {
-                    return Err(a.error("zero run or unsupported nonzero composition offset"));
-                }
-                total += u64::from(n);
+        let composition = if let Some(&a) = s.boxes.get(b"ctts") {
+            let mut cursor = Composition {
+                table: Table::open(file, a, 8, &[0, 1])?,
+                run: 0,
+                total: 0,
+            };
+            if mode == OpenMode::Verified {
+                cursor.check(file, u64::from(count), count)?;
+                None
+            } else {
+                Some(cursor)
             }
-            if total != u64::from(count) {
-                return Err(a.error("composition count differs from sample count"));
+        } else {
+            None
+        };
+        let sync = if let Some(&a) = s.boxes.get(b"stss") {
+            let mut cursor = SyncSamples {
+                table: Table::open(file, a, 4, &[0])?,
+                row: 0,
+                previous: 0,
+            };
+            if mode == OpenMode::Verified {
+                cursor.check(file, u64::from(count), count)?;
+                None
+            } else {
+                Some(cursor)
             }
-        }
-        if let Some(&a) = s.boxes.get(b"stss") {
-            let table = Table::open(file, a, 4, &[0])?;
-            let mut previous = 0;
-            for i in 0..table.count {
-                let value = u32be(&table.row::<4>(file, i)?);
-                if value <= previous || value > count {
-                    return Err(a.error("sync sample index out of range or not increasing"));
-                }
-                previous = value;
-            }
-        }
+        } else {
+            None
+        };
         let mut out = Self {
             sizes,
             fixed_size,
@@ -120,18 +188,23 @@ impl Index {
             next_run: None,
             time_run: 0,
             time_left: 0,
+            composition,
+            sync,
             media: MediaCursor::default(),
         };
-        if count != 0 {
-            let first = out.run(file, 0)?;
-            if first.0 != 1 {
-                return Err(chunks.atom.error("first chunk must be one"));
-            }
-            out.current_run = Some(first);
-            out.chunk_run = 1;
-            out.load_next_run(file)?;
+        if count != 0 && mode == OpenMode::Verified {
+            out.start_chunks(file)?;
         }
         Ok(out)
+    }
+    fn start_chunks(&mut self, file: &mut impl Source) -> Result<()> {
+        let first = self.run(file, 0)?;
+        if first.0 != 1 {
+            return Err(self.chunks.atom.error("first chunk must be one"));
+        }
+        self.current_run = Some(first);
+        self.chunk_run = 1;
+        self.load_next_run(file)
     }
     fn run(&self, file: &mut impl Source, index: u32) -> Result<(u32, u32)> {
         let raw = self.chunks.row::<12>(file, index)?;
@@ -159,6 +232,13 @@ impl Index {
         Ok(())
     }
     pub fn next(&mut self, file: &mut impl Source, file_bytes: u64) -> Result<Option<(u64, u32)>> {
+        if let Some(composition) = &mut self.composition {
+            composition.check(file, self.next, self.count)?;
+        }
+        if let Some(sync) = &mut self.sync {
+            // stss numbers are one-based; at EOF all its entries are checked.
+            sync.check(file, (self.next + 1).min(u64::from(self.count)), self.count)?;
+        }
         if self.next == u64::from(self.count) {
             if self.chunk_left != 0
                 || self.chunk_index != self.offsets.count
@@ -171,6 +251,9 @@ impl Index {
                     .error("sample, chunk and duration counts disagree"));
             }
             return Ok(None);
+        }
+        if self.current_run.is_none() {
+            self.start_chunks(file)?;
         }
         if self.chunk_left == 0 {
             if self.next_run.is_some_and(|r| r.0 == self.chunk_index + 1) {

@@ -47,6 +47,14 @@ pub use source::PacketSource;
 /// Result of container operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Verified readers retain digests and eagerly validate sample tables;
+/// playback defers table entries until the corresponding packets are read.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum OpenMode {
+    Verified,
+    Playback,
+}
+
 /// Byte input for the container readers.
 pub trait Source: Read + Seek {
     /// Total length in bytes.

@@ -126,6 +126,8 @@ pub struct Playback<R> {
     scanner: Option<(Decoder, PacketCursor)>,
     /// The scanner reached the end of the packet table.
     complete: bool,
+    /// The current playback pass has checked the remaining packet table.
+    ended: bool,
     stats: PlaybackStats,
 }
 impl<R: Source> Playback<R> {
@@ -186,6 +188,7 @@ impl<R: Source> Playback<R> {
             index,
             scanner: None,
             complete: false,
+            ended: false,
             stats: PlaybackStats::default(),
         })
     }
@@ -237,7 +240,9 @@ impl<R: Source> Playback<R> {
     /// Decode up to the next packet holding output frames and write them,
     /// interleaved, to the front of `out` (at least 1024 frames of all
     /// channels). Returns the frame count, zero at the end of the valid
-    /// audio.
+    /// audio. Before returning zero, checks the remaining packet table,
+    /// including packets wholly trimmed by the container, without reading
+    /// their audio. These checks do not change the decoder or the position.
     pub fn read(&mut self, out: &mut [f32]) -> Result<usize, ReadError<Error>> {
         if out.len() < self.samples.len() {
             return Err(invalid(
@@ -300,6 +305,18 @@ impl<R: Source> Playback<R> {
             }
             self.stats.warmup_packets += 1;
         }
+        if !self.ended {
+            // A checkpoint ahead of playback has already checked its table
+            // prefix. This also makes a seek to EOF use any existing index.
+            let last = self.index.last().0;
+            let cursor = if last.packet() > self.cursor.packet() {
+                last
+            } else {
+                self.cursor
+            };
+            self.media.check_end(cursor).map_err(ReadError::Source)?;
+            self.ended = true;
+        }
         Ok(0)
     }
     /// Move the output to valid-audio frame `frame` (up to
@@ -333,6 +350,7 @@ impl<R: Source> Playback<R> {
             self.stats.restored_checkpoints += 1;
         }
         self.output = output;
+        self.ended = false;
         Ok(())
     }
     /// Advance the index up to `max_packets` packets ahead of its last

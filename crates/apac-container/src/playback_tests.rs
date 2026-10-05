@@ -5,7 +5,7 @@ use super::*;
 use crate::{
     Access, CafReader, Mp4Reader, PacketSource, Reader,
     test_source::Shared,
-    test_streams::{LAYOUTS, PRIMING, Stream, caf, mp4, streams},
+    test_streams::{Fenced, LAYOUTS, PRIMING, Stream, caf, grow_caf_chunk, mp4, streams},
 };
 use apac_core::StreamKind;
 
@@ -133,6 +133,145 @@ fn reading_from_the_start_equals_the_sequential_reader() {
         let stats = playback.stats();
         assert_eq!((stats.advanced_packets, stats.warmup_packets), (0, 0));
         assert_eq!(stats.decoded_packets, 20);
+    }
+}
+
+/// Leave valid audio only in packet zero, keeping the remaining packets as
+/// container remainder. Return the audio range after the first packet.
+fn trim_after_first_packet(file: &mut [u8], stream: &Stream, is_caf: bool) -> std::ops::Range<u64> {
+    let valid = 1024 - PRIMING as u32;
+    if is_caf {
+        let summary = CafReader::new(Shared::new(file)).unwrap().summary();
+        let pakt = summary.chunks[b"pakt"].offset as usize;
+        file[pakt + 8..pakt + 16].copy_from_slice(&i64::from(valid).to_be_bytes());
+        let remainder = (stream.packets.len() as i32 - 1) * 1024;
+        file[pakt + 20..pakt + 24].copy_from_slice(&remainder.to_be_bytes());
+        let data = summary.chunks[b"data"];
+        data.offset + 4 + stream.packets[0].len() as u64..data.offset + data.bytes
+    } else {
+        let boxes = Mp4Reader::new(Shared::new(file)).unwrap().summary().boxes;
+        for (tag, relative) in [(b"elst", 8), (b"mvhd", 16), (b"tkhd", 20)] {
+            let at = boxes[tag].data_offset as usize + relative;
+            file[at..at + 4].copy_from_slice(&valid.to_be_bytes());
+        }
+        let data = file.windows(4).position(|w| w == b"mdat").unwrap() as u64 + 4;
+        data + stream.packets[0].len() as u64..data + stream.packets.concat().len() as u64
+    }
+}
+
+#[test]
+fn eof_rejects_inconsistent_packet_tables_with_or_without_trimmed_tail() {
+    let stream = &streams()[0];
+    for trim in [false, true] {
+        let mut caf_file = stream.file.clone();
+        let mut mp4_file = mp4(&stream.cookie, &stream.packets, LAYOUTS[0]).unwrap();
+        if trim {
+            trim_after_first_packet(&mut caf_file, stream, true);
+            trim_after_first_packet(&mut mp4_file, stream, false);
+        }
+        let stts = Mp4Reader::new(Shared::new(&mp4_file))
+            .unwrap()
+            .summary()
+            .boxes[b"stts"];
+        let mut bad_mp4 = mp4_file.clone();
+        let at = stts.data_offset as usize + 8;
+        bad_mp4[at..at + 4].copy_from_slice(&(stream.packets.len() as u32 + 1).to_be_bytes());
+        for (bad, is_caf) in [
+            (grow_caf_chunk(&caf_file, b"pakt", &[1]), true),
+            (grow_caf_chunk(&caf_file, b"data", &[0]), true),
+            (bad_mp4, false),
+        ] {
+            let expected = if is_caf {
+                CafReader::new(Shared::new(&bad)).err().unwrap()
+            } else {
+                Mp4Reader::new(Shared::new(&bad)).err().unwrap()
+            };
+            let shared = Shared::new(&bad);
+            let mut playback = Playback::open(Media::open(shared.clone()).unwrap()).unwrap();
+            let channels = playback.decoder().info().channel_count as usize;
+            let mut pcm = vec![0.; 1024 * channels];
+            let mut first = None;
+            while playback.position() < playback.frames() {
+                let n = playback.read(&mut pcm).unwrap();
+                assert!(n > 0);
+                first.get_or_insert_with(|| bits(&pcm[..n * channels]));
+            }
+            let stats = playback.stats().clone();
+            for _ in 0..2 {
+                assert_eq!(
+                    playback.read(&mut pcm).unwrap_err(),
+                    ReadError::Source(expected.clone())
+                );
+                assert_eq!(playback.position(), playback.frames());
+                assert_eq!(*playback.stats(), stats);
+            }
+            // Returning to earlier audio still works after the EOF failure.
+            playback.seek(0).unwrap();
+            let n = playback.read(&mut pcm).unwrap();
+            assert_eq!(bits(&pcm[..n * channels]), first.unwrap());
+            playback.seek(playback.frames()).unwrap();
+            assert!(playback.read(&mut pcm).is_err());
+        }
+    }
+}
+
+#[test]
+fn eof_table_io_errors_are_retryable() {
+    let stream = &streams()[0];
+    for (mut file, is_caf) in [
+        (stream.file.clone(), true),
+        (
+            mp4(&stream.cookie, &stream.packets, LAYOUTS[0]).unwrap(),
+            false,
+        ),
+    ] {
+        trim_after_first_packet(&mut file, stream, is_caf);
+        let shared = Shared::new(&file);
+        let mut playback = Playback::open(Media::open(shared.clone()).unwrap()).unwrap();
+        let mut pcm = vec![0.; 1024 * playback.decoder().info().channel_count as usize];
+        playback.read(&mut pcm).unwrap();
+        let position = playback.position();
+        let stats = playback.stats().clone();
+        shared.truncate(0);
+        let error = playback.read(&mut pcm).unwrap_err();
+        assert!(matches!(&error, ReadError::Source(e) if e.packet_index == Some(1)));
+        assert_eq!(playback.read(&mut pcm).unwrap_err(), error);
+        assert_eq!(playback.position(), position);
+        shared.replace(file);
+        assert_eq!(playback.read(&mut pcm).unwrap(), 0);
+        assert_eq!(playback.position(), position);
+        assert_eq!(*playback.stats(), stats);
+    }
+}
+
+#[test]
+fn eof_checks_trimmed_tables_without_reading_audio_or_moving_the_decoder() {
+    let stream = &streams()[0];
+    for (mut file, is_caf) in [
+        (stream.file.clone(), true),
+        (
+            mp4(&stream.cookie, &stream.packets, LAYOUTS[0]).unwrap(),
+            false,
+        ),
+    ] {
+        let tail = trim_after_first_packet(&mut file, stream, is_caf);
+        let source = Fenced::new(Shared::new(&file), tail);
+        let mut playback = Playback::open(Media::open(source).unwrap()).unwrap();
+        let channels = playback.decoder().info().channel_count as usize;
+        let mut pcm = vec![0.; 1024 * channels];
+        let n = playback.read(&mut pcm).unwrap();
+        let first = bits(&pcm[..n * channels]);
+        assert_eq!(n as u64, playback.frames());
+        let stats = playback.stats().clone();
+        assert_eq!(playback.read(&mut pcm).unwrap(), 0);
+        assert_eq!(playback.read(&mut pcm).unwrap(), 0);
+        assert_eq!(*playback.stats(), stats);
+        playback.seek(0).unwrap();
+        playback.seek(playback.frames()).unwrap();
+        assert_eq!(playback.read(&mut pcm).unwrap(), 0);
+        playback.seek(0).unwrap();
+        let n = playback.read(&mut pcm).unwrap();
+        assert_eq!(bits(&pcm[..n * channels]), first);
     }
 }
 

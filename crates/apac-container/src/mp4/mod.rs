@@ -9,7 +9,7 @@ mod tables;
 #[cfg(test)]
 mod tests;
 
-use crate::{Error, Packet, PacketTable, Position, Result, Source, Track};
+use crate::{Error, OpenMode, Packet, PacketTable, Position, Result, Source, Track};
 use apac_core::{
     config::{self, MAX_COOKIE_BYTES},
     inspect::DecodedFrameContext,
@@ -200,7 +200,7 @@ pub struct Mp4Summary {
 
 /// What opening validates: the structure, brands, sample description,
 /// cookie, timeline and sample tables, with the sample cursor at the first
-/// sample. No audio payload or per-sample table entry is read.
+/// sample. Playback reads no audio payload or per-sample table entry.
 pub(crate) struct Header {
     structure: Structure,
     pub(crate) track: Track,
@@ -218,8 +218,8 @@ impl Header {
     }
 }
 /// Validate everything but the audio and the per-sample table entries.
-pub(crate) fn header(file: &mut impl Source) -> Result<Header> {
-    let structure = scan(file)?;
+pub(crate) fn header(file: &mut impl Source, mode: OpenMode) -> Result<Header> {
+    let structure = scan(file, mode)?;
     let ftyp = structure.get(b"ftyp")?;
     // The bounded report exposes at most 64 compatible brands.
     if ftyp.bytes() < 8 || ftyp.bytes() > 264 || (ftyp.bytes() - 8) % 4 != 0 {
@@ -310,7 +310,7 @@ pub(crate) fn header(file: &mut impl Source) -> Result<Header> {
     }
     let valid = u64::try_from(converted / u128::from(movie_timescale))
         .map_err(|_| elst.error("edit duration overflow"))?;
-    let index = Index::open(file, &structure)?;
+    let index = Index::open(file, &structure, mode)?;
     let total = u64::from(index.count) * 1024;
     if media_duration != total {
         return Err(structure
@@ -373,7 +373,7 @@ impl<R: Source> Mp4Reader<R> {
     /// Validate the file and read it once to record its digests; the reader
     /// is then positioned at the first sample.
     pub fn new(mut file: R) -> Result<Self> {
-        let header = header(&mut file)?;
+        let header = header(&mut file, OpenMode::Verified)?;
         let mut out = Self {
             file,
             structure: header.structure,
@@ -396,7 +396,7 @@ impl<R: Source> Mp4Reader<R> {
     }
     /// Return to the first sample; the next pass is verified again at its end.
     pub fn rewind(&mut self) -> Result<()> {
-        self.index = Index::open(&mut self.file, &self.structure)?;
+        self.index = Index::open(&mut self.file, &self.structure, OpenMode::Verified)?;
         self.audio_hash = Sha256::new();
         self.packet_hash = Sha256::new();
         self.verified = false;
@@ -487,7 +487,7 @@ impl<R: Source> Mp4Reader<R> {
                         "audio or packet boundaries changed after validation",
                     ));
                 }
-                let now = scan(&mut self.file)?;
+                let now = scan(&mut self.file, OpenMode::Verified)?;
                 if now.hash != self.structure.hash
                     || now.bytes != self.structure.bytes
                     || now.modified != self.structure.modified

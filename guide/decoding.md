@@ -161,9 +161,9 @@ let mut pcm = vec![0f32; 1024 * playback.decoder().info().channel_count as usize
 while let n @ 1.. = playback.read(&mut pcm)? { /* pcm[..n × 声道数] 为交错样本 */ }
 ```
 
-- **打开**：`Media::open` 按内容识别格式：以 `caff` 开头的是 CAF，其余按 MP4 处理。结构、描述、cookie、声道布局和时间线的检查与 `CafReader`／`Mp4Reader` 相同，拒绝文本也相同，但只读元数据：CAF 读块头和 `desc`、`kuki`、`chan`、`pakt` 的载荷，MP4 读 box 头、`moov` 内的叶子载荷和样本表表头。音频数据和逐包表项在读包时才读。
+- **打开**：`Media::open` 按内容识别格式：以 `caff` 开头的是 CAF，其余按 MP4 处理。结构、描述、cookie、声道布局和时间线使用与 `CafReader`／`Mp4Reader` 相同的检查规则和拒绝文本，但只读必要元数据：CAF 读块头、`desc`／`kuki`／`chan` 载荷、`pakt` 的 24 字节表头和 `data` 的 edit count；MP4 读 box 头、流描述、时间线和样本表表头。打开时不计算摘要，不读取整张包表或 sample group 载荷；逐包表项（包括可选的 `ctts`／`stss`）延迟到读包时检查，音频数据也在读包时才读。
 - **读包**：`Media::read_packet(&mut cursor, &mut buf)` 按游标读一个包，并检查它在包表和音频数据的边界内。游标走到表末时，检查包表和音频数据是否被恰好用完，拒绝文本与已核验读取器相同。`PacketCursor` 很小且可复制，保存后能从任意位置重读；读取失败时游标不动。这条路径不计算摘要、不重扫结构，因此不核验文件在读取期间是否变化；需要这种保证时使用 `Reader`。
-- **输出**：`Playback::read` 输出有效音频（已裁掉 priming 和 remainder），交错 Float32，每次至多 1024 帧。从开头读或在任意 seek 之后读，结果都与同范围的 `decode-sq`、`Reader` 逐位相同。DRC／响度只读不处理、帧内 trimming 只记录，这两点都与 `decode-sq` 相同。
+- **输出**：`Playback::read` 输出有效音频（已裁掉 priming 和 remainder），交错 Float32，每次至多 1024 帧。从开头读或在任意 seek 之后读，结果都与同范围的 `decode-sq`、`Reader` 逐位相同。返回 0 前会检查剩余包表及数据边界，包括完全落在 remainder 中的包，拒绝多余表项和样本／时间计数不匹配；这一步只读表项，不读尾包音频、不推进解码器。检查失败可以重试，输出位置保持在结尾。直接 seek 到结尾也执行该检查，耗时取决于尚未检查的表项数量。DRC／响度只读不处理、帧内 trimming 只记录，这两点都与 `decode-sq` 相同。
 - **检查点**：`Decoder::checkpoint` 保存两包之间的解析状态，即 DRC 历史以及 HOA 和组件状态，不含 overlap 和配置。`Decoder::restore` 只接受该解码器及其克隆的检查点，恢复后等于一个新解码器 `advance` 到同一位置。`Playback` 每隔 `checkpoint_interval` 包保留一个检查点，默认 64 包（48 kHz 下约 1.4 s）。数量超过 `max_checkpoints`（默认 1024）时，隔一个删一个并把间隔加倍，所以内存有上限；每个检查点通常只有几 KB。
 - **定位**：`seek(frame)` 只选起点：当前解码器离目标更近就原地继续，否则恢复目标前一包之前的最后一个检查点。下一次 `read` 先推进到目标前一包，完整解码它以重建 overlap，再输出目标帧。读包和 `extend_index` 经过检查点位置时都会保存检查点。索引覆盖目标后，一次 seek 至多推进 `间隔 − 1` 包、完整解码 2 包；索引尚未覆盖的位置要从最后一个检查点向前推进，代价随距离增长。
 - **建索引**：`extend_index(max_packets)` 用解码器的克隆只推进状态，处理至多 `max_packets` 包后返回；走到表末时返回 true，此后 `index_complete()` 也为 true。`indexed_frames()` 给出索引目前覆盖到的位置。库内不开线程，有两种用法：在加载线程里调用 `extend_index(u64::MAX)`，再把 `Playback` 交给解码线程（`Playback<File>` 是 `Send`）；或者在解码线程空闲时分批调用。

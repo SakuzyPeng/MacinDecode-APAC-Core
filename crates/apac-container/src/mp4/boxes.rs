@@ -1,5 +1,5 @@
 //! Bounded ISO BMFF box traversal. Unknown payloads are never buffered.
-use crate::{Error, Result, Source, read_at};
+use crate::{Error, OpenMode, Result, Source, read_at};
 use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, time::SystemTime};
 
@@ -111,8 +111,11 @@ fn hash_range(
     a: Atom,
     start: u64,
     end: u64,
-    hash: &mut Sha256,
+    hash: &mut Option<Sha256>,
 ) -> Result<()> {
+    let Some(hash) = hash else {
+        return Ok(());
+    };
     let mut cursor = start;
     let mut buffer = [0; 65536];
     while cursor < end {
@@ -149,7 +152,7 @@ fn children(
     end: u64,
     parent: &[u8; 4],
     state: &mut Structure,
-    hash: &mut Sha256,
+    hash: &mut Option<Sha256>,
 ) -> Result<()> {
     let mut pos = start;
     while pos < end {
@@ -214,7 +217,7 @@ fn children(
     }
     Ok(())
 }
-pub(super) fn scan(file: &mut impl Source) -> Result<Structure> {
+pub(super) fn scan(file: &mut impl Source, mode: OpenMode) -> Result<Structure> {
     let bytes = file.length()?;
     let modified = file.revision()?;
     let mut state = Structure {
@@ -227,7 +230,7 @@ pub(super) fn scan(file: &mut impl Source) -> Result<Structure> {
         sbgp_count: 0,
         skipped: 0,
     };
-    let mut hash = Sha256::new();
+    let mut hash = (mode == OpenMode::Verified).then(Sha256::new);
     let bytes = state.bytes;
     children(file, 0, bytes, b"root", &mut state, &mut hash)?;
     for tag in [
@@ -242,7 +245,9 @@ pub(super) fn scan(file: &mut impl Source) -> Result<Structure> {
     if state.boxes.contains_key(b"stco") == state.boxes.contains_key(b"co64") {
         return Err(invalid(b"stco", bytes, "requires exactly one stco or co64"));
     }
-    state.hash = format!("{:x}", hash.finalize());
+    state.hash = hash
+        .map(|h| format!("{:x}", h.finalize()))
+        .unwrap_or_default();
     Ok(state)
 }
 

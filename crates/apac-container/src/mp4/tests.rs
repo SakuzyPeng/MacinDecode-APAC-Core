@@ -20,7 +20,7 @@ impl Temp {
     }
 
     fn append_sample_group(&self, tag: &[u8; 4]) -> u64 {
-        let structure = scan(&mut self.0.clone()).unwrap();
+        let structure = scan(&mut self.0.clone(), OpenMode::Verified).unwrap();
         let original = structure.get(tag).unwrap();
         let stbl = structure.get(b"stbl").unwrap();
         let mut raw = self.0.bytes();
@@ -67,7 +67,7 @@ fn audio_mutation_cannot_pass_short_read_verification() {
         .unwrap()
         .unwrap()
         .0;
-    reader.index = Index::open(&mut reader.file, &reader.structure).unwrap();
+    reader.index = Index::open(&mut reader.file, &reader.structure, OpenMode::Verified).unwrap();
     temp.0.change(offset + 1, &[255]);
     assert!(reader.verify_remaining().is_err());
     assert!(!reader.summary().verified);

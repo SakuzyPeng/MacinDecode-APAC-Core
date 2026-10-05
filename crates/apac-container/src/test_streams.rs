@@ -67,6 +67,22 @@ pub(crate) fn caf(cookie: &[u8], packets: &[Vec<u8>]) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// Rebuild a CAF with `extra` appended to the payload of chunk `tag`.
+pub(crate) fn grow_caf_chunk(file: &[u8], tag: &[u8; 4], extra: &[u8]) -> Vec<u8> {
+    let mut out = file[..8].to_vec();
+    let mut at = 8;
+    while at < file.len() {
+        let size = u64::from_be_bytes(file[at + 4..at + 12].try_into().unwrap()) as usize;
+        let mut payload = file[at + 12..at + 12 + size].to_vec();
+        if &file[at..at + 4] == tag {
+            payload.extend(extra);
+        }
+        out.extend(chunk(file[at..at + 4].try_into().unwrap(), &payload));
+        at += 12 + size;
+    }
+    out
+}
+
 pub(crate) struct Stream {
     pub(crate) name: String,
     pub(crate) kind: StreamKind,
@@ -205,6 +221,25 @@ fn be32(values: &[u32]) -> Vec<u8> {
 /// A single-track MP4 of `packets` with the priming and remainder of
 /// [`caf`]; `mdat` precedes `moov`, so chunk offsets are known first.
 pub(crate) fn mp4(cookie: &[u8], packets: &[Vec<u8>], layout: Layout) -> Option<Vec<u8>> {
+    mp4_with_tables(cookie, packets, layout, &[])
+}
+
+/// A version-zero optional sample table, for example `ctts` or `stss`.
+pub(crate) fn sample_table(tag: &[u8; 4], rows: &[&[u32]]) -> Vec<u8> {
+    let mut data = be32(&[rows.len() as u32]);
+    for row in rows {
+        data.extend(be32(row));
+    }
+    atom(tag, &full(0, 0, &data))
+}
+
+/// [`mp4`] with additional boxes at the end of `stbl`.
+pub(crate) fn mp4_with_tables(
+    cookie: &[u8],
+    packets: &[Vec<u8>],
+    layout: Layout,
+    extra: &[Vec<u8>],
+) -> Option<Vec<u8>> {
     let config = apac_core::Config::parse(cookie).ok()?;
     let rate = u32::try_from(config.sample_rate_hz()?).ok()?;
     let count = packets.len() as u32;
@@ -267,7 +302,11 @@ pub(crate) fn mp4(cookie: &[u8], packets: &[Vec<u8>], layout: Layout) -> Option<
         if layout.co64 { b"co64" } else { b"stco" },
         &full(0, 0, &[be32(&[chunks.len() as u32]), offsets].concat()),
     );
-    let stbl = atom(b"stbl", &[stsd, stts, stsc, stsz, stco].concat());
+    let mut tables = [stsd, stts, stsc, stsz, stco].concat();
+    for table in extra {
+        tables.extend(table);
+    }
+    let stbl = atom(b"stbl", &tables);
     let url = atom(b"url ", &full(0, 1, &[]));
     let dinf = atom(
         b"dinf",

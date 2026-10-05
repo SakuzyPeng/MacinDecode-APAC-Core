@@ -4,7 +4,9 @@ use super::*;
 use crate::{
     CafReader, Mp4Reader, Packet, PacketSource,
     test_source::Shared,
-    test_streams::{Fenced, LAYOUTS, Stream, hex, mp4, streams},
+    test_streams::{
+        Fenced, LAYOUTS, Stream, grow_caf_chunk, hex, mp4, mp4_with_tables, sample_table, streams,
+    },
 };
 
 /// Every packet from `cursor` to the end, each with the cursor before it.
@@ -121,22 +123,125 @@ fn opening_reads_no_audio() {
     }
 }
 
-/// Rebuild a CAF with `extra` appended to the payload of chunk `tag`.
-fn grow_chunk(file: &[u8], tag: &[u8; 4], extra: &[u8]) -> Vec<u8> {
-    let mut out = file[..8].to_vec();
-    let mut at = 8;
-    while at < file.len() {
-        let size = u64::from_be_bytes(file[at + 4..at + 12].try_into().unwrap()) as usize;
-        let mut payload = file[at + 12..at + 12 + size].to_vec();
-        if &file[at..at + 4] == tag {
-            payload.extend(extra);
+#[test]
+fn opening_defers_packet_tables_and_skips_sample_group_payloads() {
+    let stream = &streams()[0];
+    let pakt = CafReader::new(Shared::new(&stream.file))
+        .unwrap()
+        .summary()
+        .chunks[b"pakt"];
+    let source = Fenced::new(
+        Shared::new(&stream.file),
+        pakt.offset + 24..pakt.offset + pakt.bytes,
+    );
+    let mut media = Media::open(source).unwrap();
+    let mut cursor = media.start();
+    assert_eq!(
+        media
+            .read_packet(&mut cursor, &mut vec![])
+            .unwrap_err()
+            .packet_index,
+        Some(0)
+    );
+    assert_eq!(cursor.packet(), 0);
+
+    let extra = [
+        sample_table(b"ctts", &[&[2, 0], &[4, 0]]),
+        sample_table(b"stss", &[&[1], &[3], &[6]]),
+        sample_table(b"sgpd", &[&[123]]),
+        sample_table(b"sbgp", &[&[456]]),
+    ];
+    for layout in LAYOUTS {
+        let file = mp4_with_tables(&stream.cookie, &stream.packets, layout, &extra).unwrap();
+        let boxes = Mp4Reader::new(Shared::new(&file)).unwrap().summary().boxes;
+        for tag in [
+            b"stsz",
+            b"stsc",
+            b"stts",
+            b"ctts",
+            b"stss",
+            b"sgpd",
+            b"sbgp",
+            if layout.co64 { b"co64" } else { b"stco" },
+        ] {
+            let range = boxes[tag];
+            let skipped = matches!(tag, b"sgpd" | b"sbgp");
+            let header = if skipped {
+                0
+            } else if tag == b"stsz" {
+                12
+            } else {
+                8
+            };
+            let source = || Fenced::new(Shared::new(&file), range.data_offset + header..range.end);
+            assert!(Mp4Reader::new(source()).is_err());
+            let mut media = Media::open(source()).unwrap();
+            let mut cursor = media.start();
+            if skipped {
+                let got: Vec<_> = read_from(&mut media, cursor)
+                    .into_iter()
+                    .map(|(_, bytes, _)| bytes)
+                    .collect();
+                assert_eq!(got, stream.packets);
+            } else {
+                let error = media.read_packet(&mut cursor, &mut vec![]).unwrap_err();
+                assert_eq!(
+                    (error.message.as_str(), error.packet_index),
+                    ("unreadable region", Some(0))
+                );
+                assert_eq!(cursor.packet(), 0);
+            }
         }
-        out.extend(&file[at..at + 4]);
-        out.extend((payload.len() as u64).to_be_bytes());
-        out.extend(payload);
-        at += 12 + size;
+        // Saved cursors also retain the optional tables' run/lookahead state.
+        let mut media = Media::open(Shared::new(&file)).unwrap();
+        let start = media.start();
+        let all = read_from(&mut media, start);
+        for (i, (_, _, cursor)) in all.iter().enumerate() {
+            let got: Vec<_> = read_from(&mut media, *cursor)
+                .into_iter()
+                .map(|(_, bytes, _)| bytes)
+                .collect();
+            assert_eq!(got, stream.packets[i..]);
+        }
     }
-    out
+}
+
+#[test]
+fn deferred_optional_tables_keep_rejections_and_retry_positions() {
+    let stream = &streams()[0];
+    for extra in [
+        sample_table(b"ctts", &[&[5, 0]]),
+        sample_table(b"ctts", &[&[7, 0]]),
+        sample_table(b"ctts", &[&[2, 0], &[0, 0], &[4, 0]]),
+        sample_table(b"ctts", &[&[2, 0], &[4, 1]]),
+        sample_table(b"stss", &[&[1], &[3], &[3]]),
+        sample_table(b"stss", &[&[1], &[7]]),
+        sample_table(b"stss", &[&[0]]),
+    ] {
+        let file = mp4_with_tables(&stream.cookie, &stream.packets, LAYOUTS[0], &[extra]).unwrap();
+        let expected = Mp4Reader::new(Shared::new(&file)).err().unwrap();
+        let mut media = Media::open(Shared::new(&file)).unwrap();
+        let mut cursor = media.start();
+        loop {
+            let before = cursor.packet();
+            match media.read_packet(&mut cursor, &mut vec![]) {
+                Ok(Some(_)) => {}
+                Ok(None) => panic!("invalid optional table accepted"),
+                Err(error) => {
+                    assert_eq!(
+                        (&error.operation, &error.message, &error.position),
+                        (&expected.operation, &expected.message, &expected.position)
+                    );
+                    assert_eq!(cursor.packet(), before);
+                    assert_eq!(
+                        media.read_packet(&mut cursor, &mut vec![]).unwrap_err(),
+                        error
+                    );
+                    break;
+                }
+            }
+        }
+    }
 }
 
 #[test]
@@ -145,7 +250,7 @@ fn table_end_and_header_rejections_match_the_verified_readers() {
     // A packet table entry past the last packet, and audio past the last
     // packet: both are found when a cursor reaches the end of the table.
     for (tag, extra) in [(b"pakt", [1]), (b"data", [0])] {
-        let file = grow_chunk(&stream.file, tag, &extra);
+        let file = grow_caf_chunk(&stream.file, tag, &extra);
         let expected = CafReader::new(Shared::new(&file)).err().unwrap();
         let mut media = Media::open(Shared::new(&file)).unwrap();
         let mut cursor = media.start();

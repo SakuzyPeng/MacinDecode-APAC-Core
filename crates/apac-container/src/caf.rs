@@ -2,7 +2,7 @@
 //! Wire reference: Apple Core Audio Format Specification, archived CAF_spec v1,
 //! Audio Description, Audio Data and Packet Table chunks; public CAFFile.h.
 //! No packet index or unknown chunk payload is retained in memory.
-use crate::{Error, Packet, PacketTable, Result, Source, Track, read_at};
+use crate::{Error, OpenMode, Packet, PacketTable, Result, Source, Track, read_at};
 use apac_core::{
     MAX_PACKET_BUFFER,
     config::{self, MAX_COOKIE_BYTES},
@@ -55,7 +55,7 @@ struct Structure {
     hash: String,
     skipped: u64,
 }
-fn scan<R: Source>(file: &mut R) -> Result<Structure> {
+fn scan<R: Source>(file: &mut R, mode: OpenMode) -> Result<Structure> {
     let bytes = file.length()?;
     let modified = file.revision()?;
     let mut header = [0u8; 8];
@@ -63,8 +63,10 @@ fn scan<R: Source>(file: &mut R) -> Result<Structure> {
     if header != *b"caff\0\x01\0\0" {
         return Err(invalid(b"caff", 0, "requires CAF v1 with zero flags"));
     }
-    let mut hash = Sha256::new();
-    hash.update(header);
+    let mut hash = (mode == OpenMode::Verified).then(Sha256::new);
+    if let Some(hash) = &mut hash {
+        hash.update(header);
+    }
     let mut chunks = BTreeMap::new();
     let mut cursor = 8;
     let mut skipped = 0;
@@ -89,7 +91,9 @@ fn scan<R: Source>(file: &mut R) -> Result<Structure> {
             .checked_add(size)
             .filter(|&n| n <= bytes)
             .ok_or_else(|| invalid(&tag, cursor + 4, "chunk extends beyond file or overflows"))?;
-        hash.update(raw);
+        if let Some(hash) = &mut hash {
+            hash.update(raw);
+        }
         if matches!(&tag, b"desc" | b"kuki" | b"pakt" | b"data" | b"chan") {
             if chunks
                 .insert(
@@ -117,13 +121,15 @@ fn scan<R: Source>(file: &mut R) -> Result<Structure> {
                     "invalid or unsupported chunk size",
                 ));
             }
-            digest_range(
-                file,
-                &tag,
-                offset,
-                if tag == *b"data" { 4 } else { size },
-                &mut hash,
-            )?;
+            if let Some(hash) = &mut hash {
+                digest_range(
+                    file,
+                    &tag,
+                    offset,
+                    if tag == *b"data" { 4 } else { size },
+                    hash,
+                )?;
+            }
         } else {
             skipped += 1;
         }
@@ -138,7 +144,9 @@ fn scan<R: Source>(file: &mut R) -> Result<Structure> {
         chunks,
         bytes,
         modified,
-        hash: format!("{:x}", hash.finalize()),
+        hash: hash
+            .map(|h| format!("{:x}", h.finalize()))
+            .unwrap_or_default(),
         skipped,
     })
 }
@@ -168,7 +176,7 @@ pub struct CafSummary {
 }
 
 /// What opening validates: the structure, the stream description and the
-/// fields an input report shows. No audio payload or packet length is read.
+/// fields an input report shows. Playback reads no audio or packet entries.
 pub(crate) struct Header {
     structure: Structure,
     pub(crate) track: Track,
@@ -186,8 +194,8 @@ impl Header {
 }
 /// Validate the structure, description, cookie, channel layout and packet
 /// table header.
-pub(crate) fn header<R: Source>(file: &mut R) -> Result<Header> {
-    let structure = scan(file)?;
+pub(crate) fn header<R: Source>(file: &mut R, mode: OpenMode) -> Result<Header> {
+    let structure = scan(file, mode)?;
     let chunks = &structure.chunks;
     let desc = chunks[b"desc"];
     let mut raw = [0; 32];
@@ -464,7 +472,7 @@ impl<R: Source> CafReader<R> {
     /// Validate the file and read it once to record its digests; the reader
     /// is then positioned at packet zero.
     pub fn new(mut file: R) -> Result<Self> {
-        let header = header(&mut file)?;
+        let header = header(&mut file, OpenMode::Verified)?;
         let (pakt, data) = header.packets();
         let mut reader = Self {
             file,
@@ -554,7 +562,7 @@ impl<R: Source> CafReader<R> {
                         "audio or packet boundaries changed after validation",
                     ));
                 }
-                let current = scan(&mut self.file)?;
+                let current = scan(&mut self.file, OpenMode::Verified)?;
                 if current.hash != self.structure.hash
                     || current.bytes != self.structure.bytes
                     || current.modified != self.structure.modified

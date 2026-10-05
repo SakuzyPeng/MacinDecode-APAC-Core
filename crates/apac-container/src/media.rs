@@ -1,6 +1,6 @@
 //! Random-access container input for playback: opening reads metadata only,
 //! and packets are read through cursors that can be saved and restored.
-use crate::{Chunk, Error, Result, Source, Track, caf, mp4, read_at};
+use crate::{Chunk, Error, OpenMode, Result, Source, Track, caf, mp4, read_at};
 use std::io::{self, SeekFrom};
 
 /// Where the next packet of a [`Media`] input is read.
@@ -57,7 +57,7 @@ impl<R: Source> Media<R> {
     /// Open a CAF file (one that starts with `caff`) or an MP4 file.
     pub fn open(mut file: R) -> Result<Self> {
         if starts_with_caff(&mut file)? {
-            let header = caf::header(&mut file)?;
+            let header = caf::header(&mut file, OpenMode::Playback)?;
             let (pakt, data) = header.packets();
             Ok(Self {
                 file,
@@ -66,7 +66,7 @@ impl<R: Source> Media<R> {
                 start: PacketCursor(Position::Caf(caf::Cursor::start(pakt, data))),
             })
         } else {
-            let header = mp4::header(&mut file)?;
+            let header = mp4::header(&mut file, OpenMode::Playback)?;
             Ok(Self {
                 file,
                 format: Format::Mp4 {
@@ -101,29 +101,41 @@ impl<R: Source> Media<R> {
         out: &mut Vec<u8>,
     ) -> Result<Option<u64>> {
         let index = cursor.packet();
+        let mut next = *cursor;
+        let Some((offset, size)) = self.next_range(&mut next)? else {
+            return Ok(None);
+        };
+        let (operation, tag) = match self.format {
+            Format::Caf { .. } => ("CAF input", b"data"),
+            Format::Mp4 { .. } => ("MP4 input", b"mdat"),
+        };
+        out.resize(size as usize, 0);
+        read_at(&mut self.file, operation, tag, offset, out).map_err(|mut e| {
+            e.packet_index = Some(index);
+            e
+        })?;
+        *cursor = next;
+        self.track.max_packet_bytes = self.track.max_packet_bytes.max(size as u32);
+        Ok(Some(index))
+    }
+    /// Check the remaining table entries and their data bounds, including
+    /// the table end, without reading audio or moving the caller's cursor.
+    pub(crate) fn check_end(&mut self, mut cursor: PacketCursor) -> Result<()> {
+        while self.next_range(&mut cursor)?.is_some() {}
+        Ok(())
+    }
+    /// Advance one table entry atomically, without reading its payload.
+    fn next_range(&mut self, cursor: &mut PacketCursor) -> Result<Option<(u64, u64)>> {
+        let index = cursor.packet();
         let count = self.track.packet_count;
         let mut next = cursor.0;
         let found = match (&mut next, &self.format) {
-            (Position::Caf(at), &Format::Caf { pakt, data }) => at
-                .next(&mut self.file, pakt, data, count)
-                .and_then(|range| match range {
-                    Some((offset, size)) => {
-                        out.resize(size as usize, 0);
-                        read_at(&mut self.file, "CAF input", b"data", offset, out)?;
-                        Ok(Some(size))
-                    }
-                    None => Ok(None),
-                }),
+            (Position::Caf(at), &Format::Caf { pakt, data }) => {
+                at.next(&mut self.file, pakt, data, count)
+            }
             (Position::Mp4(at), &Format::Mp4 { file_bytes }) => at
                 .next(&mut self.file, file_bytes)
-                .and_then(|range| match range {
-                    Some((offset, size)) => {
-                        out.resize(size as usize, 0);
-                        read_at(&mut self.file, "MP4 input", b"mdat", offset, out)?;
-                        Ok(Some(u64::from(size)))
-                    }
-                    None => Ok(None),
-                }),
+                .map(|range| range.map(|(offset, size)| (offset, u64::from(size)))),
             _ => {
                 return Err(Error::new(
                     "packet input",
@@ -131,18 +143,14 @@ impl<R: Source> Media<R> {
                 ));
             }
         };
-        let size = found.map_err(|mut e| {
+        let range = found.map_err(|mut e| {
             if index < count {
                 e.packet_index = Some(index);
             }
             e
         })?;
-        let Some(size) = size else {
-            return Ok(None);
-        };
         cursor.0 = next;
-        self.track.max_packet_bytes = self.track.max_packet_bytes.max(size as u32);
-        Ok(Some(index))
+        Ok(range)
     }
     /// The underlying source.
     pub fn into_inner(self) -> R {

@@ -79,6 +79,7 @@ cargo doc --no-deps -p apac-core -p apac-container --open
 | [guide/bitstream.md](guide/bitstream.md) | `parse-packets` 各解析深度、离散声道与 HOA 的语法和数值标识 |
 | [guide/support.md](guide/support.md) | 实现边界、共享配置与组合 HOA 流、ASP 与帧长 |
 | [guide/validation.md](guide/validation.md) | 测试、独立数学验收、重构回归与苹果参考诊断 |
+| [guide/hoa-blackbox.md](guide/hoa-blackbox.md) | HOA 黑盒批处理、证据导入、断点续跑与候选验证 |
 | [guide/development.md](guide/development.md) | workspace 结构、`no_std` 构建、API 分层、仓库约定 |
 
 ## 平台

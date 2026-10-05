@@ -21,6 +21,77 @@ struct MeasuredCodebook {
     book: usize,
     book_sha256: String,
     entries: Vec<MeasuredWord>,
+    coefficient_group: Option<Vec<usize>>,
+    group_sha256: Option<String>,
+}
+
+struct DirectBook {
+    mode: usize,
+    book: usize,
+    file: &'static str,
+    book_sha256: &'static str,
+    group_sha256: &'static str,
+    group_users: &'static [(usize, usize)],
+}
+
+const DIRECT_BOOKS: [DirectBook; 3] = [
+    DirectBook {
+        mode: 2,
+        book: 0,
+        file: "hoa-salient-order3-q6-mode2-book0-measured-v1.json",
+        book_sha256: "b6454d2e72fa0d4379ed35a0654117a6d0d642e7120aa361e743215a668e8e51",
+        group_sha256: "fa1a8d0500bded3fe41cff7249eb8a9ac45940f271b94677f7f2989fc322aad6",
+        group_users: &[(2, 0)],
+    },
+    DirectBook {
+        mode: 2,
+        book: 1,
+        file: "hoa-salient-order3-q6-mode2-book1-measured-v1.json",
+        book_sha256: "65c66abc4fee011b32b4bc05d03c7fb94de4cf3ece3de4308e82a0cac8be86af",
+        group_sha256: "302afc300ad5263c92900f3042be1833fa550b67b29d135125db0012227327a2",
+        group_users: &[(2, 1)],
+    },
+    DirectBook {
+        mode: 3,
+        book: 0,
+        file: "hoa-salient-order3-q6-mode3-measured-v1.json",
+        book_sha256: "a987e10a45914106ab796d31fc7587a3d997310d09aab04a02f66a7c27c899d1",
+        group_sha256: "4939a292c2f5164ddcf27a07ddc7ef96928baa3e8967453a7294a9ecebf0a5c3",
+        group_users: &[
+            (0, 0),
+            (1, 0),
+            (3, 0),
+            (4, 0),
+            (4, 1),
+            (4, 2),
+            (4, 3),
+            (5, 0),
+        ],
+    },
+];
+
+fn measured_group(source: &DirectBook) -> Vec<usize> {
+    let data: MeasuredCodebook = data_json(source.file);
+    assert_eq!(data.schema_version, 1);
+    assert_eq!(data.profile, "apac-hoa-salient-measured-v1");
+    assert_eq!(
+        (data.order, data.quantization_bits, data.mode, data.book),
+        (3, 6, source.mode, source.book)
+    );
+    let group = data.coefficient_group.expect("measured coefficient group");
+    assert!(!group.is_empty());
+    assert!(group.iter().all(|&i| i < 16));
+    let mut unique = group.clone();
+    unique.sort_unstable();
+    unique.dedup();
+    assert_eq!(unique.len(), group.len());
+    let digest = format!(
+        "{:x}",
+        Sha256::digest(serde_json::to_vec(&group).expect("measured group JSON"))
+    );
+    assert_eq!(Some(digest.as_str()), data.group_sha256.as_deref());
+    assert_eq!(digest, source.group_sha256);
+    group
 }
 
 /// This book's canonical input is the frozen black-box measurement. The
@@ -179,7 +250,8 @@ struct Shared {
 }
 
 fn shared(out: &mut Output, order: usize) -> Shared {
-    let data: StoredSharedFormat = data_json(&format!("hoa-salient-order{order}-shared-v1.json"));
+    let mut data: StoredSharedFormat =
+        data_json(&format!("hoa-salient-order{order}-shared-v1.json"));
     assert_eq!(data.schema_version, 2);
     assert_eq!(data.format_profile, "apac-hoa-salient-shared-v1");
     assert_eq!(data.matrix_encoding, packed::MATRIX_ENCODING);
@@ -211,6 +283,28 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     } else {
         Vec::new()
     };
+    if order == 3 {
+        for source in &DIRECT_BOOKS {
+            let index = data.modes[source.mode].group_indices[source.book];
+            let users: Vec<_> = data
+                .modes
+                .iter()
+                .flat_map(|mode| {
+                    mode.group_indices
+                        .iter()
+                        .enumerate()
+                        .filter_map(move |(group, &i)| (i == index).then_some((mode.mode, group)))
+                })
+                .collect();
+            assert_eq!(users, source.group_users, "measured group aliases differ");
+            let group = measured_group(source);
+            assert_eq!(
+                data.groups[index], group,
+                "shared copy of measured group differs"
+            );
+            data.groups[index] = group;
+        }
+    }
     let group_names = data
         .groups
         .iter()
@@ -254,6 +348,10 @@ fn refs(names: impl IntoIterator<Item = String>) -> String {
 }
 
 pub fn dictionaries(out: &mut Output) {
+    let measured_direct: Vec<_> = DIRECT_BOOKS
+        .iter()
+        .map(|source| measured_codebook(source.file, source.mode, source.book, source.book_sha256))
+        .collect();
     let measured_mode1 = measured_codebook(
         "hoa-salient-order3-q6-mode1-measured-v1.json",
         1,
@@ -290,6 +388,10 @@ pub fn dictionaries(out: &mut Output) {
             );
             assert_eq!(stored.format_profile, profile);
             assert_eq!(stored.modes.len(), 6);
+            if order == 3 && precision == 6 {
+                assert_eq!(stored.modes[2].codebooks.len(), 2);
+                assert_eq!(stored.modes[3].codebooks.len(), 1);
+            }
             let mut modes = Vec::new();
             let mut tries = Vec::new();
             for (mode_index, (mode, common)) in stored.modes.iter().zip(&shared.modes).enumerate() {
@@ -330,6 +432,8 @@ pub fn dictionaries(out: &mut Output) {
                         packed::codebook(hex, precision).expect("built-in packed HOA codebook");
                     let measured = match (order, precision, mode_index, book_index) {
                         (3, 6, 1, 0) => Some(&measured_mode1),
+                        (3, 6, 2, book) => Some(&measured_direct[book]),
+                        (3, 6, 3, 0) => Some(&measured_direct[2]),
                         (3, 6, 4, cluster) => Some(&measured_mode4[cluster]),
                         _ => None,
                     };

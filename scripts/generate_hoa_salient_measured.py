@@ -14,7 +14,7 @@ import json
 from pathlib import Path
 
 from hoa_packed_tables import pack_codebook
-from hoa_measured_batch_sources import OUTPUTS, source as batch_source
+from hoa_measured_batch_sources import OUTPUTS, MODE23_OUTPUTS, source as batch_source, mode23_source
 from hoa_salient_format import DATA, check_digest, expand_format, format_name, json_bytes, shared_name, split_format
 
 MEASURED_FILES = {
@@ -57,6 +57,13 @@ for cluster, record in OUTPUTS.items():
     CANDIDATE_SHA256[key] = record['codebook_candidate']
     BOOK_SHA256[key] = record['codebook_values']
     SOURCES[key] = batch_source(cluster, 'codebook')
+for key, record in MODE23_OUTPUTS.items():
+    mode, book = key
+    suffix = f'-book{book}' if mode == 2 else ''
+    MEASURED_FILES[key] = f'hoa-salient-order3-q6-mode{mode}{suffix}-measured-v1.json'
+    CANDIDATE_SHA256[key] = record['candidate']
+    BOOK_SHA256[key] = record['book_values']
+    SOURCES[key] = mode23_source(key)
 
 
 def require(condition, message):
@@ -86,7 +93,20 @@ def measured_book(value):
     pack_codebook(book, 6)  # Requires a complete prefix tree with 64 distinct leaves.
     digest = hashlib.sha256(json.dumps(book, separators=(',', ':')).encode()).hexdigest()
     require(digest == value.get('book_sha256') == BOOK_SHA256[key], 'measured codebook digest differs')
+    if key in MODE23_OUTPUTS:
+        group = value.get('coefficient_group')
+        require(isinstance(group, list) and group and all(type(i) is int and 0 <= i < 16 for i in group)
+                and len(set(group)) == len(group), 'invalid measured coefficient group')
+        group_digest = hashlib.sha256(json.dumps(group, separators=(',', ':')).encode()).hexdigest()
+        require(group_digest == value.get('group_sha256') == MODE23_OUTPUTS[key]['group_values'],
+                'measured coefficient group digest differs')
     return book
+
+
+def measured_group(value):
+    measured_book(value)
+    require((value['mode'], value['book']) in MODE23_OUTPUTS, 'measurement has no recovered group')
+    return value['coefficient_group']
 
 
 def from_candidate(raw):
@@ -102,12 +122,18 @@ def from_candidate(raw):
     if mode == 4 and index in OUTPUTS:
         require(candidate['profile'] == 'hoa-blackbox-codebook-v1'
                 and candidate['policy_sha256'] == SOURCES[key]['policy_sha256'], 'candidate policy differs')
+    if key in MODE23_OUTPUTS:
+        require(candidate['profile'] == 'hoa-blackbox-codebook-v1'
+                and candidate['policy_sha256'] == SOURCES[key]['policy_sha256']
+                and candidate['layout_sha256'] == SOURCES[key]['layout_sha256'], 'candidate policy or layout differs')
     result = dict(schema_version=1, profile=PROFILE, order=candidate['order'],
                   quantization_bits=candidate['quantization_bits'], mode=mode,
                   book=index,
                   source=copy.deepcopy(SOURCES[key]), book_sha256=BOOK_SHA256[key],
                   entries=[{key: entry[key] for key in ('symbol', 'codeword', 'bit_length')}
                            for entry in candidate['entries']])
+    if key in MODE23_OUTPUTS:
+        result.update(coefficient_group=candidate['coefficient_group'], group_sha256=MODE23_OUTPUTS[key]['group_values'])
     measured_book(result)
     return result
 
@@ -140,7 +166,7 @@ def replace_book(value, measurement):
     ))
     source = result['source'] if 'original_observation' in result['source'] else {}
     source.update(
-        method=('mixed sources with per-table replacements' if source.get('matrix_replacements')
+        method=('mixed sources with per-table replacements' if source.get('matrix_replacements') or source.get('group_replacements')
                 else 'mixed sources with per-codebook replacements'),
         original_observation=original,
         remaining_tables='original_observation',

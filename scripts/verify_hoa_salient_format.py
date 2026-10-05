@@ -13,6 +13,8 @@ import struct
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
 from generate_hoa_salient_measured import load_measurements, measured_book, replace_book
 from generate_hoa_salient_measured_matrix import load_measurements as load_matrix_measurements, measured_matrix, replace_matrix
+from generate_hoa_salient_measured_groups import GROUP_USERS, load_measurements as load_group_measurements, replace_group
+from generate_hoa_salient_measured import measured_group
 
 COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,6 +93,12 @@ def extract(path, order=3, quantization_bits=6):
             if result['modes'][4]['matrices_f32'][cluster] != measured_matrix(measurement):
                 raise ValueError(f'reference differs from measured mode-4 cluster-{cluster} matrix')
             result = replace_matrix(result, measurement)
+        for measurement in load_group_measurements():
+            key = (measurement['mode'], measurement['book'])
+            for mode, group in GROUP_USERS[key]:
+                if result['modes'][mode]['groups'][group] != measured_group(measurement):
+                    raise ValueError(f'reference differs from measured coefficient group {mode}/{group}')
+            result = replace_group(result, measurement)
     return result
 
 

@@ -58,10 +58,9 @@ class MeasuredCodebookTests(unittest.TestCase):
         rebuilt, common = regenerate(broken, shared, load_measurements())
         self.assertEqual(rebuilt, stored)
         self.assertEqual(common, shared)
-        # Damage to another dictionary must not be hidden by the replacement.
-        broken['modes'][2]['codebooks'][0] = 'not-a-codebook'
+        # A partial repair must still reject any unselected damaged book.
         with self.assertRaises(ValueError):
-            regenerate(broken, shared, load_measurements())
+            regenerate(broken, shared, [load_measurement(1, 0)])
 
     def test_measurements_never_replace_the_shared_matrices(self):
         stored = json.loads((DATA / format_name(3, 6)).read_text())
@@ -88,7 +87,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                 (lambda m: m['entries'].pop(), '64 symbols'),
                 (lambda m: m['entries'][1].update(symbol=0), 'ordered and unique'),
                 (lambda m: m['entries'][0].update(codeword='x'*9), 'codeword'),
-                (lambda m: m.update(mode=2), 'scope'),
+                (lambda m: m.update(mode=5), 'scope'),
                 (lambda m: m.update(book=4), 'scope'),
                 (lambda m: m['source'].update(architecture='x86_64'), 'source'),
             ):

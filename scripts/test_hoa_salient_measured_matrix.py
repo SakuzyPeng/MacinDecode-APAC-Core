@@ -4,6 +4,7 @@ import json
 import unittest
 
 from generate_hoa_salient_measured import load_measurements as load_books, replace_book
+from generate_hoa_salient_measured_groups import load_measurements as load_groups, replace_group
 from generate_hoa_salient_measured_matrix import (
     from_candidate, load_measurement, load_measurements, measured_matrix, regenerate, replace_matrix,
 )
@@ -122,6 +123,9 @@ class MeasuredMatrixTests(unittest.TestCase):
             b = replace_book(b, book)
         for matrix in matrices:
             b = replace_matrix(b, matrix)
+        for group in load_groups():
+            a = replace_group(a, group)
+            b = replace_group(b, group)
         self.assertEqual(a, current)
         self.assertEqual(b, current)
 

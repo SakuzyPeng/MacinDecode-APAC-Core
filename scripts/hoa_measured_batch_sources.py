@@ -66,3 +66,45 @@ def source(cluster, kind):
     else:
         result['validation_scope'] = 'Huffman codewords and lengths'
     return result
+
+
+MODE23_OUTPUTS = {
+    (2, 0): dict(
+        candidate='c19bf56a443252874eb675010eff0beee1f27e2417dc5a0d6a4842fbdca2a6b7',
+        book_values='b6454d2e72fa0d4379ed35a0654117a6d0d642e7120aa361e743215a668e8e51',
+        group_values='fa1a8d0500bded3fe41cff7249eb8a9ac45940f271b94677f7f2989fc322aad6',
+        layout='9f2424b31abf465f418f5e4f1438acefe19a1b48483778cfebd8b0dabe3cd229',
+        validation='d6fcde7a216c0408d095088a79f21834a844dce9664b29e15835d6aeb9af9a57',
+        comparison='e34a177871f325fadb94bfa17b8931db55573b75f9f3167609466cee8e8cb16e',
+    ),
+    (2, 1): dict(
+        candidate='1e3807e1dabb7f1f47c21548d2e079c4675b73358680c5039c34691b21c8ed1e',
+        book_values='65c66abc4fee011b32b4bc05d03c7fb94de4cf3ece3de4308e82a0cac8be86af',
+        group_values='302afc300ad5263c92900f3042be1833fa550b67b29d135125db0012227327a2',
+        layout='9f2424b31abf465f418f5e4f1438acefe19a1b48483778cfebd8b0dabe3cd229',
+        validation='248e71d42e16b0ed04a9b4a8f291b26bf2b42b730e9df70739b71b9e549fd7ce',
+        comparison='7da9679a268e69c61f52b700aa2eddf621f7c46e50cd9a0b99c0e599f2774ed7',
+    ),
+    (3, 0): dict(
+        candidate='1240d891d4cf056cffa9c84d59ae9a1c25b8147adcc4bd2cbf364880d40838ff',
+        book_values='a987e10a45914106ab796d31fc7587a3d997310d09aab04a02f66a7c27c899d1',
+        group_values='4939a292c2f5164ddcf27a07ddc7ef96928baa3e8967453a7294a9ecebf0a5c3',
+        layout='f02a0309f1939fc5c04a8df91897bfd4ec05946db3a503d34008ecb8e3455870',
+        validation='b867f13632e74a0feaed8f6bc1150b952c80ab3728dfa283ca5bfbbc39e1bcdb',
+        comparison='2b22858114f08d0e75a9680a76147f16ad3e679b9f1d0340f767c2b99684de94',
+    ),
+}
+
+
+def mode23_source(key):
+    record = MODE23_OUTPUTS[key]
+    return dict(BATCH_SOURCE,
+        method='public AudioConverter PCM black-box reconstruction',
+        experiment='hoa-blackbox-order3-q6-mode23-v1',
+        tool_code_commit='8b1b3c631fa5e0e27fa349d9729be724c50402e2',
+        tool_fingerprint='39454e05844f61d1d22a93c149f79a056b26a2341582adc2683b72a40c4b02dd',
+        analysis_policy='hoa-blackbox-order3-q6-weighted-mode23-v2',
+        policy_sha256='7c66c4680d5198618e857f7d22a29ec9094367ce8f95afbd9a4e0b95bf696c9e',
+        candidate_sha256=record['candidate'], layout_sha256=record['layout'],
+        validation_sha256=record['validation'], comparison_sha256=record['comparison'],
+        validation_scope='Huffman codewords, lengths and coefficient order')

@@ -28,6 +28,8 @@ def parser():
             s.add_argument('--max-evidence-mib', type=int)
             s.add_argument('--max-native-calls', type=int)
             s.add_argument('--min-free-mib', type=int)
+            s.add_argument('--jobs', type=int, choices=range(1, 5),
+                           help='concurrent native captures (default 1; resume keeps its saved value)')
         if command in ('run', 'import-evidence', 'compare'):
             s.add_argument('--targets', nargs='+', choices=TARGETS)
         if command == 'import-evidence':
@@ -63,6 +65,7 @@ def initialize(args):
         selected.update(('mode2:0', 'mode2:1'))
     targets = [t for t in TARGETS if t in selected]
     config = dict(schema_version=1, created_utc=now(), targets=targets, binary=str(backend.binary),
+                  native_jobs=args.jobs or 1,
                   native_identity=backend.identity, tool_fingerprint=tool_fingerprint(), limits=limits(args),
                   code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip())
     store = Store.create(args.out, config)
@@ -90,6 +93,10 @@ def update_limits(store, args):
             updates[key] = value * scale
     if updates:
         store.set_limits(**updates)
+    if getattr(args, 'jobs', None) is not None:
+        store.config['native_jobs'] = args.jobs
+        store.set_meta('config', store.config)
+        atomic_file(store.out / 'manifest.json', canonical(store.config))
 
 
 def discover(args, targets):
@@ -104,7 +111,7 @@ def discover(args, targets):
             require(backend.identity == store.config['native_identity'], 'batch native environment differs', IdentityError)
             store.recover()
             store.set_meta('batch_status', 'running')
-            engine = Engine(store, Runner(store, backend), progress)
+            engine = Engine(store, Runner(store, backend, jobs=store.config.get('native_jobs', 1)), progress)
             engine.run(targets=targets, retry_failed=getattr(args, 'retry_failed', False))
             store.set_meta('batch_status', 'discovery_complete')
         except BudgetStop:

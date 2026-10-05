@@ -16,11 +16,25 @@ python3 -B scripts/hoa_blackbox.py status --out reports/hoa-blackbox-batch-new
 python3 -B scripts/hoa_blackbox.py resume --out reports/hoa-blackbox-batch-new
 ```
 
+独立校准、矩阵基向量、mode 3 通道顺序及验证用例支持 `--jobs 1` 至 `--jobs 4` 个原生采集进程；默认 1。前缀搜索、依赖前一步观测的分组识别及目标间先后关系保持顺序执行。使用相同输入时，结果仍按请求顺序验收和冻结，工作数不进入观测缓存键。
+
+```sh
+python3 -B scripts/hoa_blackbox.py run \
+  --binary /path/to/shared-target/debug/apac-tool \
+  --out reports/hoa-blackbox-parallel-new --jobs 4
+
+# 续跑可以调整并发数；省略 --jobs 则沿用该批次保存的值。
+python3 -B scripts/hoa_blackbox.py resume \
+  --out reports/hoa-blackbox-parallel-new --jobs 2
+```
+
+并发数只控制采集调度，仍共用一个二进制、一个账本和一个内容寻址证据池。每个正在采集的请求预留 2 MiB 空间，原生调用次数在派发前登记，重复输入在派发前合并。遇到调用次数上限时，先验收已预留的调用再停止；中断或验证失败会回收已派发任务，未验收的输出保留为未完成尝试。
+
 `run` 要求输出目录不存在。默认包含全部八个目标，先完成 mode 1 与 cluster 0 的复核，再开始其余目标。可用 `--targets mode4:1 mode4:2 mode4:3` 或 `--targets mode2:0 mode2:1 mode3` 明确选择子集；不支持的目标在创建批次之前报错。mode 2 的两张码表与分组需要联合识别，指定其中任一目标都会将两者加入批次。
 
 `resume` 使用原批次保存的二进制路径，也可显式提供内容相同的 `--binary`。完成的阶段读取冻结结果；中断阶段重新执行确定性分析，成功探针从缓存恢复，中断中的探针重新采集。已经明确失败的目标默认跳过，用 `--retry-failed` 明确重试。
 
-每批默认最多新增 512 MiB 证据、调用原生解码器 4,096 次；单次超时 30 秒。采集前须保留至少 1 GiB 空间。达到限额会保存进度并停止，不自动扩大预算或删除证据。
+每批默认最多新增 512 MiB 证据、调用原生解码器 4,096 次；这些限额由全部工作进程共同使用，不随并发数倍增。单次超时 30 秒，采集前须保留至少 1 GiB 空间。达到限额会保存进度并停止，不自动扩大预算或删除证据。
 
 ```sh
 # 显式调整原批次的预算后续跑；已有调用次数不会清零。
@@ -74,7 +88,7 @@ SQLite 账本记录任务、逻辑探针、原生调用尝试及冻结阶段。�
 
 `results/` 下的 JSON 是冻结阶段的可读视图，`objects/` 保存唯一的压缩内容，`attempts/` 保存尚未清理的失败或中断尝试。`manifest.json` 记录身份与预算；`summary.json` 在正常批次结束时写入，运行期间以 `status` 为准。
 
-同一批次只允许一个写入进程，状态查询只读。续跑与对照会检查成功观测的摘要；已损坏或丢失的外部记录不会被静默重采样替代。命令返回 0 表示成功，非零时读取 JSON 中的停止原因和各目标状态。
+同一批次只允许一个账本与证据池写入者，原生采集进程仅写入各自的临时尝试目录，状态查询只读。SQLite 写入、压缩、去重和成功回执都在主线程完成。续跑与对照会检查成功观测的摘要；已损坏或丢失的外部记录不会被静默重采样替代。命令返回 0 表示成功，非零时读取 JSON 中的停止原因和各目标状态。
 
 ```sh
 PYTHONPATH=scripts python3 -B -m unittest test_hoa_blackbox -v

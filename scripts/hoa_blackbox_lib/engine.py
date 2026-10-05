@@ -3,6 +3,7 @@ import math
 import random
 import struct
 import time
+from contextlib import contextmanager
 
 from .common import (GAINS, SYMBOLS, MAX_DEPTH, REPEAT_EPS, POLICY_VERSION,
                      ExperimentError, EvidenceError, IdentityError, BudgetStop,
@@ -23,10 +24,24 @@ class Engine(DirectRecovery):
     def capture(self, target, stage, label, payload, independent=False):
         replicate = f'{target}/{stage}/{label}' if independent else ''
         result = self.runner.probe(target, stage, label, payload, replicate)
+        self.capture_progress(target, stage)
+        return result
+
+    def capture_progress(self, target, stage):
         if time.monotonic() - self.last_progress > 5:
             self.progress(dict(target=target, stage=stage, probes=self.store.summary()['native_calls']))
             self.last_progress = time.monotonic()
-        return result
+
+    @contextmanager
+    def capture_batch(self, target, stage, cases, independent=False):
+        requests = [(target, stage, label, payload, f'{target}/{stage}/{label}' if independent else '')
+                    for label, payload in cases]
+        with self.runner.batch(requests) as outputs:
+            def results():
+                for result in outputs:
+                    self.capture_progress(target, stage)
+                    yield result
+            yield results()
 
     def calibrate(self):
         saved = self.store.stage('_shared', 'calibration')
@@ -37,9 +52,10 @@ class Engine(DirectRecovery):
             for gain in GAINS:
                 evidence, waves = {}, {}
                 symbols = range(64) if line == 0 else (0, 16, 32, 48, 63)
-                for q in symbols:
-                    key, pcm = self.capture('_shared', 'calibration', f'{gain}:{line}:{q}', self.writer.fixed(vector(q), gain, line))
-                    evidence[str(q)], waves[q] = key, pcm
+                cases = [(f'{gain}:{line}:{q}', self.writer.fixed(vector(q), gain, line)) for q in symbols]
+                with self.capture_batch('_shared', 'calibration', cases) as outputs:
+                    for q, (key, pcm) in zip(symbols, outputs):
+                        evidence[str(q)], waves[q] = key, pcm
                 require(not any(waves[32]), 'mode-0 zero is not zero')
                 refs = [waves[48][k::16] for k in range(16)]
                 energy = [dot(v, v) for v in refs]
@@ -180,10 +196,10 @@ class Engine(DirectRecovery):
         _, cluster = target_parts(target)
         words = {e['symbol']: e['codeword'] for e in book['entries']}
         observations = {}
-        for gain in GAINS:
-            for row in range(16):
-                key, pcm = self.capture(target, 'matrix', f'{gain}:{row}',
-                    self.writer.coded(4, cluster, vector(0, row), words, gain))
+        indices = [(gain, row) for gain in GAINS for row in range(16)]
+        cases = [(f'{gain}:{row}', self.writer.coded(4, cluster, vector(0, row), words, gain)) for gain, row in indices]
+        with self.capture_batch(target, 'matrix', cases) as outputs:
+            for (gain, row), (key, pcm) in zip(indices, outputs):
                 observations[f'{gain}:{row}'] = dict(evidence=key, values=[-v for v in self.estimate(pcm, gain)])
         entries = []
         for row in range(16):
@@ -208,15 +224,18 @@ class Engine(DirectRecovery):
             return self.validate_direct(target, book)
         words = {e['symbol']: e['codeword'] for e in book['entries']}
         boot = self.store.stage(target, 'bootstrap') if mode == 4 else None
-        checks, normal = [], {}
+        checks, hashes, cases = [], {}, []
         if matrix:
             entries = matrix['entries']
             m = [[struct.unpack('<f', struct.pack('<I', e['float32_bits']))[0]
                   if e['float32_bits'] is not None else e['estimate'] for e in entries[j*16:(j+1)*16]] for j in range(16)]
             u = [[e['empirical_half_width'] for e in entries[j*16:(j+1)*16]] for j in range(16)]
-        def check(values, gain, label, line=0, padding=0):
-            key, pcm = self.capture(target, 'validation', label,
-                self.writer.coded(mode, cluster, values, words, gain, line, padding), True)
+        def add(values, gain, label, line=0, padding=0, equal_to=None):
+            cases.append(dict(values=values, gain=gain, label=label, line=line, equal_to=equal_to,
+                              payload=self.writer.coded(mode, cluster, values, words, gain, line, padding)))
+
+        def check(case, key, pcm):
+            values, gain, label, line = (case[k] for k in ('values', 'gain', 'label', 'line'))
             obs = self.estimate(pcm, gain, line)
             item = dict(label=label, evidence=key, gain=gain, line=line)
             if matrix:
@@ -242,28 +261,34 @@ class Engine(DirectRecovery):
             for gain in GAINS:
                 for row in range(16):
                     for q in (16, 48):
-                        check(vector(q, row), gain, f'half:{gain}:{row}:{q}')
+                        add(vector(q, row), gain, f'half:{gain}:{row}:{q}')
         for gain in GAINS:
             for q in range(64):
-                normal[gain, q] = check(vector(q, 0 if matrix else None), gain, f'symbol:{gain}:{q}')
+                add(vector(q, 0 if matrix else None), gain, f'symbol:{gain}:{q}')
         rng = random.Random(0x484f4134)
         mixtures = [[rng.randrange(64) for _ in range(SYMBOLS)] for _ in range(8)]
         for i, values in enumerate(mixtures):
             for gain in GAINS:
-                check(values, gain, f'mixed:{gain}:{i}')
+                add(values, gain, f'mixed:{gain}:{i}')
         for gain in GAINS:
             for q in (0, 31, 32, 63):
-                value = check(vector(q, 0 if matrix else None), gain, f'padding:{gain}:{q}', padding=128)
-                require(value == normal[gain, q], 'padding or fresh converter changed PCM')
-                checks[-1]['padding_bit_identical'] = True
+                add(vector(q, 0 if matrix else None), gain, f'padding:{gain}:{q}', padding=128,
+                    equal_to=f'symbol:{gain}:{q}')
         if matrix:
             for row in range(16):
                 for q in (0, 48):
-                    check(vector(q, row), 128, f'line1:{row}:{q}', line=1)
+                    add(vector(q, row), 128, f'line1:{row}:{q}', line=1)
             for i, values in enumerate(mixtures[:4]):
-                check(values, 129, f'line1-mixed:{i}', line=1)
+                add(values, 129, f'line1-mixed:{i}', line=1)
             for gain in GAINS:
-                check([32]*SYMBOLS, gain, f'zero:{gain}')
+                add([32]*SYMBOLS, gain, f'zero:{gain}')
+        with self.capture_batch(target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
+            for case, (key, pcm) in zip(cases, outputs):
+                value = check(case, key, pcm)
+                hashes[case['label']] = value
+                if case['equal_to'] is not None:
+                    require(value == hashes[case['equal_to']], 'padding or fresh converter changed PCM')
+                    checks[-1]['padding_bit_identical'] = True
         qualified = sum(e['float32_bits'] is not None for e in matrix['entries']) if matrix else None
         result = dict(status='passed', codebook_sha256=digest(canonical(book)), checks=checks,
                       matrix_sha256=digest(canonical(matrix)) if matrix else None,

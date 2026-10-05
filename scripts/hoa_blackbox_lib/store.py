@@ -23,6 +23,19 @@ def atomic_file(path, raw):
     os.replace(temporary, path)
 
 
+def directory_bytes(path):
+    total = 0
+    for member in path.rglob('*'):
+        try:
+            if member.is_file():
+                total += member.stat().st_size
+        except FileNotFoundError:
+            # A native worker may rename a temporary output during a status
+            # scan. Its outstanding capture reservation covers that space.
+            continue
+    return total
+
+
 @contextmanager
 def writer_lock(out):
     import fcntl
@@ -79,8 +92,9 @@ class Store:
             self.db.execute('PRAGMA journal_mode=WAL')
             self.db.execute('PRAGMA synchronous=FULL')
         self.config = self.meta('config')
-        self.base_bytes = sum(p.stat().st_size for p in self.out.rglob('*') if p.is_file())
+        self.base_bytes = directory_bytes(self.out)
         self.hits = 0
+        self.capture_reservations = {}
 
     def close(self):
         self.db.close()
@@ -105,9 +119,10 @@ class Store:
 
     def reserve(self, size):
         limits = self.config['limits']
-        if self.disk_bytes() + size + 65536 > limits['max_bytes']:
+        outstanding = sum(self.capture_reservations.values())
+        if self.disk_bytes() + outstanding + size + 65536 > limits['max_bytes']:
             raise BudgetStop('evidence budget exhausted')
-        if shutil.disk_usage(self.out).free - size < limits['min_free']:
+        if shutil.disk_usage(self.out).free - outstanding - size < limits['min_free']:
             raise BudgetStop('minimum free disk space reached')
 
     def blob(self, raw):
@@ -211,6 +226,7 @@ class Store:
             self.db.execute('INSERT OR IGNORE INTO queries(key,request,state) VALUES (?,?,?)', (key, canonical(request).decode(), 'pending'))
             cursor = self.db.execute('INSERT INTO attempts(query_key,state,started) VALUES (?,?,?)', (key, 'started', now()))
             attempt = cursor.lastrowid
+        self.capture_reservations[attempt] = 2 * 1024 * 1024
         folder = self.out / 'attempts' / str(attempt)
         folder.mkdir()
         atomic_file(folder / 'request.json', canonical(dict(key=key, request=request)))
@@ -227,8 +243,10 @@ class Store:
             self.db.execute('UPDATE attempts SET state=?,finished=? WHERE id=?', ('passed', now(), attempt))
         # All input and output bytes have verified, persistent representations.
         shutil.rmtree(folder)
+        self.capture_reservations.pop(attempt, None)
 
     def fail(self, attempt, message, interrupted=False):
+        self.capture_reservations.pop(attempt, None)
         row = self.db.execute('SELECT query_key,state FROM attempts WHERE id=?', (attempt,)).fetchone()
         if row['state'] == 'passed':
             return
@@ -236,7 +254,7 @@ class Store:
             self.db.execute('UPDATE attempts SET state=?,finished=?,error=? WHERE id=?',
                             ('interrupted' if interrupted else 'failed', now(), message, attempt))
             self.db.execute('UPDATE queries SET state=?,error=? WHERE key=?', ('pending' if interrupted else 'failed', message, row[0]))
-        self.base_bytes = sum(p.stat().st_size for p in self.out.rglob('*') if p.is_file())
+        self.base_bytes = directory_bytes(self.out)
 
     def recover(self):
         for row in self.db.execute('SELECT id FROM attempts WHERE state=?', ('started',)).fetchall():
@@ -300,11 +318,12 @@ class Store:
 
     def summary(self):
         return dict(schema_version=1, batch_status=self.meta('batch_status'),
+                    native_jobs=self.config.get('native_jobs', 1),
                     targets=[dict(r) for r in self.db.execute('SELECT * FROM jobs ORDER BY target')],
                     native_calls=self.db.execute('SELECT COUNT(*) FROM attempts').fetchone()[0],
                     successful_queries=self.db.execute("SELECT COUNT(*) FROM queries WHERE state='passed'").fetchone()[0],
                     logical_probes=self.db.execute('SELECT COUNT(*) FROM uses').fetchone()[0],
                     imports=[dict(r) for r in self.db.execute('SELECT * FROM imports')],
-                    limits=self.config['limits'], added_bytes=sum(p.stat().st_size for p in self.out.rglob('*') if p.is_file()),
+                    limits=self.config['limits'], added_bytes=directory_bytes(self.out),
                     native_identity_sha256=digest(canonical(self.config['native_identity'])),
                     tool_fingerprint=self.config['tool_fingerprint'])

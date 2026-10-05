@@ -7,6 +7,8 @@ import random
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 import unittest
 
 from hoa_blackbox_lib.common import (BudgetStop, EvidenceError, ExperimentError, IdentityError,
@@ -134,8 +136,8 @@ def new_store(path, targets=('mode1',), calls=4096):
     return Store.create(path, config)
 
 
-def fake_engine(store, backend):
-    runner = Runner(store, backend)
+def fake_engine(store, backend, jobs=1):
+    runner = Runner(store, backend, jobs=jobs)
     runner.writer = FakeWriter()
     return Engine(store, runner)
 
@@ -235,7 +237,7 @@ class BatchTests(unittest.TestCase):
             with self.assertRaises(KeyboardInterrupt):fake_engine(resumed, interrupted).run()
             successful_before = resumed.db.execute('SELECT COUNT(*) FROM queries WHERE state="passed"').fetchone()[0]
             resumed.close();resumed = Store(path);resumed.recover();remaining = FakeBackend()
-            fake_engine(resumed, remaining).run()
+            fake_engine(resumed, remaining, jobs=2).run()
             self.assertEqual(successful_before+remaining.calls, continuous_calls)
             for name, value in expected.items():self.assertEqual(resumed.stage('mode1', name), value)
             before = remaining.calls;fake_engine(resumed, remaining).run()
@@ -244,7 +246,7 @@ class BatchTests(unittest.TestCase):
     def test_mode4_synthetic_recovery_and_target_failure_isolation(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = new_store(Path(tmp)/'batch', ('mode4:0', 'mode4:1'))
-            backend = FakeBackend(fail_cluster=0);fake_engine(store, backend).run()
+            backend = FakeBackend(fail_cluster=0);fake_engine(store, backend, jobs=2).run()
             self.assertEqual(store.summary()['targets'][0]['status'], 'failed')
             self.assertEqual(store.summary()['targets'][1]['status'], 'validated')
             book = store.stage('mode4:1', 'codebook');matrix = store.stage('mode4:1', 'matrix')
@@ -258,7 +260,7 @@ class BatchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = new_store(Path(tmp)/'batch', ('mode2:0', 'mode2:1', 'mode3'))
             backend = FakeBackend()
-            fake_engine(store, backend).run()
+            fake_engine(store, backend, jobs=2).run()
             self.assertTrue(all(t['status'] == 'validated' for t in store.summary()['targets']))
             self.assertEqual(store.stage('_mode2', 'layout')['groups'], backend.groups[2])
             for target, key in [('mode2:0', (2, 0)), ('mode2:1', (2, 1)), ('mode3', (3, None))]:
@@ -318,6 +320,111 @@ class BatchTests(unittest.TestCase):
         import hoa_blackbox
         with self.assertRaisesRegex(ExperimentError, '1024 MiB'):
             hoa_blackbox.limits(argparse.Namespace(max_evidence_mib=None, max_native_calls=None, min_free_mib=512))
+
+
+class ConcurrentBackend(FakeBackend):
+    def __init__(self, fail=False):
+        super().__init__()
+        self.lock = threading.Lock()
+        self.active = self.peak = 0
+        self.cancelled = 0
+        self.fail = fail
+
+    def capture(self, packets, folder):
+        with self.lock:
+            self.active += 1
+            self.peak = max(self.peak, self.active)
+        try:
+            time.sleep(0.03)
+            if self.fail:
+                (folder/'partial.bin').write_bytes(b'retained interrupted evidence')
+                raise ExperimentError('injected concurrent failure')
+            return super().capture(packets, folder)
+        finally:
+            with self.lock:
+                self.active -= 1
+
+    def cancel(self):
+        self.cancelled += 1
+
+
+class ConcurrencyTests(unittest.TestCase):
+    def requests(self, engine, count=4):
+        return [('mode1', 'parallel', str(i), engine.writer.fixed(wire.vector(i)), '') for i in range(count)]
+
+    def test_bounded_overlap_coalescing_and_independent_repeats(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = new_store(Path(tmp)/'batch');backend = ConcurrentBackend()
+            engine = fake_engine(store, backend, jobs=2)
+            requests = self.requests(engine)
+            requests.insert(1, ('mode1', 'parallel', 'duplicate', requests[0][3], ''))
+            requests.append(('mode1', 'parallel', 'repeat', requests[0][3], 'independent-repeat'))
+            with engine.runner.batch(requests) as results:values = list(results)
+            self.assertEqual(backend.peak, 2)
+            self.assertEqual(backend.calls, 5)
+            self.assertEqual(values[0][0], values[1][0])
+            self.assertNotEqual(values[0][0], values[-1][0])
+            self.assertEqual(values[0][1], values[-1][1])
+            self.assertEqual(store.capture_reservations, {})
+            with engine.runner.batch(requests) as results:self.assertEqual(list(results), values)
+            self.assertEqual(backend.calls, 5)
+            store.close()
+
+    def test_call_budget_finishes_reserved_work_and_resume_reuses_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = new_store(Path(tmp)/'batch', calls=1);backend = ConcurrentBackend()
+            engine = fake_engine(store, backend, jobs=4);requests = self.requests(engine, 3)
+            with self.assertRaises(BudgetStop):
+                with engine.runner.batch(requests) as results:list(results)
+            self.assertEqual(backend.calls, 1)
+            self.assertEqual(store.summary()['successful_queries'], 1)
+            self.assertEqual(store.capture_reservations, {})
+            store.set_limits(max_calls=3)
+            with engine.runner.batch(requests) as results:self.assertEqual(len(list(results)), 3)
+            self.assertEqual(backend.calls, 3)
+            store.close()
+
+    def test_inflight_space_reservations_preserve_free_space_floor(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            store = new_store(Path(tmp)/'batch');backend = ConcurrentBackend()
+            store.set_limits(min_free=1024**3)
+            engine = fake_engine(store, backend, jobs=2)
+            with patch('hoa_blackbox_lib.store.shutil.disk_usage', return_value=SimpleNamespace(free=1024**3+3*1024**2)):
+                with self.assertRaises(BudgetStop):
+                    with engine.runner.batch(self.requests(engine, 2)) as results:list(results)
+            self.assertEqual(backend.calls, 1)
+            self.assertEqual(store.capture_reservations, {})
+            store.close()
+
+    def test_failed_batch_drains_workers_and_retains_unaccepted_attempts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = new_store(Path(tmp)/'batch');backend = ConcurrentBackend(fail=True)
+            engine = fake_engine(store, backend, jobs=2);requests = self.requests(engine, 2)
+            with self.assertRaises(ExperimentError):
+                with engine.runner.batch(requests) as results:list(results)
+            self.assertEqual(backend.active, 0)
+            self.assertEqual(store.summary()['successful_queries'], 0)
+            self.assertEqual(len(list((store.out/'attempts').glob('*/partial.bin'))), 2)
+            self.assertEqual(store.capture_reservations, {})
+            backend.fail = False
+            with engine.runner.batch(requests) as results:self.assertEqual(len(list(results)), 2)
+            self.assertEqual(store.summary()['native_calls'], 4)
+            self.assertEqual(len(list((store.out/'attempts').glob('*/partial.bin'))), 2)
+            store.close()
+
+    def test_early_consumer_exit_joins_workers_without_claiming_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store = new_store(Path(tmp)/'batch');backend = ConcurrentBackend()
+            engine = fake_engine(store, backend, jobs=2)
+            with engine.runner.batch(self.requests(engine)) as results:next(results)
+            self.assertEqual(backend.active, 0)
+            self.assertEqual(store.summary()['native_calls'], 2)
+            self.assertEqual(store.summary()['successful_queries'], 1)
+            self.assertEqual(store.capture_reservations, {})
+            self.assertFalse(engine.runner.batch_active)
+            store.close()
 
 
 class MathTests(unittest.TestCase):

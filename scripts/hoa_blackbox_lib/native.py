@@ -6,6 +6,7 @@ import platform
 import subprocess
 import sys
 import time
+import threading
 
 from .common import (EvidenceError, ExperimentError, IdentityError, canonical, digest,
                      file_digest, now, pcm_samples, require)
@@ -53,6 +54,9 @@ class NativeBackend:
         self.binary = Path(binary).resolve()
         self.identity = self.collect_identity()
         self.stamps = self.file_stamps()
+        self.identity_lock = threading.Lock()
+        self.process_lock = threading.Lock()
+        self.processes = set()
 
     def collect_identity(self):
         require(not any(k.startswith('DYLD_') and v for k, v in os.environ.items()), 'injected decoder environment', IdentityError)
@@ -63,10 +67,17 @@ class NativeBackend:
         return [(p.stat().st_ino, p.stat().st_size, p.stat().st_mtime_ns) for p in (self.binary, COMPONENT)]
 
     def check(self, force=False):
-        stamps = self.file_stamps()
-        if force or stamps != self.stamps:
-            require(self.collect_identity() == self.identity, 'native environment changed', IdentityError)
-            self.stamps = stamps
+        with self.identity_lock:
+            stamps = self.file_stamps()
+            if force or stamps != self.stamps:
+                require(self.collect_identity() == self.identity, 'native environment changed', IdentityError)
+                self.stamps = stamps
+
+    def cancel(self):
+        with self.process_lock:
+            for proc in self.processes:
+                if proc.poll() is None:
+                    proc.kill()
 
     def capture(self, packets, folder):
         wire.write_bundle(folder / 'input', packets)
@@ -75,6 +86,8 @@ class NativeBackend:
         (folder / 'command.json').write_bytes(canonical(command))
         start = time.monotonic()
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        with self.process_lock:
+            self.processes.add(proc)
         try:
             stdout, stderr = proc.communicate(timeout=30)
             code = proc.returncode
@@ -90,6 +103,9 @@ class NativeBackend:
             (folder / 'stdout.txt').write_bytes(stdout)
             (folder / 'stderr.txt').write_bytes(stderr)
             raise
+        finally:
+            with self.process_lock:
+                self.processes.discard(proc)
         (folder / 'stdout.txt').write_bytes(stdout)
         (folder / 'stderr.txt').write_bytes(stderr)
         (folder / 'process.json').write_bytes(canonical(dict(returncode=code, seconds=time.monotonic() - start)))
@@ -101,31 +117,47 @@ class NativeBackend:
 
 
 class Runner:
-    def __init__(self, store, backend):
+    def __init__(self, store, backend, jobs=1):
         self.store, self.backend = store, backend
+        require(type(jobs) is int and 1 <= jobs <= 4, 'jobs must be between 1 and 4')
+        self.jobs = jobs
+        self.batch_active = False
         require(backend.identity == store.config['native_identity'], 'batch native identity differs', IdentityError)
         self.writer = wire.Writer()
 
-    def probe(self, target, stage, label, payload, replicate=''):
+    def prepare(self, target, stage, label, payload, replicate=''):
         self.backend.check()
         packets = self.writer.frames(payload)
         key, request = wire.request(self.backend.identity, packets, replicate)
         self.store.use(target, stage, label, key)
+        return key, request, packets
+
+    def accept(self, attempt, key, artifacts, frames):
+        self.backend.check()
+        validate_public(artifacts, frames)
+        objects = {name: self.store.blob(raw) for name, raw in sorted(artifacts.items())}
+        receipt = dict(key=key, artifacts=objects, pcm_sha256=objects['native/pcm.f32le'],
+                       native_identity=self.backend.identity, returncode=0)
+        self.store.finish(attempt, receipt)
+        return key, pcm_samples(artifacts['native/pcm.f32le'])
+
+    def probe(self, target, stage, label, payload, replicate=''):
+        require(not self.batch_active, 'nested native capture during a batch')
+        key, request, packets = self.prepare(target, stage, label, payload, replicate)
         cached = self.store.query(key)
         if cached:
             return key, pcm_samples(self.store.read_blob(cached['pcm_sha256']))
         attempt, folder = self.store.begin(key, request)
         try:
             artifacts = self.backend.capture(packets, folder)
-            validate_public(artifacts, 1024*len(packets))
-            objects = {name: self.store.blob(raw) for name, raw in sorted(artifacts.items())}
-            receipt = dict(key=key, artifacts=objects, pcm_sha256=objects['native/pcm.f32le'],
-                           native_identity=self.backend.identity, returncode=0)
-            self.store.finish(attempt, receipt)
-            return key, pcm_samples(artifacts['native/pcm.f32le'])
+            return self.accept(attempt, key, artifacts, 1024*len(packets))
         except BaseException as error:
             self.store.fail(attempt, str(error), interrupted=isinstance(error, (KeyboardInterrupt, SystemExit)))
             raise
+
+    def batch(self, requests):
+        from .scheduler import capture_batch
+        return capture_batch(self, requests)
 
     def pcm(self, key):
         receipt = self.store.query(key)

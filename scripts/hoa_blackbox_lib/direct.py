@@ -131,19 +131,21 @@ class DirectRecovery:
 
         entries, decisions, _ = infer_tree(query)
         words = {e['symbol']: e['codeword'] for e in entries}
-        order, evidence = [], []
+        order, evidence, cases = [], [], []
         for position in range(16):
             values = [0]*SYMBOLS
             values[position] = 48
             packet = self.writer.coded(3, None, values, words, signs=[True]*SYMBOLS)
-            key, pcm = self.capture('mode3', 'layout', str(position), self.mode3_program(packet))
-            require(not any(pcm[:1024*16]), 'mode-3 preparation frame is not silent')
-            coefficients = self.estimate(pcm[1024*16:], 128)
-            found = affected([0.]*16, coefficients)
-            require(found is not None and abs(coefficients[found]-1.5) < 1/(8*32),
-                    'mode-3 sign or initialized history differs')
-            order.append(found)
-            evidence.append(dict(evidence=key, coefficients=coefficients))
+            cases.append((str(position), self.mode3_program(packet)))
+        with self.capture_batch('mode3', 'layout', cases) as outputs:
+            for key, pcm in outputs:
+                require(not any(pcm[:1024*16]), 'mode-3 preparation frame is not silent')
+                coefficients = self.estimate(pcm[1024*16:], 128)
+                found = affected([0.]*16, coefficients)
+                require(found is not None and abs(coefficients[found]-1.5) < 1/(8*32),
+                        'mode-3 sign or initialized history differs')
+                order.append(found)
+                evidence.append(dict(evidence=key, coefficients=coefficients))
         require(sorted(order) == list(range(16)) and order[0] == channel, 'mode-3 coefficient order is ambiguous')
         layout = dict(groups=[order], observations=evidence, bootstrap=dict(baseline=baseline, flip=flip, repeats=repeats),
                       history_preparation='silent mode-0 frame with all coefficients zero', old_dictionary_consulted=False)
@@ -167,7 +169,7 @@ class DirectRecovery:
             groups = self.store.stage('_mode2', 'layout')['groups']
         else:
             groups = [book['coefficient_group']]
-        checks, normal = [], {}
+        checks, hashes, cases = [], {}, []
 
         def values_for(q):
             values = [32 if mode == 2 else 0]*SYMBOLS
@@ -175,7 +177,7 @@ class DirectRecovery:
                 values[channel] = q
             return values
 
-        def check(values, gain, label, positive=True, signs=None, padding=0, line=0, seed=32, history=None):
+        def add(values, gain, label, positive=True, signs=None, padding=0, line=0, seed=32, history=None, equal_to=None):
             signs = signs if signs is not None else [positive]*SYMBOLS
             packet = self.writer.coded(mode, index, values, words, gain, line, padding, groups, signs)
             leading = 0
@@ -187,7 +189,12 @@ class DirectRecovery:
                                                        signs=previous_signs, active=False)
                 packet = self.mode3_program(packet, seed, history_packet)
                 leading = 1 + (history_packet is not None)
-            key, pcm = self.capture(target, 'validation', label, packet, True)
+            cases.append(dict(values=values, gain=gain, label=label, signs=signs, line=line, seed=seed,
+                              history=history, leading=leading, payload=packet, equal_to=equal_to))
+
+        def check(case, key, pcm):
+            values, gain, label, signs, line, seed, history, leading = (
+                case[k] for k in ('values', 'gain', 'label', 'signs', 'line', 'seed', 'history', 'leading'))
             require(not any(pcm[:leading*1024*16]), 'history preparation emitted nonzero PCM')
             output = pcm[leading*1024*16:]
             observed = self.estimate(output, gain, line)
@@ -195,6 +202,7 @@ class DirectRecovery:
             if mode == 3:
                 expected = [(seed-32)/32 + q/32*(1 if signs[i] else -1) for i, q in enumerate(values[:16])]
                 if history:
+                    previous, previous_signs = history
                     expected = [v + previous[i]/32*(1 if previous_signs[i] else -1) for i, v in enumerate(expected)]
             errors = [abs(a-b) for a, b in zip(observed, expected)]
             calibration = self.reference(gain, line)[0]['max_coefficient_error']
@@ -208,37 +216,42 @@ class DirectRecovery:
         for gain in GAINS:
             for q in range(64):
                 for positive in ((True, False) if mode == 3 else (True,)):
-                    normal[gain, q, positive] = check(values_for(q), gain, f'symbol:{gain}:{q}:{positive}', positive)
+                    add(values_for(q), gain, f'symbol:{gain}:{q}:{positive}', positive)
         rng = random.Random(0x484f4132+mode)
         mixtures = [[rng.randrange(64) for _ in range(SYMBOLS)] for _ in range(8)]
         for i, values in enumerate(mixtures):
             signs = [bool(rng.randrange(2)) for _ in range(SYMBOLS)]
             for gain in GAINS:
-                check(values, gain, f'mixed:{gain}:{i}', signs=signs)
+                add(values, gain, f'mixed:{gain}:{i}', signs=signs)
         for gain in GAINS:
             for q in (0, 31, 32, 63):
-                result = check(values_for(q), gain, f'padding:{gain}:{q}', padding=128)
-                require(result == normal[gain, q, True], 'fresh decoder or padding changed PCM')
-                checks[-1]['padding_bit_identical'] = True
+                add(values_for(q), gain, f'padding:{gain}:{q}', padding=128, equal_to=f'symbol:{gain}:{q}:True')
         for i, values in enumerate(mixtures[:4]):
             for gain in GAINS:
-                check(values, gain, f'line1:{gain}:{i}', line=1)
+                add(values, gain, f'line1:{gain}:{i}', line=1)
         if mode == 3:
             for seed in (16, 48, 63):
                 for gain in GAINS:
                     for i in range(2):
-                        check(mixtures[i], gain, f'seed:{seed}:{gain}:{i}', seed=seed,
+                        add(mixtures[i], gain, f'seed:{seed}:{gain}:{i}', seed=seed,
                               signs=[bool((j+i)%2) for j in range(SYMBOLS)])
-                        check(mixtures[i], gain, f'history:{seed}:{gain}:{i}', seed=seed,
+                        add(mixtures[i], gain, f'history:{seed}:{gain}:{i}', seed=seed,
                               signs=[bool((j+i)%2) for j in range(SYMBOLS)],
                               history=(mixtures[i+2], [bool(j%3) for j in range(SYMBOLS)]))
             markers = [0]*SYMBOLS
             markers[groups[0][1]] = 17
-            a = check(markers, 128, 'zero-sign:positive')
+            add(markers, 128, 'zero-sign:positive')
             signs = [True]*SYMBOLS
             signs[groups[0][0]] = False
-            b = check(markers, 128, 'zero-sign:negative', signs=signs)
-            require(a == b, 'zero sign changed a following coefficient')
+            add(markers, 128, 'zero-sign:negative', signs=signs, equal_to='zero-sign:positive')
+        with self.capture_batch(target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
+            for case, (key, pcm) in zip(cases, outputs):
+                result = check(case, key, pcm)
+                hashes[case['label']] = result
+                if case['equal_to'] is not None:
+                    require(result == hashes[case['equal_to']], 'independent repeated PCM differs: '+case['label'])
+                    if case['label'].startswith('padding:'):
+                        checks[-1]['padding_bit_identical'] = True
         result = dict(status='passed', codebook_sha256=digest(canonical(book)), checks=checks,
                       layout_sha256=book['layout_sha256'], matrix_sha256=None, matrix_qualified=None,
                       old_dictionary_consulted=False)

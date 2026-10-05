@@ -183,6 +183,15 @@ cargo run --release -p apac-container --example playback -- input.m4a output.f32
 
 合成码流不代表真实素材，实际代价请在真实文件上测量。
 
+`crates/apac-container/examples/realtime.rs` 测量单线程解码相对实时的倍速：每个文件从头到尾解码 `--repeat` 遍（默认 3），报告中位倍速、完整建索引的倍速，以及单次 `Playback::read`（至多一包、1024 帧）耗时的 p50／p99／最大值与该采样率下 1024 帧时长（音频回调预算）之比。冻结状态夹具可以加长后写成 CAF／MP4 测试文件（默认每个 3000 包，约 64 s）：
+
+```sh
+APAC_BENCH_DIR=bench-streams cargo test --release -p apac-container --lib write_benchmark_streams -- --ignored
+cargo run --release -p apac-container --example realtime -- bench-streams/*.caf bench-streams/*.m4a
+```
+
+在一颗 2.8 GHz Xeon 云端 vCPU 上（release 构建），这些测试文件的中位倍速为：离散声道 1 ch 约 430×、立体声约 270×、5.1 约 145×、7.1 约 95–115×、7.1.4 约 75×、22.2 约 38×；HOA 4–16 ch 约 33–340×，最慢的是逐帧动态 16 ch 和 96 kHz 9 ch 流（约 33–40×）；组合流约 85–150×。单包 p99 均不超过 1.5 ms，约为预算的 7%（96 kHz 时约 6%）。最大值随运行波动（同一文件在 2–14 ms 之间），这是共享虚拟机的调度抖动，不是解码代价。夹具包只有数十到数百字节，远小于真实码率，熵解码代价因此偏低；IMDCT 合成按声道计，与内容无关。真实素材、目标设备上的倍速请用同一示例测量。
+
 ## 离散声道状态验收
 
 新增 Mono／5.1／7.1 路径记录 `rust_channel_sq_cac_tns_bwe2_drc_off_f64_fft_v2` 与 `apac-channel-state-v1`，额外统计元素缺席数量。旧双声道后端和状态标识保持不变。所有布局的默认数值配置为 `apac-sq-math-v2`、`apac-cac-math-v1`、`apac-tns-math-v1` 和 `apac-bwe2-math-v2`，双声道后端为 `rust_sq_cac_tns_bwe2_drc_off_f64_fft_v11`（`apac-sq-math-v2` 起由 v10 升级；v10 对应 `apac-sq-math-v1`）。随 SQ v2 一起，其余后端版本号各加 1（如 `rust_channel_…_v1` → `_v2`、`rust_hoa_salient_…_v1` → `_v2`）；HOA 空间控制的原 `_v2` 已被逐帧控制占用，因此静态控制改为 `_v3`、逐帧控制改为 `_v4`，保证同一后端名不跨数值版本复用。v1 黄金快照保留旧名，状态为 `packet_state_profile=apac-asp-state-v1`。合成仍采用固定顺序的 Float64 IMDCT、正弦窗和叠加，仅最终 PCM 转为 Float32，零统一为正零。保留 `experimental=true`、`numerical_qualification=independent_math_reference`；`complete` 描述导出完整性。报告另记录实际解码／完整性校验包数、预热包、内嵌帧和缺席 CPE 数量，以及常量摘要、编译器和 debug assertions。

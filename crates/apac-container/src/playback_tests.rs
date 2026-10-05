@@ -571,3 +571,39 @@ fn requests_outside_the_stream_are_rejected_and_playback_is_send() {
     playback.seek(0).unwrap();
     assert_eq!(take(&mut playback, u64::MAX), input.reference);
 }
+
+/// Benchmark inputs for `examples/realtime.rs`: every fixture stream
+/// lengthened to `APAC_BENCH_PACKETS` packets (default 3000, about 64 s at
+/// 48 kHz), written as CAF and MP4 into the new directory `APAC_BENCH_DIR`.
+///
+/// ```sh
+/// APAC_BENCH_DIR=bench-streams cargo test --release -p apac-container --lib \
+///     write_benchmark_streams -- --ignored
+/// ```
+#[test]
+#[ignore = "writes benchmark files; run explicitly with APAC_BENCH_DIR set"]
+fn write_benchmark_streams() {
+    let dir = std::path::PathBuf::from(
+        std::env::var_os("APAC_BENCH_DIR").expect("set APAC_BENCH_DIR to a new directory"),
+    );
+    let count = std::env::var("APAC_BENCH_PACKETS").map_or(3000, |v| v.parse().unwrap());
+    std::fs::create_dir(&dir).unwrap();
+    for (i, stream) in streams().iter().enumerate() {
+        let Some(packets) = lengthened(stream, count) else {
+            continue;
+        };
+        let name: String = stream
+            .name
+            .chars()
+            .filter_map(|c| match c {
+                '[' => Some('-'),
+                ']' => None,
+                c => Some(c),
+            })
+            .collect();
+        let caf = caf(&stream.cookie, &packets).unwrap();
+        let mp4 = mp4(&stream.cookie, &packets, LAYOUTS[i % LAYOUTS.len()]).unwrap();
+        std::fs::write(dir.join(format!("{name}.caf")), caf).unwrap();
+        std::fs::write(dir.join(format!("{name}.m4a")), mp4).unwrap();
+    }
+}

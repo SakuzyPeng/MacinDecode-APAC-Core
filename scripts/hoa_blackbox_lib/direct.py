@@ -93,7 +93,7 @@ class DirectRecovery:
             record = dict(position=i, probes=[])
             matches = base_q == zero['symbol'] and position['zero_length'] == zero['bit_length']
             if matches:
-                # All 64 leaves, rather than a guessed subset, distinguish the
+                # All leaves, rather than a guessed subset, distinguish the
                 # first book from a different complete code tree.
                 for entry in entries0:
                     pattern = '0'*position['offset'] + entry['codeword'].ljust(MAX_DEPTH, '0')

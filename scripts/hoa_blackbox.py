@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable HOA black-box batch measurements (order 3, q6/q7, modes 1 through 4).
+"""Resumable HOA black-box batch measurements (order 3, q6–q9, modes 1 through 4).
 
 Only public native replay is used. This command never changes production data.
 Candidates and complete lossless evidence remain under the selected output.
@@ -33,7 +33,7 @@ def parser():
         if command in ('run', 'import-evidence', 'compare'):
             s.add_argument('--targets', nargs='+', choices=TARGETS)
         if command in ('run', 'import-evidence'):
-            s.add_argument('--quantization-bits', type=int, choices=(6, 7),
+            s.add_argument('--quantization-bits', type=int, choices=(6, 7, 8, 9),
                            help='quantization width for a new batch (default 6)')
         if command == 'import-evidence':
             s.add_argument('--evidence', type=Path, nargs='+', required=True)
@@ -64,7 +64,7 @@ def initialize(args):
     precision = args.quantization_bits or 6
     backend = NativeBackend(args.binary, quantization_bits=precision)
     priors = None
-    if precision == 7:
+    if precision > 6:
         process = subprocess.run([sys.executable, '-B', '-m', 'hoa_blackbox_lib.priors'],
                                  cwd=ROOT/'scripts', capture_output=True, text=True, timeout=30)
         require(process.returncode == 0, 'qualified prior export failed: '+process.stderr[-1600:], EvidenceError)

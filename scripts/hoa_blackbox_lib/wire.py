@@ -1,4 +1,4 @@
-"""Order-3 q6/q7 APAC inputs; reads only the public-source AAC tables."""
+"""Order-3 q6–q9 APAC inputs; reads only the public-source AAC tables."""
 import json
 from .common import ROOT, SYMBOLS, MAX_DEPTH, canonical, digest, require
 
@@ -19,7 +19,7 @@ def pack(wire):
 
 
 def cookie(quantization_bits=6):
-    require(quantization_bits in (6, 7), 'unsupported quantization width')
+    require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
     fields = [(0, 32), (int.from_bytes(b'dapa', 'big'), 32), (0, 32), (0x800, 16),
               (5, 6), (0, 4), (0, 1), (3, 6), (0, 6), (16, 8), (2, 8), (0, 1),
               (1, 3), (0, 8), (2, 3)]
@@ -33,7 +33,7 @@ def cookie(quantization_bits=6):
 
 class Writer:
     def __init__(self, quantization_bits=6):
-        require(quantization_bits in (6, 7), 'unsupported quantization width')
+        require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
         self.quantization_bits = quantization_bits
         self.zero = 1 << (quantization_bits-1)
         self.aac = json.loads((ROOT / 'data/sq-codebooks.json').read_text())

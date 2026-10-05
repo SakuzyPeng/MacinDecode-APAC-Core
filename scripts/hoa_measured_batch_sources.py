@@ -180,3 +180,137 @@ def q7_source(key):
         source.update(prior_quantization_bits=6,
                       prior_sha256='206e529b31d5410ecec3fef16c49f83ff29d31ade233a2520aa5ba9195c16e69')
     return source
+
+
+# Eight- and nine-bit pins from frozen, validated and compared candidates.
+Q89_OUTPUTS = {
+    (8, 1, 0): dict(
+        candidate='fc7532d4492ee3e4195c2ef775dfbd38107cd53746e34e36175857ed0160d5f0',
+        book_values='8bd37ce28df300eaa7f0169a5ca36dfc45aab90c668dcfa1bc6f55c2e4e14b6a',
+        validation='47841bdf63f4e79f601e0986d4604b281ccd02b9de10a302d0196554a30b2332',
+        comparison='626444a2e3477d1ad611d451adfe356cc34627a3f2475638e72c840b6a11fee0',
+    ),
+    (8, 2, 0): dict(
+        candidate='26158578693ec15ac08fa9dbdeab1e7865111cf9942abc10d214c0addd547539',
+        book_values='0d0c684387bc0af50a548e9f014e56e605d22369e8ce5fcd314a6663675de041',
+        validation='71039aecae97258c5109055a67bbde3e8cc40a363ee482c42c1933c428a3cf27',
+        comparison='d8a7ab615c6544b6f00619afcb5af5e1540ddb2dc638867db989dc507f7c2440',
+    ),
+    (8, 2, 1): dict(
+        candidate='a91e32b3278d0e59e6205bf12b81321b3748d7679edfa63c48f595f887eedbe3',
+        book_values='c19f493f6231aefa6b4584f4e730e2b75f0fedeeadb8bb609646b740c12c785c',
+        validation='67b6ef1fe14c8a86d07e4d9f29c8e9528ec591ea84c04d2ad11b8899a085349e',
+        comparison='7bde694a4dbe98b99019fef6e5770fe864453478d3e9fd2dd9437a4775966796',
+    ),
+    (8, 3, 0): dict(
+        candidate='fd8c0a31aa5e3f8ac7e223b333fa8c02260c35746075eacf91cfb901d83c1769',
+        book_values='55ade17b5d15c017a39a01267b08d985bb144e163dcef4014b50914d5a37e6d2',
+        validation='3c5f8bfed9c5e49799c58e063c821dd8eed91cd174136cf207d9d07fe906545b',
+        comparison='0a1998e3a2178522c2966acdefc424a839c35ffb4329c9ee146343d6ebc8a0bb',
+    ),
+    (8, 4, 0): dict(
+        candidate='f27ed53295beade915a29cbca869c179f85ac53dc47438cab456bf16aa356dec',
+        book_values='4d088ad904bce6e0651b30bd04fd13832216076eb5faeb40b776e81fc728d574',
+        validation='50b8f87a927ae1a32c3eefdcd18f66074d23a544b7da04efe8ae8855d818282c',
+        comparison='a71600232d221d3fc5fd97ecf4ee71677314478460013c2286fdfb39e8a8c560',
+    ),
+    (8, 4, 1): dict(
+        candidate='451cca75d18add8f075f6bfa3fd94245baaaec106ab3fc50848158621526321e',
+        book_values='950bb4f93c516bdf0334d3a0e0995195e783e1a906bd2e9e701dd60933c63bcf',
+        validation='e86095ed5ab30efb1833e999688f8c216f9b44829e94fe69c63c12c0a2d90ccc',
+        comparison='140999c1b95a5d81a390acc976f39a1a2efeed247d2e05b83bda8b3fa4b4264c',
+    ),
+    (8, 4, 2): dict(
+        candidate='0e4014a4ca206c30d6e800c16a2bd4e20a6cca3a4c045cd93bc52e8a496830a9',
+        book_values='108333b9f72498b0e5f4f0db2f9db6de5800cc5b7f7f32250c99a00a90033b79',
+        validation='93f1129beb50c7d1c6ffb8c00d50f01d6edeb4074b4bb6adfb0b79fe536ccd76',
+        comparison='5f98ece742e7a03e39ba37bd79ef901d5dc3d2999001c85cd1e9340f87c7b1af',
+    ),
+    (8, 4, 3): dict(
+        candidate='a17aac35dbd943cf221b2d25901ea6cb5b854d10629073ea2f4b10c4d45d28b1',
+        book_values='c80c2b6e059c40caf9893e7036284e92440dd358b4a2f60fc9413a98def9e29b',
+        validation='5725f2b2cd502ae5e78105588b8dc791c67c085e34b90576f7c600af5d10a098',
+        comparison='7885462ddea59714dc610c7c5abbc90249b66b770f6a574bd71fcf79770a505c',
+    ),
+    (9, 1, 0): dict(
+        candidate='59578ae643c559519bc107a33d605340695039cb274ab3e6ef21d6850f4349b9',
+        book_values='7b8944ad075dc444c6fe38b392472c1cd261f253d7195f013b14419a3fd56081',
+        validation='30db578aad8213136e5aee6fd909ed410c88cd1d8d602da23e5ebd189f3fd5c0',
+        comparison='0d28627b1202a585c6164c79e8c6eb8fabb04ed139a0df032806aee2e78f9dc5',
+    ),
+    (9, 2, 0): dict(
+        candidate='ccec51d2d65e100403e4f29c18e1156839e20b1231040eb88543f85fe340a5b3',
+        book_values='1c00698469f08e3695a83f462ac790fb8701d618a8a3c7f53ab2a5616916be69',
+        validation='23b1b7f3e12692f94d2658c00eb3e6420e7a8d1767baa22106c3896c42ae677e',
+        comparison='fb18aaed3fabc74245b10bceaad16b4fd0b03ff86a0855469eb73a88bd4ceb31',
+    ),
+    (9, 2, 1): dict(
+        candidate='3ecd449031a5d4c2f1447c04bc675b66e6c6e8290b8f2e5decad5ba97c789507',
+        book_values='281093078f9bbf9b8993d4123dcbd68a97897f42e33d28601253917ec6d15f8d',
+        validation='f5a565a05c9faccb5fbacf933938c07532175a15284d8beb1c823ec8b3a22e46',
+        comparison='20b2599ab59ccddd550e9eeede90deb3c5c9957bfd3c073f2755f4d692dfbd89',
+    ),
+    (9, 3, 0): dict(
+        candidate='15af8c0c1eba1169f829b2bb8c635147d2b6fa14e45c16297393a2f7764e4ab3',
+        book_values='8ce05c719252922d6099be573bad6f3e59d976ac1142a45d5a7bf3754e8b0a43',
+        validation='9dc275fe7c21a85e52437060cdc415dee7ddcc5560525acb33d56a5cdc2f428c',
+        comparison='f34e40b345aaf5812d3817efc8e95b6d08d1515c2e53655d2e50a8da3f3d03ea',
+    ),
+    (9, 4, 0): dict(
+        candidate='b8714640c877d952dc8904e4b580210644a155a942a458d8e3c18e654b542a7a',
+        book_values='3eda12c8bd891aa6b3f15ce780bf486ceec977949d5e5a8a79a4e88c76c832ea',
+        validation='f2613134ca4007ed630dfaf002443be1bb1c00d7f22084404867a92af4509e2e',
+        comparison='d14171edb90439794f5f3f6a4dab162bba728367fa62ed713784ad1af60f45fd',
+    ),
+    (9, 4, 1): dict(
+        candidate='f4722f070d7d2567c4f227efdd780aa8925e7c12de81134eb59762a3fed13d95',
+        book_values='2c64768c1ea958f6f6f5fec9aab9e9fac877c9f1cd1dc31194b990cdc606402a',
+        validation='89a13b514ff3c9307f18baa92cc9dee7988de27b67d45f256b62379037491d6e',
+        comparison='195dd75117789aaf6861fa3b88ccf44c71addb2729d3cdecd62bdc3aed9d7f8f',
+    ),
+    (9, 4, 2): dict(
+        candidate='5c0028f1078c933aa86cf6f4622407cc60a4a2caa1477082684920b9e7e4bde3',
+        book_values='c44b293e084da28c1236532fa07b5f39bf8d9f3dd6878fef382f1f619af2c085',
+        validation='def99237634b52438105b959b4a9ec40700f64cbf89654fbb8d64e3257406f41',
+        comparison='5e74e76c8a52b4505ad8bc25b9560e64d5e142085113c3bc3d24e046c6c508e6',
+    ),
+    (9, 4, 3): dict(
+        candidate='5d24a882c5502f3f490f34b77a36c3a51f78d6f1c61f06a1883dd65c3a313411',
+        book_values='100c17110ad55b062eae941500670410c8da1111e3012c84f1f7cd6c61bd9b2c',
+        validation='5be472a996ebfbde0506c85ccae6c47148aa25c6a7b73681559fb2f84c3058e5',
+        comparison='2f2bfbb853b7481e6c798f6f975af56f04aa6dae6ee90d56c68fe025c0c173a8',
+    ),
+}
+
+Q89_SOURCES = {
+    8: dict(BATCH_SOURCE,
+        experiment='hoa-blackbox-order3-q8-v1',
+        code_commit='584050484b755d46bc4e426f1a0f91e0da890b07',
+        tool_fingerprint='4402cc843dff5b9baf8895c510b29d55c8da1669d7f5875372a181b2842abf52',
+        analysis_policy='hoa-blackbox-order3-q6-q9-qualified-priors-v5',
+        policy_sha256='3cbb6cb854fc47aba198ee97792b97bb08cac2568b4005e6b1c498af06a893a2',
+        method='public AudioConverter PCM black-box reconstruction',
+        validation_scope='Huffman codewords and lengths',
+    ),
+    9: dict(BATCH_SOURCE,
+        experiment='hoa-blackbox-order3-q9-v1',
+        code_commit='584050484b755d46bc4e426f1a0f91e0da890b07',
+        tool_fingerprint='4402cc843dff5b9baf8895c510b29d55c8da1669d7f5875372a181b2842abf52',
+        analysis_policy='hoa-blackbox-order3-q6-q9-qualified-priors-v5',
+        policy_sha256='fc11d16086bc265e36ec93799fd8afb0069e82abeecbe09f70cbc4a8222b5731',
+        method='public AudioConverter PCM black-box reconstruction',
+        validation_scope='Huffman codewords and lengths',
+    ),
+}
+
+
+def q89_source(key):
+    record = Q89_OUTPUTS[key]
+    source = dict(Q89_SOURCES[key[0]],
+        candidate_sha256=record['candidate'], validation_sha256=record['validation'],
+        comparison_sha256=record['comparison'],
+        matrix_reused=key[1] == 4, group_reused=key[1] in (2, 3))
+    if key[1] != 1:
+        source.update(prior_quantization_bits=6,
+                      prior_sha256='206e529b31d5410ecec3fef16c49f83ff29d31ade233a2520aa5ba9195c16e69')
+    return source

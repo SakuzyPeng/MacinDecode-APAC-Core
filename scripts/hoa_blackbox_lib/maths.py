@@ -45,7 +45,7 @@ def direction_residual(a, b):
 
 
 def validate_words(entries, symbols=64):
-    require(symbols in (64, 128), 'unsupported alphabet size')
+    require(symbols in (64, 128, 256, 512), 'unsupported alphabet size')
     require(len(entries) == symbols and {e['symbol'] for e in entries} == set(range(symbols)), 'incomplete alphabet')
     words = [e['codeword'] for e in entries]
     require(all(w and set(w) <= {'0', '1'} for w in words), 'invalid codeword')
@@ -55,7 +55,7 @@ def validate_words(entries, symbols=64):
 
 
 def infer_tree(query, coordinate=False, symbols=64):
-    require(symbols in (64, 128), 'unsupported alphabet size')
+    require(symbols in (64, 128, 256, 512), 'unsupported alphabet size')
     zero = symbols // 2
     leaf_eps, repeat_eps = 1/(8*(symbols-1)), 1/(32*(symbols-1))
     leaves, decisions = [], []

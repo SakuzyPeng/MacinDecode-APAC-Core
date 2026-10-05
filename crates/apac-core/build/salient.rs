@@ -163,54 +163,174 @@ const MODE4_CODEBOOK_SHA256: [&str; 4] = [
     "6ed393ceffa5d005b34939fe9c0673197c39bcd09ac0619b011ad9d1df8c0327",
 ];
 
-const Q7_CODEBOOKS: [(usize, usize, &str, &str); 8] = [
+const WIDE_CODEBOOKS: [(u8, usize, usize, &str, &str); 24] = [
     (
+        7,
         1,
         0,
         "hoa-salient-order3-q7-mode1-measured-v1.json",
         "a71142dc81e6729626b0f02747593a555139dc6f91d1636cb0abc4de3c4c20b0",
     ),
     (
+        7,
         2,
         0,
         "hoa-salient-order3-q7-mode2-book0-measured-v1.json",
         "38e93984c09b6b68b27ffb8110efcc57ffb881c2af347aaaae99c99a22693c8d",
     ),
     (
+        7,
         2,
         1,
         "hoa-salient-order3-q7-mode2-book1-measured-v1.json",
         "c76ea7f0a66503828ce9cb6b0d7bebfeefcf4941d1e66a9a4e965c238052c664",
     ),
     (
+        7,
         3,
         0,
         "hoa-salient-order3-q7-mode3-measured-v1.json",
         "7895bb8683079eb2d0c91e2c3494a0b4e04ebfd96e9891c5935a8d83c4bb8a19",
     ),
     (
+        7,
         4,
         0,
         "hoa-salient-order3-q7-mode4-cluster0-measured-v1.json",
         "994c707b790a40eb9332fb997b08fe5ae2745b8a386093dae622f1cda14c306a",
     ),
     (
+        7,
         4,
         1,
         "hoa-salient-order3-q7-mode4-cluster1-measured-v1.json",
         "59d76118b47881eeb2cda1f0d13296ebd6bfe26b81b9b001973f936417050ab9",
     ),
     (
+        7,
         4,
         2,
         "hoa-salient-order3-q7-mode4-cluster2-measured-v1.json",
         "c38a07cc2a7d097c8d3f694bce8e659360f8abf63a28b4eb8d3d46a4b0e02988",
     ),
     (
+        7,
         4,
         3,
         "hoa-salient-order3-q7-mode4-cluster3-measured-v1.json",
         "410e970c4326fe62f1ad7aaf2eafd1a34d865b65e89d52e60835f605642c549d",
+    ),
+    (
+        8,
+        1,
+        0,
+        "hoa-salient-order3-q8-mode1-measured-v1.json",
+        "8bd37ce28df300eaa7f0169a5ca36dfc45aab90c668dcfa1bc6f55c2e4e14b6a",
+    ),
+    (
+        8,
+        2,
+        0,
+        "hoa-salient-order3-q8-mode2-book0-measured-v1.json",
+        "0d0c684387bc0af50a548e9f014e56e605d22369e8ce5fcd314a6663675de041",
+    ),
+    (
+        8,
+        2,
+        1,
+        "hoa-salient-order3-q8-mode2-book1-measured-v1.json",
+        "c19f493f6231aefa6b4584f4e730e2b75f0fedeeadb8bb609646b740c12c785c",
+    ),
+    (
+        8,
+        3,
+        0,
+        "hoa-salient-order3-q8-mode3-measured-v1.json",
+        "55ade17b5d15c017a39a01267b08d985bb144e163dcef4014b50914d5a37e6d2",
+    ),
+    (
+        8,
+        4,
+        0,
+        "hoa-salient-order3-q8-mode4-cluster0-measured-v1.json",
+        "4d088ad904bce6e0651b30bd04fd13832216076eb5faeb40b776e81fc728d574",
+    ),
+    (
+        8,
+        4,
+        1,
+        "hoa-salient-order3-q8-mode4-cluster1-measured-v1.json",
+        "950bb4f93c516bdf0334d3a0e0995195e783e1a906bd2e9e701dd60933c63bcf",
+    ),
+    (
+        8,
+        4,
+        2,
+        "hoa-salient-order3-q8-mode4-cluster2-measured-v1.json",
+        "108333b9f72498b0e5f4f0db2f9db6de5800cc5b7f7f32250c99a00a90033b79",
+    ),
+    (
+        8,
+        4,
+        3,
+        "hoa-salient-order3-q8-mode4-cluster3-measured-v1.json",
+        "c80c2b6e059c40caf9893e7036284e92440dd358b4a2f60fc9413a98def9e29b",
+    ),
+    (
+        9,
+        1,
+        0,
+        "hoa-salient-order3-q9-mode1-measured-v1.json",
+        "7b8944ad075dc444c6fe38b392472c1cd261f253d7195f013b14419a3fd56081",
+    ),
+    (
+        9,
+        2,
+        0,
+        "hoa-salient-order3-q9-mode2-book0-measured-v1.json",
+        "1c00698469f08e3695a83f462ac790fb8701d618a8a3c7f53ab2a5616916be69",
+    ),
+    (
+        9,
+        2,
+        1,
+        "hoa-salient-order3-q9-mode2-book1-measured-v1.json",
+        "281093078f9bbf9b8993d4123dcbd68a97897f42e33d28601253917ec6d15f8d",
+    ),
+    (
+        9,
+        3,
+        0,
+        "hoa-salient-order3-q9-mode3-measured-v1.json",
+        "8ce05c719252922d6099be573bad6f3e59d976ac1142a45d5a7bf3754e8b0a43",
+    ),
+    (
+        9,
+        4,
+        0,
+        "hoa-salient-order3-q9-mode4-cluster0-measured-v1.json",
+        "3eda12c8bd891aa6b3f15ce780bf486ceec977949d5e5a8a79a4e88c76c832ea",
+    ),
+    (
+        9,
+        4,
+        1,
+        "hoa-salient-order3-q9-mode4-cluster1-measured-v1.json",
+        "2c64768c1ea958f6f6f5fec9aab9e9fac877c9f1cd1dc31194b990cdc606402a",
+    ),
+    (
+        9,
+        4,
+        2,
+        "hoa-salient-order3-q9-mode4-cluster2-measured-v1.json",
+        "c44b293e084da28c1236532fa07b5f39bf8d9f3dd6878fef382f1f619af2c085",
+    ),
+    (
+        9,
+        4,
+        3,
+        "hoa-salient-order3-q9-mode4-cluster3-measured-v1.json",
+        "100c17110ad55b062eae941500670410c8da1111e3012c84f1f7cd6c61bd9b2c",
     ),
 ];
 
@@ -426,9 +546,16 @@ pub fn dictionaries(out: &mut Output) {
             )
         })
         .collect();
-    let measured_q7: Vec<_> = Q7_CODEBOOKS
+    let measured_wide: Vec<_> = WIDE_CODEBOOKS
         .iter()
-        .map(|&(mode, book, file, sha)| (mode, book, measured_codebook(file, 7, mode, book, sha)))
+        .map(|&(precision, mode, book, file, sha)| {
+            (
+                precision,
+                mode,
+                book,
+                measured_codebook(file, precision, mode, book, sha),
+            )
+        })
         .collect();
     let mut constants = Vec::new();
     for order in 1usize..=10 {
@@ -448,7 +575,7 @@ pub fn dictionaries(out: &mut Output) {
             );
             assert_eq!(stored.format_profile, profile);
             assert_eq!(stored.modes.len(), 6);
-            if order == 3 && matches!(precision, 6 | 7) {
+            if order == 3 {
                 for (mode, count) in stored.modes.iter().zip([0, 1, 2, 1, 4, 0]) {
                     assert_eq!(mode.codebooks.len(), count);
                 }
@@ -496,9 +623,14 @@ pub fn dictionaries(out: &mut Output) {
                         (3, 6, 2, book) => Some(&measured_direct[book]),
                         (3, 6, 3, 0) => Some(&measured_direct[2]),
                         (3, 6, 4, cluster) => Some(&measured_mode4[cluster]),
-                        (3, 7, mode, book) => measured_q7
-                            .iter()
-                            .find_map(|(m, b, words)| (*m == mode && *b == book).then_some(words)),
+                        (3, 7..=9, mode, book) => Some(
+                            measured_wide
+                                .iter()
+                                .find_map(|(p, m, b, words)| {
+                                    (*p == precision && *m == mode && *b == book).then_some(words)
+                                })
+                                .expect("measured third-order codebook source"),
+                        ),
                         _ => None,
                     };
                     let book = if let Some(measured) = measured {

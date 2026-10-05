@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate measured order-3 q6/q7 Huffman books from frozen candidates.
+"""Generate measured order-3 q6–q9 Huffman books from frozen candidates.
 
 --candidate accepts a hash-pinned local codebook candidate and exports only
 format values and public provenance. It may be repeated for any measured books. Other
@@ -14,7 +14,10 @@ import json
 from pathlib import Path
 
 from hoa_packed_tables import pack_codebook
-from hoa_measured_batch_sources import OUTPUTS, MODE23_OUTPUTS, Q7_OUTPUTS, source as batch_source, mode23_source, q7_source
+from hoa_measured_batch_sources import (
+    OUTPUTS, MODE23_OUTPUTS, Q7_OUTPUTS, Q89_OUTPUTS,
+    source as batch_source, mode23_source, q7_source, q89_source,
+)
 from hoa_salient_format import DATA, check_digest, expand_format, format_name, json_bytes, shared_name, split_format
 
 MEASURED_FILES = {
@@ -71,6 +74,13 @@ for (mode, book), record in Q7_OUTPUTS.items():
     CANDIDATE_SHA256[key] = record['candidate']
     BOOK_SHA256[key] = record['book_values']
     SOURCES[key] = q7_source((mode, book))
+for (precision, mode, book), record in Q89_OUTPUTS.items():
+    key = (precision, mode, book)
+    suffix = f'-book{book}' if mode == 2 else f'-cluster{book}' if mode == 4 else ''
+    MEASURED_FILES[key] = f'hoa-salient-order3-q{precision}-mode{mode}{suffix}-measured-v1.json'
+    CANDIDATE_SHA256[key] = record['candidate']
+    BOOK_SHA256[key] = record['book_values']
+    SOURCES[key] = q89_source(key)
 
 
 def require(condition, message):
@@ -108,9 +118,9 @@ def measured_book(value):
         group_digest = hashlib.sha256(json.dumps(group, separators=(',', ':')).encode()).hexdigest()
         require(group_digest == value.get('group_sha256') == MODE23_OUTPUTS[mode, index]['group_values'],
                 'measured coefficient group digest differs')
-    if precision == 7:
+    if precision > 6:
         require('coefficient_group' not in value and 'group_sha256' not in value,
-                'seven-bit sources must not replace the measured six-bit groups')
+                'wider sources must not replace the measured six-bit groups')
     return book
 
 
@@ -138,7 +148,7 @@ def from_candidate(raw):
         require(candidate['profile'] == 'hoa-blackbox-codebook-v1'
                 and candidate['policy_sha256'] == SOURCES[key]['policy_sha256']
                 and candidate['layout_sha256'] == SOURCES[key]['layout_sha256'], 'candidate policy or layout differs')
-    if precision == 7:
+    if precision > 6:
         require(candidate['profile'] == 'hoa-blackbox-codebook-v1'
                 and candidate['policy_sha256'] == SOURCES[key]['policy_sha256']
                 and candidate.get('prior_sha256') == SOURCES[key].get('prior_sha256')
@@ -198,7 +208,7 @@ def replace_book(value, measurement):
 
 
 def regenerate(stored, shared, measurements):
-    require((stored['schema_version'], stored['order']) == (3, 3) and stored['quantization_bits'] in (6, 7),
+    require((stored['schema_version'], stored['order']) == (3, 3) and stored['quantization_bits'] in (6, 7, 8, 9),
             'replacement storage scope differs')
     stored = copy.deepcopy(stored)
     if isinstance(measurements, dict):
@@ -219,7 +229,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--candidate', type=Path, action='append', default=[],
                         help='verified frozen codebook candidate; repeat for distinct measured books')
-    parser.add_argument('--quantization-bits', type=int, choices=(6, 7),
+    parser.add_argument('--quantization-bits', type=int, choices=(6, 7, 8, 9),
                         help='restrict to one width; by default check/write all measured widths')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')

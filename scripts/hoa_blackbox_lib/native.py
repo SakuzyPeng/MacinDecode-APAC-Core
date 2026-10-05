@@ -51,7 +51,7 @@ def validate_public(artifacts, frames=2048, quantization_bits=6):
 class NativeBackend:
     def __init__(self, binary, quantization_bits=6):
         require(sys.platform == 'darwin', 'native measurement requires macOS')
-        require(quantization_bits in (6, 7), 'unsupported quantization width')
+        require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
         self.quantization_bits = quantization_bits
         self.binary = Path(binary).resolve()
         self.identity = self.collect_identity()

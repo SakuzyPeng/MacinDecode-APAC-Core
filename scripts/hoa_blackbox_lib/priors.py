@@ -1,6 +1,6 @@
 """Export only approved q6 matrix/group measurements for wider-codebook work.
 
-Invoked in a separate process before discovery. No q7 dictionary is opened and
+Invoked in a separate process before discovery. No q7–q9 dictionary is opened and
 no q6 Huffman word is exported. Full source hashes pin the approved artifacts.
 """
 import json

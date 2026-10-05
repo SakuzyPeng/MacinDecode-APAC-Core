@@ -557,19 +557,19 @@ python3 -B scripts/validate_hoa_expanded_orders.py --binary target/release/apac-
 
 码表按原二叉树先序存储：一位区分内部节点和叶子，叶子随后携带与量化位数等宽的符号索引，左右路径恢复原始码长和码字。矩阵每项使用一位符号和二十位整数幅值，幅值除以一百万后舍入至 Float32，再恢复符号位，包括负零。生成器逐项检查原始 Float32 位模式；不能精确表示的数值会报错。两种编码均按高位优先排列，末字节补零；加载器校验长度、填充位以及完整树的深度和符号唯一性。
 
-三阶六位和七位量化的码表均使用黑盒测量结果。每种精度包含 mode 1／book 0、mode 2／book 0–1、mode 3／book 0 和 mode 4／cluster 0–3，共八张表；六位每表 64 项，七位每表 128 项。对应原表为 `data/hoa-salient-order3-qP-mode1-measured-v1.json`、`data/hoa-salient-order3-qP-mode2-bookN-measured-v1.json`（`N=0–1`）、`data/hoa-salient-order3-qP-mode3-measured-v1.json` 和 `data/hoa-salient-order3-qP-mode4-clusterN-measured-v1.json`（`N=0–3`），其中 `P=6` 或 `7`。构建直接读取原表，并检查精度、完整符号范围、映射摘要和打包副本；其他阶数及八位、九位码表沿用已有来源。
+三阶 6–9 位量化的码表均使用黑盒测量结果。每种精度包含 mode 1／book 0、mode 2／book 0–1、mode 3／book 0 和 mode 4／cluster 0–3，共八张，四种精度合计三十二张表；六至九位每表分别为 64、128、256、512 项。对应原表为 `data/hoa-salient-order3-qP-mode1-measured-v1.json`、`data/hoa-salient-order3-qP-mode2-bookN-measured-v1.json`（`N=0–1`）、`data/hoa-salient-order3-qP-mode3-measured-v1.json` 和 `data/hoa-salient-order3-qP-mode4-clusterN-measured-v1.json`（`N=0–3`），其中 `P=6–9`。构建直接读取原表，并检查精度、完整符号范围、映射摘要和打包副本；其他阶数码表沿用已有来源。
 
-三阶 mode 4／cluster 0–3 的四张 16×16 矩阵使用 `data/hoa-salient-order3-mode4-clusterN-matrix-measured-v1.json`（`N=0–3`）中通过精度验收的各 256 个 Float32 位模式。这四张矩阵由三阶 6–9 位量化字典共享，构建直接读取测量原表，并校验共享文件中的打包副本。矩阵测量采用六位输入描述；七位码表恢复复用了这些矩阵并通过七位正常码流验证，保留原矩阵来源。八位和九位码表没有因矩阵共享而取得测量来源。数值及语义摘要不变。
+三阶 mode 4／cluster 0–3 的四张 16×16 矩阵使用 `data/hoa-salient-order3-mode4-clusterN-matrix-measured-v1.json`（`N=0–3`）中通过精度验收的各 256 个 Float32 位模式。这四张矩阵由三阶 6–9 位量化字典共享，构建直接读取测量原表，并校验共享文件中的打包副本。矩阵测量采用六位输入描述；七至九位码表恢复复用了这些矩阵并通过对应精度的正常码流验证，保留原矩阵来源。每种精度的 Huffman 码表均有独立的冻结候选、验证和对照记录。数值及语义摘要不变。
 
-三阶的三个唯一系数分组由六位 mode 2 两张码表和 mode 3 码表原表中的 `coefficient_group` 提供。构建检查分组摘要以及原有共享使用关系。mode 3 测得的完整通道顺序仍按既有结构供 mode 0／1／3／4／5 共用，mode 2 的两个分组分别独立使用；分组继续跨三阶 6–9 位字典共享。七位码表原表只记录分组复用关系，不复制分组数值或替换六位分组来源。
+三阶的三个唯一系数分组由六位 mode 2 两张码表和 mode 3 码表原表中的 `coefficient_group` 提供。构建检查分组摘要以及原有共享使用关系。mode 3 测得的完整通道顺序仍按既有结构供 mode 0／1／3／4／5 共用，mode 2 的两个分组分别独立使用；分组继续跨三阶 6–9 位字典共享。七至九位码表原表只记录分组复用关系，不复制分组数值或替换六位分组来源。
 
-`generate_hoa_salient_measured.py --write` 默认检查并重建两种精度的十六份打包副本和逐码表来源说明；`--quantization-bits 6` 或 `7` 可限定一种精度。`--candidate FILE` 可从摘要固定的本地冻结码表候选重建测量原表，可重复提供不同目标的候选。生成器按精度、mode、book 区分来源，拒绝跨精度混用或把七位复用分组当作新分组来源。未提供候选的码表使用仓库内原表，矩阵候选会被拒绝。构建和普通校验无需苹果组件或本地测量记录。
+`generate_hoa_salient_measured.py --write` 默认检查并重建四种精度的三十二份打包副本和逐码表来源说明；`--quantization-bits 6`、`7`、`8` 或 `9` 可限定一种精度。`--candidate FILE` 可从摘要固定的本地冻结码表候选重建测量原表，可重复提供不同目标的候选。生成器按精度、mode、book 区分来源，拒绝跨精度混用或把七至九位复用分组当作新分组来源。未提供候选的码表使用仓库内原表，矩阵候选会被拒绝。构建和普通校验无需苹果组件或本地测量记录。
 
 `generate_hoa_salient_measured_matrix.py --write` 单独重建四张已测矩阵的打包副本，并更新四套字典的逐矩阵来源说明；`--candidate FILE` 可重复提供不同 cluster 的候选，只接受摘要固定且通过精度验收的产物。cluster 0 保留原加权复核来源，cluster 1–3 使用批处理工具冻结的来源。
 
 `generate_hoa_salient_measured_groups.py --write` 从已经导出的 mode 2／3 测量原表重建三个共享分组，并更新四套字典的分组来源。三个生成器保留彼此的来源记录；其他阶数的数据不会被替换。
 
-来源元数据固定了测量基线、工具与策略指纹，以及候选、验证和最终对照摘要。六位 mode 2／3 另外绑定冻结分组；七位 mode 2／3 和 mode 4 记录 `group_reused`／`matrix_reused` 与先验快照摘要，明确复用已测六位几何数据。只有已审核的批次产物能由生成器导入，任意新测量目录不自动获得正式来源资格。实验原始 PCM、输入和本地证据路径不随测量原表发布。
+来源元数据固定了测量基线、工具与策略指纹，以及候选、验证和最终对照摘要。六位 mode 2／3 另外绑定冻结分组；七至九位 mode 2／3 和 mode 4 记录 `group_reused`／`matrix_reused` 与先验快照摘要，明确复用已测六位几何数据。只有已审核的批次产物能由生成器导入，任意新测量目录不自动获得正式来源资格。实验原始 PCM、输入和本地证据路径不随测量原表发布。
 
 `pack_hoa_salient_formats.py --check` 校验全部表摘要、共享内容及规范存储；省略 `--check` 可从完整或共享字典重新生成去重存储。`verify_hoa_salient_format.py --write` 同时生成字典与所需共享文件，并拒绝覆盖或复用内容不同的共享文件；已测码表和矩阵须与原生观测一致，随后保留测量来源。无需原生组件即可执行存储校验：
 

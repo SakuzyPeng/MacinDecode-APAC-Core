@@ -147,7 +147,7 @@ def synthetic_priors():
 
 
 def new_store(path, targets=('mode1',), calls=4096, quantization_bits=6):
-    priors = synthetic_priors() if quantization_bits == 7 else None
+    priors = synthetic_priors() if quantization_bits > 6 else None
     config = dict(schema_version=1, targets=list(targets), native_identity=FakeBackend.identity,
                   quantization_bits=quantization_bits, prior_sha256=digest(canonical(priors)) if priors else None,
                   tool_fingerprint=tool_fingerprint(), limits=dict(max_bytes=128*1024**2, max_calls=calls, min_free=0))
@@ -344,37 +344,49 @@ class BatchTests(unittest.TestCase):
 
 
 class PrecisionTests(unittest.TestCase):
-    def test_seven_bit_all_modes_use_only_synthetic_prior_geometry(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            targets = ('mode1', 'mode2:0', 'mode2:1', 'mode3', 'mode4:2')
-            store = new_store(Path(tmp)/'q7', targets, quantization_bits=7)
-            backend = FakeBackend(quantization_bits=7)
-            fake_engine(store, backend, jobs=4).run()
-            self.assertTrue(all(t['status']=='validated' for t in store.summary()['targets']))
-            for target, key in [('mode1',(1,None)),('mode2:0',(2,0)),('mode2:1',(2,1)),('mode3',(3,None)),('mode4:2',(4,2))]:
-                book = store.stage(target, 'codebook')
-                self.assertEqual(book['quantization_bits'], 7)
-                self.assertEqual([e['codeword'] for e in book['entries']], backend.words[key])
-            self.assertIsNone(store.stage('mode4:2','matrix'))
-            self.assertTrue(store.stage('mode4:2','validation')['matrix_reused'])
-            self.assertIsNone(store.stage('mode4:2','validation')['matrix_qualified'])
-            before = backend.calls
-            fake_engine(store, backend, jobs=2).run()
-            self.assertEqual(backend.calls, before)
-            store.close()
+    def test_wider_precisions_all_modes_use_only_synthetic_prior_geometry(self):
+        for precision in (7, 8, 9):
+            with self.subTest(precision=precision), tempfile.TemporaryDirectory() as tmp:
+                self.check_precision_flow(Path(tmp), precision)
+
+    def check_precision_flow(self, tmp, precision):
+        targets = ('mode1', 'mode2:0', 'mode2:1', 'mode3', 'mode4:2')
+        store = new_store(tmp/'batch', targets, calls=20000, quantization_bits=precision)
+        backend = FakeBackend(quantization_bits=precision)
+        fake_engine(store, backend, jobs=4).run()
+        self.assertTrue(all(t['status']=='validated' for t in store.summary()['targets']))
+        for target, key in [('mode1',(1,None)),('mode2:0',(2,0)),('mode2:1',(2,1)),('mode3',(3,None)),('mode4:2',(4,2))]:
+            book = store.stage(target, 'codebook')
+            self.assertEqual(book['quantization_bits'], precision)
+            self.assertEqual([e['codeword'] for e in book['entries']], backend.words[key])
+        self.assertIsNone(store.stage('mode4:2','matrix'))
+        self.assertTrue(store.stage('mode4:2','validation')['matrix_reused'])
+        self.assertIsNone(store.stage('mode4:2','validation')['matrix_qualified'])
+        before = backend.calls
+        fake_engine(store, backend, jobs=2).run()
+        self.assertEqual(backend.calls, before)
+        store.close()
 
     def test_precision_binds_cookie_request_and_backend(self):
         self.assertEqual(sum((a^b).bit_count() for a,b in zip(wire.cookie(6),wire.cookie(7))), 1)
-        writer = wire.Writer(7)
-        packets = writer.frames(writer.fixed(wire.vector(64, zero=64)))
-        a, _ = wire.request(FakeBackend.identity, packets, quantization_bits=6)
-        b, _ = wire.request(FakeBackend.identity, packets, quantization_bits=7)
-        self.assertNotEqual(a,b)
-        with tempfile.TemporaryDirectory() as tmp:
-            store = new_store(Path(tmp)/'q7', quantization_bits=7)
-            with self.assertRaises(IdentityError):Runner(store, FakeBackend())
-            store.close()
-        with self.assertRaises(ExperimentError):wire.Writer(8)
+        cookies, requests = set(), set()
+        for precision in (6, 7, 8, 9):
+            zero = 1 << (precision-1)
+            writer = wire.Writer(precision)
+            packets = writer.frames(writer.fixed(wire.vector(2*zero-1, zero=zero)))
+            cookies.add(wire.cookie(precision))
+            # Hold the packet bytes fixed so cookie/config identity alone must differ.
+            key, _ = wire.request(FakeBackend.identity, [b'probe', b'tail'], quantization_bits=precision)
+            requests.add(key)
+            self.assertEqual(len(packets[0])-len(wire.Writer(6).fixed(wire.vector(63))), 40*(precision-6))
+            with tempfile.TemporaryDirectory() as tmp:
+                store = new_store(Path(tmp)/'batch', quantization_bits=precision)
+                with self.assertRaises(IdentityError):Runner(store, FakeBackend(quantization_bits=9 if precision != 9 else 6))
+                store.close()
+        self.assertEqual(len(cookies), 4)
+        self.assertEqual(len(requests), 4)
+        for precision in (5, 10):
+            with self.assertRaises(ExperimentError):wire.Writer(precision)
 
     def test_untrusted_prior_content_is_rejected_before_sampling(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -386,14 +398,15 @@ class PrecisionTests(unittest.TestCase):
             store.close()
 
     def test_wide_synthetic_coordinate_direction(self):
-        words = make_words(87, 128)
-        for direction in (1,-1):
-            def query(pattern):
-                symbol = next(i for i,word in enumerate(words) if pattern.startswith(word))
-                return (symbol-64)/(23*direction),pattern
-            entries, _, scale = infer_tree(query, coordinate=True, symbols=128)
-            self.assertEqual(scale,23*direction)
-            self.assertEqual([e['codeword'] for e in entries],words)
+        for symbols in (128, 256, 512):
+            words = make_words(87, symbols)
+            for direction in (1,-1):
+                def query(pattern):
+                    symbol = next(i for i,word in enumerate(words) if pattern.startswith(word))
+                    return (symbol-symbols//2)/(23*direction),pattern
+                entries, _, scale = infer_tree(query, coordinate=True, symbols=symbols)
+                self.assertEqual(scale,23*direction)
+                self.assertEqual([e['codeword'] for e in entries],words)
 
 
 class ConcurrentBackend(FakeBackend):
@@ -503,7 +516,7 @@ class ConcurrencyTests(unittest.TestCase):
 
 class MathTests(unittest.TestCase):
     def test_search_boundary_accepts_32_bits_and_rejects_hidden_deeper_leaves(self):
-        for symbols in (64, 128):
+        for symbols in (64, 128, 256, 512):
             for depth in (32, 33):
                 words = ['']
                 for n in range(depth):

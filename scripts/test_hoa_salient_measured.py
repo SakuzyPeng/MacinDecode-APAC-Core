@@ -10,6 +10,10 @@ from hoa_salient_format import DATA, format_for, format_name, shared_name
 
 
 class MeasuredCodebookTests(unittest.TestCase):
+    def test_all_third_order_codebooks_have_measured_sources(self):
+        books = [(1, 0), (2, 0), (2, 1), (3, 0)] + [(4, c) for c in range(4)]
+        self.assertEqual(set(BOOK_SHA256), {(p, m, b) for p in (6, 7, 8, 9) for m, b in books})
+
     def test_measurement_matches_generated_packed_copy(self):
         for precision, mode, book in BOOK_SHA256:
             current = format_for(3, precision)
@@ -32,10 +36,10 @@ class MeasuredCodebookTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'scope'):
                     replace_book(format_for(2, precision), load_measurement(mode, book, precision))
                 with self.assertRaisesRegex(ValueError, 'scope'):
-                    replace_book(format_for(3, 13-precision), load_measurement(mode, book, precision))
+                    replace_book(format_for(3, 15-precision), load_measurement(mode, book, precision))
 
     def test_replacements_compose_without_losing_the_other_source(self):
-        for precision in (6, 7):
+        for precision in (6, 7, 8, 9):
             current = format_for(3, precision)
             original = copy.deepcopy(current)
             del original['source']['codebook_replacements']
@@ -53,7 +57,7 @@ class MeasuredCodebookTests(unittest.TestCase):
 
     def test_regeneration_does_not_depend_on_the_previous_packed_book(self):
         shared = json.loads((DATA / shared_name(3)).read_text())
-        for precision in (6, 7):
+        for precision in (6, 7, 8, 9):
             stored = json.loads((DATA / format_name(3, precision)).read_text())
             broken = copy.deepcopy(stored)
             for measurement in load_measurements(precision):
@@ -71,7 +75,7 @@ class MeasuredCodebookTests(unittest.TestCase):
         words = bytearray.fromhex(changed['matrices_f32'][0])
         words[0] ^= 0x80
         changed['matrices_f32'][0] = words.hex()
-        for precision in (6, 7):
+        for precision in (6, 7, 8, 9):
             stored = json.loads((DATA / format_name(3, precision)).read_text())
             with self.assertRaisesRegex(ValueError, 'digest'):
                 regenerate(stored, changed, load_measurements(precision))
@@ -101,7 +105,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                     measured_book(measurement)
 
     def test_a_measurement_cannot_be_relabelled_as_another_cluster(self):
-        for precision in (6, 7):
+        for precision in (6, 7, 8, 9):
             for cluster in range(4):
                 value = load_measurement(4, cluster, precision)
                 value['book'] = (cluster + 1) % 4
@@ -110,20 +114,20 @@ class MeasuredCodebookTests(unittest.TestCase):
 
     def test_precisions_cannot_be_relabelled_or_mixed_in_one_dictionary(self):
         shared = json.loads((DATA / shared_name(3)).read_text())
-        for precision in (6, 7):
+        for precision in (6, 7, 8, 9):
             value = load_measurement(1, 0, precision)
-            value['quantization_bits'] = 13-precision
+            value['quantization_bits'] = 15-precision
             with self.assertRaisesRegex(ValueError, 'source'):
                 measured_book(value)
             stored = json.loads((DATA / format_name(3, precision)).read_text())
             with self.assertRaisesRegex(ValueError, 'precision scope'):
-                regenerate(stored, shared, load_measurements(13-precision))
+                regenerate(stored, shared, load_measurements(15-precision))
         stored = json.loads((DATA / format_name(3, 8)).read_text())
         with self.assertRaisesRegex(ValueError, 'scope'):
             regenerate(stored, shared, load_measurements(7))
 
-    def test_seven_bit_sources_reuse_geometry_without_replacing_its_source(self):
-        for value in load_measurements(7):
+    def test_wider_sources_reuse_geometry_without_replacing_its_source(self):
+        for value in (value for precision in (7, 8, 9) for value in load_measurements(precision)):
             self.assertNotIn('coefficient_group', value)
             self.assertNotIn('group_sha256', value)
             with self.assertRaisesRegex(ValueError, 'no recovered group'):

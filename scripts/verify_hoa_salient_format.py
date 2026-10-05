@@ -81,7 +81,7 @@ def extract(path, order=3, quantization_bits=6):
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
-    if order == 3 and quantization_bits in (6, 7):
+    if order == 3:
         for measurement in load_measurements(quantization_bits):
             mode, book = measurement['mode'], measurement['book']
             if result['modes'][mode]['codebooks'][book] != measured_book(measurement):

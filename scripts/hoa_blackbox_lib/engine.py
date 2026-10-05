@@ -24,7 +24,7 @@ class Engine(DirectRecovery):
         self.repeat_eps = 1/(32*(self.levels-1))
         self.priors = None
         self.prior_matrices = {}
-        if self.precision == 7:
+        if self.precision > 6:
             self.priors = store.stage('_shared', 'priors')
             require(self.priors is not None and digest(canonical(self.priors)) == store.config.get('prior_sha256')
                     and self.priors['huffman_words_included'] is False, 'qualified priors are missing or changed', EvidenceError)

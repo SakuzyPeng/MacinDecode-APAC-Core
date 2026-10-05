@@ -25,13 +25,18 @@ struct MeasuredCodebook {
 
 /// This book's canonical input is the frozen black-box measurement. The
 /// original format file keeps a generated packed copy for existing tools.
-fn measured_codebook(file: &str, mode: usize, expected_sha256: &str) -> Vec<(usize, u32)> {
+fn measured_codebook(
+    file: &str,
+    mode: usize,
+    book_index: usize,
+    expected_sha256: &str,
+) -> Vec<(usize, u32)> {
     let data: MeasuredCodebook = data_json(file);
     assert_eq!(data.schema_version, 1);
     assert_eq!(data.profile, "apac-hoa-salient-measured-v1");
     assert_eq!(
         (data.order, data.quantization_bits, data.mode, data.book),
-        (3, 6, mode, 0)
+        (3, 6, mode, book_index)
     );
     assert_eq!(data.entries.len(), 64);
     let book: Vec<_> = data
@@ -72,15 +77,30 @@ struct MeasuredMatrix {
     matrix_f32: Vec<u32>,
 }
 
-/// Order-3 dictionaries share this matrix across all four quantization widths.
-fn measured_cluster0_matrix() -> Vec<u32> {
-    let data: MeasuredMatrix =
-        data_json("hoa-salient-order3-mode4-cluster0-matrix-measured-v1.json");
+const MODE4_MATRIX_SHA256: [&str; 4] = [
+    "87a5fbe1a977b1312d8d1093425ee3217d87ad4dfc77a7855b0290e8b9861c19",
+    "a3cfa1e9321c82986dbf97ed2ba8f2c9b86be9095962f84b3e5d33f36233ab2b",
+    "e81d7a49eb0e162933d90c2378ca745012be336b5eb6485af79dca4d512c75d4",
+    "ff82131f4cdc56f49559c5bdeb7dbf67dd9c5ffcd09d3f8b16bd0a2899ba95b3",
+];
+
+const MODE4_CODEBOOK_SHA256: [&str; 4] = [
+    "08fa83f508549126a68be673c7f6065c15e8ea5c2279385e00ac6f180c943322",
+    "6e04f7a58d699d3e08666b078afd3e77b8e181ce4a1fd30e01effa5732e58cea",
+    "07959b3786362b47eb1380e587c7ab3fba4e0c094b0221652ac30ee798be9d32",
+    "6ed393ceffa5d005b34939fe9c0673197c39bcd09ac0619b011ad9d1df8c0327",
+];
+
+/// Order-3 dictionaries share each matrix across all four quantization widths.
+fn measured_matrix(cluster: usize) -> Vec<u32> {
+    let data: MeasuredMatrix = data_json(&format!(
+        "hoa-salient-order3-mode4-cluster{cluster}-matrix-measured-v1.json"
+    ));
     assert_eq!(data.schema_version, 1);
     assert_eq!(data.profile, "apac-hoa-salient-measured-matrix-v1");
     assert_eq!(
         (data.order, data.mode, data.cluster, data.rows, data.columns),
-        (3, 4, 0, 16, 16)
+        (3, 4, cluster, 16, 16)
     );
     assert_eq!(data.storage, "row-major");
     assert_eq!(data.matrix_f32.len(), 256);
@@ -94,10 +114,7 @@ fn measured_cluster0_matrix() -> Vec<u32> {
         Sha256::digest(serde_json::to_vec(&data.matrix_f32).expect("measured matrix JSON"))
     );
     assert_eq!(digest, data.matrix_sha256);
-    assert_eq!(
-        digest,
-        "87a5fbe1a977b1312d8d1093425ee3217d87ad4dfc77a7855b0290e8b9861c19"
-    );
+    assert_eq!(digest, MODE4_MATRIX_SHA256[cluster]);
     data.matrix_f32
 }
 
@@ -168,23 +185,32 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     assert_eq!(data.matrix_encoding, packed::MATRIX_ENCODING);
     assert_eq!(data.order, order);
     assert_eq!(data.modes.len(), 6);
-    let measured = (order == 3).then(|| {
+    let measured: Vec<_> = if order == 3 {
         assert_eq!(data.modes[4].mode, 4);
-        let index = data.modes[4].matrix_indices[0];
-        assert!(index < data.matrices_f32.len());
-        let users: Vec<_> = data
-            .modes
+        assert_eq!(data.modes[4].matrix_indices.len(), 4);
+        data.modes[4]
+            .matrix_indices
             .iter()
-            .flat_map(|mode| {
-                mode.matrix_indices
+            .enumerate()
+            .map(|(cluster, &index)| {
+                assert!(index < data.matrices_f32.len());
+                let users: Vec<_> = data
+                    .modes
                     .iter()
-                    .enumerate()
-                    .filter_map(move |(cluster, &i)| (i == index).then_some((mode.mode, cluster)))
+                    .flat_map(|mode| {
+                        mode.matrix_indices
+                            .iter()
+                            .enumerate()
+                            .filter_map(move |(c, &i)| (i == index).then_some((mode.mode, c)))
+                    })
+                    .collect();
+                assert_eq!(users, [(4, cluster)]);
+                (index, measured_matrix(cluster))
             })
-            .collect();
-        assert_eq!(users, [(4, 0)]);
-        (index, measured_cluster0_matrix())
-    });
+            .collect()
+    } else {
+        Vec::new()
+    };
     let group_names = data
         .groups
         .iter()
@@ -196,7 +222,7 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     for (i, hex) in data.matrices_f32.iter().enumerate() {
         let packed_words =
             packed::matrix(hex, (order + 1).pow(4)).expect("built-in packed HOA matrix");
-        let words = if let Some((_, words)) = measured.as_ref().filter(|(index, _)| *index == i) {
+        let words = if let Some((_, words)) = measured.iter().find(|(index, _)| *index == i) {
             assert_eq!(
                 &packed_words, words,
                 "packed copy of measured matrix differs"
@@ -231,13 +257,21 @@ pub fn dictionaries(out: &mut Output) {
     let measured_mode1 = measured_codebook(
         "hoa-salient-order3-q6-mode1-measured-v1.json",
         1,
+        0,
         "296d730714d97de653c45cc487fa4fa94aebce9a49559da78e81215591e600ee",
     );
-    let measured_mode4 = measured_codebook(
-        "hoa-salient-order3-q6-mode4-cluster0-measured-v1.json",
-        4,
-        "08fa83f508549126a68be673c7f6065c15e8ea5c2279385e00ac6f180c943322",
-    );
+    let measured_mode4: Vec<_> = MODE4_CODEBOOK_SHA256
+        .iter()
+        .enumerate()
+        .map(|(cluster, digest)| {
+            measured_codebook(
+                &format!("hoa-salient-order3-q6-mode4-cluster{cluster}-measured-v1.json"),
+                4,
+                cluster,
+                digest,
+            )
+        })
+        .collect();
     let mut constants = Vec::new();
     for order in 1usize..=10 {
         let coefficients = (order + 1).pow(2);
@@ -296,7 +330,7 @@ pub fn dictionaries(out: &mut Output) {
                         packed::codebook(hex, precision).expect("built-in packed HOA codebook");
                     let measured = match (order, precision, mode_index, book_index) {
                         (3, 6, 1, 0) => Some(&measured_mode1),
-                        (3, 6, 4, 0) => Some(&measured_mode4),
+                        (3, 6, 4, cluster) => Some(&measured_mode4[cluster]),
                         _ => None,
                     };
                     let book = if let Some(measured) = measured {

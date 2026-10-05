@@ -17,9 +17,42 @@ class Engine(DirectRecovery):
     def __init__(self, store, runner, progress=lambda event: None):
         self.store, self.runner = store, runner
         self.writer = runner.writer
+        self.precision = store.config.get('quantization_bits', 6)
+        self.levels = 1 << self.precision
+        self.zero = self.levels // 2
+        self.negative_half, self.positive_half = self.zero//2, 3*self.zero//2
+        self.repeat_eps = 1/(32*(self.levels-1))
+        self.priors = None
+        self.prior_matrices = {}
+        if self.precision == 7:
+            self.priors = store.stage('_shared', 'priors')
+            require(self.priors is not None and digest(canonical(self.priors)) == store.config.get('prior_sha256')
+                    and self.priors['huffman_words_included'] is False, 'qualified priors are missing or changed', EvidenceError)
+            require(self.priors['component_sha256'] == store.config['native_identity']['component_sha256']
+                    and self.priors['architecture'] == store.config['native_identity']['architecture'],
+                    'prior native component differs', IdentityError)
         self.progress = progress
         self.refs = {}
         self.last_progress = 0.
+
+    def vector(self, q, row=None):
+        return vector(q, row, self.zero)
+
+    def prior_matrix(self, cluster):
+        if cluster not in self.prior_matrices:
+            source = self.priors['matrices'][str(cluster)]
+            values = [struct.unpack('<f', struct.pack('<I', word))[0] for word in source['matrix_f32']]
+            rows = [values[i:i+16] for i in range(0, 256, 16)]
+            inv, condition, residual = inverse(rows)
+            self.prior_matrices[cluster] = dict(inverse=inv, condition_inf=condition, inverse_residual_inf=residual)
+        return self.prior_matrices[cluster]
+
+    def reused_matrix(self, cluster):
+        source = self.priors['matrices'][str(cluster)]
+        return dict(reused=True, prior_sha256=self.store.config['prior_sha256'],
+                    entries=[dict(row=i//16, column=i%16, float32_bits=word,
+                                  empirical_half_width=source['empirical_half_width'])
+                             for i, word in enumerate(source['matrix_f32'])])
 
     def capture(self, target, stage, label, payload, independent=False):
         replicate = f'{target}/{stage}/{label}' if independent else ''
@@ -51,13 +84,13 @@ class Engine(DirectRecovery):
         for line in (0, 1):
             for gain in GAINS:
                 evidence, waves = {}, {}
-                symbols = range(64) if line == 0 else (0, 16, 32, 48, 63)
-                cases = [(f'{gain}:{line}:{q}', self.writer.fixed(vector(q), gain, line)) for q in symbols]
+                symbols = range(self.levels) if line == 0 else (0, self.negative_half, self.zero, self.positive_half, self.levels-1)
+                cases = [(f'{gain}:{line}:{q}', self.writer.fixed(self.vector(q), gain, line)) for q in symbols]
                 with self.capture_batch('_shared', 'calibration', cases) as outputs:
                     for q, (key, pcm) in zip(symbols, outputs):
                         evidence[str(q)], waves[q] = key, pcm
-                require(not any(waves[32]), 'mode-0 zero is not zero')
-                refs = [waves[48][k::16] for k in range(16)]
+                require(not any(waves[self.zero]), 'mode-0 zero is not zero')
+                refs = [waves[self.positive_half][k::16] for k in range(16)]
                 energy = [dot(v, v) for v in refs]
                 require(all(v > 0 for v in energy), 'calibration carrier unobservable')
                 errors = [0.] * 16
@@ -65,12 +98,12 @@ class Engine(DirectRecovery):
                 for q, pcm in waves.items():
                     values = [0.5 * dot(pcm[k::16], refs[k]) / energy[k] for k in range(16)]
                     estimated[str(q)] = values
-                    errors = [max(e, abs(y - (q - 32) / 32)) for e, y in zip(errors, values)]
+                    errors = [max(e, abs(y - (q - self.zero) / self.zero)) for e, y in zip(errors, values)]
                 require(max(errors) < 1e-6, 'calibration inaccurate')
                 if line == 0:
-                    require(all(estimated[str(q+1)][k] > estimated[str(q)][k] for q in range(63) for k in range(16)),
+                    require(all(estimated[str(q+1)][k] > estimated[str(q)][k] for q in range(self.levels-1) for k in range(16)),
                             'calibration symbols not distinct and ordered')
-                responses[f'{gain}:{line}'] = dict(reference=evidence['48'], evidence=evidence,
+                responses[f'{gain}:{line}'] = dict(reference=evidence[str(self.positive_half)], evidence=evidence,
                     max_coefficient_error=errors, estimated_coefficients=estimated)
         columns = []
         for k in range(16):
@@ -79,6 +112,7 @@ class Engine(DirectRecovery):
             columns.append(dict(weights=[wa, 1-wa], calibration_bounds=[a, b],
                                 propagated_bound=wa*a+(1-wa)*b))
         policy = dict(profile=POLICY_VERSION, responses=responses, weight_columns=columns,
+                      quantization_bits=self.precision,
                       native_identity=self.store.config['native_identity'], tool_fingerprint=self.store.config['tool_fingerprint'],
                       safety_factor=8, min_half_width=5e-8, precision_limit=2.5e-7,
                       matrix_training='minus-one unit basis only; half-amplitude probes held out',
@@ -141,7 +175,7 @@ class Engine(DirectRecovery):
         rows = [subtract(o['coefficients'], base['coefficients']) for o in observations]
         inv, condition, residual = inverse(rows)
         coordinates = vmul(base['coefficients'], inv)
-        require(max(abs(v-coordinates[0]) for v in coordinates) <= REPEAT_EPS, 'zero stream coordinates not uniform')
+        require(max(abs(v-coordinates[0]) for v in coordinates) <= self.repeat_eps, 'zero stream coordinates not uniform')
         repeats = []
         for i, pattern in enumerate(('', '1', '0'*length+'1', '01', '10', '0'*(15*length)+'1')):
             trials = []
@@ -150,7 +184,7 @@ class Engine(DirectRecovery):
                 obs['coordinates'] = vmul(obs['coefficients'], inv)
                 trials.append(obs)
             deviation = max(abs(t['coordinates'][k]-trials[0]['coordinates'][k]) for t in trials[1:] for k in range(16))
-            require(deviation <= REPEAT_EPS, 'coordinates changed with amplitude or padding')
+            require(deviation <= self.repeat_eps, 'coordinates changed with amplitude or padding')
             repeats.append(dict(deviation=deviation, trials=trials))
         result = dict(zero_code_length=length, baseline=base, scan=scans, row_observations=observations,
                       scaled_matrix=rows, inverse=inv, condition_inf=condition, inverse_residual_inf=residual, repeats=repeats)
@@ -166,26 +200,29 @@ class Engine(DirectRecovery):
             return self.mode2_books()[cluster]
         if mode == 3:
             return self.mode3_book()
-        boot = self.bootstrap(target) if mode == 4 else None
+        reused = mode == 4 and self.priors is not None
+        boot = (self.prior_matrix(cluster) if reused else self.bootstrap(target)) if mode == 4 else None
         def query(pattern):
             obs = self.observe(target, 'codebook', pattern, pattern)
-            if boot:
+            if boot and not reused:
                 result = vmul(obs['coefficients'], boot['inverse'])[0]
             else:
-                result = round((obs['coefficients'][0]+1)*32)
-                require(0 <= result < 64 and abs(obs['coefficients'][0]-(result-32)/32) < 1/(8*32),
-                        'mode-1 symbol is ambiguous')
+                value = vmul(obs['coefficients'], boot['inverse'])[0] if reused else obs['coefficients'][0]
+                result = self.quantize(value)
             return result, obs['evidence']
-        entries, decisions, scale = infer_tree(query, coordinate=mode == 4)
-        if boot:
+        entries, decisions, scale = infer_tree(query, coordinate=mode == 4 and not reused, symbols=self.levels)
+        if boot and not reused:
             def first(raw): return next(e['symbol'] for e in entries if raw.startswith(e['codeword']))
             require(first('1'+'0'*32)-first('0'*32) == scale, 'coordinate scale and symbol labels disagree')
             require(next(e['bit_length'] for e in entries if e['symbol'] == first('0'*32)) == boot['zero_code_length'],
                     'reconstructed zero code length disagrees')
-        result = dict(schema_version=1, profile='hoa-blackbox-codebook-v1', order=3, quantization_bits=6,
+        result = dict(schema_version=1, profile='hoa-blackbox-codebook-v1', order=3, quantization_bits=self.precision,
                       mode=mode, book=cluster if cluster is not None else 0, entries=entries, decisions=decisions,
                       signed_coordinate_scale=scale, policy_sha256=digest(canonical(self.calibration)),
                       old_dictionary_consulted=False)
+        if reused:
+            result.update(prior_sha256=self.store.config['prior_sha256'], matrix_reused=True,
+                          matrix_condition_inf=boot['condition_inf'], matrix_inverse_residual_inf=boot['inverse_residual_inf'])
         self.store.save_stage(target, 'codebook', result)
         return result
 
@@ -197,7 +234,7 @@ class Engine(DirectRecovery):
         words = {e['symbol']: e['codeword'] for e in book['entries']}
         observations = {}
         indices = [(gain, row) for gain in GAINS for row in range(16)]
-        cases = [(f'{gain}:{row}', self.writer.coded(4, cluster, vector(0, row), words, gain)) for gain, row in indices]
+        cases = [(f'{gain}:{row}', self.writer.coded(4, cluster, self.vector(0, row), words, gain)) for gain, row in indices]
         with self.capture_batch(target, 'matrix', cases) as outputs:
             for (gain, row), (key, pcm) in zip(indices, outputs):
                 observations[f'{gain}:{row}'] = dict(evidence=key, values=[-v for v in self.estimate(pcm, gain)])
@@ -223,7 +260,8 @@ class Engine(DirectRecovery):
         if mode in (2, 3):
             return self.validate_direct(target, book)
         words = {e['symbol']: e['codeword'] for e in book['entries']}
-        boot = self.store.stage(target, 'bootstrap') if mode == 4 else None
+        reused = bool(matrix and matrix.get('reused'))
+        boot = (self.prior_matrix(cluster) if reused else self.store.stage(target, 'bootstrap')) if mode == 4 else None
         checks, hashes, cases = [], {}, []
         if matrix:
             entries = matrix['entries']
@@ -239,15 +277,16 @@ class Engine(DirectRecovery):
             obs = self.estimate(pcm, gain, line)
             item = dict(label=label, evidence=key, gain=gain, line=line)
             if matrix:
-                x = [(q-32)/32 for q in values[:16]]
+                x = [(q-self.zero)/self.zero for q in values[:16]]
                 expected = vmul(x, m)
                 errors = [abs(a-b) for a, b in zip(obs, expected)]
                 cal = self.reference(gain, line)[0]['max_coefficient_error']
                 limits = [sum(abs(x[j])*u[j][k] for j in range(16)) + max(8*cal[k], 5e-8)*max(1, sum(abs(v) for v in x)) for k in range(16)]
                 require(all(e <= limit for e, limit in zip(errors, limits)), 'matrix forward validation failed: '+label)
                 z = vmul(obs, boot['inverse'])
-                coordinate_error = max(abs(a-(q-32)/book['signed_coordinate_scale']) for a, q in zip(z, values[:16]))
-                require(coordinate_error <= REPEAT_EPS, 'normal-length codebook validation failed: '+label)
+                scale = self.zero if reused else book['signed_coordinate_scale']
+                coordinate_error = max(abs(a-(q-self.zero)/scale) for a, q in zip(z, values[:16]))
+                require(coordinate_error <= self.repeat_eps, 'normal-length codebook validation failed: '+label)
                 item.update(max_error=max(errors), max_error_to_bound_ratio=max(e/l for e, l in zip(errors, limits)),
                             coordinate_error=coordinate_error)
             else:
@@ -260,28 +299,28 @@ class Engine(DirectRecovery):
         if matrix:
             for gain in GAINS:
                 for row in range(16):
-                    for q in (16, 48):
-                        add(vector(q, row), gain, f'half:{gain}:{row}:{q}')
+                    for q in (self.negative_half, self.positive_half):
+                        add(self.vector(q, row), gain, f'half:{gain}:{row}:{q}')
         for gain in GAINS:
-            for q in range(64):
-                add(vector(q, 0 if matrix else None), gain, f'symbol:{gain}:{q}')
+            for q in range(self.levels):
+                add(self.vector(q, 0 if matrix else None), gain, f'symbol:{gain}:{q}')
         rng = random.Random(0x484f4134)
-        mixtures = [[rng.randrange(64) for _ in range(SYMBOLS)] for _ in range(8)]
+        mixtures = [[rng.randrange(self.levels) for _ in range(SYMBOLS)] for _ in range(8)]
         for i, values in enumerate(mixtures):
             for gain in GAINS:
                 add(values, gain, f'mixed:{gain}:{i}')
         for gain in GAINS:
-            for q in (0, 31, 32, 63):
-                add(vector(q, 0 if matrix else None), gain, f'padding:{gain}:{q}', padding=128,
+            for q in (0, self.zero-1, self.zero, self.levels-1):
+                add(self.vector(q, 0 if matrix else None), gain, f'padding:{gain}:{q}', padding=128,
                     equal_to=f'symbol:{gain}:{q}')
         if matrix:
             for row in range(16):
-                for q in (0, 48):
-                    add(vector(q, row), 128, f'line1:{row}:{q}', line=1)
+                for q in (0, self.positive_half):
+                    add(self.vector(q, row), 128, f'line1:{row}:{q}', line=1)
             for i, values in enumerate(mixtures[:4]):
                 add(values, 129, f'line1-mixed:{i}', line=1)
             for gain in GAINS:
-                add([32]*SYMBOLS, gain, f'zero:{gain}')
+                add([self.zero]*SYMBOLS, gain, f'zero:{gain}')
         with self.capture_batch(target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
             for case, (key, pcm) in zip(cases, outputs):
                 value = check(case, key, pcm)
@@ -289,10 +328,12 @@ class Engine(DirectRecovery):
                 if case['equal_to'] is not None:
                     require(value == hashes[case['equal_to']], 'padding or fresh converter changed PCM')
                     checks[-1]['padding_bit_identical'] = True
-        qualified = sum(e['float32_bits'] is not None for e in matrix['entries']) if matrix else None
+        qualified = sum(e['float32_bits'] is not None for e in matrix['entries']) if matrix and not reused else None
         result = dict(status='passed', codebook_sha256=digest(canonical(book)), checks=checks,
-                      matrix_sha256=digest(canonical(matrix)) if matrix else None,
+                      matrix_sha256=digest(canonical(matrix)) if matrix and not reused else None,
                       matrix_qualified=qualified, old_dictionary_consulted=False)
+        if reused:
+            result.update(prior_sha256=self.store.config['prior_sha256'], matrix_reused=True)
         self.store.save_stage(target, 'validation', result)
         return result
 
@@ -307,9 +348,9 @@ class Engine(DirectRecovery):
             self.store.job(target, 'running')
             try:
                 book = self.codebook(target)
-                matrix = self.matrix(target, book) if target.startswith('mode4:') else None
+                matrix = (self.reused_matrix(target_parts(target)[1]) if self.priors else self.matrix(target, book)) if target.startswith('mode4:') else None
                 validation = self.validate(target, book, matrix)
-                status = 'validated' if matrix is None or validation['matrix_qualified'] == 256 else 'partial'
+                status = 'validated' if matrix is None or matrix.get('reused') or validation['matrix_qualified'] == 256 else 'partial'
                 self.store.job(target, status)
                 self.runner.backend.check(force=True)
                 self.progress(dict(target=target, status=status, matrix_qualified=validation['matrix_qualified']))

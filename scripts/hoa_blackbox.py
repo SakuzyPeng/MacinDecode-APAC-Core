@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable HOA black-box batch measurements (order 3, q6, modes 1 through 4).
+"""Resumable HOA black-box batch measurements (order 3, q6/q7, modes 1 through 4).
 
 Only public native replay is used. This command never changes production data.
 Candidates and complete lossless evidence remain under the selected output.
@@ -32,6 +32,9 @@ def parser():
                            help='concurrent native captures (default 1; resume keeps its saved value)')
         if command in ('run', 'import-evidence', 'compare'):
             s.add_argument('--targets', nargs='+', choices=TARGETS)
+        if command in ('run', 'import-evidence'):
+            s.add_argument('--quantization-bits', type=int, choices=(6, 7),
+                           help='quantization width for a new batch (default 6)')
         if command == 'import-evidence':
             s.add_argument('--evidence', type=Path, nargs='+', required=True)
         if command == 'resume':
@@ -58,7 +61,16 @@ def limits(args):
 def initialize(args):
     from hoa_blackbox_lib.native import NativeBackend
     require(args.binary is not None, '--binary is required to create a batch')
-    backend = NativeBackend(args.binary)
+    precision = args.quantization_bits or 6
+    backend = NativeBackend(args.binary, quantization_bits=precision)
+    priors = None
+    if precision == 7:
+        process = subprocess.run([sys.executable, '-B', '-m', 'hoa_blackbox_lib.priors'],
+                                 cwd=ROOT/'scripts', capture_output=True, text=True, timeout=30)
+        require(process.returncode == 0, 'qualified prior export failed: '+process.stderr[-1600:], EvidenceError)
+        priors = json.loads(process.stdout)
+        require(priors['component_sha256'] == backend.identity['component_sha256']
+                and priors['architecture'] == backend.identity['architecture'], 'prior native component differs', IdentityError)
     selected = set(args.targets or TARGETS)
     # The two mode-2 books and their unknown partition are recovered jointly.
     if selected & {'mode2:0', 'mode2:1'}:
@@ -66,6 +78,8 @@ def initialize(args):
     targets = [t for t in TARGETS if t in selected]
     config = dict(schema_version=1, created_utc=now(), targets=targets, binary=str(backend.binary),
                   native_jobs=args.jobs or 1,
+                  quantization_bits=precision,
+                  prior_sha256=digest(canonical(priors)) if priors else None,
                   native_identity=backend.identity, tool_fingerprint=tool_fingerprint(), limits=limits(args),
                   code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip())
     store = Store.create(args.out, config)
@@ -73,6 +87,8 @@ def initialize(args):
     sources += sorted((ROOT / 'scripts/hoa_blackbox_lib').glob('*.py'))
     snapshot = {str(path.relative_to(ROOT)): store.blob(path.read_bytes()) for path in sources}
     store.set_meta('source_snapshot', snapshot)
+    if priors is not None:
+        store.save_stage('_shared', 'priors', priors)
     store.close()
 
 
@@ -107,7 +123,7 @@ def discover(args, targets):
         try:
             check_store(store)
             update_limits(store, args)
-            backend = NativeBackend(args.binary or store.config['binary'])
+            backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6))
             require(backend.identity == store.config['native_identity'], 'batch native environment differs', IdentityError)
             store.recover()
             store.set_meta('batch_status', 'running')
@@ -159,7 +175,9 @@ def main():
                 try:
                     check_store(store)
                     update_limits(store, args)
-                    backend = NativeBackend(args.binary or store.config['binary'])
+                    require(args.quantization_bits is None or args.quantization_bits == store.config.get('quantization_bits', 6),
+                            'cannot change an existing batch quantization width', IdentityError)
+                    backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6))
                     require(backend.identity == store.config['native_identity'], 'native identity differs', IdentityError)
                     counts = {}
                     for path in args.evidence:

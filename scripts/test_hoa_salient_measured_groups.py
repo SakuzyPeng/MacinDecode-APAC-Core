@@ -77,16 +77,17 @@ class MeasuredGroupTests(unittest.TestCase):
                     measured_group(value)
 
     def test_codebook_matrix_and_group_updates_commute(self):
-        current = format_for(3, 6)
-        original = copy.deepcopy(current)
-        original['source'] = original['source']['original_observation']
-        operations = [(load_books(), replace_book), (load_matrices(), replace_matrix), (load_measurements(), replace_group)]
-        for order in itertools.permutations(operations):
-            value = original
-            for measurements, replace in order:
-                for measurement in measurements:
-                    value = replace(value, measurement)
-            self.assertEqual(value, current)
+        for precision in (6, 7):
+            current = format_for(3, precision)
+            original = copy.deepcopy(current)
+            original['source'] = original['source']['original_observation']
+            operations = [(load_books(precision), replace_book), (load_matrices(), replace_matrix), (load_measurements(), replace_group)]
+            for order in itertools.permutations(operations):
+                value = original
+                for measurements, replace in order:
+                    for measurement in measurements:
+                        value = replace(value, measurement)
+                self.assertEqual(value, current)
 
 
 if __name__ == '__main__':

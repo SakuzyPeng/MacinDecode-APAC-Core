@@ -319,6 +319,7 @@ class Store:
     def summary(self):
         return dict(schema_version=1, batch_status=self.meta('batch_status'),
                     native_jobs=self.config.get('native_jobs', 1),
+                    quantization_bits=self.config.get('quantization_bits', 6),
                     targets=[dict(r) for r in self.db.execute('SELECT * FROM jobs ORDER BY target')],
                     native_calls=self.db.execute('SELECT COUNT(*) FROM attempts').fetchone()[0],
                     successful_queries=self.db.execute("SELECT COUNT(*) FROM queries WHERE state='passed'").fetchone()[0],

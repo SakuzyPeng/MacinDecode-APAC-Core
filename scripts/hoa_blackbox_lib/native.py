@@ -16,7 +16,7 @@ COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacO
 IDENTITY_FIELDS = ('binary_sha256', 'component_sha256', 'os_version', 'architecture')
 
 
-def validate_public(artifacts, frames=2048):
+def validate_public(artifacts, frames=2048, quantization_bits=6):
     try:
         replay = json.loads(artifacts['native/replay.json'])
         pcm = json.loads(artifacts['native/pcm.json'])
@@ -35,7 +35,7 @@ def validate_public(artifacts, frames=2048):
             and pcm['sample_rate'] == 48000 and pcm['encoding'] == 'f32le'
             and pcm['interleaved'] and pcm['all_finite'] and pcm['sha256'] == digest(raw)
             and pcm['start_frame'] == 0 and pcm['layout']['value']['tag'] == wire.SIGNATURE['layout_tag']
-            and pcm['source_cookie_sha256'] == digest(wire.cookie()),
+            and pcm['source_cookie_sha256'] == digest(wire.cookie(quantization_bits)),
             'native PCM contract differs', EvidenceError)
     require(policy['verified'] and policy['policy'] == 'drc-off'
             and policy['request_order'] == 'properties_then_magic_cookie_then_initial_reset'
@@ -49,8 +49,10 @@ def validate_public(artifacts, frames=2048):
 
 
 class NativeBackend:
-    def __init__(self, binary):
+    def __init__(self, binary, quantization_bits=6):
         require(sys.platform == 'darwin', 'native measurement requires macOS')
+        require(quantization_bits in (6, 7), 'unsupported quantization width')
+        self.quantization_bits = quantization_bits
         self.binary = Path(binary).resolve()
         self.identity = self.collect_identity()
         self.stamps = self.file_stamps()
@@ -80,7 +82,7 @@ class NativeBackend:
                     proc.kill()
 
     def capture(self, packets, folder):
-        wire.write_bundle(folder / 'input', packets)
+        wire.write_bundle(folder / 'input', packets, self.quantization_bits)
         command = [str(self.binary), 'replay', str(folder / 'input'), '--out', str(folder / 'native'),
                    '--frames', str(1024*len(packets)), '--input-batch-packets', '1', '--processing-policy', 'drc-off', '--max-output-mib', '1']
         (folder / 'command.json').write_bytes(canonical(command))
@@ -111,7 +113,7 @@ class NativeBackend:
         (folder / 'process.json').write_bytes(canonical(dict(returncode=code, seconds=time.monotonic() - start)))
         require(code == 0, 'native replay failed: ' + stderr.decode(errors='replace')[-1600:])
         artifacts = {str(p.relative_to(folder)): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
-        validate_public(artifacts, 1024*len(packets))
+        validate_public(artifacts, 1024*len(packets), self.quantization_bits)
         self.check()
         return artifacts
 
@@ -123,18 +125,20 @@ class Runner:
         self.jobs = jobs
         self.batch_active = False
         require(backend.identity == store.config['native_identity'], 'batch native identity differs', IdentityError)
-        self.writer = wire.Writer()
+        self.quantization_bits = store.config.get('quantization_bits', 6)
+        require(getattr(backend, 'quantization_bits', 6) == self.quantization_bits, 'native quantization width differs', IdentityError)
+        self.writer = wire.Writer(self.quantization_bits)
 
     def prepare(self, target, stage, label, payload, replicate=''):
         self.backend.check()
         packets = self.writer.frames(payload)
-        key, request = wire.request(self.backend.identity, packets, replicate)
+        key, request = wire.request(self.backend.identity, packets, replicate, self.quantization_bits)
         self.store.use(target, stage, label, key)
         return key, request, packets
 
     def accept(self, attempt, key, artifacts, frames):
         self.backend.check()
-        validate_public(artifacts, frames)
+        validate_public(artifacts, frames, self.quantization_bits)
         objects = {name: self.store.blob(raw) for name, raw in sorted(artifacts.items())}
         receipt = dict(key=key, artifacts=objects, pcm_sha256=objects['native/pcm.f32le'],
                        native_identity=self.backend.identity, returncode=0)
@@ -236,7 +240,7 @@ def import_batch(store, root):
             require(digest(canonical(request)) == row['key'], 'import query identity differs', EvidenceError)
             receipt = source.query(row['key'])
             validate_public({name: source.read_blob(value) for name, value in receipt['artifacts'].items()},
-                            request['signature']['frames'])
+                            request['signature']['frames'], request['signature'].get('quantization_bits', 6))
             if store.query(row['key']):
                 continue
             store.reserve(65536)

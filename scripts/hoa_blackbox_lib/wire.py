@@ -1,4 +1,4 @@
-"""Fixed order-3 q6 APAC inputs; reads only the public-source AAC tables."""
+"""Order-3 q6/q7 APAC inputs; reads only the public-source AAC tables."""
 import json
 from .common import ROOT, SYMBOLS, MAX_DEPTH, canonical, digest, require
 
@@ -18,12 +18,13 @@ def pack(wire):
     return int(wire, 2).to_bytes(len(wire) // 8, 'big')
 
 
-def cookie():
+def cookie(quantization_bits=6):
+    require(quantization_bits in (6, 7), 'unsupported quantization width')
     fields = [(0, 32), (int.from_bytes(b'dapa', 'big'), 32), (0, 32), (0x800, 16),
               (5, 6), (0, 4), (0, 1), (3, 6), (0, 6), (16, 8), (2, 8), (0, 1),
               (1, 3), (0, 8), (2, 3)]
     wire = ''.join(bits(v, w) for v, w in fields)
-    wire += '1100110' + bits(1, 2) + bits(0, 2) + bits(0, 2) + bits(3, 4) + bits(5, 4) + bits(0, 4)
+    wire += '1100110' + bits(1, 2) + bits(0, 2) + bits(quantization_bits-6, 2) + bits(3, 4) + bits(5, 4) + bits(0, 4)
     wire += (bits(3, 4) + bits(3, 2)) * 5 + '0' + bits(16, 5) + '000' * 16
     wire += '0' + bits(190, 16) + bits(16, 16) + '0' + '0' + bits(0, 3) + bits(0, 2) + '000000'
     raw = pack(wire)
@@ -31,7 +32,10 @@ def cookie():
 
 
 class Writer:
-    def __init__(self):
+    def __init__(self, quantization_bits=6):
+        require(quantization_bits in (6, 7), 'unsupported quantization width')
+        self.quantization_bits = quantization_bits
+        self.zero = 1 << (quantization_bits-1)
         self.aac = json.loads((ROOT / 'data/sq-codebooks.json').read_text())
         require(self.aac['long_offsets'][:2] == [0, 4], 'unexpected AAC first band')
 
@@ -55,7 +59,7 @@ class Writer:
 
     def fixed(self, values, gain=128, line=0, active=True):
         require(len(values) == SYMBOLS, 'wrong descriptor count')
-        return self.packet(0, ''.join(bits(q, 6) for q in values), gain, line, active)
+        return self.packet(0, ''.join(bits(q, self.quantization_bits) for q in values), gain, line, active)
 
     def padded(self, mode, cluster, pattern, gain=128, extra=0):
         require(len(pattern) <= 16 * (MAX_DEPTH + (mode == 3)) + 1, 'probe pattern too long')
@@ -95,23 +99,25 @@ class Writer:
         if isinstance(payload, (list, tuple)):
             require(2 <= len(payload) <= 4 and all(isinstance(p, bytes) for p in payload), 'invalid packet program')
             return list(payload)
-        return [payload, self.fixed([32] * SYMBOLS, active=False)]
+        return [payload, self.fixed([self.zero] * SYMBOLS, active=False)]
 
 
-def vector(q, row=None):
-    return [q] * 16 + [32] * (SYMBOLS - 16) if row is None else [q if i == row else 32 for i in range(SYMBOLS)]
+def vector(q, row=None, zero=32):
+    return [q] * 16 + [zero] * (SYMBOLS - 16) if row is None else [q if i == row else zero for i in range(SYMBOLS)]
 
 
-def request(identity, packets, replicate=''):
+def request(identity, packets, replicate='', quantization_bits=6):
     signature = dict(SIGNATURE, packets=len(packets), frames=len(packets)*1024)
-    value = dict(native_identity=identity, signature=signature, cookie_sha256=digest(cookie()),
+    if quantization_bits != 6:
+        signature['quantization_bits'] = quantization_bits
+    value = dict(native_identity=identity, signature=signature, cookie_sha256=digest(cookie(quantization_bits)),
                  packets=[dict(sha256=digest(p), bytes=len(p), frames=1024) for p in packets], replicate=replicate)
     return digest(canonical(value)), value
 
 
-def write_bundle(path, packets):
+def write_bundle(path, packets, quantization_bits=6):
     path.mkdir()
-    raw, cfg = b''.join(packets), cookie()
+    raw, cfg = b''.join(packets), cookie(quantization_bits)
     known = lambda v: dict(value=v, error=None)
     info = dict(schema_version=1, source='blackbox-synthetic.caf', file_bytes=len(raw), modified_unix_seconds=None,
         environment=dict(tool_version='hoa-blackbox-batch-v1', os='synthetic', architecture='portable', system_version='synthetic'),

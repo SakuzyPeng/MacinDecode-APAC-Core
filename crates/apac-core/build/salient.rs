@@ -98,6 +98,7 @@ fn measured_group(source: &DirectBook) -> Vec<usize> {
 /// original format file keeps a generated packed copy for existing tools.
 fn measured_codebook(
     file: &str,
+    precision: u8,
     mode: usize,
     book_index: usize,
     expected_sha256: &str,
@@ -107,9 +108,9 @@ fn measured_codebook(
     assert_eq!(data.profile, "apac-hoa-salient-measured-v1");
     assert_eq!(
         (data.order, data.quantization_bits, data.mode, data.book),
-        (3, 6, mode, book_index)
+        (3, precision, mode, book_index)
     );
-    assert_eq!(data.entries.len(), 64);
+    assert_eq!(data.entries.len(), 1usize << precision);
     let book: Vec<_> = data
         .entries
         .iter()
@@ -160,6 +161,57 @@ const MODE4_CODEBOOK_SHA256: [&str; 4] = [
     "6e04f7a58d699d3e08666b078afd3e77b8e181ce4a1fd30e01effa5732e58cea",
     "07959b3786362b47eb1380e587c7ab3fba4e0c094b0221652ac30ee798be9d32",
     "6ed393ceffa5d005b34939fe9c0673197c39bcd09ac0619b011ad9d1df8c0327",
+];
+
+const Q7_CODEBOOKS: [(usize, usize, &str, &str); 8] = [
+    (
+        1,
+        0,
+        "hoa-salient-order3-q7-mode1-measured-v1.json",
+        "a71142dc81e6729626b0f02747593a555139dc6f91d1636cb0abc4de3c4c20b0",
+    ),
+    (
+        2,
+        0,
+        "hoa-salient-order3-q7-mode2-book0-measured-v1.json",
+        "38e93984c09b6b68b27ffb8110efcc57ffb881c2af347aaaae99c99a22693c8d",
+    ),
+    (
+        2,
+        1,
+        "hoa-salient-order3-q7-mode2-book1-measured-v1.json",
+        "c76ea7f0a66503828ce9cb6b0d7bebfeefcf4941d1e66a9a4e965c238052c664",
+    ),
+    (
+        3,
+        0,
+        "hoa-salient-order3-q7-mode3-measured-v1.json",
+        "7895bb8683079eb2d0c91e2c3494a0b4e04ebfd96e9891c5935a8d83c4bb8a19",
+    ),
+    (
+        4,
+        0,
+        "hoa-salient-order3-q7-mode4-cluster0-measured-v1.json",
+        "994c707b790a40eb9332fb997b08fe5ae2745b8a386093dae622f1cda14c306a",
+    ),
+    (
+        4,
+        1,
+        "hoa-salient-order3-q7-mode4-cluster1-measured-v1.json",
+        "59d76118b47881eeb2cda1f0d13296ebd6bfe26b81b9b001973f936417050ab9",
+    ),
+    (
+        4,
+        2,
+        "hoa-salient-order3-q7-mode4-cluster2-measured-v1.json",
+        "c38a07cc2a7d097c8d3f694bce8e659360f8abf63a28b4eb8d3d46a4b0e02988",
+    ),
+    (
+        4,
+        3,
+        "hoa-salient-order3-q7-mode4-cluster3-measured-v1.json",
+        "410e970c4326fe62f1ad7aaf2eafd1a34d865b65e89d52e60835f605642c549d",
+    ),
 ];
 
 /// Order-3 dictionaries share each matrix across all four quantization widths.
@@ -350,10 +402,13 @@ fn refs(names: impl IntoIterator<Item = String>) -> String {
 pub fn dictionaries(out: &mut Output) {
     let measured_direct: Vec<_> = DIRECT_BOOKS
         .iter()
-        .map(|source| measured_codebook(source.file, source.mode, source.book, source.book_sha256))
+        .map(|source| {
+            measured_codebook(source.file, 6, source.mode, source.book, source.book_sha256)
+        })
         .collect();
     let measured_mode1 = measured_codebook(
         "hoa-salient-order3-q6-mode1-measured-v1.json",
+        6,
         1,
         0,
         "296d730714d97de653c45cc487fa4fa94aebce9a49559da78e81215591e600ee",
@@ -364,11 +419,16 @@ pub fn dictionaries(out: &mut Output) {
         .map(|(cluster, digest)| {
             measured_codebook(
                 &format!("hoa-salient-order3-q6-mode4-cluster{cluster}-measured-v1.json"),
+                6,
                 4,
                 cluster,
                 digest,
             )
         })
+        .collect();
+    let measured_q7: Vec<_> = Q7_CODEBOOKS
+        .iter()
+        .map(|&(mode, book, file, sha)| (mode, book, measured_codebook(file, 7, mode, book, sha)))
         .collect();
     let mut constants = Vec::new();
     for order in 1usize..=10 {
@@ -388,9 +448,10 @@ pub fn dictionaries(out: &mut Output) {
             );
             assert_eq!(stored.format_profile, profile);
             assert_eq!(stored.modes.len(), 6);
-            if order == 3 && precision == 6 {
-                assert_eq!(stored.modes[2].codebooks.len(), 2);
-                assert_eq!(stored.modes[3].codebooks.len(), 1);
+            if order == 3 && matches!(precision, 6 | 7) {
+                for (mode, count) in stored.modes.iter().zip([0, 1, 2, 1, 4, 0]) {
+                    assert_eq!(mode.codebooks.len(), count);
+                }
             }
             let mut modes = Vec::new();
             let mut tries = Vec::new();
@@ -435,6 +496,9 @@ pub fn dictionaries(out: &mut Output) {
                         (3, 6, 2, book) => Some(&measured_direct[book]),
                         (3, 6, 3, 0) => Some(&measured_direct[2]),
                         (3, 6, 4, cluster) => Some(&measured_mode4[cluster]),
+                        (3, 7, mode, book) => measured_q7
+                            .iter()
+                            .find_map(|(m, b, words)| (*m == mode && *b == book).then_some(words)),
                         _ => None,
                     };
                     let book = if let Some(measured) = measured {

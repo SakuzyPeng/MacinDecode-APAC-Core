@@ -108,3 +108,75 @@ def mode23_source(key):
         candidate_sha256=record['candidate'], layout_sha256=record['layout'],
         validation_sha256=record['validation'], comparison_sha256=record['comparison'],
         validation_scope='Huffman codewords, lengths and coefficient order')
+
+
+Q7_OUTPUTS = {
+    (1, 0): dict(
+        candidate='34726d9db8b252979fb0011a999d647b7e9c92ae5b9981fbe7a625071b995521',
+        book_values='a71142dc81e6729626b0f02747593a555139dc6f91d1636cb0abc4de3c4c20b0',
+        validation='3852d13fbd8914f51342b94e5f3f6f66b1ce59ad758994e6feffc66bfff6393a',
+        comparison='401279e55628b20b8878d3727ffff87fc74815c583b50827314ce9a2ec2effec',
+    ),
+    (2, 0): dict(
+        candidate='2d5912fbfc151a50090999b2864d546446d360e85fd25becc5b0984eb70db868',
+        book_values='38e93984c09b6b68b27ffb8110efcc57ffb881c2af347aaaae99c99a22693c8d',
+        validation='9eab4f747a240037b1c982e7655b70c5cb91842e2dd510149c94c60178d3e336',
+        comparison='0828b702540b41d6da4042335e87b54af3b1215bd15c6e872c88cf0989e05266',
+    ),
+    (2, 1): dict(
+        candidate='c80d6c18a3a6359f2dc10aa61cf9bf1cf9fd54fcb3d9f76d36e165248ff72964',
+        book_values='c76ea7f0a66503828ce9cb6b0d7bebfeefcf4941d1e66a9a4e965c238052c664',
+        validation='98e56475d9d35001f78b32e364de6115f7b0d2068e88f002fbaeae502793aa44',
+        comparison='3d8da38d75426ab158bd930f52cc030d69d74242997c77f588417d18f1a14621',
+    ),
+    (3, 0): dict(
+        candidate='78cf01cc9783cc463c9f9f687ce72b84c29453678e2502d8781ceab25858beb7',
+        book_values='7895bb8683079eb2d0c91e2c3494a0b4e04ebfd96e9891c5935a8d83c4bb8a19',
+        validation='9029d69a15f7da4206b047449ee31fc132ec72b8799321ba394c00d0a8de29e3',
+        comparison='2d44bd321487b5a9e3c394eb60506dd9a65984085dfc7061ae5edc08ebd9bb7d',
+    ),
+    (4, 0): dict(
+        candidate='8b223e19e9f2d7bd74518cc17cc9a564d431298e83b33215514ca50ef80141f2',
+        book_values='994c707b790a40eb9332fb997b08fe5ae2745b8a386093dae622f1cda14c306a',
+        validation='be13b71bd8cf4a412fb2af9eee3ed01498d980d58b14e88a1b941c959928c6ed',
+        comparison='fa68277f638a710c2636a41b07add6e33376236df4c44741cb83459cc1c5769b',
+    ),
+    (4, 1): dict(
+        candidate='87d02c7f44d95256b9667657fe1e98b6fa1090d40e91d8ee5fd22b298d18ee03',
+        book_values='59d76118b47881eeb2cda1f0d13296ebd6bfe26b81b9b001973f936417050ab9',
+        validation='8e0ebc0c1876edff99f70e69f0ea830545c7b35a7e5c538c08f68c49887038a9',
+        comparison='e1d8bffc1415120e85120b0038ffc6ce6418667d0610e0460c2f39b2e2748097',
+    ),
+    (4, 2): dict(
+        candidate='ab5498d88c5aee68ca8cf0f665d1b50c30c38b7bae87bec0f15a84727a969e09',
+        book_values='c38a07cc2a7d097c8d3f694bce8e659360f8abf63a28b4eb8d3d46a4b0e02988',
+        validation='dfb24374288adcee0ca68d5ca3af66a868cd91f6c221eb5a732897790c55ed04',
+        comparison='685fb95226d5b9212f451a12346b1ce4ba834e45d577226c41cc358147479343',
+    ),
+    (4, 3): dict(
+        candidate='fc3c5ed217c871f10d9d28f24f07ef86de10e39ee52380e49f250020707e1ea5',
+        book_values='410e970c4326fe62f1ad7aaf2eafd1a34d865b65e89d52e60835f605642c549d',
+        validation='29a052e887822ef215b5bdfa1fac9b64e3dd983fcbfc6c8a176ecd7c18c461ad',
+        comparison='ed4e693a8f722459c954fd95c7d8b63511afdb22e16a7b5c08a520842ff19188',
+    ),
+}
+
+
+def q7_source(key):
+    record = Q7_OUTPUTS[key]
+    source = dict(BATCH_SOURCE,
+        method='public AudioConverter PCM black-box reconstruction',
+        experiment='hoa-blackbox-order3-q7-v1',
+        code_commit='2fdc922f35c79caf977b4df1002883aa59322f05',
+        tool_fingerprint='d4912dfc8a5a097937455ad8b3e0cb54b8d6bac60348877aa615a218be06cc1f',
+        analysis_policy='hoa-blackbox-order3-q6-q7-qualified-priors-v4',
+        policy_sha256='c02cf23bae8da441b03ce28e8d7fff2693c34f1f2059dbd512930ae8e9498a77',
+        native_identity_sha256='6bde6f1da71efc79e86ace4ce408a557cbf4968a7a9d37bb6d5c8b2c6aef6369',
+        binary_sha256='493fd0a9768a88edfb3b4971b96c36914ed32e71f51fcddd5371837660604856',
+        candidate_sha256=record['candidate'], validation_sha256=record['validation'],
+        comparison_sha256=record['comparison'], validation_scope='Huffman codewords and lengths',
+        matrix_reused=key[0] == 4, group_reused=key[0] in (2, 3))
+    if key[0] != 1:
+        source.update(prior_quantization_bits=6,
+                      prior_sha256='206e529b31d5410ecec3fef16c49f83ff29d31ade233a2520aa5ba9195c16e69')
+    return source

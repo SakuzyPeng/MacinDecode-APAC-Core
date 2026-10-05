@@ -38,7 +38,7 @@ def replace_group(value, measurement):
     replacements = [entry for entry in source.get('group_replacements', [])
                     if (entry['measured_mode'], entry['measured_book']) != key]
     replacements.append(dict(measured_mode=key[0], measured_book=key[1],
-        shared_uses=[list(user) for user in GROUP_USERS[key]], source_file=MEASURED_FILES[key],
+        shared_uses=[list(user) for user in GROUP_USERS[key]], source_file=MEASURED_FILES[6, key[0], key[1]],
         source_sha256=hashlib.sha256(json_bytes(measurement)).hexdigest(),
         group_sha256=measurement['group_sha256'], method=measurement['source']['method']))
     source.update(method='mixed sources with per-table replacements',

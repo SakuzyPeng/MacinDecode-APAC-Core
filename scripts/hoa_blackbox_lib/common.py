@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGETS = ('mode1', 'mode2:0', 'mode2:1', 'mode3', 'mode4:0', 'mode4:1', 'mode4:2', 'mode4:3')
-POLICY_VERSION = 'hoa-blackbox-order3-q6-bounded-parallel-v3'
+POLICY_VERSION = 'hoa-blackbox-order3-q6-q7-qualified-priors-v4'
 GAINS = (128, 129)
 N = 16
 SYMBOLS = 320

@@ -44,8 +44,9 @@ def direction_residual(a, b):
     return norm([x - projection * y for x, y in zip(a, b)]) / norm(a)
 
 
-def validate_words(entries):
-    require(len(entries) == 64 and {e['symbol'] for e in entries} == set(range(64)), 'incomplete alphabet')
+def validate_words(entries, symbols=64):
+    require(symbols in (64, 128), 'unsupported alphabet size')
+    require(len(entries) == symbols and {e['symbol'] for e in entries} == set(range(symbols)), 'incomplete alphabet')
     words = [e['codeword'] for e in entries]
     require(all(w and set(w) <= {'0', '1'} for w in words), 'invalid codeword')
     require(all(e['bit_length'] == len(e['codeword']) <= MAX_DEPTH for e in entries), 'invalid code length')
@@ -53,19 +54,22 @@ def validate_words(entries):
     require(sum((Fraction(1, 1 << len(w)) for w in words), Fraction()) == 1, 'incomplete prefix tree')
 
 
-def infer_tree(query, coordinate=False):
+def infer_tree(query, coordinate=False, symbols=64):
+    require(symbols in (64, 128), 'unsupported alphabet size')
+    zero = symbols // 2
+    leaf_eps, repeat_eps = 1/(8*(symbols-1)), 1/(32*(symbols-1))
     leaves, decisions = [], []
     def visit(prefix):
         # Exactly 32 first-symbol bits: ancestor extrema share actual requests.
         a, aid = query(prefix + '0' * (MAX_DEPTH - len(prefix)))
         b, bid = query(prefix + '1' * (MAX_DEPTH - len(prefix)))
         decisions.append(dict(prefix=prefix, left=a, right=b, evidence=[aid, bid]))
-        if abs(a - b) <= LEAF_EPS if coordinate else a == b:
+        if abs(a - b) <= leaf_eps if coordinate else a == b:
             require(prefix, 'first symbol not observable')
             entry = dict(codeword=prefix, bit_length=len(prefix), evidence=[aid, bid])
             entry.update(coordinate=(a + b) / 2) if coordinate else entry.update(symbol=int(a))
             leaves.append(entry)
-            require(len(leaves) <= 64, 'too many leaves')
+            require(len(leaves) <= symbols, 'too many leaves')
         else:
             require(len(prefix) < MAX_DEPTH, 'search depth exhausted')
             visit(prefix + '0')
@@ -73,20 +77,20 @@ def infer_tree(query, coordinate=False):
     visit('')
     scale = None
     if coordinate:
-        require(len(leaves) == 64, 'incomplete observed alphabet')
+        require(len(leaves) == symbols, 'incomplete observed alphabet')
         ordered = sorted(leaves, key=lambda e: e['coordinate'])
         step = statistics.median(b['coordinate'] - a['coordinate'] for a, b in zip(ordered, ordered[1:]))
-        require(step > LEAF_EPS, 'symbol coordinates collide')
+        require(step > leaf_eps, 'symbol coordinates collide')
         magnitude = round(1 / step)
-        require(1 <= magnitude <= 63, 'invalid coordinate scale')
-        zero = min(range(64), key=lambda i: abs(ordered[i]['coordinate']))
-        require(zero in (31, 32) and abs(ordered[zero]['coordinate']) <= REPEAT_EPS, 'quantization sign ambiguous')
-        scale = magnitude if zero == 32 else -magnitude
+        require(1 <= magnitude < symbols, 'invalid coordinate scale')
+        zero_index = min(range(symbols), key=lambda i: abs(ordered[i]['coordinate']))
+        require(zero_index in (zero-1, zero) and abs(ordered[zero_index]['coordinate']) <= repeat_eps, 'quantization sign ambiguous')
+        scale = magnitude if zero_index == zero else -magnitude
         for i, entry in enumerate(ordered):
-            entry['symbol'] = i if zero == 32 else 63 - i
-            entry['grid_error'] = abs(entry['coordinate'] - (entry['symbol'] - 32) / scale)
-            require(entry['grid_error'] <= REPEAT_EPS, 'quantization grid inconsistent')
-    validate_words(leaves)
+            entry['symbol'] = i if zero_index == zero else symbols - 1 - i
+            entry['grid_error'] = abs(entry['coordinate'] - (entry['symbol'] - zero) / scale)
+            require(entry['grid_error'] <= repeat_eps, 'quantization grid inconsistent')
+    validate_words(leaves, symbols)
     return sorted(leaves, key=lambda e: e['symbol']), decisions, scale
 
 

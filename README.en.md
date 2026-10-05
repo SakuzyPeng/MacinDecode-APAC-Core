@@ -67,7 +67,7 @@ for packet in packets {
 
 Streams that use CAC (channel pairs with a shared header) need the `cac` feature: `apac-core = { ..., features = ["cac"] }`. `apac_core::CAC_ENABLED` tells whether the core, after Cargo's feature unification, includes the CAC inverse mixing; without it, full decoding and fast prefix scanning both reject nonzero CAC gains.
 
-For files, `apac_container::Reader` wraps CAF/MP4 reading, range cropping and bidirectional `seek`; see `crates/apac-container/examples/decode_file.rs`, and `crates/apac-no-std-example` for `no_std` use. Players use `apac_container::Playback`: it opens a file reading metadata only and seeks frame-exactly at a cost bounded by decoder checkpoints; see `crates/apac-container/examples/playback.rs` and [the playback section](guide/decoding.md#播放media-与-playback) (Chinese). API docs:
+For files, `apac_container::Reader` wraps CAF/MP4 reading, range cropping and bidirectional `seek`; see `crates/apac-container/examples/decode_file.rs`, and `crates/apac-no-std-example` for `no_std` use. Players use `apac_container::Playback`: it opens a file reading metadata only and seeks frame-exactly at a cost bounded by decoder checkpoints, which an `Indexer` can build on a background thread; see `crates/apac-container/examples/playback.rs` and [the playback section](guide/decoding.md#播放media-与-playback) (Chinese). API docs:
 
 ```bash
 cargo doc --no-deps -p apac-core -p apac-container --open

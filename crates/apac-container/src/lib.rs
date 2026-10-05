@@ -15,7 +15,8 @@
 //! For players, [`Media`] opens a CAF or MP4 file reading metadata only and
 //! reads packets through saveable [`PacketCursor`]s, without integrity
 //! verification; [`Playback`] decodes it with frame-exact seeks whose cost
-//! is bounded by decoder checkpoints ([`apac_core::Checkpoint`]).
+//! is bounded by decoder checkpoints ([`apac_core::Checkpoint`]), which an
+//! [`Indexer`] can build on another thread.
 #![warn(missing_docs)]
 use apac_core::{config::ParseError, error::DecodeError, model::ChannelLayout};
 use std::{
@@ -39,7 +40,7 @@ mod test_streams;
 pub use caf::{CafReader, CafSummary, Chunk};
 pub use media::{Media, PacketCursor};
 pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
-pub use playback::{Playback, PlaybackOptions, PlaybackStats};
+pub use playback::{IndexBatch, Indexer, Playback, PlaybackOptions, PlaybackStats};
 pub use range::Range;
 pub use reader::{Access, ReadError, Reader, Stats, Timings};
 pub use source::PacketSource;

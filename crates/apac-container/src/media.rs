@@ -152,6 +152,26 @@ impl<R: Source> Media<R> {
         cursor.0 = next;
         Ok(range)
     }
+    /// Whether `other` opened the same input: the same container layout,
+    /// stream description, cookie, packet table, length and revision.
+    pub(crate) fn same_input<S>(&self, other: &Media<S>) -> bool {
+        let (a, b) = (&self.track, &other.track);
+        let format = match (&self.format, &other.format) {
+            (Format::Caf { pakt, data }, Format::Caf { pakt: p, data: d }) => {
+                pakt == p && data == d
+            }
+            (Format::Mp4 { file_bytes }, Format::Mp4 { file_bytes: f }) => file_bytes == f,
+            _ => false,
+        };
+        format
+            && a.sample_rate.to_bits() == b.sample_rate.to_bits()
+            && a.channels == b.channels
+            && a.packet_count == b.packet_count
+            && a.table == b.table
+            && a.file_bytes == b.file_bytes
+            && a.revision == b.revision
+            && a.cookie == b.cookie
+    }
     /// The underlying source.
     pub fn into_inner(self) -> R {
         self.file

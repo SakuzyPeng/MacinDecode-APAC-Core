@@ -572,6 +572,233 @@ fn requests_outside_the_stream_are_rejected_and_playback_is_send() {
     assert_eq!(take(&mut playback, u64::MAX), input.reference);
 }
 
+/// Run `indexer` to the end in steps of `step` packets, merging each batch.
+fn index_in_steps<S: Source>(playback: &mut Playback<Shared>, indexer: &mut Indexer<S>, step: u64) {
+    let mut calls = 0;
+    loop {
+        let done = indexer.run(step).unwrap();
+        let batch = indexer.take_batch();
+        assert_eq!(playback.merge_index(batch).unwrap(), done);
+        if done {
+            break;
+        }
+        calls += 1;
+        assert!(calls < 1000);
+    }
+}
+
+/// Seeks after a complete index advance less than one interval and decode
+/// at most two packets, and return the reference PCM.
+fn assert_bounded_seeks<R: Source>(playback: &mut Playback<R>, input: &Input, name: &str) {
+    let frames = input.frames();
+    let mut pcm = vec![0f32; 1024 * input.channels];
+    for target in (0..frames).step_by(1237).chain([frames - 1, 77, 40000]) {
+        let before = playback.stats().clone();
+        playback.seek(target).unwrap();
+        let n = playback.read(&mut pcm).unwrap();
+        let after = playback.stats();
+        assert!(
+            after.advanced_packets - before.advanced_packets < playback.checkpoint_interval(),
+            "{name} seek {target}"
+        );
+        assert!(
+            after.decoded_packets - before.decoded_packets <= 2,
+            "{name} seek {target}"
+        );
+        assert_eq!(
+            bits(&pcm[..n * input.channels]),
+            input.slice(target, n as u64),
+            "{name} seek {target}"
+        );
+    }
+}
+
+#[test]
+fn an_indexer_builds_the_index_extend_index_builds() {
+    for options in [
+        PlaybackOptions {
+            checkpoint_interval: 4,
+            max_checkpoints: 1024,
+        },
+        PlaybackOptions {
+            checkpoint_interval: 1,
+            max_checkpoints: 4,
+        },
+    ] {
+        for input in inputs(40) {
+            let name = format!("{} {options:?}", input.name);
+            let mut expected = open(&input, options);
+            assert!(expected.extend_index(u64::MAX).unwrap());
+            // Playback keeps checkpoints of its own before and while the
+            // indexer's batches arrive.
+            let mut playback = open(&input, options);
+            assert_eq!(take(&mut playback, 9000), input.slice(0, 9000), "{name}");
+            let mut indexer = playback.indexer(Shared::new(&input.file)).unwrap();
+            assert!(!indexer.run(3).unwrap());
+            let batch = indexer.take_batch();
+            assert_eq!(batch.packets().end - batch.packets().start, 3, "{name}");
+            playback.merge_index(batch).unwrap();
+            let at = playback.position();
+            assert_eq!(take(&mut playback, 4000), input.slice(at, 4000), "{name}");
+            index_in_steps(&mut playback, &mut indexer, 5);
+            assert!(indexer.is_complete() && playback.index_complete(), "{name}");
+            assert!(indexer.take_batch().is_empty());
+            assert_eq!(
+                (playback.checkpoints(), playback.checkpoint_interval()),
+                (expected.checkpoints(), expected.checkpoint_interval()),
+                "{name}"
+            );
+            assert_eq!(
+                playback.indexed_frames(),
+                expected.indexed_frames(),
+                "{name}"
+            );
+            assert_eq!(playback.stats().indexed_packets, 0, "{name}");
+            assert_bounded_seeks(&mut playback, &input, &name);
+        }
+    }
+}
+
+#[test]
+fn an_indexer_on_another_thread_indexes_while_playing() {
+    fn send<T: Send>() {}
+    send::<Indexer<std::fs::File>>();
+    send::<IndexBatch>();
+    let options = PlaybackOptions {
+        checkpoint_interval: 2,
+        max_checkpoints: 8,
+    };
+    for input in inputs(60) {
+        let name = &input.name;
+        let source = || std::io::Cursor::new(input.file.clone());
+        let mut playback = Playback::open_with(Media::open(source()).unwrap(), options).unwrap();
+        let mut indexer = playback.indexer(source()).unwrap();
+        let (batches, received) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            loop {
+                let done = indexer.run(3).unwrap();
+                batches.send(indexer.take_batch()).unwrap();
+                if done {
+                    break;
+                }
+            }
+        });
+        let mut pcm = vec![0f32; 1024 * input.channels];
+        let mut got = vec![];
+        loop {
+            for batch in received.try_iter() {
+                playback.merge_index(batch).unwrap();
+            }
+            let n = playback.read(&mut pcm).unwrap();
+            if n == 0 {
+                break;
+            }
+            got.extend(bits(&pcm[..n * input.channels]));
+        }
+        assert_eq!(got, input.reference, "{name}");
+        worker.join().unwrap();
+        for batch in received.try_iter() {
+            playback.merge_index(batch).unwrap();
+        }
+        assert!(playback.index_complete(), "{name}");
+        assert!(playback.checkpoints() <= options.max_checkpoints, "{name}");
+        assert_bounded_seeks(&mut playback, &input, name);
+    }
+}
+
+#[test]
+fn foreign_out_of_order_and_mismatched_batches_are_rejected() {
+    let inputs = inputs(30);
+    let (input, other) = (&inputs[0], &inputs[2]);
+    let options = PlaybackOptions {
+        checkpoint_interval: 2,
+        max_checkpoints: 64,
+    };
+    let rejected = |error: ReadError<Error>, message: &str| {
+        assert!(
+            matches!(&error, ReadError::Invalid { operation: "SQ access", message: m } if m == message),
+            "{error:?}"
+        );
+    };
+    let mut playback = open(input, options);
+    let error = playback.indexer(Shared::new(&other.file)).err().unwrap();
+    rejected(error, "indexer input differs from the playback input");
+    // The same cookie with one more packet.
+    let stream = &streams()[0];
+    let longer = caf(&stream.cookie, &lengthened(stream, 31).unwrap()).unwrap();
+    let error = playback.indexer(Shared::new(&longer)).err().unwrap();
+    rejected(error, "indexer input differs from the playback input");
+    // A batch of another playback of the same input.
+    let twin = open(input, options);
+    let mut indexer = twin.indexer(Shared::new(&input.file)).unwrap();
+    indexer.run(10).unwrap();
+    let error = playback.merge_index(indexer.take_batch()).unwrap_err();
+    rejected(error, "index batch belongs to a different playback");
+    assert_eq!(playback.checkpoints(), 1);
+    // A batch after one that was dropped leaves a gap.
+    let mut indexer = playback.indexer(Shared::new(&input.file)).unwrap();
+    indexer.run(10).unwrap();
+    // Checkpoints before packets 2, 4, 6 and 8.
+    let dropped = indexer.take_batch();
+    assert_eq!((dropped.len(), dropped.packets()), (4, 0..10));
+    indexer.run(u64::MAX).unwrap();
+    let error = playback.merge_index(indexer.take_batch()).unwrap_err();
+    rejected(error, "index batch does not continue the index");
+    assert_eq!(
+        (playback.checkpoints(), playback.index_complete()),
+        (1, false)
+    );
+    // Merged in order, the same batches complete the index.
+    playback.merge_index(dropped).unwrap();
+    let mut indexer = playback.indexer(Shared::new(&input.file)).unwrap();
+    assert_eq!(indexer.take_batch().packets(), 8..8);
+    indexer.run(u64::MAX).unwrap();
+    assert!(playback.merge_index(indexer.take_batch()).unwrap());
+    assert_eq!(playback.indexed_frames(), input.frames());
+    assert_eq!(take(&mut playback, u64::MAX), input.reference);
+}
+
+#[test]
+fn an_indexer_stops_at_a_failing_packet_and_keeps_the_checkpoints_before_it() {
+    let stream = &streams()[0];
+    let mut packets = lengthened(stream, 12).unwrap();
+    let good = caf(&stream.cookie, &packets).unwrap();
+    let reference = reference(CafReader::new(Shared::new(&good)).unwrap());
+    packets[7] = vec![0xff];
+    let file = caf(&stream.cookie, &packets).unwrap();
+    let options = PlaybackOptions {
+        checkpoint_interval: 2,
+        max_checkpoints: 64,
+    };
+    let mut playback =
+        Playback::open_with(Media::open(Shared::new(&file)).unwrap(), options).unwrap();
+    let channels = playback.decoder().info().channel_count as usize;
+    let mut indexer = playback.indexer(Shared::new(&file)).unwrap();
+    for _ in 0..2 {
+        let error = indexer.run(u64::MAX).unwrap_err();
+        assert!(
+            matches!(
+                error,
+                ReadError::Decode {
+                    packet_index: Some(7),
+                    ..
+                }
+            ),
+            "{error:?}"
+        );
+        assert_eq!(indexer.scanned_packets(), 7);
+    }
+    let batch = indexer.take_batch();
+    assert_eq!((batch.len(), batch.packets()), (3, 0..7));
+    assert!(!playback.merge_index(batch).unwrap());
+    assert_eq!(playback.checkpoints(), 4);
+    playback.seek(5000).unwrap();
+    assert_eq!(
+        take(&mut playback, 1000),
+        reference[5000 * channels..6000 * channels]
+    );
+}
+
 /// Benchmark inputs for `examples/realtime.rs`: every fixture stream
 /// lengthened to `APAC_BENCH_PACKETS` packets (default 3000, about 64 s at
 /// 48 kHz), written as CAF and MP4 into the new directory `APAC_BENCH_DIR`.

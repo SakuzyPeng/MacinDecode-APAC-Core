@@ -1,7 +1,13 @@
 //! Seekable decoding for playback over a [`Media`] input: frame-exact seeks
-//! that replay a bounded number of packets from decoder checkpoints.
+//! that replay a bounded number of packets from decoder checkpoints, with
+//! an [`Indexer`] that builds the checkpoints on another thread.
 use crate::{Error, Media, PacketCursor, ReadError, Source};
 use apac_core::{Checkpoint, Decoder};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Identifies a [`Playback`] so that [`IndexBatch`]es of its indexers are
+/// not merged into another.
+static NEXT_PLAYBACK: AtomicU64 = AtomicU64::new(0);
 
 /// How a [`Playback`] keeps its seek index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,12 +107,18 @@ fn invalid(operation: &'static str, message: impl Into<String>) -> ReadError<Err
 /// checkpoint. [`Playback::seek`] only chooses where to start: the work
 /// happens in the next [`Playback::read`].
 ///
+/// To index while playing, scan on another thread with an [`Indexer`]
+/// ([`Playback::indexer`]) and merge its batches with
+/// [`Playback::merge_index`].
+///
 /// A packet that fails to decode stops reading where it is: the error names
 /// the packet, the position does not move and a retry fails the same way.
 /// No packet is skipped and no state is guessed, so positions after it
 /// cannot be reached; earlier positions stay seekable. A source error is
 /// reported the same way and may succeed when retried.
 pub struct Playback<R> {
+    /// Accepts only the batches of its own indexers.
+    id: u64,
     media: Media<R>,
     decoder: Decoder,
     /// The next packet for `decoder`.
@@ -176,6 +188,7 @@ impl<R: Source> Playback<R> {
             entries: vec![(cursor, decoder.checkpoint())],
         };
         Ok(Self {
+            id: NEXT_PLAYBACK.fetch_add(1, Ordering::Relaxed),
             media,
             decoder,
             cursor,
@@ -232,8 +245,9 @@ impl<R: Source> Playback<R> {
             .saturating_sub(self.priming)
             .min(self.frames())
     }
-    /// Whether [`Playback::extend_index`] reached the end of the packet
-    /// table, so that every seek replays at most one checkpoint interval.
+    /// Whether [`Playback::extend_index`] or a merged [`Indexer`] reached the
+    /// end of the packet table, so that every seek replays at most one
+    /// checkpoint interval.
     pub fn index_complete(&self) -> bool {
         self.complete
     }
@@ -410,6 +424,219 @@ impl<R: Source> Playback<R> {
             self.stats.indexed_packets += 1;
         }
         Ok(self.complete)
+    }
+    /// An [`Indexer`] that continues this playback's index from its last
+    /// checkpoint, reading packets from `source`: a second handle to the same
+    /// input (for example the file opened again), which the indexer opens as
+    /// a [`Media`]. Rejected when that input differs from this playback's in
+    /// container layout, stream description, cookie, packet table, length or
+    /// revision.
+    pub fn indexer<S: Source>(&self, source: S) -> Result<Indexer<S>, ReadError<Error>> {
+        let media = Media::open(source).map_err(ReadError::Source)?;
+        if !media.same_input(&self.media) {
+            return Err(invalid(
+                "SQ access",
+                "indexer input differs from the playback input",
+            ));
+        }
+        let (cursor, checkpoint) = self.index.last();
+        let mut decoder = self.decoder.clone();
+        decoder
+            .restore(checkpoint)
+            .map_err(|error| ReadError::Decode {
+                error,
+                packet_index: None,
+            })?;
+        Ok(Indexer {
+            playback: self.id,
+            media,
+            decoder,
+            cursor: *cursor,
+            origin: cursor.packet(),
+            interval: self.index.interval,
+            packet: Vec::new(),
+            batch: IndexBatch {
+                playback: self.id,
+                start: cursor.packet(),
+                end: cursor.packet(),
+                entries: Vec::new(),
+                complete: false,
+            },
+            complete: false,
+            scanned_packets: 0,
+        })
+    }
+    /// Add the checkpoints of a batch taken from one of this playback's
+    /// indexers. Batches must be merged in the order they were taken; the
+    /// index keeps the checkpoints it is due, with the same interval and
+    /// thinning as checkpoints kept by reading. Returns whether the index is
+    /// complete. A batch of another playback, or one that leaves a gap
+    /// because an earlier batch was not merged, is rejected and changes
+    /// nothing.
+    pub fn merge_index(&mut self, batch: IndexBatch) -> Result<bool, ReadError<Error>> {
+        if batch.playback != self.id {
+            return Err(invalid(
+                "SQ access",
+                "index batch belongs to a different playback",
+            ));
+        }
+        let due = self.index.entries.len() as u64 * self.index.interval;
+        if due < batch.start {
+            return Err(invalid(
+                "SQ access",
+                "index batch does not continue the index",
+            ));
+        }
+        for (cursor, checkpoint) in batch.entries {
+            if self.index.due(cursor.packet()) {
+                self.index.push(cursor, checkpoint);
+            }
+        }
+        if batch.complete {
+            self.complete = true;
+        }
+        Ok(self.complete)
+    }
+}
+
+/// Scans a [`Playback`]'s input ahead of it, on any thread, and collects
+/// checkpoints for [`Playback::merge_index`].
+///
+/// An indexer reads its own handle to the input and advances a clone of the
+/// playback's decoder without synthesis, from the playback's last checkpoint
+/// when it was made. It keeps the checkpoint before every packet at a
+/// multiple of the playback's checkpoint interval at that time. Take the
+/// checkpoints collected so far with [`Indexer::take_batch`] and hand them to
+/// the playback's thread; they accumulate until taken.
+///
+/// ```no_run
+/// # use apac_container::{Media, Playback};
+/// # use std::{fs::File, sync::mpsc};
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let path = "input.m4a";
+/// let mut playback = Playback::open(Media::open(File::open(path)?)?)?;
+/// let mut indexer = playback.indexer(File::open(path)?)?;
+/// let (batches, received) = mpsc::channel();
+/// std::thread::spawn(move || {
+///     loop {
+///         let result = indexer.run(256);
+///         if batches.send(indexer.take_batch()).is_err() || !matches!(result, Ok(false)) {
+///             break;
+///         }
+///     }
+/// });
+/// // On the decoding thread, between reads and seeks:
+/// for batch in received.try_iter() {
+///     playback.merge_index(batch)?;
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// A packet that fails stops the indexer there, as in
+/// [`Playback::extend_index`]: the error names the packet and the
+/// checkpoints before it can still be taken.
+pub struct Indexer<S> {
+    playback: u64,
+    media: Media<S>,
+    decoder: Decoder,
+    /// The next packet to scan.
+    cursor: PacketCursor,
+    /// The playback's last checkpoint when the indexer was made.
+    origin: u64,
+    interval: u64,
+    packet: Vec<u8>,
+    batch: IndexBatch,
+    complete: bool,
+    scanned_packets: u64,
+}
+impl<S: Source> Indexer<S> {
+    /// Scan up to `max_packets` packets, collecting checkpoints. Returns
+    /// whether the end of the packet table was reached, so that every packet
+    /// was scanned and the end of the table checked.
+    pub fn run(&mut self, max_packets: u64) -> Result<bool, ReadError<Error>> {
+        for _ in 0..max_packets {
+            if self.complete {
+                break;
+            }
+            let index = self.cursor.packet();
+            if index > self.origin && index.is_multiple_of(self.interval) {
+                self.batch
+                    .entries
+                    .push((self.cursor, self.decoder.checkpoint()));
+            }
+            let mut next = self.cursor;
+            if self
+                .media
+                .read_packet(&mut next, &mut self.packet)
+                .map_err(ReadError::Source)?
+                .is_none()
+            {
+                self.complete = true;
+                self.batch.complete = true;
+                break;
+            }
+            self.decoder
+                .advance(&self.packet)
+                .map_err(|error| ReadError::Decode {
+                    error,
+                    packet_index: Some(index),
+                })?;
+            self.cursor = next;
+            self.batch.end = next.packet();
+            self.scanned_packets += 1;
+        }
+        Ok(self.complete)
+    }
+    /// The checkpoints collected since the last batch was taken.
+    pub fn take_batch(&mut self) -> IndexBatch {
+        let next = IndexBatch {
+            playback: self.playback,
+            start: self.batch.end,
+            end: self.batch.end,
+            entries: Vec::new(),
+            complete: self.complete,
+        };
+        std::mem::replace(&mut self.batch, next)
+    }
+    /// Whether [`Indexer::run`] reached the end of the packet table.
+    pub fn is_complete(&self) -> bool {
+        self.complete
+    }
+    /// Packets scanned so far.
+    pub fn scanned_packets(&self) -> u64 {
+        self.scanned_packets
+    }
+}
+
+/// Checkpoints an [`Indexer`] collected over a run of packets, for
+/// [`Playback::merge_index`] on the playback's thread.
+pub struct IndexBatch {
+    playback: u64,
+    /// The first packet scanned for this batch.
+    start: u64,
+    /// The packet after the last one scanned.
+    end: u64,
+    entries: Vec<(PacketCursor, Checkpoint)>,
+    /// The indexer reached the end of the packet table.
+    complete: bool,
+}
+impl IndexBatch {
+    /// Checkpoints in the batch.
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+    /// Whether the batch holds no checkpoint.
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+    /// The packets scanned for this batch, as a range of packet indices.
+    pub fn packets(&self) -> std::ops::Range<u64> {
+        self.start..self.end
+    }
+    /// Whether the indexer had reached the end of the packet table.
+    pub fn is_complete(&self) -> bool {
+        self.complete
     }
 }
 

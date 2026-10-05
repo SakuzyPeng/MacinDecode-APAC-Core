@@ -21,7 +21,7 @@ target/debug/apac-tool --help
 | --- | --- |
 | `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；`no_std` + `alloc`，默认只依赖 sha2 与 libm |
 | `crates/apac-cac` | CAC 逆混合（`rotate`）和 `apac-cac-math-v1` 旋转表；`no_std`，无运行时依赖。`apac-core` 的 `cac` feature 接入它，`apac-tool` 默认开启，`apac-research` 转发同名 feature |
-| `crates/apac-container` | CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对。播放用的 `Media` 只读元数据、按游标读包、不核验完整性，`Playback` 在它之上用解码器检查点做按帧 seek |
+| `crates/apac-container` | CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对。播放用的 `Media` 只读元数据、按游标读包、不核验完整性，`Playback` 在它之上用解码器检查点做按帧 seek，`Indexer` 在另一线程上为它建索引 |
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、输入报告组装、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
 | `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |

@@ -166,31 +166,59 @@ while let n @ 1.. = playback.read(&mut pcm)? { /* pcm[..n × 声道数] 为交�
 - **输出**：`Playback::read` 输出有效音频（已裁掉 priming 和 remainder），交错 Float32，每次至多 1024 帧。从开头读或在任意 seek 之后读，结果都与同范围的 `decode-sq`、`Reader` 逐位相同。返回 0 前会检查剩余包表及数据边界，包括完全落在 remainder 中的包，拒绝多余表项和样本／时间计数不匹配；这一步只读表项，不读尾包音频、不推进解码器。检查失败可以重试，输出位置保持在结尾。直接 seek 到结尾也执行该检查，耗时取决于尚未检查的表项数量。DRC／响度只读不处理、帧内 trimming 只记录，这两点都与 `decode-sq` 相同。
 - **检查点**：`Decoder::checkpoint` 保存两包之间的解析状态，即 DRC 历史以及 HOA 和组件状态，不含 overlap 和配置。`Decoder::restore` 只接受该解码器及其克隆的检查点，恢复后等于一个新解码器 `advance` 到同一位置。`Playback` 每隔 `checkpoint_interval` 包保留一个检查点，默认 64 包（48 kHz 下约 1.4 s）。数量超过 `max_checkpoints`（默认 1024）时，隔一个删一个并把间隔加倍，所以内存有上限；每个检查点通常只有几 KB。
 - **定位**：`seek(frame)` 只选起点：当前解码器离目标更近就原地继续，否则恢复目标前一包之前的最后一个检查点。下一次 `read` 先推进到目标前一包，完整解码它以重建 overlap，再输出目标帧。读包和 `extend_index` 经过检查点位置时都会保存检查点。索引覆盖目标后，一次 seek 至多推进 `间隔 − 1` 包、完整解码 2 包；索引尚未覆盖的位置要从最后一个检查点向前推进，代价随距离增长。
-- **建索引**：`extend_index(max_packets)` 用解码器的克隆只推进状态，处理至多 `max_packets` 包后返回；走到表末时返回 true，此后 `index_complete()` 也为 true。`indexed_frames()` 给出索引目前覆盖到的位置。库内不开线程，有两种用法：在加载线程里调用 `extend_index(u64::MAX)`，再把 `Playback` 交给解码线程（`Playback<File>` 是 `Send`）；或者在解码线程空闲时分批调用。
+- **建索引**：`extend_index(max_packets)` 用解码器的克隆只推进状态，处理至多 `max_packets` 包后返回；走到表末时返回 true，此后 `index_complete()` 也为 true。`indexed_frames()` 给出索引目前覆盖到的位置（检查点被稀疏化后，最后一个检查点可能早于结尾）。它在调用线程里执行：可以在加载线程里调用 `extend_index(u64::MAX)` 再把 `Playback` 交给解码线程（`Playback<File>` 是 `Send`），或者在解码线程空闲时分批调用。
+- **后台建索引**：边播边建索引用 `Indexer`。`playback.indexer(source)` 以同一输入的第二个句柄（例如再打开一次文件）建一个索引器：它自己打开 `Media`，容器布局、流描述、cookie、包表、长度或修改时间与播放输入不一致时拒绝；然后从播放当前最后一个检查点出发，用解码器的克隆只推进状态，在检查点间隔的整数倍处保存检查点。`Indexer<File>` 和 `IndexBatch` 都是 `Send`，可以移到工作线程。`run(max_packets)` 扫描至多 `max_packets` 包，走到表末时返回 true；`take_batch()` 取出至今收集的检查点。由播放器把批次发回解码线程（例如用 `std::sync::mpsc`），在两次 `read`／`seek` 之间调用 `playback.merge_index(batch)`。合并按读包时相同的规则保留应有的检查点，同样稀疏化；收到表末批次后 `index_complete()` 为 true。批次必须按取出顺序全部合并：漏掉一个、导致索引出现缺口时，后续批次以 `index batch does not continue the index` 拒绝；其他播放实例的批次以 `index batch belongs to a different playback` 拒绝；被拒绝的批次不改变索引。索引器遇到失败的包时停在那里，错误带包序号，之前收集的检查点仍可取出合并。库内仍不开线程，线程和通道由播放器决定。
+
+```rust
+let mut indexer = playback.indexer(std::fs::File::open(path)?)?;
+let (batches, received) = std::sync::mpsc::channel();
+std::thread::spawn(move || loop {
+    let result = indexer.run(256);
+    if batches.send(indexer.take_batch()).is_err() || !matches!(result, Ok(false)) {
+        break;
+    }
+});
+// 解码线程，在两次 read 之间：
+for batch in received.try_iter() {
+    playback.merge_index(batch)?;
+}
+```
 - **错误**：解码失败时，播放停在失败的包上：错误带包序号，位置不变，重试会得到相同的错误。这里不跳包、不猜测状态，所以该包之后的位置无法到达，之前的位置仍可 seek。读源错误同样不移动位置，来源恢复后可以重试。
 
-`crates/apac-container/examples/playback.rs` 按播放器的方式解码：先打开，可选地建好完整索引，再 seek 并写出原始 Float32，同时打印各阶段耗时。输出与同范围的 `decode_file` 示例和 `decode-sq` 逐字节相同。
+`crates/apac-container/examples/playback.rs` 按播放器的方式解码：先打开，可选地建好完整索引（`--index`）或在第二个线程上用 `Indexer` 边解码边建（`--background`），再 seek 并写出原始 Float32，同时打印各阶段耗时。输出与同范围的 `decode_file` 示例和 `decode-sq` 逐字节相同。
 
 ```sh
 cargo run --release -p apac-container --example playback -- input.m4a output.f32 --index --start 480000 --frames 8192
+cargo run --release -p apac-container --example playback -- input.m4a output.f32 --background
 ```
 
-参考耗时来自约 64 秒的合成 7.1、HOA 和组合流测试文件（release 构建）：
-- 打开不到 1 ms；
-- 不建索引时，seek 到接近末尾约需 0.2–0.9 s；
-- 建完整索引约需 0.13–0.74 s；
-- 建好后，同样的 seek 加首次读取约 3–13 ms。
+### 播放性能
 
-合成码流不代表真实素材，实际代价请在真实文件上测量。
+以下数据来自 2026-10-04 在 Apple M4 Pro（macOS，Rust 1.98.0 release 构建，开启 CAC）上对 142 个真实 APAC 文件（CAF 4 个、MP4／M4A 138 个，共 11.41 小时）的完整播放测试，代码 `c324e88`。每个文件通过 `Media`／`Playback` 从头读到结尾，整曲 PCM 摘要与 `Reader` 顺序解码完全一致，另做了 3,518 次定位检查，全部一致。吞吐为音频时长除以 `Playback::read` 累计耗时（单线程，含读源和解码）：
 
-`crates/apac-container/examples/realtime.rs` 测量单线程解码相对实时的倍速：每个文件从头到尾解码 `--repeat` 遍（默认 3），报告中位倍速、完整建索引的倍速，以及单次 `Playback::read`（至多一包、1024 帧）耗时的 p50／p99／最大值与该采样率下 1024 帧时长（音频回调预算）之比。冻结状态夹具可以加长后写成 CAF／MP4 测试文件（默认每个 3000 包，约 64 s）：
+| 输出 | 文件数 | 加权吞吐（实时倍数） | 最慢文件（倍数） | 首播 p95（ms） | 索引后定位 p95（ms） |
+|---|---:|---:|---:|---:|---:|
+| 2 ch 立体声 | 1 | 207 | 207 | 1.3 | 3.7 |
+| 8 ch（7.1） | 13 | 83 | 80 | 2.3 | 10.1 |
+| 12 ch（7.1.4） | 21 | 59 | 55 | 2.2 | 13.6 |
+| 16 ch HOA | 2 | 40 | 40 | 2.2 | 20.9 |
+| 24 ch（22.2） | 105 | 33 | 23 | 2.9 | 24.3 |
+
+- 全库加权吞吐约 38 倍实时；从打开到首次返回 PCM 中位约 1.9 ms，p95 约 2.9 ms。测试进程的峰值 RSS 不超过约 25 MiB（含参考解码和测试缓冲）。
+- 建好索引后，定位加首次读取中位约 3.8 ms，p95 约 23 ms，最大约 57 ms。
+- 约 192 万次读块中有 60 次超过该采样率下 1024 帧的时长。因此不要在音频回调里直接解码：在工作线程解码，通过缓冲向回调供数。
+- 真实码流的状态扫描仍要完成熵解码、反量化和 TNS／BWE2 等数值运算，只省去合成，所以建索引只比完整解码快约 1.5–2.5 倍。4–11 分钟的曲目完整建索引约需 2–7 s，34.7 分钟的 24 ch 曲目约需 27.5 s；没有索引时首次定位到后段的耗时与之相当（后者约 32 s）。长曲目应在开始播放时就用 `Indexer` 在后台建索引，并在索引覆盖前提示定位较慢。
+
+这些数字绑定上述平台、版本和素材，不构成其他平台的运行验收。
+
+`crates/apac-container/examples/realtime.rs` 在任意 CAF／MP4 文件上测量同样的指标：每个文件从头到尾解码 `--repeat` 遍（默认 3），报告中位倍速、完整建索引的倍速，以及单次 `Playback::read`（至多一包、1024 帧）耗时的 p50／p99／最大值与 1024 帧时长之比。没有真实素材时，冻结状态夹具可以加长后写成 CAF／MP4 测试文件（默认每个 3000 包，约 64 s）作为可复现的基线：
 
 ```sh
 APAC_BENCH_DIR=bench-streams cargo test --release -p apac-container --lib write_benchmark_streams -- --ignored
 cargo run --release -p apac-container --example realtime -- bench-streams/*.caf bench-streams/*.m4a
 ```
 
-在一颗 2.8 GHz Xeon 云端 vCPU 上（release 构建），这些测试文件的中位倍速为：离散声道 1 ch 约 430×、立体声约 270×、5.1 约 145×、7.1 约 95–115×、7.1.4 约 75×、22.2 约 38×；HOA 4–16 ch 约 33–340×，最慢的是逐帧动态 16 ch 和 96 kHz 9 ch 流（约 33–40×）；组合流约 85–150×。单包 p99 均不超过 1.5 ms，约为预算的 7%（96 kHz 时约 6%）。最大值随运行波动（同一文件在 2–14 ms 之间），这是共享虚拟机的调度抖动，不是解码代价。夹具包只有数十到数百字节，远小于真实码率，熵解码代价因此偏低；IMDCT 合成按声道计，与内容无关。真实素材、目标设备上的倍速请用同一示例测量。
+夹具包只有数十到数百字节，大多不启用 TNS／BWE2，远小于真实码率，只适合比较同一机器上的版本差异，不能代表真实素材：在一颗 2.8 GHz Xeon 云端 vCPU 上，其解码倍速（22.2 约 38×、7.1.4 约 75×、7.1 约 95–115×）高于上表，建索引倍速（约 70–1100×）更比真实素材高出一个数量级。
 
 ## 离散声道状态验收
 

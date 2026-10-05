@@ -67,7 +67,7 @@ for packet in packets {
 
 解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。`apac_core::CAC_ENABLED` 表示当前 core 构建在 Cargo 合并依赖 feature 后是否包含 CAC 逆混合；关闭时完整解码和快速前缀扫描都拒绝非零 CAC 增益。
 
-从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`，完整示例见 `crates/apac-container/examples/decode_file.rs`；无 std 用法见 `crates/apac-no-std-example`。播放器使用 `apac_container::Playback`：打开时只读元数据，按帧精确 `seek`，代价由解码器检查点限定，示例见 `crates/apac-container/examples/playback.rs`，说明见[播放：`Media` 与 `Playback`](guide/decoding.md#播放media-与-playback)。API 文档：
+从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`，完整示例见 `crates/apac-container/examples/decode_file.rs`；无 std 用法见 `crates/apac-no-std-example`。播放器使用 `apac_container::Playback`：打开时只读元数据，按帧精确 `seek`，代价由解码器检查点限定，索引可由 `Indexer` 在后台线程建立，示例见 `crates/apac-container/examples/playback.rs`，说明见[播放：`Media` 与 `Playback`](guide/decoding.md#播放media-与-playback)。API 文档：
 
 ```bash
 cargo doc --no-deps -p apac-core -p apac-container --open

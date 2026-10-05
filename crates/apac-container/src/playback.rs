@@ -429,8 +429,9 @@ impl<R: Source> Playback<R> {
     /// checkpoint, reading packets from `source`: a second handle to the same
     /// input (for example the file opened again), which the indexer opens as
     /// a [`Media`]. Rejected when that input differs from this playback's in
-    /// container layout, stream description, cookie, packet table, length or
-    /// revision.
+    /// table layout, stream description, cookie, timeline, length or revision
+    /// known at opening. As with [`Media`], packet payloads and deferred table
+    /// entries are not compared: the caller must supply the same input.
     pub fn indexer<S: Source>(&self, source: S) -> Result<Indexer<S>, ReadError<Error>> {
         let media = Media::open(source).map_err(ReadError::Source)?;
         if !media.same_input(&self.media) {
@@ -452,7 +453,7 @@ impl<R: Source> Playback<R> {
             media,
             decoder,
             cursor: *cursor,
-            origin: cursor.packet(),
+            last_checkpoint: cursor.packet(),
             interval: self.index.interval,
             packet: Vec::new(),
             batch: IndexBatch {
@@ -542,8 +543,8 @@ pub struct Indexer<S> {
     decoder: Decoder,
     /// The next packet to scan.
     cursor: PacketCursor,
-    /// The playback's last checkpoint when the indexer was made.
-    origin: u64,
+    /// Last checkpoint saved, including those already handed off in a batch.
+    last_checkpoint: u64,
     interval: u64,
     packet: Vec<u8>,
     batch: IndexBatch,
@@ -560,10 +561,11 @@ impl<S: Source> Indexer<S> {
                 break;
             }
             let index = self.cursor.packet();
-            if index > self.origin && index.is_multiple_of(self.interval) {
+            if index > self.last_checkpoint && index.is_multiple_of(self.interval) {
                 self.batch
                     .entries
                     .push((self.cursor, self.decoder.checkpoint()));
+                self.last_checkpoint = index;
             }
             let mut next = self.cursor;
             if self

@@ -12,7 +12,7 @@ use std::io::{self, SeekFrom};
 pub struct PacketCursor(Position);
 /// Kept unboxed so cursors stay `Copy`: a few hundred bytes are copied per
 /// packet read.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(clippy::large_enum_variant)]
 enum Position {
     Caf(caf::Cursor),
@@ -152,8 +152,8 @@ impl<R: Source> Media<R> {
         cursor.0 = next;
         Ok(range)
     }
-    /// Whether `other` opened the same input: the same container layout,
-    /// stream description, cookie, packet table, length and revision.
+    /// Whether the metadata known at opening matches. This does not compare
+    /// packet payloads or the deferred packet-table entries.
     pub(crate) fn same_input<S>(&self, other: &Media<S>) -> bool {
         let (a, b) = (&self.track, &other.track);
         let format = match (&self.format, &other.format) {
@@ -164,6 +164,9 @@ impl<R: Source> Media<R> {
             _ => false,
         };
         format
+            // Initial cursors retain the table locations, sizes, counts,
+            // entry widths and optional tables needed by saved cursors.
+            && self.start.0 == other.start.0
             && a.sample_rate.to_bits() == b.sample_rate.to_bits()
             && a.channels == b.channels
             && a.packet_count == b.packet_count

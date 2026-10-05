@@ -21,7 +21,7 @@ pub(super) fn u64be(raw: &[u8]) -> u64 {
     u64::from_be_bytes(raw[..8].try_into().unwrap())
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct Atom {
     pub tag: [u8; 4],
     pub offset: u64,
@@ -253,7 +253,7 @@ pub(super) fn scan(file: &mut impl Source, mode: OpenMode) -> Result<Structure> 
 
 /// The supported physical chunk order lets this cursor find mdat ranges with
 /// constant memory, even in files containing many data boxes.
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) struct MediaCursor {
     top: u64,
     current: Option<Atom>,

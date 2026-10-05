@@ -167,7 +167,7 @@ while let n @ 1.. = playback.read(&mut pcm)? { /* pcm[..n × 声道数] 为交�
 - **检查点**：`Decoder::checkpoint` 保存两包之间的解析状态，即 DRC 历史以及 HOA 和组件状态，不含 overlap 和配置。`Decoder::restore` 只接受该解码器及其克隆的检查点，恢复后等于一个新解码器 `advance` 到同一位置。`Playback` 每隔 `checkpoint_interval` 包保留一个检查点，默认 64 包（48 kHz 下约 1.4 s）。数量超过 `max_checkpoints`（默认 1024）时，隔一个删一个并把间隔加倍，所以内存有上限；每个检查点通常只有几 KB。
 - **定位**：`seek(frame)` 只选起点：当前解码器离目标更近就原地继续，否则恢复目标前一包之前的最后一个检查点。下一次 `read` 先推进到目标前一包，完整解码它以重建 overlap，再输出目标帧。读包和 `extend_index` 经过检查点位置时都会保存检查点。索引覆盖目标后，一次 seek 至多推进 `间隔 − 1` 包、完整解码 2 包；索引尚未覆盖的位置要从最后一个检查点向前推进，代价随距离增长。
 - **建索引**：`extend_index(max_packets)` 用解码器的克隆只推进状态，处理至多 `max_packets` 包后返回；走到表末时返回 true，此后 `index_complete()` 也为 true。`indexed_frames()` 给出索引目前覆盖到的位置（检查点被稀疏化后，最后一个检查点可能早于结尾）。它在调用线程里执行：可以在加载线程里调用 `extend_index(u64::MAX)` 再把 `Playback` 交给解码线程（`Playback<File>` 是 `Send`），或者在解码线程空闲时分批调用。
-- **后台建索引**：边播边建索引用 `Indexer`。`playback.indexer(source)` 以同一输入的第二个句柄（例如再打开一次文件）建一个索引器：它自己打开 `Media`，容器布局、流描述、cookie、包表、长度或修改时间与播放输入不一致时拒绝；然后从播放当前最后一个检查点出发，用解码器的克隆只推进状态，在检查点间隔的整数倍处保存检查点。`Indexer<File>` 和 `IndexBatch` 都是 `Send`，可以移到工作线程。`run(max_packets)` 扫描至多 `max_packets` 包，走到表末时返回 true；`take_batch()` 取出至今收集的检查点。由播放器把批次发回解码线程（例如用 `std::sync::mpsc`），在两次 `read`／`seek` 之间调用 `playback.merge_index(batch)`。合并按读包时相同的规则保留应有的检查点，同样稀疏化；收到表末批次后 `index_complete()` 为 true。批次必须按取出顺序全部合并：漏掉一个、导致索引出现缺口时，后续批次以 `index batch does not continue the index` 拒绝；其他播放实例的批次以 `index batch belongs to a different playback` 拒绝；被拒绝的批次不改变索引。索引器遇到失败的包时停在那里，错误带包序号，之前收集的检查点仍可取出合并。库内仍不开线程，线程和通道由播放器决定。
+- **后台建索引**：边播边建索引用 `Indexer`。`playback.indexer(source)` 以同一输入的第二个句柄（例如再打开一次文件）建一个索引器：它自己打开 `Media`，打开时已知的包表布局（含 MP4 表的位置、大小、条目数、宽度及可选表）、流描述、cookie、时间线、长度或修改时间与播放输入不一致时拒绝。这个检查不读取音频和延迟读取的逐包表项，调用方仍须确保提供同一输入。然后从播放当前最后一个检查点出发，用解码器的克隆只推进状态，在检查点间隔的整数倍处保存检查点。`Indexer<File>` 和 `IndexBatch` 都是 `Send`，可以移到工作线程。`run(max_packets)` 扫描至多 `max_packets` 包，走到表末时返回 true；`take_batch()` 取出至今收集的检查点。由播放器把批次发回解码线程（例如用 `std::sync::mpsc`），在两次 `read`／`seek` 之间调用 `playback.merge_index(batch)`。合并按读包时相同的规则保留应有的检查点，同样稀疏化；收到表末批次后 `index_complete()` 为 true。批次必须按取出顺序全部合并：漏掉一个、导致索引出现缺口时，后续批次以 `index batch does not continue the index` 拒绝；其他播放实例的批次以 `index batch belongs to a different playback` 拒绝；被拒绝的批次不改变索引。索引器遇到失败的包时停在那里，错误带包序号，之前收集的检查点仍可取出合并；重试不会重复保存同一检查点，包括已经取出的检查点。库内仍不开线程，线程和通道由播放器决定。
 
 ```rust
 let mut indexer = playback.indexer(std::fs::File::open(path)?)?;
@@ -211,7 +211,7 @@ cargo run --release -p apac-container --example playback -- input.m4a output.f32
 
 这些数字绑定上述平台、版本和素材，不构成其他平台的运行验收。
 
-`crates/apac-container/examples/realtime.rs` 在任意 CAF／MP4 文件上测量同样的指标：每个文件从头到尾解码 `--repeat` 遍（默认 3），报告中位倍速、完整建索引的倍速，以及单次 `Playback::read`（至多一包、1024 帧）耗时的 p50／p99／最大值与 1024 帧时长之比。没有真实素材时，冻结状态夹具可以加长后写成 CAF／MP4 测试文件（默认每个 3000 包，约 64 s）作为可复现的基线：
+`crates/apac-container/examples/realtime.rs` 在任意 CAF／MP4 文件上测量同样的指标：每个文件从头到尾解码 `--repeat` 遍（默认 3），报告中位倍速、完整建索引的倍速，以及单次 `Playback::read`（至多一包、1024 帧）耗时的 p50／p99／最大值与 1024 帧时长之比。没有有效音频帧的文件以 `input has no valid audio frames` 报错，继续测量后续文件，最终退出码为 1。没有真实素材时，冻结状态夹具可以加长后写成 CAF／MP4 测试文件（默认每个 3000 包，约 64 s）作为可复现的基线：
 
 ```sh
 APAC_BENCH_DIR=bench-streams cargo test --release -p apac-container --lib write_benchmark_streams -- --ignored

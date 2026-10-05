@@ -3,7 +3,7 @@ use super::boxes::{Atom, MediaCursor, Structure, invalid, u32be, u64be};
 use crate::{OpenMode, Result, Source};
 use apac_core::MAX_PACKET_BUFFER;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Table {
     atom: Atom,
     count: u32,
@@ -26,7 +26,7 @@ impl Table {
 
 /// The optional composition table must describe exactly one zero offset
 /// for each sample. Playback checks runs as samples are reached.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Composition {
     table: Table,
     run: u32,
@@ -62,7 +62,7 @@ impl Composition {
 }
 
 /// A single lookahead entry suffices to validate the ordered sync samples.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct SyncSamples {
     table: Table,
     row: u32,
@@ -87,7 +87,7 @@ impl SyncSamples {
 
 /// A sample cursor: where the next sample's size, chunk and duration are
 /// read. It is small and `Copy`, so a position can be saved and restored.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Index {
     sizes: Atom,
     fixed_size: u32,

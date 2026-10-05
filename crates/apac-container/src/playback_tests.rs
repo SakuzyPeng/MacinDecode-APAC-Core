@@ -5,7 +5,10 @@ use super::*;
 use crate::{
     Access, CafReader, Mp4Reader, PacketSource, Reader,
     test_source::Shared,
-    test_streams::{Fenced, LAYOUTS, PRIMING, Stream, caf, grow_caf_chunk, mp4, streams},
+    test_streams::{
+        Fenced, LAYOUTS, PRIMING, Stream, caf, grow_caf_chunk, mp4, mp4_with_tables, sample_table,
+        streams,
+    },
 };
 use apac_core::StreamKind;
 
@@ -756,6 +759,133 @@ fn foreign_out_of_order_and_mismatched_batches_are_rejected() {
     assert!(playback.merge_index(indexer.take_batch()).unwrap());
     assert_eq!(playback.indexed_frames(), input.frames());
     assert_eq!(take(&mut playback, u64::MAX), input.reference);
+}
+
+#[test]
+fn an_indexer_rejects_reordered_mp4_tables() {
+    let stream = &streams()[0];
+    let count = stream.packets.len() as u32;
+    let optional = [
+        sample_table(b"ctts", &[&[count, 0]]),
+        sample_table(b"stss", &[&[1], &[count]]),
+    ];
+    for layout in LAYOUTS {
+        let file = mp4_with_tables(&stream.cookie, &stream.packets, layout, &optional).unwrap();
+        let reader = Mp4Reader::new(Shared::new(&file)).unwrap();
+        let boxes = reader.summary().boxes;
+        let expected = reference(reader);
+        let playback = Playback::open(Media::open(Shared::new(&file)).unwrap()).unwrap();
+        assert!(playback.indexer(Shared::new(&file)).is_ok());
+        for (left, right) in [
+            (b"stts", b"stsc"),
+            (b"stsc", b"stsz"),
+            (b"stsz", if layout.co64 { b"co64" } else { b"stco" }),
+            (b"ctts", b"stss"),
+        ] {
+            let (a, b) = (boxes[left], boxes[right]);
+            assert_eq!(a.end, b.offset);
+            let (start, middle, end) = (a.offset as usize, b.offset as usize, b.end as usize);
+            let mut reordered = file.clone();
+            reordered[start..end]
+                .copy_from_slice(&[&file[middle..end], &file[start..middle]].concat());
+            assert_eq!(
+                reference(Mp4Reader::new(Shared::new(&reordered)).unwrap()),
+                expected
+            );
+            let error = playback.indexer(Shared::new(&reordered)).err().unwrap();
+            assert!(
+                matches!(&error, ReadError::Invalid { operation: "SQ access", message }
+                    if message == "indexer input differs from the playback input"),
+                "{layout:?} {left:?}/{right:?}: {error:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn an_indexer_retries_without_repeating_checkpoints_and_can_resume() {
+    let stream = &streams()[0];
+    let packets = lengthened(stream, 12).unwrap();
+    let file = caf(&stream.cookie, &packets).unwrap();
+    let reader = CafReader::new(Shared::new(&file)).unwrap();
+    let offset = reader.summary().chunks[b"data"].offset
+        + 4
+        + packets[..8].iter().map(|p| p.len() as u64).sum::<u64>();
+    let expected = reference(reader);
+    for decode_error in [true, false] {
+        let mut playback = Playback::open_with(
+            Media::open(Shared::new(&file)).unwrap(),
+            PlaybackOptions {
+                checkpoint_interval: 2,
+                max_checkpoints: 64,
+            },
+        )
+        .unwrap();
+        let channels = playback.decoder().info().channel_count as usize;
+        let source = Shared::new(&file);
+        let mut indexer = playback.indexer(source.clone()).unwrap();
+        if decode_error {
+            source.change(offset, &[0xff]);
+        } else {
+            source.truncate(offset);
+        }
+        for _ in 0..3 {
+            let error = indexer.run(u64::MAX).unwrap_err();
+            if decode_error {
+                assert!(matches!(
+                    error,
+                    ReadError::Decode {
+                        packet_index: Some(8),
+                        ..
+                    }
+                ));
+            } else {
+                assert!(matches!(
+                    error,
+                    ReadError::Source(Error {
+                        packet_index: Some(8),
+                        ..
+                    })
+                ));
+            }
+            assert_eq!(indexer.scanned_packets(), 8);
+        }
+        let batch = indexer.take_batch();
+        assert_eq!(batch.packets(), 0..8);
+        assert_eq!(
+            batch
+                .entries
+                .iter()
+                .map(|(cursor, _)| cursor.packet())
+                .collect::<Vec<_>>(),
+            vec![2, 4, 6, 8]
+        );
+        playback.merge_index(batch).unwrap();
+        // Taking a batch must not make a failed packet's checkpoint due again.
+        assert!(indexer.run(1).is_err());
+        let batch = indexer.take_batch();
+        assert!(batch.is_empty());
+        assert_eq!(batch.packets(), 8..8);
+        playback.merge_index(batch).unwrap();
+        source.replace(file.clone());
+        assert!(indexer.run(u64::MAX).unwrap());
+        let batch = indexer.take_batch();
+        assert_eq!(
+            batch
+                .entries
+                .iter()
+                .map(|(cursor, _)| cursor.packet())
+                .collect::<Vec<_>>(),
+            vec![10, 12]
+        );
+        assert!(playback.merge_index(batch).unwrap());
+        assert_eq!(indexer.scanned_packets(), 12);
+        playback.seek(9000).unwrap();
+        assert_eq!(
+            take(&mut playback, 1000),
+            expected[9000 * channels..10000 * channels]
+        );
+    }
 }
 
 #[test]

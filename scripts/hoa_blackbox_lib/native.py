@@ -9,14 +9,16 @@ import time
 import threading
 
 from .common import (EvidenceError, ExperimentError, IdentityError, canonical, digest,
-                     file_digest, now, pcm_samples, require)
+                     file_digest, geometry, now, pcm_samples, require)
 from . import wire
 
 COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
 IDENTITY_FIELDS = ('binary_sha256', 'component_sha256', 'os_version', 'architecture')
 
 
-def validate_public(artifacts, frames=2048, quantization_bits=6):
+def validate_public(artifacts, frames=2048, quantization_bits=6, order=3):
+    g = geometry(order)
+    n = g["channels"]
     try:
         replay = json.loads(artifacts['native/replay.json'])
         pcm = json.loads(artifacts['native/pcm.json'])
@@ -24,18 +26,18 @@ def validate_public(artifacts, frames=2048, quantization_bits=6):
         raw = artifacts['native/pcm.f32le']
     except (KeyError, ValueError) as error:
         raise EvidenceError('incomplete native sidecars') from error
-    pcm_samples(raw)
-    require(frames in (2048, 3072, 4096) and len(raw) == frames*16*4,
+    pcm_samples(raw, n)
+    require(frames in (2048, 3072, 4096) and len(raw) == frames*n*4,
             'native PCM length differs from request', EvidenceError)
     require(replay['complete'] and replay['backend'] == 'AudioConverterFillComplexBuffer'
             and replay['saved_frames'] == frames and replay['consumed_packets'] == frames//1024
             and replay['input_batch_packets'] == 1 and replay['original_source_accessed'] is False
             and replay['processing_policy'] == 'drc-off', 'native replay contract differs', EvidenceError)
-    require(pcm['complete'] and pcm['frames'] == frames and pcm['channels'] == 16
+    require(pcm['complete'] and pcm['frames'] == frames and pcm['channels'] == n
             and pcm['sample_rate'] == 48000 and pcm['encoding'] == 'f32le'
             and pcm['interleaved'] and pcm['all_finite'] and pcm['sha256'] == digest(raw)
-            and pcm['start_frame'] == 0 and pcm['layout']['value']['tag'] == wire.SIGNATURE['layout_tag']
-            and pcm['source_cookie_sha256'] == digest(wire.cookie(quantization_bits)),
+            and pcm['start_frame'] == 0 and pcm['layout']['value']['tag'] == g['layout_tag']
+            and pcm['source_cookie_sha256'] == digest(wire.cookie(quantization_bits, order)),
             'native PCM contract differs', EvidenceError)
     require(policy['verified'] and policy['policy'] == 'drc-off'
             and policy['request_order'] == 'properties_then_magic_cookie_then_initial_reset'
@@ -49,7 +51,9 @@ def validate_public(artifacts, frames=2048, quantization_bits=6):
 
 
 class NativeBackend:
-    def __init__(self, binary, quantization_bits=6):
+    def __init__(self, binary, quantization_bits=6, order=3):
+        geometry(order)
+        self.order = order
         require(sys.platform == 'darwin', 'native measurement requires macOS')
         require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
         self.quantization_bits = quantization_bits
@@ -82,7 +86,7 @@ class NativeBackend:
                     proc.kill()
 
     def capture(self, packets, folder):
-        wire.write_bundle(folder / 'input', packets, self.quantization_bits)
+        wire.write_bundle(folder / 'input', packets, self.quantization_bits, self.order)
         command = [str(self.binary), 'replay', str(folder / 'input'), '--out', str(folder / 'native'),
                    '--frames', str(1024*len(packets)), '--input-batch-packets', '1', '--processing-policy', 'drc-off', '--max-output-mib', '1']
         (folder / 'command.json').write_bytes(canonical(command))
@@ -113,7 +117,7 @@ class NativeBackend:
         (folder / 'process.json').write_bytes(canonical(dict(returncode=code, seconds=time.monotonic() - start)))
         require(code == 0, 'native replay failed: ' + stderr.decode(errors='replace')[-1600:])
         artifacts = {str(p.relative_to(folder)): p.read_bytes() for p in folder.rglob('*') if p.is_file()}
-        validate_public(artifacts, 1024*len(packets), self.quantization_bits)
+        validate_public(artifacts, 1024*len(packets), self.quantization_bits, self.order)
         self.check()
         return artifacts
 
@@ -125,32 +129,35 @@ class Runner:
         self.jobs = jobs
         self.batch_active = False
         require(backend.identity == store.config['native_identity'], 'batch native identity differs', IdentityError)
+        self.order = store.config.get('order', 3)
+        self.n = geometry(self.order)['channels']
+        require(getattr(backend, 'order', 3) == self.order, 'native HOA order differs', IdentityError)
         self.quantization_bits = store.config.get('quantization_bits', 6)
         require(getattr(backend, 'quantization_bits', 6) == self.quantization_bits, 'native quantization width differs', IdentityError)
-        self.writer = wire.Writer(self.quantization_bits)
+        self.writer = wire.Writer(self.quantization_bits, self.order)
 
     def prepare(self, target, stage, label, payload, replicate=''):
         self.backend.check()
         packets = self.writer.frames(payload)
-        key, request = wire.request(self.backend.identity, packets, replicate, self.quantization_bits)
+        key, request = wire.request(self.backend.identity, packets, replicate, self.quantization_bits, self.order)
         self.store.use(target, stage, label, key)
         return key, request, packets
 
     def accept(self, attempt, key, artifacts, frames):
         self.backend.check()
-        validate_public(artifacts, frames, self.quantization_bits)
+        validate_public(artifacts, frames, self.quantization_bits, self.order)
         objects = {name: self.store.blob(raw) for name, raw in sorted(artifacts.items())}
         receipt = dict(key=key, artifacts=objects, pcm_sha256=objects['native/pcm.f32le'],
                        native_identity=self.backend.identity, returncode=0)
         self.store.finish(attempt, receipt)
-        return key, pcm_samples(artifacts['native/pcm.f32le'])
+        return key, self.samples(artifacts['native/pcm.f32le'])
 
     def probe(self, target, stage, label, payload, replicate=''):
         require(not self.batch_active, 'nested native capture during a batch')
         key, request, packets = self.prepare(target, stage, label, payload, replicate)
         cached = self.store.query(key)
         if cached:
-            return key, pcm_samples(self.store.read_blob(cached['pcm_sha256']))
+            return key, self.samples(self.store.read_blob(cached['pcm_sha256']))
         attempt, folder = self.store.begin(key, request)
         try:
             artifacts = self.backend.capture(packets, folder)
@@ -163,10 +170,13 @@ class Runner:
         from .scheduler import capture_batch
         return capture_batch(self, requests)
 
+    def samples(self, raw):
+        return pcm_samples(raw, self.n)
+
     def pcm(self, key):
         receipt = self.store.query(key)
         require(receipt is not None, 'referenced observation is incomplete', EvidenceError)
-        return pcm_samples(self.store.read_blob(receipt['pcm_sha256']))
+        return self.samples(self.store.read_blob(receipt['pcm_sha256']))
 
 
 def bounded_member(root, relative):
@@ -240,7 +250,8 @@ def import_batch(store, root):
             require(digest(canonical(request)) == row['key'], 'import query identity differs', EvidenceError)
             receipt = source.query(row['key'])
             validate_public({name: source.read_blob(value) for name, value in receipt['artifacts'].items()},
-                            request['signature']['frames'], request['signature'].get('quantization_bits', 6))
+                            request['signature']['frames'], request['signature'].get('quantization_bits', 6),
+                            request['signature'].get('order', 3))
             if store.query(row['key']):
                 continue
             store.reserve(65536)

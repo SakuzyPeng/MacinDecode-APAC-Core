@@ -12,65 +12,66 @@ from hoa_salient_format import DATA, format_for, format_name, shared_name
 from hoa_packed_tables import unpack_matrix
 
 
-def inputs():
-    return ({q: json.loads((DATA / format_name(3, q)).read_text()) for q in range(6, 10)},
-            json.loads((DATA / shared_name(3)).read_text()))
+def inputs(order=3):
+    return ({q: json.loads((DATA / format_name(order, q)).read_text()) for q in range(6, 10)},
+            json.loads((DATA / shared_name(order)).read_text()))
 
 
 class MeasuredMatrixTests(unittest.TestCase):
+    order = 3
     def test_all_four_widths_share_the_qualified_matrix(self):
-        stored, shared = inputs()
-        for measurement in load_measurements():
+        stored, shared = inputs(self.order)
+        for measurement in load_measurements(self.order):
             cluster = measurement['cluster']
             words = measured_matrix(measurement)
-            self.assertEqual(len(words), 256)
+            self.assertEqual(len(words), (self.order+1)**4)
             index = shared['modes'][4]['matrix_indices'][cluster]
-            self.assertEqual(unpack_matrix(shared['matrices_f32'][index], 256), words)
+            self.assertEqual(unpack_matrix(shared['matrices_f32'][index], (self.order+1)**4), words)
             for precision in range(6, 10):
-                value = format_for(3, precision)
+                value = format_for(self.order, precision)
                 self.assertEqual(value['modes'][4]['matrices_f32'][cluster], words)
                 self.assertEqual(replace_matrix(value, measurement), value)
-                self.assertIs(value['modes'][4]['matrices_f32'][cluster], format_for(3, 6)['modes'][4]['matrices_f32'][cluster])
-        rebuilt, common = regenerate(stored, shared, load_measurements())
+                self.assertIs(value['modes'][4]['matrices_f32'][cluster], format_for(self.order, 6)['modes'][4]['matrices_f32'][cluster])
+        rebuilt, common = regenerate(stored, shared, load_measurements(self.order))
         self.assertEqual(rebuilt, stored)
         self.assertEqual(common, shared)
 
     def test_target_copy_can_be_repaired_without_using_its_previous_bits(self):
-        stored, shared = inputs()
+        stored, shared = inputs(self.order)
         broken = copy.deepcopy(shared)
         index = broken['modes'][4]['matrix_indices'][0]
         broken['matrices_f32'][index] = 'not-a-matrix'
-        rebuilt, common = regenerate(stored, broken, load_measurement())
+        rebuilt, common = regenerate(stored, broken, load_measurement(order=self.order))
         self.assertEqual(rebuilt, stored)
         self.assertEqual(common, shared)
         other = broken['modes'][4]['matrix_indices'][1]
         broken['matrices_f32'][other] = 'not-a-matrix'
         with self.assertRaises(ValueError):
-            regenerate(stored, broken, load_measurement())
+            regenerate(stored, broken, load_measurement(order=self.order))
 
     def test_all_selected_matrices_can_be_repaired_together(self):
-        stored, shared = inputs()
+        stored, shared = inputs(self.order)
         broken = copy.deepcopy(shared)
         for index in broken['modes'][4]['matrix_indices']:
             broken['matrices_f32'][index] = 'not-a-matrix'
-        rebuilt, common = regenerate(stored, broken, load_measurements())
+        rebuilt, common = regenerate(stored, broken, load_measurements(self.order))
         self.assertEqual(rebuilt, stored)
         self.assertEqual(common, shared)
         broken['modes'][2]['signs'] = not broken['modes'][2]['signs']
         with self.assertRaisesRegex(ValueError, 'digest'):
-            regenerate(stored, broken, load_measurements())
+            regenerate(stored, broken, load_measurements(self.order))
 
     def test_scope_and_aliases_cannot_expand_the_replacement(self):
-        stored, shared = inputs()
+        stored, shared = inputs(self.order)
         alias = copy.deepcopy(shared)
         alias['modes'][4]['matrix_indices'][1] = alias['modes'][4]['matrix_indices'][0]
         with self.assertRaisesRegex(ValueError, 'aliased'):
-            regenerate(stored, alias, load_measurement())
+            regenerate(stored, alias, load_measurement(order=self.order))
         del stored[9]
         with self.assertRaisesRegex(ValueError, 'four'):
-            regenerate(stored, shared, load_measurement())
+            regenerate(stored, shared, load_measurement(order=self.order))
         with self.assertRaisesRegex(ValueError, 'scope'):
-            replace_matrix(format_for(2, 6), load_measurement())
+            replace_matrix(dict(format_for(self.order, 6), order=4), load_measurement(order=self.order))
 
     def test_candidate_must_be_the_qualified_frozen_file(self):
         for raw in (b'{}', b'{"status":"precision_unresolved","float32_bits":null}'):
@@ -79,8 +80,8 @@ class MeasuredMatrixTests(unittest.TestCase):
 
     def test_finite_but_changed_coefficients_are_rejected(self):
         for cluster in range(4):
-            value = load_measurement(cluster)
-            value['matrix_f32'][0], value['matrix_f32'][1] = value['matrix_f32'][1], value['matrix_f32'][0]
+            value = load_measurement(cluster, self.order)
+            value['matrix_f32'][0] ^= 0x80000000
             with self.subTest(cluster=cluster), self.assertRaisesRegex(ValueError, 'digest'):
                 measured_matrix(value)
 
@@ -89,30 +90,30 @@ class MeasuredMatrixTests(unittest.TestCase):
             (lambda m: m.update(cluster=4), 'scope'),
             (lambda m: m.update(rows=15), 'scope'),
             (lambda m: m.update(storage='column-major'), 'scope'),
-            (lambda m: m['matrix_f32'].pop(), '256'),
+            (lambda m: m['matrix_f32'].pop(), str((self.order+1)**4)),
             (lambda m: m['source'].update(architecture='x86_64'), 'source'),
             (lambda m: m['matrix_f32'].__setitem__(0, 0x7fc00000), 'nonfinite'),
             (lambda m: m['matrix_f32'].__setitem__(0, 0x7f800000), 'nonfinite'),
             (lambda m: m['matrix_f32'].__setitem__(0, -1), 'invalid'),
         ):
-            value = load_measurement()
+            value = load_measurement(order=self.order)
             change(value)
             with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
                 measured_matrix(value)
 
     def test_a_matrix_cannot_be_relabelled_as_another_cluster(self):
         for cluster in range(4):
-            value = load_measurement(cluster)
+            value = load_measurement(cluster, self.order)
             value['cluster'] = (cluster + 1) % 4
             with self.subTest(cluster=cluster), self.assertRaisesRegex(ValueError, 'source'):
                 measured_matrix(value)
 
     def test_matrix_and_codebook_sources_preserve_each_other(self):
-        current = format_for(3, 6)
+        current = format_for(self.order, 6)
         initial = copy.deepcopy(current)
         initial['source'] = initial['source']['original_observation']
-        matrices = load_measurements()
-        books = load_books()
+        matrices = load_measurements(self.order)
+        books = load_books(order=self.order)
         a = initial
         for matrix in reversed(matrices):
             a = replace_matrix(a, matrix)
@@ -123,11 +124,19 @@ class MeasuredMatrixTests(unittest.TestCase):
             b = replace_book(b, book)
         for matrix in matrices:
             b = replace_matrix(b, matrix)
-        for group in load_groups():
+        for group in load_groups(self.order):
             a = replace_group(a, group)
             b = replace_group(b, group)
         self.assertEqual(a, current)
         self.assertEqual(b, current)
+
+
+class Order1MeasuredMatrixTests(MeasuredMatrixTests):
+    order = 1
+
+
+class Order2MeasuredMatrixTests(MeasuredMatrixTests):
+    order = 2
 
 
 if __name__ == '__main__':

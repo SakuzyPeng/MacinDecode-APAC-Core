@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable HOA black-box batch measurements (order 3, q6–q9, modes 1 through 4).
+"""Resumable HOA black-box batches (orders 1–3, q6–q9, modes 1 through 4).
 
 Only public native replay is used. This command never changes production data.
 Candidates and complete lossless evidence remain under the selected output.
@@ -33,8 +33,12 @@ def parser():
         if command in ('run', 'import-evidence', 'compare'):
             s.add_argument('--targets', nargs='+', choices=TARGETS)
         if command in ('run', 'import-evidence'):
+            s.add_argument('--order', type=int, choices=(1, 2, 3),
+                           help='HOA order for a new batch (default 3)')
             s.add_argument('--quantization-bits', type=int, choices=(6, 7, 8, 9),
                            help='quantization width for a new batch (default 6)')
+            s.add_argument('--prior-evidence', type=Path, nargs='+',
+                           help='qualified six-bit geometry batches for this order; no codewords are exported')
         if command == 'import-evidence':
             s.add_argument('--evidence', type=Path, nargs='+', required=True)
         if command == 'resume':
@@ -62,23 +66,34 @@ def initialize(args):
     from hoa_blackbox_lib.native import NativeBackend
     require(args.binary is not None, '--binary is required to create a batch')
     precision = args.quantization_bits or 6
-    backend = NativeBackend(args.binary, quantization_bits=precision)
+    order = args.order or 3
+    backend = NativeBackend(args.binary, quantization_bits=precision, order=order)
+    selected = set(args.targets or TARGETS)
+    if selected & {'mode2:0', 'mode2:1'}:
+        selected.update(('mode2:0', 'mode2:1'))
+    targets = [t for t in TARGETS if t in selected]
     priors = None
-    if precision > 6:
-        process = subprocess.run([sys.executable, '-B', '-m', 'hoa_blackbox_lib.priors'],
+    require(precision > 6 or args.prior_evidence is None, 'six-bit recovery cannot use geometry priors')
+    if precision > 6 and (order == 3 or args.prior_evidence):
+        command = [sys.executable, '-B', '-m', 'hoa_blackbox_lib.priors', '--order', str(order)]
+        if args.prior_evidence:
+            command += ['--evidence', *[str(path.resolve()) for path in args.prior_evidence]]
+        process = subprocess.run(command,
                                  cwd=ROOT/'scripts', capture_output=True, text=True, timeout=30)
         require(process.returncode == 0, 'qualified prior export failed: '+process.stderr[-1600:], EvidenceError)
         priors = json.loads(process.stdout)
         require(priors['component_sha256'] == backend.identity['component_sha256']
-                and priors['architecture'] == backend.identity['architecture'], 'prior native component differs', IdentityError)
-    selected = set(args.targets or TARGETS)
-    # The two mode-2 books and their unknown partition are recovered jointly.
-    if selected & {'mode2:0', 'mode2:1'}:
-        selected.update(('mode2:0', 'mode2:1'))
-    targets = [t for t in TARGETS if t in selected]
+                and priors['architecture'] == backend.identity['architecture']
+                and priors.get('order', 3) == order, 'prior native component or order differs', IdentityError)
+    if precision > 6:
+        require(priors is not None or selected <= {'mode1'}, 'qualified six-bit geometry evidence is required')
+        for target in selected - {'mode1'}:
+            group = '3:0' if target == 'mode3' else target.removeprefix('mode')
+            require((target[-1] in priors['matrices'] if target.startswith('mode4:') else group in priors['groups']),
+                    'missing qualified geometry for '+target)
     config = dict(schema_version=1, created_utc=now(), targets=targets, binary=str(backend.binary),
                   native_jobs=args.jobs or 1,
-                  quantization_bits=precision,
+                  quantization_bits=precision, order=order,
                   prior_sha256=digest(canonical(priors)) if priors else None,
                   native_identity=backend.identity, tool_fingerprint=tool_fingerprint(), limits=limits(args),
                   code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip())
@@ -123,7 +138,7 @@ def discover(args, targets):
         try:
             check_store(store)
             update_limits(store, args)
-            backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6))
+            backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6), store.config.get('order', 3))
             require(backend.identity == store.config['native_identity'], 'batch native environment differs', IdentityError)
             store.recover()
             store.set_meta('batch_status', 'running')
@@ -157,6 +172,8 @@ def main():
     if args.command in ('run', 'resume', 'import-evidence'):
         install_discovery_guard()
     try:
+        require(not (args.command == 'import-evidence' and args.out.exists() and args.prior_evidence),
+                'cannot replace priors in an existing batch; create a new batch')
         if args.command == 'status':
             store = Store(args.out, readonly=True)
             try:
@@ -177,7 +194,9 @@ def main():
                     update_limits(store, args)
                     require(args.quantization_bits is None or args.quantization_bits == store.config.get('quantization_bits', 6),
                             'cannot change an existing batch quantization width', IdentityError)
-                    backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6))
+                    require(args.order is None or args.order == store.config.get('order', 3),
+                            'cannot change an existing batch HOA order', IdentityError)
+                    backend = NativeBackend(args.binary or store.config['binary'], store.config.get('quantization_bits', 6), store.config.get('order', 3))
                     require(backend.identity == store.config['native_identity'], 'native identity differs', IdentityError)
                     counts = {}
                     for path in args.evidence:
@@ -204,8 +223,9 @@ def main():
                     store.close()
         store = Store(args.out, readonly=True)
         targets = store.config['targets']
+        order = store.config.get('order', 3)
         store.close()
-        regression = [t for t in targets if t in ('mode1', 'mode4:0')]
+        regression = [t for t in targets if t == 'mode1' or order == 3 and t == 'mode4:0']
         remaining = [t for t in targets if t not in regression]
         if regression:
             discover(args, regression)

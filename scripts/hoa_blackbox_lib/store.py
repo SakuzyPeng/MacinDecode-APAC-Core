@@ -8,7 +8,7 @@ import shutil
 import sqlite3
 import uuid
 
-from .common import (BudgetStop, EvidenceError, ExperimentError, canonical, digest,
+from .common import (BudgetStop, EvidenceError, ExperimentError, canonical, digest, geometry,
                      now, pcm_samples, require, target_parts)
 
 
@@ -183,13 +183,19 @@ class Store:
     def query(self, key):
         row = self.db.execute('SELECT state,receipt,request FROM queries WHERE key=?', (key,)).fetchone()
         if row and row['state'] == 'passed':
-            require(digest(canonical(json.loads(row['request']))) == key, 'query request hash differs', EvidenceError)
+            request = json.loads(row['request'])
+            require(digest(canonical(request)) == key, 'query request hash differs', EvidenceError)
             receipt = json.loads(row['receipt'])
             require(receipt['key'] == key and receipt['native_identity'] == self.config['native_identity'],
                     'query receipt binding differs', EvidenceError)
             for identity in receipt['artifacts'].values():
                 self.read_blob(identity)
-            pcm_samples(self.read_blob(receipt['pcm_sha256']))
+            signature = request['signature']
+            channels = geometry(signature.get('order', 3))['channels']
+            raw = self.read_blob(receipt['pcm_sha256'])
+            require(signature['channels'] == channels and len(raw) == signature['frames']*channels*4,
+                    'cached PCM dimensions differ', EvidenceError)
+            pcm_samples(raw, channels)
             self.hits += 1
             return receipt
         return None
@@ -318,6 +324,7 @@ class Store:
 
     def summary(self):
         return dict(schema_version=1, batch_status=self.meta('batch_status'),
+                    order=self.config.get('order', 3),
                     native_jobs=self.config.get('native_jobs', 1),
                     quantization_bits=self.config.get('quantization_bits', 6),
                     targets=[dict(r) for r in self.db.execute('SELECT * FROM jobs ORDER BY target')],

@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
 
-from .common import BudgetStop, pcm_samples, require
+from .common import BudgetStop, require
 
 
 @contextmanager
@@ -39,7 +39,7 @@ def _parallel(runner, requests):
                     key, description, packets = runner.prepare(*request)
                     cached = store.query(key)
                     if cached:
-                        results[key] = key, pcm_samples(store.read_blob(cached['pcm_sha256']))
+                        results[key] = key, runner.samples(store.read_blob(cached['pcm_sha256']))
                     elif key not in pending:
                         try:
                             attempt, folder = store.begin(key, description)

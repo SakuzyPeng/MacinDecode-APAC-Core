@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate shared order-3 mode-4 matrices from qualified frozen candidates.
+"""Generate shared order-1/2/3 mode-4 matrices from qualified frozen candidates.
 
 Only pinned, validated weighted candidates are accepted by --candidate.
 The public source contains exact Float32 words and provenance, without PCM,
@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 
 from hoa_packed_tables import pack_matrix
-from hoa_measured_batch_sources import OUTPUTS, source as batch_source
+from hoa_measured_batch_sources import OUTPUTS, LOWER_MATRICES, source as batch_source, lower_source
 from hoa_salient_format import DATA, check_digest, expand_format, format_name, json_bytes, shared_name, split_format
 
 MEASURED_FILES = {c: f'hoa-salient-order3-mode4-cluster{c}-matrix-measured-v1.json' for c in range(4)}
@@ -46,6 +46,18 @@ for cluster, record in OUTPUTS.items():
     SOURCES[cluster] = batch_source(cluster, 'matrix')
 
 
+MEASURED_FILES = {(3, cluster): value for cluster, value in MEASURED_FILES.items()}
+CANDIDATE_SHA256 = {(3, cluster): value for cluster, value in CANDIDATE_SHA256.items()}
+MATRIX_SHA256 = {(3, cluster): value for cluster, value in MATRIX_SHA256.items()}
+SOURCES = {(3, cluster): value for cluster, value in SOURCES.items()}
+for key, record in LOWER_MATRICES.items():
+    order, cluster = key
+    MEASURED_FILES[key] = f'hoa-salient-order{order}-mode4-cluster{cluster}-matrix-measured-v1.json'
+    CANDIDATE_SHA256[key] = record['candidate']
+    MATRIX_SHA256[key] = record['matrix_values']
+    SOURCES[key] = lower_source(key, 'matrix')
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)
@@ -54,75 +66,82 @@ def require(condition, message):
 def measured_matrix(value):
     require(value.get('schema_version') == 1 and value.get('profile') == PROFILE,
             'incompatible measured matrix schema')
-    cluster = value.get('cluster')
-    require(type(cluster) is int and cluster in MEASURED_FILES
-            and tuple(value.get(k) for k in ('order', 'mode', 'rows', 'columns')) == (3, 4, 16, 16)
+    order, cluster = value.get('order'), value.get('cluster')
+    key = (order, cluster)
+    require(type(order) is int and type(cluster) is int and key in MEASURED_FILES, 'measured matrix scope differs')
+    n = (order+1)**2
+    require(type(cluster) is int and key in MEASURED_FILES
+            and tuple(value.get(k) for k in ('order', 'mode', 'rows', 'columns')) == (order, 4, n, n)
             and value.get('storage') == 'row-major', 'measured matrix scope differs')
-    require(value.get('source') == SOURCES[cluster], 'measured matrix source differs')
+    require(value.get('source') == SOURCES[key], 'measured matrix source differs')
     words = value.get('matrix_f32')
-    require(isinstance(words, list) and len(words) == 256, 'measured matrix needs 256 words')
+    require(isinstance(words, list) and len(words) == n*n, f'measured matrix needs {n*n} words')
     pack_matrix(words)  # Checks unsigned words, finiteness and exact micro21 storage.
     digest = hashlib.sha256(json.dumps(words, separators=(',', ':')).encode()).hexdigest()
-    require(digest == value.get('matrix_sha256') == MATRIX_SHA256[cluster], 'measured matrix digest differs')
+    require(digest == value.get('matrix_sha256') == MATRIX_SHA256[key], 'measured matrix digest differs')
     return words
 
 
 def from_candidate(raw):
     digest = hashlib.sha256(raw).hexdigest()
-    cluster = next((c for c, expected in CANDIDATE_SHA256.items() if digest == expected), None)
-    require(cluster is not None, 'unverified qualified matrix candidate')
+    key = next((key for key, expected in CANDIDATE_SHA256.items() if digest == expected), None)
+    require(key is not None, 'unverified qualified matrix candidate')
+    order, cluster = key
+    n = (order+1)**2
     candidate = json.loads(raw)
-    require((candidate['order'], candidate['mode'], candidate['cluster']) == (3, 4, cluster),
+    require((candidate['order'], candidate['mode'], candidate['cluster']) == (order, 4, cluster),
             'candidate scope differs')
     require(candidate['old_matrix_consulted'] is False, 'candidate used an old matrix')
-    if cluster == 0:
+    if key == (3, 0):
         require(candidate['quantization_bits'] == 6 and candidate['original_matrix_candidate_used'] is False,
                 'candidate reanalysis scope differs')
     else:
         require(candidate['profile'] == 'hoa-blackbox-matrix-v1'
-                and (candidate['rows'], candidate['columns']) == (16, 16)
-                and candidate['codebook_sha256'] == OUTPUTS[cluster]['codebook_candidate'],
+                and (candidate['rows'], candidate['columns']) == (n, n)
+                and candidate['codebook_sha256'] == (OUTPUTS[cluster] if order == 3 else LOWER_MATRICES[key])['codebook_candidate'],
                 'candidate codebook or dimensions differ')
-    source = SOURCES[cluster]
+    source = SOURCES[key]
     require(candidate['policy_sha256'] == source['policy_sha256'], 'candidate calibration policy differs')
-    require(len(candidate['entries']) == 256, 'candidate matrix dimensions differ')
+    require(len(candidate['entries']) == n*n, 'candidate matrix dimensions differ')
     words = []
     for index, entry in enumerate(candidate['entries']):
-        require((entry['row'], entry['column']) == divmod(index, 16), 'candidate row order differs')
+        require((entry['row'], entry['column']) == divmod(index, n), 'candidate row order differs')
         word = entry['float32_bits']
         require(word is not None and entry['candidate_bits'] == [word]
                 and 5e-8 <= entry['empirical_half_width'] < source['empirical_half_width_limit'],
                 'candidate coefficient remains unqualified')
         words.append(word)
-    result = dict(schema_version=1, profile=PROFILE, order=3, mode=4, cluster=cluster, rows=16, columns=16,
-                  storage='row-major', source=copy.deepcopy(source), matrix_sha256=MATRIX_SHA256[cluster], matrix_f32=words)
+    result = dict(schema_version=1, profile=PROFILE, order=order, mode=4, cluster=cluster, rows=n, columns=n,
+                  storage='row-major', source=copy.deepcopy(source), matrix_sha256=MATRIX_SHA256[key], matrix_f32=words)
     measured_matrix(result)
     return result
 
 
-def load_measurement(cluster=0):
-    value = json.loads((DATA / MEASURED_FILES[cluster]).read_text())
+def load_measurement(cluster=0, order=3):
+    key = (order, cluster)
+    value = json.loads((DATA / MEASURED_FILES[key]).read_text())
     measured_matrix(value)
-    require(value['cluster'] == cluster, 'measurement file scope differs')
+    require((value['order'], value['cluster']) == (order, cluster), 'measurement file scope differs')
     return value
 
 
-def load_measurements():
-    return [load_measurement(cluster) for cluster in MEASURED_FILES]
+def load_measurements(order=3):
+    return [load_measurement(cluster, selected_order) for selected_order, cluster in MEASURED_FILES if selected_order == order]
 
 
 def replace_matrix(value, measurement):
-    require(value['order'] == 3 and value['quantization_bits'] in range(6, 10), 'matrix replacement scope differs')
+    require(value['order'] == measurement['order'] and value['quantization_bits'] in range(6, 10), 'matrix replacement scope differs')
     result = copy.deepcopy(value)
     cluster = measurement['cluster']
+    key = (measurement['order'], cluster)
     result['modes'][4]['matrices_f32'][cluster] = measured_matrix(measurement)
     source = result['source']
     if 'original_observation' not in source:
         source = dict(method='', original_observation=source, remaining_tables='original_observation')
     replacements = [item for item in source.get('matrix_replacements', [])
                     if (item['mode'], item['cluster']) != (4, cluster)]
-    replacements.append(dict(mode=4, cluster=cluster, source_file=MEASURED_FILES[cluster],
-                             source_sha256=hashlib.sha256(json_bytes(measurement)).hexdigest(), method=SOURCES[cluster]['method']))
+    replacements.append(dict(mode=4, cluster=cluster, source_file=MEASURED_FILES[key],
+                             source_sha256=hashlib.sha256(json_bytes(measurement)).hexdigest(), method=SOURCES[key]['method']))
     source.update(method='mixed sources with per-table replacements',
                   matrix_replacements=sorted(replacements, key=lambda item: (item['mode'], item['cluster'])))
     result['source'] = source
@@ -132,11 +151,13 @@ def replace_matrix(value, measurement):
 
 def regenerate(stored_variants, shared, measurements):
     require(set(stored_variants) == set(range(6, 10)), 'all four shared-matrix variants are required')
-    require(shared['schema_version'] == 2 and shared['order'] == 3, 'shared matrix scope differs')
+    order = shared['order']
+    require(shared['schema_version'] == 2 and order in (1,2,3), 'shared matrix scope differs')
     shared = copy.deepcopy(shared)
     if isinstance(measurements, dict):
         measurements = [measurements]
     for measurement in measurements:
+        require(measurement['order'] == order, 'matrix replacement order differs')
         cluster = measurement['cluster']
         words = measured_matrix(measurement)
         target = shared['modes'][4]['matrix_indices'][cluster]
@@ -149,7 +170,7 @@ def regenerate(stored_variants, shared, measurements):
         shared['matrices_f32'][target] = pack_matrix(words)
     outputs = {}; common = None
     for precision, stored in sorted(stored_variants.items()):
-        require((stored['order'], stored['quantization_bits']) == (3, precision), 'dictionary scope differs')
+        require((stored['order'], stored['quantization_bits']) == (order, precision), 'dictionary scope differs')
         expanded = expand_format(stored, shared)
         for measurement in measurements:
             expanded = replace_matrix(expanded, measurement)
@@ -163,8 +184,9 @@ def regenerate(stored_variants, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--order', type=int, choices=(1,2,3), help='restrict to one order; default all registered orders')
     parser.add_argument('--candidate', type=Path, action='append', default=[],
-                        help='qualified frozen matrix candidate; repeat for distinct clusters')
+                        help='qualified frozen matrix candidate; repeat for distinct orders/clusters')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')
     action.add_argument('--write', action='store_true')
@@ -172,22 +194,28 @@ def main():
     supplied = {}
     for path in args.candidate:
         measurement = from_candidate(path.read_bytes())
-        cluster = measurement['cluster']
-        require(cluster not in supplied, 'duplicate candidate cluster')
-        supplied[cluster] = measurement
-    measurements = [supplied[c] if c in supplied else load_measurement(c) for c in MEASURED_FILES]
-    stored = {q: json.loads((DATA / format_name(3, q)).read_text()) for q in range(6, 10)}
-    shared_path = DATA / shared_name(3)
-    packed, shared = regenerate(stored, json.loads(shared_path.read_text()), measurements)
-    outputs = {DATA / MEASURED_FILES[m['cluster']]: json_bytes(m) for m in measurements}
-    outputs[shared_path] = json_bytes(shared)
-    outputs.update({DATA / format_name(3, q): json_bytes(value) for q, value in packed.items()})
+        key = (measurement['order'], measurement['cluster'])
+        require(args.order is None or key[0] == args.order, 'candidate order was not selected')
+        require(key not in supplied, 'duplicate candidate matrix')
+        supplied[key] = measurement
+    keys = [key for key in MEASURED_FILES if args.order is None or key[0] == args.order]
+    require(keys, 'no registered matrices for requested order')
+    measurements = [supplied[key] if key in supplied else load_measurement(key[1], key[0]) for key in keys]
+    outputs = {DATA / MEASURED_FILES[m['order'], m['cluster']]: json_bytes(m) for m in measurements}
+    for order in sorted({key[0] for key in keys}):
+        stored = {q: json.loads((DATA / format_name(order, q)).read_text()) for q in range(6, 10)}
+        shared_path = DATA / shared_name(order)
+        selected = [m for m in measurements if m['order'] == order]
+        packed, shared = regenerate(stored, json.loads(shared_path.read_text()), selected)
+        outputs[shared_path] = json_bytes(shared)
+        outputs.update({DATA / format_name(order, q): json_bytes(value) for q, value in packed.items()})
     for path, raw in outputs.items():
         if args.check:
             require(path.read_bytes() == raw, 'generated matrix or provenance differs: ' + path.name)
         else:
             path.write_bytes(raw)
-    print(json.dumps(dict(matrix_sha256=MATRIX_SHA256, coefficients=256*len(measurements), shared_quantization_bits=list(packed))))
+    print(json.dumps(dict(matrix_sha256={f'{o}:{c}': MATRIX_SHA256[o,c] for o,c in keys},
+                          coefficients=sum((o+1)**4 for o,c in keys), shared_quantization_bits=list(range(6,10)))))
 
 
 if __name__ == '__main__':

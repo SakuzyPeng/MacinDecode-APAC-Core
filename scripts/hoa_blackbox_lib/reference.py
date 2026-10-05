@@ -1,14 +1,17 @@
 """Final reference comparison. Imported only by the separate compare command."""
 import json
-from .common import ROOT, EvidenceError, canonical, digest, file_digest, require, target_parts
+from .common import ROOT, EvidenceError, canonical, digest, file_digest, geometry, require, target_parts
 from .maths import validate_words
 
 
 def compare(store, targets):
     from hoa_packed_tables import unpack_codebook, unpack_matrix
     precision = store.config.get('quantization_bits', 6)
-    dictionary_path = ROOT / 'data' / ('hoa-salient-format-v1.json' if precision == 6 else f'hoa-salient-order3-q{precision}-format-v1.json')
-    shared_path = ROOT / 'data/hoa-salient-order3-shared-v1.json'
+    order = store.config.get('order', 3)
+    n = geometry(order)['channels']
+    suffix = '' if (order, precision) == (3, 6) else f'-order{order}' + (f'-q{precision}' if precision != 6 else '')
+    dictionary_path = ROOT / 'data' / f'hoa-salient{suffix}-format-v1.json'
+    shared_path = ROOT / 'data' / f'hoa-salient-order{order}-shared-v1.json'
     for target in targets:
         book = store.stage(target, 'codebook')
         validation = store.stage(target, 'validation')
@@ -17,6 +20,7 @@ def compare(store, targets):
         require(validation['status'] == 'passed' and validation['codebook_sha256'] == digest(canonical(book)),
                 'candidate is not frozen and validated', EvidenceError)
         require(book.get('quantization_bits', 6) == precision, 'candidate quantization width differs', EvidenceError)
+        require(book.get('order', 3) == order, 'candidate HOA order differs', EvidenceError)
         validate_words(book['entries'], 1 << precision)
         mode, cluster = target_parts(target)
         matrix = store.stage(target, 'matrix') if mode == 4 else None
@@ -27,6 +31,10 @@ def compare(store, targets):
             require(layout is not None and validation['layout_sha256'] == book['layout_sha256'] == digest(canonical(layout))
                     and book['coefficient_group'] == layout['groups'][cluster or 0],
                     'coefficient partition is not frozen and validated', EvidenceError)
+        if 'joint_codebooks_sha256' in validation:
+            require(mode == 2 and validation['joint_codebooks_sha256'] ==
+                    [digest(canonical(store.stage(f'mode2:{i}', 'codebook'))) for i in range(2)],
+                    'joint codebook validation binding differs', EvidenceError)
         if book.get('prior_sha256') is not None:
             priors = store.stage('_shared', 'priors')
             require(priors is not None and book['prior_sha256'] == validation['prior_sha256']
@@ -61,7 +69,9 @@ def compare(store, targets):
                           layout_sha256=book['layout_sha256'], reference_shared_sha256=file_digest(shared_path))
         if matrix:
             shared = json.loads(shared_path.read_text())
-            words = unpack_matrix(shared['matrices_f32'][shared['modes'][4]['matrix_indices'][cluster]], 256)
+            require((matrix['order'], matrix['rows'], matrix['columns'], len(matrix['entries'])) ==
+                    (order, n, n, n*n), 'matrix dimensions differ', EvidenceError)
+            words = unpack_matrix(shared['matrices_f32'][shared['modes'][4]['matrix_indices'][cluster]], n*n)
             wrong = [i for i, (e, word) in enumerate(zip(matrix['entries'], words))
                      if e['float32_bits'] is not None and e['float32_bits'] != word]
             unqualified = sum(e['float32_bits'] is None for e in matrix['entries'])

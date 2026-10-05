@@ -6,8 +6,10 @@ no q6 Huffman word is exported. Full source hashes pin the approved artifacts.
 import json
 import math
 import struct
+import argparse
+from pathlib import Path
 
-from .common import ROOT, canonical, digest, require
+from .common import ROOT, canonical, digest, geometry, require
 
 MATRIX_SOURCES = (
     '410345a9b07544104bfae974c778b14f8a1f61cf8d6b87f09a6e690a88ccc462',
@@ -58,5 +60,102 @@ def export():
                 huffman_words_included=False)
 
 
+def export_batches(order, paths):
+    """Read frozen qualification records in this separate process only."""
+    from .store import Store
+    from .maths import inverse, validate_words
+    n = geometry(order)['channels']
+    matrices, groups, identity = {}, {}, None
+    for path in paths:
+        store = Store(Path(path), readonly=True)
+        try:
+            store.audit_evidence()
+            require(store.config.get('order', 3) == order
+                    and store.config.get('quantization_bits', 6) == 6,
+                    'prior evidence order or quantization width differs')
+            current = {key: store.config['native_identity'][key] for key in ('component_sha256', 'architecture')}
+            require(identity is None or identity == current, 'prior evidence native components differ')
+            identity = current
+            for target in store.config['targets']:
+                if target == 'mode1':
+                    continue
+                book = store.stage(target, 'codebook')
+                validation = store.stage(target, 'validation')
+                comparison = store.stage(target, 'comparison')
+                if not book or not validation or not comparison:
+                    continue
+                require(book['order'] == order and book['quantization_bits'] == 6
+                        and book['old_dictionary_consulted'] is False,
+                        'prior candidate scope differs')
+                validate_words(book['entries'], 64)
+                require(validation['status'] == 'passed'
+                        and validation['codebook_sha256'] == comparison['codebook_sha256'] == digest(canonical(book))
+                        and comparison['validation_sha256'] == digest(canonical(validation)),
+                        'prior qualification binding differs')
+                if not comparison['eligible_codebook']:
+                    continue
+                source = dict(codebook_sha256=digest(canonical(book)),
+                              validation_sha256=digest(canonical(validation)),
+                              comparison_sha256=digest(canonical(comparison)),
+                              tool_fingerprint=store.config['tool_fingerprint'],
+                              code_commit=store.config.get('code_commit'))
+                if target.startswith('mode4:'):
+                    if not comparison['eligible_matrix']:
+                        continue
+                    matrix = store.stage(target, 'matrix')
+                    require(matrix is not None and matrix['old_matrix_consulted'] is False
+                            and (matrix['order'], matrix['rows'], matrix['columns']) == (order, n, n)
+                            and len(matrix['entries']) == n*n
+                            and validation['matrix_qualified'] == n*n
+                            and validation['matrix_sha256'] == comparison['matrix_sha256'] == digest(canonical(matrix)),
+                            'prior matrix qualification differs')
+                    entries = matrix['entries']
+                    require([(e['row'], e['column']) for e in entries] == [(r,c) for r in range(n) for c in range(n)],
+                            'prior matrix entry order differs')
+                    require(all(type(e['float32_bits']) is int and 0 <= e['float32_bits'] < 2**32
+                                and 5e-8 <= e['empirical_half_width'] < 2.5e-7 for e in entries),
+                            'unqualified prior matrix entry')
+                    words = [e['float32_bits'] for e in entries]
+                    floats = [struct.unpack('<f', struct.pack('<I', word))[0] for word in words]
+                    inverse([floats[i:i+n] for i in range(0,n*n,n)])
+                    item = dict(matrix_f32=words, empirical_half_width=max(e['empirical_half_width'] for e in entries),
+                                matrix_sha256=digest(canonical(matrix)), source=source)
+                    key = target[-1]
+                    require(key not in matrices or matrices[key] == item, 'conflicting prior matrices')
+                    matrices[key] = item
+                else:
+                    key = f'{book["mode"]}:{book["book"]}'
+                    layout = store.stage('_mode2' if book['mode'] == 2 else target, 'layout')
+                    require(comparison.get('group_exact') is True and layout is not None
+                            and validation['layout_sha256'] == book['layout_sha256'] == digest(canonical(layout))
+                            and book['coefficient_group'] == layout['groups'][book['book']],
+                            'prior group qualification differs')
+                    group = book['coefficient_group']
+                    require(group and all(type(i) is int and 0 <= i < n for i in group)
+                            and len(set(group)) == len(group), 'invalid prior group')
+                    item = dict(indices=group, source=source)
+                    require(key not in groups or groups[key] == item, 'conflicting prior groups')
+                    groups[key] = item
+        finally:
+            store.close()
+    require(identity is not None, 'no prior evidence batches')
+    if '2:0' in groups and '2:1' in groups:
+        require(sorted(groups['2:0']['indices']+groups['2:1']['indices']) == list(range(n)), 'prior partition incomplete')
+    if '3:0' in groups:
+        require(sorted(groups['3:0']['indices']) == list(range(n)), 'prior coefficient order incomplete')
+    return dict(schema_version=1, profile='hoa-blackbox-qualified-priors-v2', order=order,
+                measurement_quantization_bits=6, matrices=matrices, groups=groups,
+                huffman_words_included=False, **identity)
+
+
 if __name__ == '__main__':
-    print(canonical(export()).decode(), end='')
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--order', type=int, choices=(1,2,3), default=3)
+    parser.add_argument('--evidence', type=Path, nargs='+')
+    args = parser.parse_args()
+    if args.evidence:
+        result = export_batches(args.order, args.evidence)
+    else:
+        require(args.order == 3, 'qualified six-bit geometry evidence is required for this order')
+        result = export()
+    print(canonical(result).decode(), end='')

@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGETS = ('mode1', 'mode2:0', 'mode2:1', 'mode3', 'mode4:0', 'mode4:1', 'mode4:2', 'mode4:3')
-POLICY_VERSION = 'hoa-blackbox-order3-q6-q9-qualified-priors-v5'
+POLICY_VERSION = 'hoa-blackbox-orders1-3-q6-q9-joint-mode2-v6'
 GAINS = (128, 129)
 N = 16
 SYMBOLS = 320
@@ -18,6 +18,14 @@ REPEAT_EPS = 1 / (32 * 63)
 LEAF_EPS = 1 / (8 * 63)
 PCM_BYTES = 2048 * 16 * 4
 DEFAULT_LIMITS = dict(max_bytes=512 * 1024**2, max_calls=4096, min_free=1024**3)
+
+
+def geometry(order=3):
+    require(type(order) is int and order in (1, 2, 3), 'unsupported HOA order')
+    channels = (order + 1)**2
+    components = min(5, channels)
+    return dict(order=order, channels=channels, components=components, bands=4,
+                symbols=channels*components*4, layout_tag=(190 << 16) | channels)
 
 
 class ExperimentError(Exception):
@@ -75,8 +83,8 @@ def target_parts(target):
     return int(target[4]), int(target[-1])
 
 
-def pcm_samples(raw):
-    require(len(raw) in (PCM_BYTES, 3 * 1024 * 16 * 4, 4 * 1024 * 16 * 4),
+def pcm_samples(raw, channels=16):
+    require(channels in (4, 9, 16) and len(raw) in tuple(frames*channels*4 for frames in (2048, 3072, 4096)),
             'wrong PCM byte count', EvidenceError)
     values = array('f')
     values.frombytes(raw)

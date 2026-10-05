@@ -13,7 +13,7 @@ import struct
 import unittest
 
 from hoa_blackbox_lib.common import (BudgetStop, EvidenceError, ExperimentError, IdentityError,
-    ROOT, canonical, digest, target_parts, tool_fingerprint)
+    ROOT, canonical, digest, geometry, target_parts, tool_fingerprint)
 from hoa_blackbox_lib.engine import Engine
 from hoa_blackbox_lib.maths import infer_tree, inverse, matrix_entry, vmul
 from hoa_blackbox_lib.native import Runner, import_batch
@@ -33,7 +33,9 @@ def make_words(seed, symbols=64):
 
 
 class FakeWriter:
-    def __init__(self, quantization_bits=6):
+    def __init__(self, quantization_bits=6, order=3):
+        self.order = order
+        self.n, self.symbols = geometry(order)["channels"], geometry(order)["symbols"]
         self.quantization_bits = quantization_bits
         self.zero = 1 << (quantization_bits-1)
 
@@ -45,9 +47,9 @@ class FakeWriter:
 
     def coded(self, mode, cluster, values, words, gain=128, line=0, padding=0,
               groups=None, signs=None, active=True):
-        groups = groups if groups is not None else [list(range(16))]
+        groups = groups if groups is not None else [list(range(self.n))]
         raw = ''
-        for start in range(0, 320, 16):
+        for start in range(0, self.symbols, self.n):
             for book, group in enumerate(groups):
                 for channel in group:
                     raw += (words[book] if mode == 2 else words)[values[start+channel]]
@@ -59,13 +61,15 @@ class FakeWriter:
     def frames(self, payload):
         if isinstance(payload, (list, tuple)):
             return list(payload)
-        return [payload, self.fixed([self.zero]*320, active=False)]
+        return [payload, self.fixed([self.zero]*self.symbols, active=False)]
 
 
 class FakeBackend:
     identity = dict(binary_sha256='fake', component_sha256='fake', os_version='synthetic', architecture='synthetic')
 
-    def __init__(self, interrupt_at=None, fail_cluster=None, quantization_bits=6):
+    def __init__(self, interrupt_at=None, fail_cluster=None, quantization_bits=6, order=3):
+        self.order = order
+        self.n, self.symbols = geometry(order)["channels"], geometry(order)["symbols"]
         self.calls = 0
         self.interrupt_at = interrupt_at
         self.fail_cluster = fail_cluster
@@ -74,11 +78,16 @@ class FakeBackend:
         self.words = {(1, None): make_words(10, 2*self.zero)}
         self.words.update({(2, 0): make_words(20, 2*self.zero), (2, 1): make_words(21, 2*self.zero), (3, None): make_words(22, 2*self.zero)})
         self.words.update({(4, c): make_words(30+c, 2*self.zero) for c in range(4)})
-        order = list(range(16))
+        order = list(range(self.n))
         random.Random(13).shuffle(order)
-        self.groups = {2: [order[:7], order[7:]], 3: [list(reversed(order))]}
-        self.matrices = {c: [[(-1. if (((i+c)%16)&j).bit_count()%2 else 1.)/4
-                             for j in range(16)] for i in range(16)] for c in range(4)}
+        self.groups = {2: [order[:self.n//2-1], order[self.n//2-1:]], 3: [list(reversed(order))]}
+        self.matrices = {c: [[(-1. if (((i+c)%self.n)&j).bit_count()%2 else 1.)/(self.n**0.5)
+                             for j in range(self.n)] for i in range(self.n)] for c in range(4)}
+
+        if self.n == 9:
+            # A dense, invertible synthetic decimal-grid matrix; not a target.
+            self.matrices = {c: [[struct.unpack('<f', struct.pack('<f', round((float((i+c)%self.n == j)-2/self.n)*1e6)/1e6))[0]
+                                  for j in range(self.n)] for i in range(self.n)] for c in range(4)}
 
     def check(self, force=False):
         pass
@@ -88,18 +97,18 @@ class FakeBackend:
         if self.interrupt_at == self.calls:
             raise KeyboardInterrupt()
         samples = array('f')
-        history = [0.]*16
+        history = [0.]*self.n
         for packet in packets:
             request = json.loads(packet)
             mode, cluster = request['mode'], request.get('cluster')
             if mode == 4 and cluster == self.fail_cluster:
                 raise ExperimentError('synthetic target failure')
-            signs = [True]*16
+            signs = [True]*self.n
             if mode == 0:
-                q = request['values'][:16]
+                q = request['values'][:self.n]
             else:
-                raw = request['wire'];position = 0;q = [0]*16
-                groups = self.groups.get(mode, [list(range(16))])
+                raw = request['wire'];position = 0;q = [0]*self.n
+                groups = self.groups.get(mode, [list(range(self.n))])
                 for group_index, group in enumerate(groups):
                     key = (mode, group_index if mode == 2 else cluster)
                     for channel in group:
@@ -129,27 +138,27 @@ class FakeBackend:
         replay = dict(complete=True, backend='AudioConverterFillComplexBuffer', saved_frames=frames,
                       consumed_packets=len(packets), input_batch_packets=1, original_source_accessed=False, processing_policy='drc-off',
                       decoder_settings=dict(props, processing_policy=dict(value=dict(verified=True))))
-        meta = dict(complete=True, frames=frames, channels=16, sample_rate=48000, encoding='f32le',
+        meta = dict(complete=True, frames=frames, channels=self.n, sample_rate=48000, encoding='f32le',
                     interleaved=True, all_finite=True, sha256=digest(pcm), start_frame=0,
-                    layout=dict(value=dict(tag=wire.SIGNATURE['layout_tag'])), source_cookie_sha256=digest(wire.cookie(self.quantization_bits)))
+                    layout=dict(value=dict(tag=geometry(self.order)['layout_tag'])), source_cookie_sha256=digest(wire.cookie(self.quantization_bits, self.order)))
         return {'native/pcm.f32le': pcm, 'native/replay.json': canonical(replay),
                 'native/pcm.json': canonical(meta), 'native/processing-policy.json': canonical(policy),
-                'input/packets.bin': b''.join(packets), 'input/cookie.bin': wire.cookie(self.quantization_bits)}
+                'input/packets.bin': b''.join(packets), 'input/cookie.bin': wire.cookie(self.quantization_bits, self.order)}
 
 
-def synthetic_priors():
-    backend = FakeBackend()
-    return dict(schema_version=1, profile='synthetic-priors', huffman_words_included=False,
+def synthetic_priors(order=3):
+    backend = FakeBackend(order=order)
+    return dict(schema_version=1, profile='synthetic-priors', order=order, huffman_words_included=False,
                 component_sha256=backend.identity['component_sha256'], architecture=backend.identity['architecture'],
                 matrices={str(c):dict(matrix_f32=[struct.unpack('<I', struct.pack('<f', v))[0] for row in m for v in row],
                                      empirical_half_width=5e-8) for c, m in backend.matrices.items()},
                 groups={f'{mode}:{i}':dict(indices=g) for mode, groups in backend.groups.items() for i, g in enumerate(groups)})
 
 
-def new_store(path, targets=('mode1',), calls=4096, quantization_bits=6):
-    priors = synthetic_priors() if quantization_bits > 6 else None
+def new_store(path, targets=('mode1',), calls=4096, quantization_bits=6, order=3):
+    priors = synthetic_priors(order) if quantization_bits > 6 else None
     config = dict(schema_version=1, targets=list(targets), native_identity=FakeBackend.identity,
-                  quantization_bits=quantization_bits, prior_sha256=digest(canonical(priors)) if priors else None,
+                  quantization_bits=quantization_bits, order=order, prior_sha256=digest(canonical(priors)) if priors else None,
                   tool_fingerprint=tool_fingerprint(), limits=dict(max_bytes=128*1024**2, max_calls=calls, min_free=0))
     store = Store.create(path, config)
     if priors:
@@ -159,7 +168,7 @@ def new_store(path, targets=('mode1',), calls=4096, quantization_bits=6):
 
 def fake_engine(store, backend, jobs=1):
     runner = Runner(store, backend, jobs=jobs)
-    runner.writer = FakeWriter(store.config.get('quantization_bits', 6))
+    runner.writer = FakeWriter(store.config.get('quantization_bits', 6), store.config.get('order', 3))
     return Engine(store, runner)
 
 
@@ -407,6 +416,100 @@ class PrecisionTests(unittest.TestCase):
                 entries, _, scale = infer_tree(query, coordinate=True, symbols=symbols)
                 self.assertEqual(scale,23*direction)
                 self.assertEqual([e['codeword'] for e in entries],words)
+
+
+
+class OrderTests(unittest.TestCase):
+    def test_order_binds_cookie_request_pcm_shape_and_backend(self):
+        keys, cookies = set(), set()
+        for order in (1, 2, 3):
+            g = geometry(order)
+            self.assertEqual(g['channels'], (order+1)**2)
+            self.assertEqual(g['symbols'], g['channels']*g['components']*4)
+            cookies.add(wire.cookie(6, order))
+            key, request = wire.request(FakeBackend.identity, [b'probe', b'tail'], order=order)
+            keys.add(key)
+            self.assertEqual(request['signature']['channels'], g['channels'])
+            with tempfile.TemporaryDirectory() as tmp:
+                store = new_store(Path(tmp)/'source', order=order)
+                backend = FakeBackend(order=order)
+                engine = fake_engine(store, backend, jobs=2)
+                cases = [('a', engine.writer.fixed(engine.vector(engine.zero)))]*2
+                with engine.capture_batch('mode1', 'shape', cases) as output:
+                    observed = list(output)
+                self.assertEqual(backend.calls, 1)
+                self.assertEqual(len(observed[0][1]), 2048*g['channels'])
+                store.close()
+                imported = new_store(Path(tmp)/'imported', order=order)
+                self.assertEqual(import_batch(imported, Path(tmp)/'source'), 1)
+                other = FakeBackend(order=2 if order != 2 else 1)
+                with self.assertRaises(IdentityError):Runner(imported, other)
+                imported.close()
+        self.assertEqual(len(keys), 3)
+        self.assertEqual(len(cookies), 3)
+        for order in (0, 4, True):
+            with self.assertRaises(ExperimentError):wire.Writer(order=order)
+
+    def test_lower_order_all_modes_and_qualified_geometry_export(self):
+        from hoa_blackbox_lib.common import TARGETS
+        from hoa_blackbox_lib.priors import export_batches
+        for order in (1, 2):
+            with self.subTest(order=order), tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp)/'batch'
+                store = new_store(path, TARGETS, order=order)
+                backend = FakeBackend(order=order)
+                fake_engine(store, backend, jobs=4).run()
+                self.assertTrue(all(t['status']=='validated' for t in store.summary()['targets']), store.summary())
+                for target in TARGETS:
+                    mode, index = target_parts(target)
+                    key = (mode, index if mode in (2,4) else None)
+                    book = store.stage(target,'codebook')
+                    self.assertEqual(book['order'],order)
+                    self.assertEqual([e['codeword'] for e in book['entries']],backend.words[key])
+                    validation = store.stage(target,'validation')
+                    matrix = store.stage(target,'matrix') if mode==4 else None
+                    if matrix:
+                        expected = [struct.unpack('<I',struct.pack('<f',v))[0] for row in backend.matrices[index] for v in row]
+                        self.assertEqual([e['float32_bits'] for e in matrix['entries']], expected)
+                    comparison = dict(status='passed',eligible_codebook=True,eligible_matrix=mode==4,
+                                      codebook_sha256=digest(canonical(book)),validation_sha256=digest(canonical(validation)))
+                    if mode in (2,3):comparison['group_exact']=True
+                    if matrix:comparison['matrix_sha256']=digest(canonical(matrix))
+                    store.save_stage(target,'comparison',comparison)
+                self.assertEqual(store.stage('mode2:0','validation')['checks'],store.stage('mode2:1','validation')['checks'])
+                self.assertEqual(store.stage('mode2:0','validation')['joint_codebooks_sha256'],
+                                 [digest(canonical(store.stage(f'mode2:{i}','codebook'))) for i in range(2)])
+                before = backend.calls
+                fake_engine(store, backend, jobs=2).run()
+                self.assertEqual(before,backend.calls)
+                store.close()
+                priors = export_batches(order,[path])
+                self.assertEqual(priors['order'],order)
+                self.assertEqual(len(priors['matrices']),4)
+                self.assertEqual(len(priors['groups']),3)
+                self.assertNotIn('codeword',canonical(priors).decode())
+                for c in range(4):self.assertEqual(len(priors['matrices'][str(c)]['matrix_f32']), (order+1)**4)
+                with self.assertRaises(ExperimentError):export_batches(3,[path])
+                comparison_file=path/'results/mode4-0/comparison.json'
+                comparison_file.write_text('{}')
+                with self.assertRaises(EvidenceError):export_batches(order,[path])
+
+    def test_joint_nine_bit_books_fit_default_budget_with_imported_calibration(self):
+        for order in (1,2):
+            with self.subTest(order=order), tempfile.TemporaryDirectory() as tmp:
+                first = new_store(Path(tmp)/'calibration', quantization_bits=9, order=order)
+                backend = FakeBackend(quantization_bits=9, order=order)
+                engine = fake_engine(first, backend, jobs=4)
+                engine.calibrate()
+                first.close()
+                store = new_store(Path(tmp)/'mode2', ('mode2:0','mode2:1'), quantization_bits=9, order=order)
+                import_batch(store, Path(tmp)/'calibration')
+                backend = FakeBackend(quantization_bits=9, order=order)
+                fake_engine(store, backend, jobs=4).run()
+                self.assertTrue(all(t['status']=='validated' for t in store.summary()['targets']))
+                self.assertLess(backend.calls,4096)
+                self.assertEqual(store.stage('mode2:0','validation')['checks'], store.stage('mode2:1','validation')['checks'])
+                store.close()
 
 
 class ConcurrentBackend(FakeBackend):

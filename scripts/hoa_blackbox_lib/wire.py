@@ -1,6 +1,6 @@
-"""Order-3 q6–q9 APAC inputs; reads only the public-source AAC tables."""
+"""Order-1/2/3 q6–q9 APAC inputs; reads only the public-source AAC tables."""
 import json
-from .common import ROOT, SYMBOLS, MAX_DEPTH, canonical, digest, require
+from .common import ROOT, MAX_DEPTH, canonical, digest, geometry, require
 
 SIGNATURE = dict(sample_rate=48000, channels=16, frames_per_packet=1024, packets=2,
                  frames=2048, layout_tag=(190 << 16) | 16, encoding='f32le',
@@ -18,21 +18,26 @@ def pack(wire):
     return int(wire, 2).to_bytes(len(wire) // 8, 'big')
 
 
-def cookie(quantization_bits=6):
+def cookie(quantization_bits=6, order=3):
+    g = geometry(order)
+    n, components = g["channels"], g["components"]
     require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
     fields = [(0, 32), (int.from_bytes(b'dapa', 'big'), 32), (0, 32), (0x800, 16),
-              (5, 6), (0, 4), (0, 1), (3, 6), (0, 6), (16, 8), (2, 8), (0, 1),
+              (5, 6), (0, 4), (0, 1), (3, 6), (0, 6), (n, 8), (2, 8), (0, 1),
               (1, 3), (0, 8), (2, 3)]
     wire = ''.join(bits(v, w) for v, w in fields)
-    wire += '1100110' + bits(1, 2) + bits(0, 2) + bits(quantization_bits-6, 2) + bits(3, 4) + bits(5, 4) + bits(0, 4)
-    wire += (bits(3, 4) + bits(3, 2)) * 5 + '0' + bits(16, 5) + '000' * 16
-    wire += '0' + bits(190, 16) + bits(16, 16) + '0' + '0' + bits(0, 3) + bits(0, 2) + '000000'
+    wire += '1100110' + bits(1, 2) + bits(0, 2) + bits(quantization_bits-6, 2) + bits(order, 4) + bits(components, 4) + bits(0, (n-1).bit_length())
+    wire += (bits(3, 4) + bits(order, order.bit_length())) * components + '0' + bits(n, 5) + '000' * n
+    wire += '0' + bits(190, 16) + bits(n, 16) + '0' + '0' + bits(0, 3) + bits(0, 2) + '000000'
     raw = pack(wire)
     return len(raw).to_bytes(4, 'big') + raw[4:]
 
 
 class Writer:
-    def __init__(self, quantization_bits=6):
+    def __init__(self, quantization_bits=6, order=3):
+        self.order = order
+        g = geometry(order)
+        self.n, self.symbols, self.descriptors = g["channels"], g["symbols"], g["components"]*g["bands"]
         require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
         self.quantization_bits = quantization_bits
         self.zero = 1 << (quantization_bits-1)
@@ -52,19 +57,19 @@ class Writer:
 
     def packet(self, mode, payload, gain=128, line=0, active=True, padding=0):
         require(mode in (0, 1, 2, 3, 4), 'unsupported coding mode')
-        wire = '0100' + (self.carrier(gain, line) + '0' * 15 if active else '0' * 16)
+        wire = '0100' + (self.carrier(gain, line) + '0' * (self.n-1) if active else '0' * self.n)
         wire += '1' + bits(mode, 3) + payload
         wire += '0' * (-len(wire) % 8) + '0'
         return pack(wire) + bytes(padding)
 
     def fixed(self, values, gain=128, line=0, active=True):
-        require(len(values) == SYMBOLS, 'wrong descriptor count')
+        require(len(values) == self.symbols, 'wrong descriptor count')
         return self.packet(0, ''.join(bits(q, self.quantization_bits) for q in values), gain, line, active)
 
     def padded(self, mode, cluster, pattern, gain=128, extra=0):
-        require(len(pattern) <= 16 * (MAX_DEPTH + (mode == 3)) + 1, 'probe pattern too long')
+        require(len(pattern) <= self.n * (MAX_DEPTH + (mode == 3)) + 1, 'probe pattern too long')
         # A fixed total length makes equal extreme-prefix queries byte-identical.
-        length = 20 * (2 + 16 * (MAX_DEPTH + (mode == 3))) + 64 + extra
+        length = self.descriptors * (2 + self.n * (MAX_DEPTH + (mode == 3))) + 64 + extra
         payload = pattern.ljust(length, '0')
         if mode == 4:
             payload = bits(cluster, 2) + payload
@@ -72,21 +77,21 @@ class Writer:
 
     def coded(self, mode, cluster, values, words, gain=128, line=0, padding=0,
               groups=None, signs=None, active=True):
-        require(len(values) == SYMBOLS, 'wrong descriptor count')
+        require(len(values) == self.symbols, 'wrong descriptor count')
         if mode == 1:
             payload = ''.join(words[q] for q in values)
         elif mode == 4:
-            payload = ''.join(bits(cluster, 2) + ''.join(words[q] for q in values[i:i+16])
-                              for i in range(0, SYMBOLS, 16))
+            payload = ''.join(bits(cluster, 2) + ''.join(words[q] for q in values[i:i+self.n])
+                              for i in range(0, self.symbols, self.n))
         else:
             require(mode in (2, 3), 'unsupported coded mode')
-            groups = groups if groups is not None else [list(range(16))]
-            require(sorted(j for group in groups for j in group) == list(range(16)), 'invalid coefficient partition')
+            groups = groups if groups is not None else [list(range(self.n))]
+            require(sorted(j for group in groups for j in group) == list(range(self.n)), 'invalid coefficient partition')
             require(len(groups) == (2 if mode == 2 else 1), 'wrong group count')
             if mode == 3:
-                require(signs is not None and len(signs) == SYMBOLS, 'missing mode-3 signs')
+                require(signs is not None and len(signs) == self.symbols, 'missing mode-3 signs')
             payload = ''
-            for start in range(0, SYMBOLS, 16):
+            for start in range(0, self.symbols, self.n):
                 for book, group in enumerate(groups):
                     for j in group:
                         q = values[start+j]
@@ -99,31 +104,39 @@ class Writer:
         if isinstance(payload, (list, tuple)):
             require(2 <= len(payload) <= 4 and all(isinstance(p, bytes) for p in payload), 'invalid packet program')
             return list(payload)
-        return [payload, self.fixed([self.zero] * SYMBOLS, active=False)]
+        return [payload, self.fixed([self.zero] * self.symbols, active=False)]
 
 
-def vector(q, row=None, zero=32):
-    return [q] * 16 + [zero] * (SYMBOLS - 16) if row is None else [q if i == row else zero for i in range(SYMBOLS)]
+def vector(q, row=None, zero=32, order=3):
+    g = geometry(order)
+    n, count = g["channels"], g["symbols"]
+    return [q] * n + [zero] * (count - n) if row is None else [q if i == row else zero for i in range(count)]
 
 
-def request(identity, packets, replicate='', quantization_bits=6):
-    signature = dict(SIGNATURE, packets=len(packets), frames=len(packets)*1024)
+def request(identity, packets, replicate='', quantization_bits=6, order=3):
+    g = geometry(order)
+    signature = dict(SIGNATURE, channels=g["channels"], layout_tag=g["layout_tag"],
+                     packets=len(packets), frames=len(packets)*1024)
+    if order != 3:
+        signature["order"] = order
     if quantization_bits != 6:
         signature['quantization_bits'] = quantization_bits
-    value = dict(native_identity=identity, signature=signature, cookie_sha256=digest(cookie(quantization_bits)),
+    value = dict(native_identity=identity, signature=signature, cookie_sha256=digest(cookie(quantization_bits, order)),
                  packets=[dict(sha256=digest(p), bytes=len(p), frames=1024) for p in packets], replicate=replicate)
     return digest(canonical(value)), value
 
 
-def write_bundle(path, packets, quantization_bits=6):
+def write_bundle(path, packets, quantization_bits=6, order=3):
+    g = geometry(order)
+    n = g["channels"]
     path.mkdir()
-    raw, cfg = b''.join(packets), cookie(quantization_bits)
+    raw, cfg = b''.join(packets), cookie(quantization_bits, order)
     known = lambda v: dict(value=v, error=None)
     info = dict(schema_version=1, source='blackbox-synthetic.caf', file_bytes=len(raw), modified_unix_seconds=None,
         environment=dict(tool_version='hoa-blackbox-batch-v1', os='synthetic', architecture='portable', system_version='synthetic'),
         container=known('caff'), format=dict(sample_rate=48000, format_id=int.from_bytes(b'apac', 'big'), format_fourcc='apac',
-        flags=0, bytes_per_packet=0, frames_per_packet=1024, bytes_per_frame=0, channels=16, bits_per_channel=0),
-        layout=known(dict(tag=(190 << 16) | 16, bitmap=0, descriptions=[], ambisonic_order=3,
+        flags=0, bytes_per_packet=0, frames_per_packet=1024, bytes_per_frame=0, channels=n, bits_per_channel=0),
+        layout=known(dict(tag=g["layout_tag"], bitmap=0, descriptions=[], ambisonic_order=order,
                          ambisonic_channel_order='ACN', ambisonic_normalization='SN3D')),
         packet_count=known(len(packets)), max_packet_bytes=known(max(map(len, packets))),
         packet_table=known(dict(priming_frames=0, valid_frames=1024*len(packets), remainder_frames=0)),

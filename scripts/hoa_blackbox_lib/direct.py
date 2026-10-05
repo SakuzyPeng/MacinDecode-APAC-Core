@@ -1,7 +1,7 @@
 """Recover grouped and signed-delta books from public PCM, without dictionaries."""
 import random
 
-from .common import GAINS, MAX_DEPTH, SYMBOLS, canonical, digest, require, target_parts
+from .common import GAINS, MAX_DEPTH, canonical, digest, require, target_parts
 from .maths import infer_tree
 
 
@@ -41,20 +41,20 @@ class DirectRecovery:
             return observations[offset]['channel']
 
         positions, offset = [], 0
-        for position in range(16):
+        for position in range(self.n):
             channel = flip(offset)
             require(channel is not None and channel not in [p['channel'] for p in positions],
                     'mode-2 coefficient order is not observable')
             for length in range(1, MAX_DEPTH+1):
                 successor = flip(offset+length)
                 if successor != channel:
-                    require((successor is None) == (position == 15), 'mode-2 descriptor boundary differs')
+                    require((successor is None) == (position == self.n-1), 'mode-2 descriptor boundary differs')
                     positions.append(dict(channel=channel, offset=offset, zero_length=length))
                     offset += length
                     break
             else:
                 require(False, 'mode-2 zero code exceeds depth limit')
-        require(sorted(p['channel'] for p in positions) == list(range(16)), 'mode-2 partition misses channels')
+        require(sorted(p['channel'] for p in positions) == list(range(self.n)), 'mode-2 partition misses channels')
         result = dict(baseline=baseline, positions=positions,
                       observations={str(k): v for k, v in observations.items()}, old_dictionary_consulted=False)
         self.store.save_stage('_mode2', 'partition', result)
@@ -62,7 +62,7 @@ class DirectRecovery:
 
     def direct_book(self, target, entries, decisions, group, layout):
         mode, index = target_parts(target)
-        result = dict(schema_version=1, profile='hoa-blackbox-codebook-v1', order=3, quantization_bits=self.precision,
+        result = dict(schema_version=1, profile='hoa-blackbox-codebook-v1', order=self.order, quantization_bits=self.precision,
                       mode=mode, book=index or 0, entries=entries, decisions=decisions,
                       coefficient_group=group, layout_sha256=digest(canonical(layout)),
                       policy_sha256=digest(canonical(self.calibration)), old_dictionary_consulted=False)
@@ -160,21 +160,21 @@ class DirectRecovery:
         entries, decisions, _ = infer_tree(query, symbols=self.levels)
         words = {e['symbol']: e['codeword'] for e in entries}
         order, evidence, cases = [], [], []
-        for position in range(16):
-            values = [0]*SYMBOLS
+        for position in range(self.n):
+            values = [0]*self.symbols
             values[position] = self.positive_half
-            packet = self.writer.coded(3, None, values, words, signs=[True]*SYMBOLS)
+            packet = self.writer.coded(3, None, values, words, signs=[True]*self.symbols)
             cases.append((str(position), self.mode3_program(packet)))
         with self.capture_batch('mode3', 'layout', cases) as outputs:
             for key, pcm in outputs:
-                require(not any(pcm[:1024*16]), 'mode-3 preparation frame is not silent')
-                coefficients = self.estimate(pcm[1024*16:], 128)
-                found = self.affected([0.]*16, coefficients)
+                require(not any(pcm[:1024*self.n]), 'mode-3 preparation frame is not silent')
+                coefficients = self.estimate(pcm[1024*self.n:], 128)
+                found = self.affected([0.]*self.n, coefficients)
                 require(found is not None and abs(coefficients[found]-1.5) < 1/(8*self.zero),
                         'mode-3 sign or initialized history differs')
                 order.append(found)
                 evidence.append(dict(evidence=key, coefficients=coefficients))
-        require(sorted(order) == list(range(16)) and order[0] == channel, 'mode-3 coefficient order is ambiguous')
+        require(sorted(order) == list(range(self.n)) and order[0] == channel, 'mode-3 coefficient order is ambiguous')
         layout = dict(groups=[order], observations=evidence, bootstrap=dict(baseline=baseline, flip=flip, repeats=repeats),
                       history_preparation='silent mode-0 frame with all coefficients zero', old_dictionary_consulted=False)
         if self.priors:
@@ -185,10 +185,10 @@ class DirectRecovery:
 
     def mode3_program(self, packet, seed=None, history_packet=None):
         seed = self.zero if seed is None else seed
-        packets = [self.writer.fixed([seed]*SYMBOLS, active=False)]
+        packets = [self.writer.fixed([seed]*self.symbols, active=False)]
         if history_packet is not None:
             packets.append(history_packet)
-        return packets + [packet, self.writer.fixed([self.zero]*SYMBOLS, active=False)]
+        return packets + [packet, self.writer.fixed([self.zero]*self.symbols, active=False)]
 
     def validate_direct(self, target, book):
         mode, index = target_parts(target)
@@ -204,15 +204,17 @@ class DirectRecovery:
         checks, hashes, cases = [], {}, []
 
         def values_for(q):
-            values = [self.zero if mode == 2 else 0]*SYMBOLS
-            for channel in groups[index or 0]:
+            values = [self.zero if mode == 2 else 0]*self.symbols
+            # Observe both books in one frame. Every output coefficient is
+            # checked, and separate basis/mixed cases verify the partition.
+            for channel in (range(self.n) if mode == 2 else groups[index or 0]):
                 values[channel] = q
             return values
 
         def add(values, gain, label, positive=True, signs=None, padding=0, line=0, seed=None, history=None, equal_to=None):
             seed = self.zero if seed is None else seed
-            signs = signs if signs is not None else [positive]*SYMBOLS
-            packet = self.writer.coded(mode, index, values, words, gain, line, padding, groups, signs)
+            signs = signs if signs is not None else [positive]*self.symbols
+            packet = self.writer.coded(mode, None if mode == 2 else index, values, words, gain, line, padding, groups, signs)
             leading = 0
             if mode == 3:
                 history_packet = None
@@ -228,12 +230,12 @@ class DirectRecovery:
         def check(case, key, pcm):
             values, gain, label, signs, line, seed, history, leading = (
                 case[k] for k in ('values', 'gain', 'label', 'signs', 'line', 'seed', 'history', 'leading'))
-            require(not any(pcm[:leading*1024*16]), 'history preparation emitted nonzero PCM')
-            output = pcm[leading*1024*16:]
+            require(not any(pcm[:leading*1024*self.n]), 'history preparation emitted nonzero PCM')
+            output = pcm[leading*1024*self.n:]
             observed = self.estimate(output, gain, line)
-            expected = [(q-self.zero)/self.zero for q in values[:16]]
+            expected = [(q-self.zero)/self.zero for q in values[:self.n]]
             if mode == 3:
-                expected = [(seed-self.zero)/self.zero + q/self.zero*(1 if signs[i] else -1) for i, q in enumerate(values[:16])]
+                expected = [(seed-self.zero)/self.zero + q/self.zero*(1 if signs[i] else -1) for i, q in enumerate(values[:self.n])]
                 if history:
                     previous, previous_signs = history
                     expected = [v + previous[i]/self.zero*(1 if previous_signs[i] else -1) for i, v in enumerate(expected)]
@@ -251,9 +253,9 @@ class DirectRecovery:
                 for positive in ((True, False) if mode == 3 else (True,)):
                     add(values_for(q), gain, f'symbol:{gain}:{q}:{positive}', positive)
         rng = random.Random(0x484f4132+mode)
-        mixtures = [[rng.randrange(self.levels) for _ in range(SYMBOLS)] for _ in range(8)]
+        mixtures = [[rng.randrange(self.levels) for _ in range(self.symbols)] for _ in range(8)]
         for i, values in enumerate(mixtures):
-            signs = [bool(rng.randrange(2)) for _ in range(SYMBOLS)]
+            signs = [bool(rng.randrange(2)) for _ in range(self.symbols)]
             for gain in GAINS:
                 add(values, gain, f'mixed:{gain}:{i}', signs=signs)
         for gain in GAINS:
@@ -262,9 +264,9 @@ class DirectRecovery:
         for i, values in enumerate(mixtures[:4]):
             for gain in GAINS:
                 add(values, gain, f'line1:{gain}:{i}', line=1)
-        if self.priors:
-            for channel in range(16):
-                values = [self.zero if mode == 2 else 0]*SYMBOLS
+        if self.priors or mode == 2:
+            for channel in range(self.n):
+                values = [self.zero if mode == 2 else 0]*self.symbols
                 values[channel] = self.positive_half
                 add(values, 128, f'prior-group-basis:{channel}')
         if mode == 3:
@@ -272,17 +274,18 @@ class DirectRecovery:
                 for gain in GAINS:
                     for i in range(2):
                         add(mixtures[i], gain, f'seed:{seed}:{gain}:{i}', seed=seed,
-                              signs=[bool((j+i)%2) for j in range(SYMBOLS)])
+                              signs=[bool((j+i)%2) for j in range(self.symbols)])
                         add(mixtures[i], gain, f'history:{seed}:{gain}:{i}', seed=seed,
-                              signs=[bool((j+i)%2) for j in range(SYMBOLS)],
-                              history=(mixtures[i+2], [bool(j%3) for j in range(SYMBOLS)]))
-            markers = [0]*SYMBOLS
+                              signs=[bool((j+i)%2) for j in range(self.symbols)],
+                              history=(mixtures[i+2], [bool(j%3) for j in range(self.symbols)]))
+            markers = [0]*self.symbols
             markers[groups[0][1]] = 17
             add(markers, 128, 'zero-sign:positive')
-            signs = [True]*SYMBOLS
+            signs = [True]*self.symbols
             signs[groups[0][0]] = False
             add(markers, 128, 'zero-sign:negative', signs=signs, equal_to='zero-sign:positive')
-        with self.capture_batch(target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
+        capture_target = '_mode2' if mode == 2 else target
+        with self.capture_batch(capture_target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
             for case, (key, pcm) in zip(cases, outputs):
                 result = check(case, key, pcm)
                 hashes[case['label']] = result
@@ -293,6 +296,9 @@ class DirectRecovery:
         result = dict(status='passed', codebook_sha256=digest(canonical(book)), checks=checks,
                       layout_sha256=book['layout_sha256'], matrix_sha256=None, matrix_qualified=None,
                       old_dictionary_consulted=False)
+        if mode == 2:
+            result.update(joint_codebooks_sha256=[digest(canonical(b)) for b in books],
+                          observation_scope='both mode-2 books jointly; every output coefficient checked')
         if self.priors:
             result.update(prior_sha256=self.store.config['prior_sha256'], group_reused=True)
         self.store.save_stage(target, 'validation', result)

@@ -81,19 +81,19 @@ def extract(path, order=3, quantization_bits=6):
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
-    if order == 3:
-        for measurement in load_measurements(quantization_bits):
+    if order in (1,2,3):
+        for measurement in load_measurements(quantization_bits, order):
             mode, book = measurement['mode'], measurement['book']
             if result['modes'][mode]['codebooks'][book] != measured_book(measurement):
                 raise ValueError(f'reference differs from measured codebook {mode}/{book}')
             result = replace_book(result, measurement)
-    if order == 3:
-        for measurement in load_matrix_measurements():
+    if order in (1,2,3):
+        for measurement in load_matrix_measurements(order):
             cluster = measurement['cluster']
             if result['modes'][4]['matrices_f32'][cluster] != measured_matrix(measurement):
                 raise ValueError(f'reference differs from measured mode-4 cluster-{cluster} matrix')
             result = replace_matrix(result, measurement)
-        for measurement in load_group_measurements():
+        for measurement in load_group_measurements(order):
             key = (measurement['mode'], measurement['book'])
             for mode, group in GROUP_USERS[key]:
                 if result['modes'][mode]['groups'][group] != measured_group(measurement):

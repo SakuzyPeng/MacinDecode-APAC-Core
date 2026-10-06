@@ -70,6 +70,41 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 `native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
 
+## CI 与构建产物
+
+[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生构建，固定使用 Rust 1.98.0、`Cargo.lock` 和 release profile；默认开启 CAC。每个任务运行打包回归、workspace Rust 测试及 Clippy（`-D warnings`），并执行产物的 `--version`／`--help` 后上传。
+
+| 平台 | Runner | Rust target | 压缩格式 |
+| --- | --- | --- | --- |
+| Linux x64 | Ubuntu 22.04 | `x86_64-unknown-linux-gnu` | `.tar.gz` |
+| Windows x64 | Windows Server 2022 | `x86_64-pc-windows-msvc` | `.zip` |
+| macOS arm64 | macOS 26 Apple Silicon | `aarch64-apple-darwin` | `.tar.gz` |
+
+macOS 不构建 Intel 或 Universal 版本，任务会核验 runner 的实际架构。Windows 静态链接 CRT；Linux 在 glibc 2.35 环境构建，建议使用 Ubuntu 22.04 或更新的兼容系统。macOS 包包含 AudioToolbox 参考命令，Windows／Linux 提供纯 Rust 命令。
+
+在成功运行的 **Artifacts** 中下载 `apac-tool-TARGET`。下载项包含 `apac-tool-TARGET-SHA12` 压缩包和同名 `.sha256` 文件，保留 14 天；需要时可对目标提交重新运行工作流。CI 上传 Actions 产物，不自动创建 GitHub Release。
+
+压缩包包含可执行文件、两个 README、`guide/` 使用文档、MIT／Apache-2.0 许可证、第三方来源说明和 `build-info.json`。构建信息记录完整提交、target、编译器版本、程序版本及程序 SHA-256。打包使用显式文件清单，研究文档仓库、实验报告、音频、SDK 和本地缓存不进入产物；tar 包保留可执行权限。
+
+解开下载项的外层 ZIP 后，先校验包，再解压内部压缩包：
+
+```sh
+# Linux
+sha256sum -c apac-tool-x86_64-unknown-linux-gnu-SHA12.tar.gz.sha256
+# macOS
+shasum -a 256 -c apac-tool-aarch64-apple-darwin-SHA12.tar.gz.sha256
+```
+
+Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `.sha256` 文件中的值核对。包内程序位于顶层目录，直接运行 `./apac-tool --help` 或 `.\apac-tool.exe --help` 即可。上述 `SHA12`、`PACKAGE` 替换为实际文件名。
+
+需要本地打包时，复用已有二进制并指定输出目录：
+
+```sh
+python3 -B scripts/package_release.py --target aarch64-apple-darwin \
+  --binary /path/to/shared-target/release/apac-tool \
+  --commit FULL_COMMIT_SHA --out artifacts/release
+```
+
 ## 仓库与数据边界
 
 代码与研究文档使用两个独立的 Git 仓库，各自同步至 private 远端：

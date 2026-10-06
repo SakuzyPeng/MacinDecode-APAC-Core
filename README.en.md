@@ -2,6 +2,8 @@
 
 English | [中文](README.md)
 
+[![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
+
 Independent Apple Positional Audio Codec decoding core · Rust 2024 · Rust 1.98.0 · `no_std` core · `unsafe` forbidden
 
 ## What is this?
@@ -27,6 +29,12 @@ This is an independent implementation written for interoperability and research.
 - **Apple reference comparison (macOS)**: AudioToolbox encoding/decoding, test signals and PCM comparison for acceptance
 
 ## Quick Start
+
+### Download prebuilt binaries
+
+Open a successful run of the [Build workflow](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) and download your platform from **Artifacts**: Windows x64, Linux x64, or macOS arm64. macOS builds are Apple Silicon only.
+
+Each download contains a portable archive and its `.sha256` checksum. Extract the archive and run `apac-tool` (`apac-tool.exe` on Windows). Documentation, licenses, and build revision metadata are included. See [CI and build artifacts](guide/development.md#ci-与构建产物) (Chinese) for triggers, platform requirements, and checksum verification.
 
 ### Prerequisites
 

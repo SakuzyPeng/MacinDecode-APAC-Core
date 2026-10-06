@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTUP_TOOLCHAIN: '1.98.0'
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            arch: X64
+            rustflags: ''
+          - platform: Windows x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+            arch: X64
+            rustflags: '-C target-feature=+crt-static'
+          - platform: macOS arm64
+            runner: macos-26
+            target: aarch64-apple-darwin
+            arch: ARM64
+            rustflags: ''
+    defaults:
+      run:
+        shell: bash
+    env:
+      BUILD_TARGET: ${{ matrix.target }}
+      EXPECTED_ARCH: ${{ matrix.arch }}
+      RUSTFLAGS: ${{ matrix.rustflags }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+
+      - name: Verify native architecture and install Rust
+        run: |
+          test "$RUNNER_ARCH" = "$EXPECTED_ARCH"
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --target "$BUILD_TARGET" --no-self-update
+          rustc --version --verbose
+          cargo --version
+
+      - name: Test release packaging
+        run: python -B -m unittest discover -s scripts -p 'test_package_release.py' -v
+
+      - name: Build release executable
+        run: cargo build --locked --release --package apac-tool --target "$BUILD_TARGET"
+
+      - name: Test workspace
+        run: cargo test --locked --release --workspace --target "$BUILD_TARGET" --no-fail-fast
+
+      - name: Clippy
+        run: cargo clippy --locked --release --workspace --all-targets --target "$BUILD_TARGET" -- -D warnings
+
+      - name: Package executable, documentation and licenses
+        run: python -B scripts/package_release.py --target "$BUILD_TARGET" --commit "$GITHUB_SHA" --out artifacts/release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apac-tool-${{ matrix.target }}
+          path: artifacts/release/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

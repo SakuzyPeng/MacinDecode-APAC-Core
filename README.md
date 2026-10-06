@@ -2,6 +2,8 @@
 
 [English](README.en.md) | 中文
 
+[![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
+
 Apple Positional Audio Codec 独立解码核心 · Rust 2024 · Rust 1.98.0 · 核心 `no_std` · `unsafe` 禁用
 
 ## 这是什么
@@ -27,6 +29,12 @@ APAC（Apple Positional Audio Codec）是苹果用于空间音频的编解码器
 - **苹果参考对照（macOS）**：AudioToolbox 编解码、测试信号与 PCM 比较，用于验收
 
 ## 快速开始
+
+### 下载预构建产物
+
+在 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 中打开一次成功的运行，从 **Artifacts** 下载对应平台：Windows x64、Linux x64 或 macOS arm64。macOS 仅提供 Apple Silicon 版本。
+
+下载项包含便携压缩包和 `.sha256` 校验文件；解压后可直接运行 `apac-tool`（Windows 为 `apac-tool.exe`）。包内附带使用文档、许可证和构建提交信息。构建触发条件、平台要求及校验方式见 [CI 与构建产物](guide/development.md#ci-与构建产物)。
 
 ### 前置条件
 

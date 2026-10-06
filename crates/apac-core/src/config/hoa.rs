@@ -1,5 +1,7 @@
 //! HOA ASC configuration. Output channels come from the serialized layout;
 //! they are distinct from HOA coefficients and internal transport channels.
+//! The syntax range remains 0..10 for inspection; frame admission separately
+//! enforces the production decoder's maximum HOA order.
 use super::{
     HoaSalientDeclaration, ParseError,
     parser::{PResult, Parser},

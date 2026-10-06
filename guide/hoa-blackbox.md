@@ -1,5 +1,7 @@
 # HOA 黑盒批处理
 
+当前生产解码范围为零至三阶，salient 为一至三阶。下文保留一至十阶实验工具及历史流程，以便读取已有证据；它们不扩大生产支持范围。四至十阶字典不进入解码器构建，高阶生产来源登记的 `--write` 已停用。原始证据、冻结候选和不确定项继续保留，不将停用能力记作完成重建。
+
 `scripts/hoa_blackbox.py` 使用公开 AudioConverter 回放接口重建一至十阶、六至九位量化的 salient 码表。支持 `mode1`、`mode2:0`、`mode2:1`、`mode3` 和 `mode4:0` 至 `mode4:3`。六位流程同时识别各自阶数的 mode 2／3 分组及四张 mode 4 矩阵；七至九位流程复用同阶已合格的六位矩阵和分组，分别输出 128、256、512 项码表候选。工具不会修改正式数据或执行提交、推送。支持某个阶数的测量不表示该阶已经完成重建；资格以该次冻结验证和最终对照为准。
 
 原生采集需要 macOS 和已构建的 `apac-tool`。工具仅使用 Python 标准库；纯数学、调度和恢复测试通过假原生接口离线运行。已有原型与原始实验目录不需要移动。
@@ -193,15 +195,15 @@ python3 -B scripts/verify_hoa_campaign_storage.py \
 PYTHONPATH=scripts python3 -B -m unittest test_hoa_blackbox_campaign test_hoa_blackbox_coordinate test_hoa_blackbox_import_pool test_hoa_campaign_storage -v
 ```
 
-生产来源登记使用独立命令，只有完整一阶的全部候选、验证、对照及原始证据均合格时才接受：
+高阶登记器目前只允许历史证据的只读准备与核查；`--write` 会在读取证据或写入源文件之前明确拒绝：
 
 ```sh
 python3 -B scripts/register_hoa_measured_campaign.py \
   --campaign /path/to/evidence/hoa-campaign --order 10 \
-  --out reports/hoa-order10-registration.json --write
+  --out reports/hoa-order10-registration-review.json
 ```
 
-省略 `--write` 只准备和检查替换。登记同时核对冻结顺序、候选摘要、四种精度的语义摘要和矩阵资格；还要求 mode 1 的全部符号、双幅度混合输入、补齐及 14 项正常包留出谱线检查完整。早期缺少这组检查的验证不能仅凭 `passed` 状态接入。正式源只含数值及来源摘要，不含原始 PCM 或本地路径。登记报告的 `applied_pending_validation` 不是最终接入验收，仍需运行来源生成器检查及 Rust HOA 回归，并记录成功的应用报告后续跑。工具不提交或推送更改。
+准备过程仍核对冻结顺序、候选摘要、四种精度的语义摘要和矩阵资格，并要求 mode 1 的全部符号、双幅度混合输入、补齐及 14 项正常包留出谱线检查完整。生成的准备报告不代表当前生产构建接受该阶数。历史 `applied_pending_validation` 状态也不改变目前的三阶上限。工具不提交或推送更改。
 
 ## 保留零符号歧义的独立码表补测
 

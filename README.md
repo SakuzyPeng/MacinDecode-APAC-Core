@@ -14,7 +14,7 @@ Apple Positional Audio Codec（APAC）的独立 Rust 实现：码流解析、PCM
 | 能力 | 状态 |
 | --- | --- |
 | Mono／Stereo／5.1／7.1／7.1.4／22.2 声道解码（SQ、CAC、TNS、BWE2） | 支持 |
-| HOA 零至十阶系数解码（salient／ambient、动态选择、空间控制）及 HOA 与声道的组合流 | 支持 |
+| HOA 零至三阶系数解码（salient／ambient、动态选择、空间控制）及 HOA 与声道的组合流 | 支持；四阶及以上明确拒绝 |
 | 输入：CAF、非分片单音轨 MP4／M4A、导出的包目录；顺序或快速范围定位 | 支持 |
 | 采样率索引 0–12（96 kHz–7.35 kHz；部分 HOA 配置限 44.1／48 kHz） | 支持 |
 | DRC、响度、场景图与 renderer 元数据 | 只读取语法，不处理音频 |
@@ -79,7 +79,7 @@ cargo doc --no-deps -p apac-core -p apac-container --open
 | [guide/bitstream.md](guide/bitstream.md) | `parse-packets` 各解析深度、离散声道与 HOA 的语法和数值标识 |
 | [guide/support.md](guide/support.md) | 实现边界、共享配置与组合 HOA 流、ASP 与帧长 |
 | [guide/validation.md](guide/validation.md) | 测试、独立数学验收、重构回归与苹果参考诊断 |
-| [guide/hoa-blackbox.md](guide/hoa-blackbox.md) | 一至十阶 HOA 黑盒批处理、受控先导、证据导入与断点续跑 |
+| [guide/hoa-blackbox.md](guide/hoa-blackbox.md) | HOA 黑盒批处理、三阶生产边界与历史测量证据 |
 | [guide/hoa-mean-blackbox.md](guide/hoa-mean-blackbox.md) | HOA 空间控制均值的精确抵消测量、独立验证与外置卷证据 |
 | [guide/bwe2-blackbox.md](guide/bwe2-blackbox.md) | BWE2 增益重建、LSF 可识别性试验、冻结验证与外置卷证据 |
 | [guide/development.md](guide/development.md) | workspace 结构、`no_std` 构建、API 分层、仓库约定 |

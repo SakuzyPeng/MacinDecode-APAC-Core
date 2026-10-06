@@ -185,21 +185,25 @@ def regenerate(stored_variants, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=range(1,11), help='restrict to one order; default all registered orders')
+    parser.add_argument('--order', type=int, choices=range(1,11), help='default orders 1–3; higher orders are available with --check only')
     parser.add_argument('--candidate', type=Path, action='append', default=[],
                         help='qualified frozen matrix candidate; repeat for distinct orders/clusters')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')
     action.add_argument('--write', action='store_true')
     args = parser.parse_args()
+    require(args.check or args.order is None or args.order <= 3,
+            'production HOA support ends at order 3; higher-order sources are read-only')
     supplied = {}
     for path in args.candidate:
         measurement = from_candidate(path.read_bytes())
         key = (measurement['order'], measurement['cluster'])
+        require(args.order is not None or key[0] <= 3,
+                'higher-order candidates require explicit --order and --check')
         require(args.order is None or key[0] == args.order, 'candidate order was not selected')
         require(key not in supplied, 'duplicate candidate matrix')
         supplied[key] = measurement
-    keys = [key for key in MEASURED_FILES if args.order is None or key[0] == args.order]
+    keys = [key for key in MEASURED_FILES if (key[0] <= 3 if args.order is None else key[0] == args.order)]
     require(keys, 'no registered matrices for requested order')
     measurements = [supplied[key] if key in supplied else load_measurement(key[1], key[0]) for key in keys]
     outputs = {DATA / MEASURED_FILES[m['order'], m['cluster']]: json_bytes(m) for m in measurements}

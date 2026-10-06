@@ -79,12 +79,14 @@ def regenerate(stored_variants, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=range(1,11), help='restrict to one order; default all registered orders')
+    parser.add_argument('--order', type=int, choices=range(1,11), help='default orders 1–3; higher orders are available with --check only')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')
     action.add_argument('--write', action='store_true')
     args = parser.parse_args()
-    orders = sorted({key[0] for key in MEASURED_FILES if args.order is None or key[0] == args.order})
+    require(args.check or args.order is None or args.order <= 3,
+            'production HOA support ends at order 3; higher-order sources are read-only')
+    orders = sorted({key[0] for key in MEASURED_FILES if (key[0] <= 3 if args.order is None else key[0] == args.order)})
     require(orders, 'no registered groups for requested order')
     outputs = {}
     for order in orders:

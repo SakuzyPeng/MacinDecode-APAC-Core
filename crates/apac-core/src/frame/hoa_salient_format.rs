@@ -36,8 +36,14 @@ pub(super) fn stored_codebooks(order: usize, precision: u8) -> Vec<Vec<Vec<(usiz
 }
 
 #[test]
-fn all_expanded_digests_match_and_quantization_widths_share_table_storage() {
-    for order in 1usize..=10 {
+fn supported_digests_match_and_quantization_widths_share_table_storage() {
+    assert_eq!(crate::tables::SALIENT_CONSTANTS.len(), 12);
+    assert!(
+        crate::tables::SALIENT_CONSTANTS
+            .iter()
+            .all(|c| c.coefficients <= 16)
+    );
+    for order in 1usize..=crate::tables::HOA_MAX_SUPPORTED_ORDER {
         let coefficients = (order + 1).pow(2);
         let base = &constants_for_bits(coefficients, 6).format;
         for precision in 6..=9 {

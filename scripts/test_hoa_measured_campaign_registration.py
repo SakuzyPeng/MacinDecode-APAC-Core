@@ -2,6 +2,7 @@
 import copy
 from pathlib import Path
 import tempfile
+import sys
 import unittest
 from unittest import mock
 
@@ -33,6 +34,16 @@ def complete_mode1_checks(precision=6):
 
 
 class RegistrationTests(unittest.TestCase):
+    def test_high_order_write_refuses_before_evidence_or_source_access(self):
+        for order in (4, 10):
+            with tempfile.TemporaryDirectory() as tmp, \
+                 mock.patch.object(sys, 'argv', ['register', '--campaign', tmp, '--order', str(order),
+                                                '--out', str(Path(tmp)/'report.json'), '--write']), \
+                 mock.patch.object(registration, 'prepare', side_effect=AssertionError('must not prepare')):
+                with self.assertRaisesRegex(ExperimentError, 'production HOA support ends at order 3'):
+                    registration.main()
+                self.assertEqual(list(Path(tmp).iterdir()), [])
+
     def test_current_engine_frozen_validation_passes_registration_gate(self):
         from test_hoa_blackbox import FakeBackend, fake_engine, new_store
         with tempfile.TemporaryDirectory() as temporary:

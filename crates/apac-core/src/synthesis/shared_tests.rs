@@ -29,7 +29,10 @@ fn shared_rates_components_and_all_histories_commit_atomically() {
     for row in data["fixtures"].as_array().unwrap() {
         let name = row["name"].as_str().unwrap();
         let cookie = bytes(&row["cookie"]);
-        let mut decoder = Decoder::from_cookie(&cookie).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let Some(mut decoder) = crate::frame::hoa_support_tests::decoder_or_order_limit(&cookie)
+        else {
+            continue;
+        };
         assert_eq!(
             decoder.info().channel_count as u64,
             row["channels"].as_u64().unwrap()

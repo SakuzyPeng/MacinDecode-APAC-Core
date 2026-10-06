@@ -232,6 +232,9 @@ def main():
     p.add_argument('--out',type=Path,required=True,help='new preparation report')
     p.add_argument('--write',action='store_true')
     args=p.parse_args()
+    require(not args.write,
+            'higher-order source registration is disabled: production HOA support ends at order 3; '
+            'omit --write for historical evidence review')
     require(not args.out.exists(),'report already exists')
     with writer_lock(args.campaign):
         prepared,report=prepare(args.campaign.resolve(),args.order)

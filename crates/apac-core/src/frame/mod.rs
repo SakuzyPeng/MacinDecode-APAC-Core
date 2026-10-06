@@ -5,6 +5,8 @@ mod auxiliary;
 pub use auxiliary::{AuxiliaryPayload, SceneGraphPayload, SceneGraphState, TrimmingDeclaration};
 mod channels;
 mod hoa;
+#[cfg(test)]
+pub(crate) mod hoa_support_tests;
 mod hoa_remapping;
 pub use hoa_remapping::{
     HoaStaticRemapping, PROFILE as HOA_STATIC_REMAPPING_PROFILE,

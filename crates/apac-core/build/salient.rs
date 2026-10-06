@@ -1,9 +1,12 @@
-//! HOA salient dictionaries (orders 1..10, quantization widths 6..9), their
+//! Production HOA salient dictionaries (orders 1..3, widths 6..9), their
 //! Huffman tries and the shared angle/normalization constants.
 use crate::emit::{self, Output};
 use crate::{data_json, packed, trie_build};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+
+// One production bound controls both emitted dictionaries and runtime admission.
+const MAX_SUPPORTED_ORDER: usize = 3;
 
 #[derive(Deserialize)]
 struct MeasuredWord {
@@ -972,6 +975,8 @@ const LOWER_DIRECT_BOOKS: [DirectBook; 6] = [
 ];
 
 // BEGIN HIGHER MEASURED SOURCES
+// Historical registrations. The production bound filters these before any data
+// file is opened; they do not enable high-order decoding.
 const HIGHER_CODEBOOKS: &[(usize, u8, usize, usize, &str, &str)] = &[
     (10, 6, 1, 0, "hoa-salient-order10-q6-mode1-measured-v1.json", "7d857413038cc61b632ea627c050b3fc20e227f498f2161f8a313d3db0e94b07"),
     (10, 6, 2, 0, "hoa-salient-order10-q6-mode2-book0-measured-v1.json", "5f346398815675b0cd9bd741dd60421b0febc5d41e06449c199c3f65e7ec8182"),
@@ -1020,7 +1025,7 @@ const HIGHER_DIRECT_BOOKS: &[DirectBook] = &[
 // END HIGHER MEASURED SOURCES
 
 fn is_measured_order(order: usize) -> bool {
-    (1..=3).contains(&order) || HIGHER_CODEBOOKS.iter().any(|source| source.0 == order)
+    (1..=MAX_SUPPORTED_ORDER).contains(&order)
 }
 
 /// Each order shares its matrices across all four quantization widths.
@@ -1224,6 +1229,11 @@ fn refs(names: impl IntoIterator<Item = String>) -> String {
 }
 
 pub fn dictionaries(out: &mut Output) {
+    out.raw(&format!(
+        "pub const HOA_MAX_SUPPORTED_ORDER: usize = {MAX_SUPPORTED_ORDER};\n\
+         pub const HOA_MAX_SUPPORTED_COEFFICIENTS: usize = {};",
+        (MAX_SUPPORTED_ORDER + 1).pow(2)
+    ));
     let measured_direct: Vec<_> = DIRECT_BOOKS
         .iter()
         .map(|source| {
@@ -1273,6 +1283,7 @@ pub fn dictionaries(out: &mut Output) {
     let measured_lower: Vec<_> = LOWER_CODEBOOKS
         .iter()
         .chain(HIGHER_CODEBOOKS.iter())
+        .filter(|source| source.0 <= MAX_SUPPORTED_ORDER)
         .map(|&(order, precision, mode, book, file, sha)| {
             (
                 order,
@@ -1284,7 +1295,7 @@ pub fn dictionaries(out: &mut Output) {
         })
         .collect();
     let mut constants = Vec::new();
-    for order in 1usize..=10 {
+    for order in 1usize..=MAX_SUPPORTED_ORDER {
         let coefficients = (order + 1).pow(2);
         let shared = shared(out, order);
         for precision in 6u8..=9 {

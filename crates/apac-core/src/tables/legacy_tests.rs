@@ -612,7 +612,7 @@ fn hoa_salient_dictionaries_match_the_packed_json_loader() {
         modes: Vec<StoredMode>,
     }
     let mut tries = 0;
-    for order in 1usize..=10 {
+    for order in 1usize..=super::HOA_MAX_SUPPORTED_ORDER {
         let coefficients = (order + 1).pow(2);
         let shared: Shared =
             serde_json::from_str(&data(&format!("hoa-salient-order{order}-shared-v1.json")))
@@ -680,7 +680,7 @@ fn hoa_salient_dictionaries_match_the_packed_json_loader() {
             }
         }
     }
-    assert_eq!(tries, 320);
+    assert_eq!(tries, 96);
 }
 
 #[test]

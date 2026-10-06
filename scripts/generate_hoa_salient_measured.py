@@ -251,7 +251,7 @@ def regenerate(stored, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=range(1, 11), help='restrict to one order; default all registered orders')
+    parser.add_argument('--order', type=int, choices=range(1, 11), help='default orders 1–3; higher orders are available with --check only')
     parser.add_argument('--candidate', type=Path, action='append', default=[],
                         help='verified frozen codebook candidate; repeat for distinct measured books')
     parser.add_argument('--quantization-bits', type=int, choices=(6, 7, 8, 9),
@@ -260,16 +260,20 @@ def main():
     action.add_argument('--check', action='store_true')
     action.add_argument('--write', action='store_true')
     args = parser.parse_args()
+    require(args.check or args.order is None or args.order <= 3,
+            'production HOA support ends at order 3; higher-order sources are read-only')
     supplied = {}
     for candidate in args.candidate:
         measurement = from_candidate(candidate.read_bytes())
         key = (measurement['order'], measurement['quantization_bits'], measurement['mode'], measurement['book'])
+        require(args.order is not None or key[0] <= 3,
+                'higher-order candidates require explicit --order and --check')
         require(args.quantization_bits is None or key[1] == args.quantization_bits, 'candidate precision was not selected')
         require(args.order is None or key[0] == args.order, 'candidate order was not selected')
         require(key not in supplied, 'duplicate candidate book')
         supplied[key] = measurement
     keys = [key for key in MEASURED_FILES if (args.quantization_bits is None or key[1] == args.quantization_bits)
-            and (args.order is None or key[0] == args.order)]
+            and (key[0] <= 3 if args.order is None else key[0] == args.order)]
     require(keys, 'no registered measurements for requested scope')
     measurements = [supplied[key] if key in supplied else load_measurement(key[2], key[3], key[1], key[0]) for key in keys]
     outputs = {DATA / MEASURED_FILES[v['order'], v['quantization_bits'], v['mode'], v['book']]: json_bytes(v) for v in measurements}

@@ -235,26 +235,77 @@ struct Controls {
     format_profile: String,
     format_sha256: String,
     mean_coefficients_f32: Vec<u32>,
+    mean_sha256: String,
+    source: ControlSource,
     tables: Vec<ControlGrid>,
 }
 
+#[derive(Deserialize)]
+struct ControlSource {
+    mean_replacement: MeanReplacement,
+}
+
+#[derive(Deserialize)]
+struct MeanReplacement {
+    source_file: String,
+    source_sha256: String,
+    mean_sha256: String,
+}
+
+#[derive(Deserialize)]
+struct MeasuredMeans {
+    schema_version: u32,
+    profile: String,
+    count: usize,
+    storage: String,
+    mean_sha256: String,
+    mean_coefficients_f32: Vec<u32>,
+}
+
 pub fn hoa_controls(out: &mut Output) {
-    let f: Controls = data_json("hoa-spatial-controls-format-v1.json");
-    assert_eq!(f.format_profile, "apac-hoa-spatial-controls-format-v1");
-    assert_eq!(f.mean_coefficients_f32.len(), 121);
-    assert_eq!(f.tables.len(), 48);
+    const SOURCE_FILE: &str = "hoa-spatial-means-measured-v1.json";
+    const SOURCE_SHA256: &str = "e5fb483ca3eb0e109155e2f7282b4bd3a51371489e5bfa55a9f8e6ea7e938483";
+    const WORDS_SHA256: &str = "299576ce0a06ba6165b2a7ee1485d7211f9bed94b7e5936ce7ec51c5b4f30c42";
+    let raw = data_bytes(SOURCE_FILE);
+    assert_eq!(format!("{:x}", Sha256::digest(&raw)), SOURCE_SHA256);
+    let means: MeasuredMeans = serde_json::from_slice(&raw).expect("measured HOA spatial means");
+    assert_eq!(means.schema_version, 1);
+    assert_eq!(means.profile, "apac-hoa-spatial-means-measured-v1");
+    assert_eq!(means.storage, "acn-order-float32-bits");
+    assert_eq!(means.count, 121);
+    assert_eq!(means.mean_coefficients_f32.len(), means.count);
     assert!(
-        f.mean_coefficients_f32
+        means
+            .mean_coefficients_f32
             .iter()
             .all(|&w| f32::from_bits(w).is_finite())
     );
+    let mut digest = Sha256::new();
+    for word in &means.mean_coefficients_f32 {
+        digest.update(word.to_le_bytes());
+    }
+    assert_eq!(format!("{:x}", digest.finalize()), WORDS_SHA256);
+    assert_eq!(means.mean_sha256, WORDS_SHA256);
+    let f: Controls = data_json("hoa-spatial-controls-format-v1.json");
+    assert_eq!(f.format_profile, "apac-hoa-spatial-controls-format-v1");
+    assert_eq!(f.mean_coefficients_f32, means.mean_coefficients_f32);
+    assert_eq!(f.mean_sha256, WORDS_SHA256);
+    assert_eq!(f.source.mean_replacement.source_file, SOURCE_FILE);
+    assert_eq!(f.source.mean_replacement.source_sha256, SOURCE_SHA256);
+    assert_eq!(f.source.mean_replacement.mean_sha256, WORDS_SHA256);
+    assert_eq!(f.tables.len(), 48);
     for (i, g) in f.tables.iter().enumerate() {
         assert_eq!((g.method, g.subbands), (i / 16, i % 16 + 1));
         assert_eq!(g.long_ends.len(), g.subbands);
         assert_eq!(g.long_ends.last(), Some(&1024));
         assert!(g.long_ends[0] > 0 && g.long_ends.windows(2).all(|w| w[0] < w[1]));
     }
-    out.array(true, "HOA_CONTROL_MEANS", "u32", &f.mean_coefficients_f32);
+    out.array(
+        true,
+        "HOA_CONTROL_MEANS",
+        "u32",
+        &means.mean_coefficients_f32,
+    );
     out.array(
         true,
         "HOA_CONTROL_GRIDS",

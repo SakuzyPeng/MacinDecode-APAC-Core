@@ -600,6 +600,8 @@ python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
 
 `flag_a=false` 在 ambient 覆盖／叠加之前加入格式定义的逐系数均值。`flag_e=false` 使方向描述只读取角度、不再读取四个显式系数。`flag_f=false` 保留未取整的频率边界；短窗按频率优先的实际谱线位置选取描述，不能将终点简单除以八。新边界来自经过读写两侧及原生缓存核验的固定整数表；表生成中的 Float32 运算用于确定码流分段，不降低音频恢复／合成的 Float64 精度。
 
+121 项均值使用 `data/hoa-spatial-means-measured-v1.json` 中通过公开 PCM 精确抵消重建的 Float32 位模式。构建直接读取测量原表，校验完整文件和均值摘要，并要求 `hoa-spatial-controls-format-v1.json` 中的副本与来源记录一致；缺失或不一致时拒绝构建。均值数值、格式语义摘要与解码行为保持不变，子带边界保留各自来源。`python3 -B scripts/generate_hoa_spatial_means_measured.py --check` 可离线核验原表与副本，测量和重建说明见 [HOA 均值测量](hoa-mean-blackbox.md)。
+
 `flag_b=true` 在每个核心帧增加空间配置存在位。当前独立帧（类型 1／2）须重述，类型 0 可沿用 cookie 或前帧配置；更新只改变活动 salient／ambient 数量、选择及 `flag_c=true` 时的分量阶数／子带数。活动数量受 cookie 的最大 salient、恢复维度和传输容量约束，子带数量受 cookie 的最大子带数约束。历史按 cookie 分配的固定分量／子带步长保存；未使用子带、停用分量及已处理描述的高位填充清零。内嵌帧先推进，配置、历史、DRC 和 overlap 仍按外层包原子提交。这与尚未实现的外层 ASP 配置替换是不同载荷。
 
 `HoaFrameContext::spatial_controls()` 返回原始控制值；逐帧报告新增可选 `hoa.spatial.controls`／`frame_configuration`，记录活动配置和位范围。未取整短窗不提供虚构的公共 `lines_per_window`；报告标记 `unrounded_subbands` 并保留长窗终点，按实际频率优先位置解释。PCM 绑定 `apac-hoa-spatial-controls-v1`、格式摘要及控制值，普通控制使用 `apac-hoa-spatial-controls-math-v1`／`apac-hoa-spatial-controls-state-v1`；帧内配置使用 v2 数学／状态及 `rust_hoa_spatial_controls_sq_drc_off_f64_fft_v2` 后端，以遵循编码侧固定历史布局并避免原生读取侧的可变步长与残留历史缺陷。已有默认配置的字段、标识和 PCM 不变。

@@ -135,6 +135,7 @@ def fit(document):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--spectrum',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
     args=p.parse_args();raw=args.spectrum.read_bytes();result=fit(json.loads(raw))
     producer={name:digest((ROOT/'scripts'/name).read_bytes()) for name in

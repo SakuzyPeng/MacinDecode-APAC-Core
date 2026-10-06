@@ -184,4 +184,4 @@ PYTHONPATH=scripts python3 -B -m unittest \
   test_bwe2_spectral_null test_bwe2_blackbox test_bwe2_lsf_probe -v
 ```
 
-重建测试进程开启参考数据读取保护，不应与导入参考对照器的测试合并在同一 Python 进程中。
+各重建命令在入口显式开启进程级参考数据读取保护；仅导入分析模块不会改变调用者的读取权限。保护测试在独立子进程中验证各命令入口，因此可与参考对照测试一起通过 `unittest discover` 运行。

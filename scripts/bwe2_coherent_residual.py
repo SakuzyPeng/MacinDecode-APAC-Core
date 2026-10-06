@@ -53,6 +53,7 @@ def run(capture,source):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--source',type=Path,required=True)
     args=p.parse_args();capture=Capture(args.out,args.binary,writer=ParallelNullWriter())

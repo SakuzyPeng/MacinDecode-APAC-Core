@@ -68,11 +68,44 @@ class Mathematics(unittest.TestCase):
         with self.assertRaises(ValueError):writer.packet(values,parameters=[512,0,0])
 
     def test_reference_read_is_denied(self):
-        code="import bwe2_blackbox; open('data/bwe2-format-v1.json','rb')"
+        code="import bwe2_blackbox; bwe2_blackbox.install_discovery_guard(); bwe2_blackbox.install_discovery_guard(); open('data/bwe2-format-v1.json','rb')"
         env=dict(__import__('os').environ,PYTHONPATH=str(Path(__file__).parent.resolve()))
         result=subprocess.run([sys.executable,'-B','-c',code],env=env,capture_output=True,text=True)
         self.assertNotEqual(result.returncode,0)
         self.assertIn('reference target access is forbidden',result.stderr)
+
+    def test_importing_analysis_modules_does_not_block_reference_tests(self):
+        scripts=Path(__file__).resolve().parent
+        modules=['bwe2_blackbox',*[p.stem for p in sorted(scripts.glob('bwe2_*.py'))
+                                  if 'import bwe2_blackbox' in p.read_text()]]
+        with tempfile.TemporaryDirectory() as tmp:
+            reference=Path(tmp)/'bwe2-format-v1.json'
+            reference.write_text('synthetic reference')
+            code=('import importlib, pathlib, sys; '
+                  '[importlib.import_module(name) for name in sys.argv[2:]]; '
+                  'assert pathlib.Path(sys.argv[1]).read_text() == "synthetic reference"')
+            result=subprocess.run([sys.executable,'-B','-c',code,str(reference),*modules],
+                                  cwd=scripts,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+
+    def test_command_entry_points_enable_reference_isolation(self):
+        scripts=Path(__file__).resolve().parent
+        entries=[scripts/'bwe2_blackbox.py',*[p for p in sorted(scripts.glob('bwe2_*.py'))
+                                            if 'import bwe2_blackbox' in p.read_text()]]
+        # Probe the guard at argument parsing, before any native call or real
+        # evidence is accessed. Every reconstruction CLI must enable it.
+        code=('import argparse, pathlib, runpy, sys; '
+              'argparse.ArgumentParser.parse_args = lambda *a, **k: pathlib.Path(sys.argv[2]).read_bytes(); '
+              'runpy.run_path(sys.argv[1], run_name="__main__")')
+        with tempfile.TemporaryDirectory() as tmp:
+            reference=Path(tmp)/'bwe2-format-v1.json'
+            reference.write_text('synthetic reference')
+            for entry in entries:
+                with self.subTest(entry=entry.name):
+                    result=subprocess.run([sys.executable,'-B','-c',code,str(entry),str(reference)],
+                                          cwd=scripts,capture_output=True,text=True)
+                    self.assertNotEqual(result.returncode,0)
+                    self.assertIn('reference target access is forbidden',result.stderr)
 
 
 class FakeProcess:

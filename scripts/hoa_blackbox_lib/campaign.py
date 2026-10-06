@@ -127,13 +127,8 @@ def export_priors(order, q6):
     return json.loads(result.stdout)
 
 
-def open_batch(root, config, order, precision, priors=None):
+def open_batch(root, config, order, precision, priors=None, limits_updated=False):
     path = root/'batches'/f'order{order}-q{precision}'
-    if path.exists():
-        store = Store(path)
-        require(store.config['tool_fingerprint'] == config['tool_fingerprint']
-                and store.config['native_identity'] == config['native_identity'], 'campaign batch identity changed', IdentityError)
-        return store
     batch = dict(schema_version=1, created_utc=now(), code_commit=config['code_commit'],
                  tool_fingerprint=config['tool_fingerprint'], native_identity=config['native_identity'],
                  binary=config['binary'], native_jobs=config['jobs'], limits=dict(config['limits']),
@@ -141,16 +136,32 @@ def open_batch(root, config, order, precision, priors=None):
                  prior_sha256=digest(canonical(priors)) if priors else None,
                  campaign_root=str(root), evidence_device=config['evidence_device'],
                  shard_probes=PLAN['shard_probes'], limits_scope='planned_shard')
-    store = Store.create(path,batch)
-    snapshot(store)
-    from .native import import_batch
-    for source in config.get('evidence_campaigns',[]):
-        previous = Path(source)/'batches'/path.name
-        if previous.exists():
-            import_batch(store,previous)
-    if priors is not None:
-        store.save_stage('_shared','priors',priors)
-    return store
+    store = Store(path) if path.exists() else Store.create(path,batch)
+    try:
+        require(all(store.config.get(key) == batch[key] for key in
+                    ('tool_fingerprint', 'native_identity', 'order', 'quantization_bits', 'prior_sha256')),
+                'campaign batch identity changed', IdentityError)
+        # Apply explicit budget changes before retrying a stopped initialization.
+        if limits_updated:
+            store.set_limits(**config['limits'])
+        if not store.meta('initialization_complete'):
+            if store.meta('source_snapshot') is None:
+                snapshot(store)
+            from .native import import_batch
+            for source in config.get('evidence_campaigns',[]):
+                previous = Path(source)/'batches'/path.name
+                imported = store.db.execute('SELECT 1 FROM imports WHERE path=?',
+                                            (str(previous.resolve()),)).fetchone()
+                if previous.exists() and imported is None:
+                    import_batch(store,previous)
+            if priors is not None:
+                store.save_stage('_shared','priors',priors)
+            # Only this final checkpoint permits a later open to skip setup.
+            store.set_meta('initialization_complete', True)
+        return store
+    except BaseException:
+        store.close()
+        raise
 
 
 def compare_batch(path, targets, lock_fd):
@@ -314,10 +325,9 @@ def run(args, progress):
                 q6 = root/'batches'/f'order{order}-q6'
                 for precision in config['plan']['precisions']:
                     priors = export_priors(order,q6) if precision > 6 else None
-                    store = open_batch(root,config,order,precision,priors)
+                    store = open_batch(root,config,order,precision,priors,
+                                       limits_updated=bool(updates or total_updates))
                     try:
-                        if updates or total_updates:
-                            store.set_limits(**(updates or dict(config['limits'])))
                         store.recover()
                         backend = NativeBackend(binary,precision,order)
                         runner = Runner(store,backend,jobs=config['jobs'])
@@ -330,28 +340,27 @@ def run(args, progress):
                             pilot=config.get('conditioning_pilot')
                             pilot_target=pilot is not None and (order,precision,target)==(9,6,'mode4:0')
                             if rows[target] in ('passed','failed','partial','different','blocked'):
-                                if pilot_target and pilot['status']=='pending':
-                                    finish_conditioning_pilot(root,config,store,rows[target])
-                                    return status(root)
-                                continue
-                            selected = ['mode2:0','mode2:1'] if target.startswith('mode2:') else [target]
-                            if precision > 6 and not ready_for(target,priors):
-                                for t in selected:
-                                    store.job(t,'blocked','qualified six-bit geometry is unavailable')
-                                continue
-                            engine.run(targets=selected)
-                            path = store.out
-                            store.close()
-                            store = None
-                            outcome = compare_batch(path,selected,lock_fd)
-                            store = Store(path)
-                            runner = Runner(store,backend,jobs=config['jobs'])
-                            engine = Engine(store,runner,progress)
-                            progress(dict(order=order,precision=precision,stage='target_complete',targets={t:outcome[t] for t in selected}))
+                                outcome = rows[target]
+                            else:
+                                selected = ['mode2:0','mode2:1'] if target.startswith('mode2:') else [target]
+                                if precision > 6 and not ready_for(target,priors):
+                                    for t in selected:
+                                        store.job(t,'blocked','qualified six-bit geometry is unavailable')
+                                    continue
+                                engine.run(targets=selected)
+                                path = store.out
+                                store.close()
+                                store = None
+                                outcomes = compare_batch(path,selected,lock_fd)
+                                store = Store(path)
+                                runner = Runner(store,backend,jobs=config['jobs'])
+                                engine = Engine(store,runner,progress)
+                                progress(dict(order=order,precision=precision,stage='target_complete',targets={t:outcomes[t] for t in selected}))
+                                outcome = outcomes[target]
                             if pilot_target and pilot['status']=='pending':
-                                finish_conditioning_pilot(root,config,store,outcome[target])
+                                finish_conditioning_pilot(root,config,store,outcome)
                                 return status(root)
-                            if order == 4 and precision == 6 and target in ('mode1','mode4:0') and outcome[target] != 'passed':
+                            if order == 4 and precision == 6 and target in ('mode1','mode4:0') and outcome != 'passed':
                                 state['status'] = 'pilot_failed'
                                 config['status'] = 'pilot_failed'
                                 save(root,config)

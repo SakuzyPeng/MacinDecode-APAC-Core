@@ -61,6 +61,7 @@ def run(a,observed,gain,all_offsets=False):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--profile',type=Path,required=True);p.add_argument('--spectrum',type=Path,required=True)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--all-offsets',action='store_true')

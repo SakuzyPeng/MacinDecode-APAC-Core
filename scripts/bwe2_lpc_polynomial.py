@@ -241,6 +241,7 @@ def broad_search(a):
 
 
 if __name__=='__main__':
+    bwe2_blackbox.install_discovery_guard()
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--profile',type=Path,required=True);parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--coupled',action='store_true');parser.add_argument('--cent-radius',type=int,default=0,choices=(0,1));parser.add_argument('--tree',action='store_true')
     parser.add_argument('--public-cosines',action='store_true')

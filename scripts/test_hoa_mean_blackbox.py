@@ -86,7 +86,8 @@ class MeanTests(unittest.TestCase):
 
     def test_guard(self):
         code="import hoa_mean_blackbox as m;m.guard();open(m.ROOT/'data/hoa-spatial-controls-format-v1.json')"
-        p=subprocess.run([sys.executable,'-B','-c',code],capture_output=True,text=True)
+        p=subprocess.run([sys.executable,'-B','-c',code],cwd=Path(__file__).resolve().parent,
+                         capture_output=True,text=True)
         self.assertNotEqual(p.returncode,0)
         self.assertIn('target/reference access forbidden',p.stderr)
 

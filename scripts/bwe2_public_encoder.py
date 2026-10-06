@@ -110,6 +110,7 @@ def encode(spec,out):
 
 
 if __name__=='__main__':
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--spec',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--tool-sha',required=True)
     args=p.parse_args()
     if args.tool_sha!=digest(Path(__file__).read_bytes()):raise RuntimeError('encoder producer changed')

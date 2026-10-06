@@ -101,6 +101,7 @@ class Observer:
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--observations',type=Path,required=True);parser.add_argument('--evidence',type=Path);parser.add_argument('--mount',type=Path)

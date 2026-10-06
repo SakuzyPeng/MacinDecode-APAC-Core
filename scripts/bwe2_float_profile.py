@@ -151,6 +151,7 @@ def optimize_words(initial,observed_words,predictor,bins=None):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--spectrum',type=Path,required=True);p.add_argument('--out',type=Path,required=True)
     args=p.parse_args();raw=args.spectrum.read_bytes();document=json.loads(raw)
     bins=np.array(sorted(map(int,document['words'])))

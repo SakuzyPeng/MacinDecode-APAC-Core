@@ -9,7 +9,7 @@ import time
 
 os.environ.setdefault('OPENBLAS_NUM_THREADS','1')
 os.environ.setdefault('VECLIB_MAXIMUM_THREADS','1')
-import bwe2_blackbox  # installs the target-table access guard
+import bwe2_blackbox
 import numpy as np
 from bwe2_blackbox_capture import Capture,atomic
 from bwe2_blackbox_wire import ROOT,canonical,digest
@@ -122,6 +122,7 @@ class NullOracle:
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--evidence',type=Path);parser.add_argument('--mount',type=Path)

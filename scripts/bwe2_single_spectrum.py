@@ -165,6 +165,7 @@ def seed_from_profile(path,gain):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('stage',choices=('controls','measure','validate-model'));p.add_argument('--binary',type=Path,required=True)
     p.add_argument('--out',type=Path,required=True);p.add_argument('--evidence',type=Path);p.add_argument('--mount',type=Path)

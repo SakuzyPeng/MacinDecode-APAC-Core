@@ -444,6 +444,7 @@ def joint_envelope(exp):
 
 
 def main():
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('stage',choices=('refine','encoder','settings','codec-settings','joint-holdout','native-basis','joint-envelope'))
     p.add_argument('--binary',type=Path,required=True);p.add_argument('--out',type=Path,required=True)

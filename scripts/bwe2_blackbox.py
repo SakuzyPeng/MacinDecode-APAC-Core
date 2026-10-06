@@ -21,7 +21,17 @@ def forbid_reference(event,args):
             raise RuntimeError('reference target access is forbidden during reconstruction')
 
 
-sys.addaudithook(forbid_reference)
+_guard_installed = False
+
+
+def install_discovery_guard():
+    """Enable process-wide reference isolation explicitly at command entry."""
+    global _guard_installed
+    if not _guard_installed:
+        sys.addaudithook(forbid_reference)
+        _guard_installed = True
+
+
 import numpy as np
 from bwe2_blackbox_wire import ROOT,canonical,digest,source
 from bwe2_blackbox_capture import Capture,atomic,read_status
@@ -199,6 +209,7 @@ def validate_gains(cap):
 
 
 def main():
+    install_discovery_guard()
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('stage',choices=('pilot','gains','anchors','refine-gains','freeze','validate','lsf-probe','lsf-result','audit','status'))
     parser.add_argument('--binary',type=Path)

@@ -26,7 +26,7 @@ class SourceLayoutTests(unittest.TestCase):
             self.assertIsNone(result['channel_layout']['ambisonic_order'])
 
     def test_hoa_outputs_do_not_advertise_the_discrete_layout_profile(self):
-        for channels, family in ((12,192),(24,204)):
+        for channels, family in ((12,192),):
             for tag in ((190<<16)|channels,(family<<16)|channels,0):
                 with self.subTest(channels=channels,tag=tag), tempfile.TemporaryDirectory() as tmp:
                     labels=[(2<<16)|i for i in range(channels)] if tag==0 else None
@@ -45,6 +45,24 @@ class SourceLayoutTests(unittest.TestCase):
                     unsupported=json.loads((root/'unsupported').read_text())['report']
                     self.assertEqual(unsupported['status'],'unsupported')
                     self.assertNotIn('channel_layout_profile',unsupported)
+
+    def test_high_order_source_layouts_remain_inspectable_but_refuse_decoding(self):
+        channels=24
+        for tag in ((190<<16)|channels,(204<<16)|channels,0):
+            with self.subTest(tag=tag), tempfile.TemporaryDirectory() as tmp:
+                labels=[(2<<16)|i for i in range(channels)] if tag==0 else None
+                opts=vectors.options(channels,tag,labels=labels,parameter=2)
+                root=Path(tmp);raw,_=vectors.packet(vectors.basis(opts),**opts)
+                vectors.bundle(root/'bundle',[raw],**opts)
+                parsed=self.command('parse-cookie',root/'bundle/cookie.bin')
+                self.assertEqual(parsed['status'],'complete')
+                self.command('parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed',code=2)
+                packet=json.loads((root/'parsed').read_text())['report']
+                self.assertEqual(packet['status'],'unsupported')
+                self.assertIn('HOA implementation supports orders 0..3',packet['stop_reason'])
+                result=self.command('decode-sq',root/'bundle','--out',root/'pcm',code=1)
+                self.assertIn('HOA implementation supports orders 0..3',result['error']['message'])
+                self.assertFalse((root/'pcm').exists())
 
     def test_tagged_n3d_is_parseable_but_reference_profile_rejects_it(self):
         opts=vectors.options(4,(191<<16)|4,parameter=1)

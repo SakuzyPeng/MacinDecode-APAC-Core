@@ -188,6 +188,7 @@ def run(document,grid_exponent=23,forward=False,corners=False,public_absolute=Fa
 
 
 if __name__=='__main__':
+    bwe2_blackbox.install_discovery_guard()
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--spectrum',type=Path,required=True);p.add_argument('--out',type=Path,required=True);p.add_argument('--grid-exponent',type=int,default=23)
     p.add_argument('--forward',action='store_true');p.add_argument('--corners',action='store_true');p.add_argument('--public-absolute',action='store_true')
     args=p.parse_args();raw=args.spectrum.read_bytes();result=run(json.loads(raw),args.grid_exponent,args.forward,args.corners,args.public_absolute)

@@ -189,10 +189,12 @@ python3 -B scripts/verify_hoa_campaign_storage.py \
 
 工具指纹变化后可新建长任务，并用 `campaign-run --evidence-campaign /path/to/previous-campaign` 只读导入兼容的原始观测。不会复制 PCM、导入候选、执行旧命令或改写旧记录；已耗尽预算的旧长任务不能用该方式绕过限额。跨版本的累计资源另在研究报告汇总。
 
+初始化中断后，续跑会补齐源码快照、原始观测导入及冻结先验；完成的导入和成功观测直接复用。显式调整的预算在初始化重试前生效，已有调用计数和证据不会清零。四阶先导的已保存失败结果在续跑时仍会阻止后续目标。
+
 长任务、补测和外置存储的离线回归可一起运行，不需要原生组件或目标旧表：
 
 ```sh
-PYTHONPATH=scripts python3 -B -m unittest test_hoa_blackbox_campaign test_hoa_blackbox_coordinate test_hoa_blackbox_import_pool test_hoa_campaign_storage -v
+PYTHONPATH=scripts python3 -B -m unittest test_hoa_blackbox_campaign test_hoa_campaign_resume test_hoa_blackbox_coordinate test_hoa_blackbox_import_pool test_hoa_campaign_storage -v
 ```
 
 高阶登记器目前只允许历史证据的只读准备与核查；`--write` 会在读取证据或写入源文件之前明确拒绝：

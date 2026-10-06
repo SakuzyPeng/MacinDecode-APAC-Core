@@ -71,6 +71,23 @@ python3 -B scripts/bwe2_blackbox_compare.py \
 
 对照前检查 64 项唯一候选、512 项验证覆盖、候选摘要绑定和冻结先于独立采集的时间顺序。输出只报告一致项数及不一致索引，不把参考数值交回重建器；LSF 不参与这一步。`eligible_gain` 只表示该增益候选完成测量、验证和对照，不表示正式来源已替换。
 
+## 正式增益来源
+
+已经合格的 64 项增益现由 `data/bwe2-gains-measured-v1.json` 提供。原格式文件保留增益副本及逐项来源范围，LSF 仍使用原观测来源；重建中的网格假设、冻结和验证身份均写入测量原表。
+
+```sh
+# 离线核验原表、副本与来源记录，无需苹果组件或本地测量目录。
+python3 -B scripts/generate_bwe2_gains_measured.py --check
+
+# 从已登记且摘要匹配的冻结产物复现正式原表。
+python3 -B scripts/generate_bwe2_gains_measured.py --check \
+  --candidate /path/to/frozen-candidate.json \
+  --validation /path/to/heldout-validation.json \
+  --comparison /path/to/final-comparison.json
+```
+
+`--write` 从已登记的来源重新生成文件，不能用任意新候选绕过资格登记。Rust 构建直接读取测量原表，校验完整文件和位模式摘要，并要求格式副本与来源记录一致。生成器不会修改 LSF 数值或扩大其来源声明；BWE2 数值配置和表语义摘要不变。
+
 ## 续跑和证据
 
 ```sh

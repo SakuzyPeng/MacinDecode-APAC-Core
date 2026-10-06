@@ -77,9 +77,12 @@ TNS 数学参考从公式重新计算系数，转换为 200 位 LPC，再作直�
 
 两个控制位先于所有载荷：00 关闭，01 读取右参数，10 读取左参数并按有效声道条件复用到右侧，11 独立读取两侧。零 max_sfb 不读取该侧载荷。复用只接受已定义增益覆盖全部目标组的情况，缺失组明确报错，不借用上包缓存。两套 512×16 LSF 码本与 64 项激励增益是固定格式常量；增益索引 0 是非零小增益。短窗仍以八个 128 点窗口输出，每组增益作用于组内窗口。
 
+64 项激励增益使用 `data/bwe2-gains-measured-v1.json` 中通过公开 PCM 重建、冻结、独立验证及最终对照的 Float32 位模式。来源保留从观测推断的 `0.00001` 十进制网格假设。构建直接读取该测量原表，校验文件和增益摘要，并检查 `bwe2-format-v1.json` 中的副本与来源记录；缺失或不一致时拒绝构建。两套 LSF 码本保留原观测来源。全部 BWE2 数值、格式语义摘要和解码行为保持不变，详见 [BWE2 测量](bwe2-blackbox.md)。
+
 当前数值配置为 `apac-bwe2-math-v2`，保留 SQ／CAC／TNS 配置和关闭 BWE2 时的旧输出。使用 Float64 自相关、16 阶源 LPC、LSF 调理及包络恢复，乘加分别舍入，最终谱线转 Float32；准确零源分支保持输入。目标包络直接计算 LSF 的奇偶因子乘积及半角权重，避免展开 LPC 后的相消导致 PCM 超出数学容差；报告中的 `analysis.target_lpc` 仍保留展开系数供诊断，但不参与目标包络计算。该数值规则改变了部分启用 BWE2 时的输出，旧 v1 报告不能作为 v2 的逐位参考。BWE2 专用 radix-2／radix-3 内核继续用于源分析，覆盖 64、96、128、512、768、1024 点，原有 SQ 合成内核不变。旋转因子及三角多项式常量由 Decimal 100／200 位分别生成并核对；正式构建无需 Python、苹果文件、网络或 FFT 依赖。
 
 ```sh
+python3 -B scripts/generate_bwe2_gains_measured.py --check
 python3 -B scripts/verify_bwe2_format.py  # 可选，需匹配哈希的 macOS 组件
 python3 -B scripts/generate_bwe2_math.py --check
 python3 -B scripts/generate_bwe2_manifest.py --check

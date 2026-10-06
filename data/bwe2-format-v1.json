@@ -2,11 +2,23 @@
   "schema_version": 1,
   "format_profile": "apac-bwe2-format-v1",
   "source": {
-    "component": "AudioCodecs 7.0",
-    "system": "macOS 27.0 / 26A428",
-    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
-    "architecture": "x86_64",
-    "method": "shared encoder/decoder LSF and excitation-gain wire dictionaries"
+    "original_observation": {
+      "component": "AudioCodecs 7.0",
+      "system": "macOS 27.0 / 26A428",
+      "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+      "architecture": "x86_64",
+      "method": "shared encoder/decoder LSF and excitation-gain wire dictionaries"
+    },
+    "method": "mixed sources with measured excitation-gain replacement",
+    "remaining_tables": {
+      "lsf_codebooks_f32": "original_observation"
+    },
+    "gain_replacement": {
+      "source_file": "bwe2-gains-measured-v1.json",
+      "source_sha256": "f2ee23ee8d2080482dc6317caac83047d0da9de6b73d775941578ede7983e865",
+      "gains_sha256": "b4089e46f670df5bb84923eba409db45b7b117f5f910c816b48de197cdc5fe5d",
+      "method": "public AudioConverter PCM black-box reconstruction with an independently inferred decimal grid"
+    }
   },
   "tables_sha256": "651850263d6adf1c2e5c2285910dc1fd6f0921293b6c0e7578a0cb780384a661",
   "lsf_codebooks_f32": [

@@ -31,6 +31,18 @@ The historical window data is used only by diagnostic verification. It is not in
 
 `data/cac-math-v1.json` is independently generated from the dB grid and normalized matrix formulas by `scripts/generate_cac_math.py`, checked at 100 and 200 Decimal digits. It does not copy the native Float32 rotation table or depend on a system exp/sqrt implementation. Both CAC data files are included directly in the Rust build; the diagnostic extractor is not a build step.
 
+## Independently reconstructed BWE2 excitation gains
+
+`data/bwe2-gains-measured-v1.json` is the canonical source for all 64 BWE2 excitation gains, stored as exact Float32 bit patterns in index order. Controlled bitstreams and PCM from the public AudioConverter API supplied the observations on macOS 27.0 / 26A428, arm64. Discovery reused known syntax and public-source AAC tables without reading the previous gain values or internal decoder state.
+
+The reconstruction used monic spectral factorization and relative PCM calibration. A `0.00001` decimal grid was inferred from discovery measurements and tested with independent held-out inputs; this hypothesis is explicitly retained in the measured source. This is not an unconditional uniqueness claim over arbitrary Float32 values. The frozen candidate passed 512 held-out gain checks and eight absolute-scale controls. A subsequent independent comparison matched all 64 Float32 words exactly.
+
+The experiment used code baseline `8de23429ad2d45a07814b09805623ddec5c887dc` with an uncommitted tool extension, later packaged in `9468a2e246d1728a9924be690d9b4719772ec18d`. Candidate and validation producer fingerprints, binary and component identities, and frozen evidence hashes are recorded in the measured source. The gain word digest is `b4089e46f670df5bb84923eba409db45b7b117f5f910c816b48de197cdc5fe5d`.
+
+`scripts/generate_bwe2_gains_measured.py --check` verifies the source, its copy in `data/bwe2-format-v1.json`, and the mixed provenance offline. Supplying the registered candidate, validation and comparison files reproduces the source; `--write` regenerates only the gain copy and provenance. The Rust build reads the canonical measurement directly, verifies its file and word hashes, and requires the format copy and provenance to agree. Missing or inconsistent measured inputs fail the build.
+
+Both 512-by-16 LSF codebooks retain their original observation provenance, preserved under `source.original_observation`. LSF reconstruction remains incomplete and has not supplied production replacements. All BWE2 table values, the format semantic digest and the mathematical profile remain unchanged. Raw PCM, local evidence paths and Apple binaries are not distributed or required for builds. This source replacement does not change licensing declarations. Tooling and its limits are described in `guide/bwe2-blackbox.md`.
+
 ## HOA source-layout format constants
 
 `data/hoa-source-layout-format-v1.json` records bounded source-layout matrix coefficients and accepted layout identifiers observed in the hash-bound AudioCodecs 7.0 reference. Matrix entries retain their Float32 bit patterns; shared matrices are stored once. Channel labels follow the public CoreAudio layout property. These are format observations, not executable bytes, decompiled control flow, native decoder objects or source-media content. The included packaging tool accepts explicit observation paths; reference binaries and observations are not build dependencies.
@@ -49,7 +61,7 @@ Several HOA format files were first recorded from the AudioCodecs reference. The
 | Static ambient sign tables | `hoa-static-ambient-tables-v1.json` | row orders of the 4×4 Sylvester–Hadamard matrix, divisor 2, inverse by transpose | exact |
 | Source-layout matrices of the 18 full-rank layouts | `hoa-source-layout-format-v1.json` | (order + 1) · pinv(Y), Y the real N3D spherical harmonics (ACN order, no Condon–Shortley phase) at the speaker directions, LFE excluded | at most 4.1e-7 relative to the largest entry, the Float32 rounding of the reference; not bit-identical, so the recorded bits stay |
 
-These retain their original observation provenance: the profile/level table; the speaker directions per layout (inferred from the matrices, all round angles); the three Hadamard row orders; the matrices of the 18 rank-deficient layouts (their Moore–Penrose pseudo-inverse is unique, but the recorded values reflect the reference's numerical inversion); and the data-trained dictionaries — order-4–9 salient Huffman codebooks and mode-4 cluster matrices, BWE2 and CAC codebooks. Measured order-1–3 and order-10 sources are described below. Measurements do not change a production source until its required qualification and whole-order registration are complete.
+These retain their original observation provenance: the profile/level table; the speaker directions per layout (inferred from the matrices, all round angles); the three Hadamard row orders; the matrices of the 18 rank-deficient layouts (their Moore–Penrose pseudo-inverse is unique, but the recorded values reflect the reference's numerical inversion); and the data-trained dictionaries — order-4–9 salient Huffman codebooks and mode-4 cluster matrices, BWE2 LSF codebooks and CAC codebooks. Measured order-1–3 and order-10 sources are described below. Measurements do not change a production source until its required qualification and whole-order registration are complete.
 
 ## Independently reconstructed HOA salient codebooks
 

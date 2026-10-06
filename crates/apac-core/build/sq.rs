@@ -1,8 +1,9 @@
 //! SQ numeric tables, SQ/CAC Huffman codebooks, TNS and BWE2 constants. The CAC
 //! rotations belong to the `apac-cac` crate.
 use crate::emit::{self, Output};
-use crate::{data_json, trie_build};
+use crate::{data_bytes, data_json, trie_build};
 use serde::Deserialize;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 #[derive(Deserialize)]
@@ -184,9 +185,31 @@ pub fn tns(out: &mut Output) {
 
 #[derive(Deserialize)]
 struct Bwe2Format {
+    schema_version: u32,
     format_profile: String,
     tables_sha256: String,
     lsf_codebooks_f32: Vec<Vec<[u32; 16]>>,
+    excitation_gains_f32: Vec<u32>,
+    source: Bwe2Source,
+}
+#[derive(Deserialize)]
+struct Bwe2Source {
+    gain_replacement: Bwe2GainReplacement,
+    remaining_tables: BTreeMap<String, String>,
+}
+#[derive(Deserialize)]
+struct Bwe2GainReplacement {
+    source_file: String,
+    source_sha256: String,
+    gains_sha256: String,
+}
+#[derive(Deserialize)]
+struct MeasuredBwe2Gains {
+    schema_version: u32,
+    profile: String,
+    count: usize,
+    storage: String,
+    gains_sha256: String,
     excitation_gains_f32: Vec<u32>,
 }
 #[derive(Deserialize)]
@@ -206,13 +229,68 @@ fn widened(bits: u32) -> String {
 }
 
 pub fn bwe2(out: &mut Output) {
+    const SOURCE_FILE: &str = "bwe2-gains-measured-v1.json";
+    const SOURCE_SHA256: &str = "f2ee23ee8d2080482dc6317caac83047d0da9de6b73d775941578ede7983e865";
+    const WORDS_SHA256: &str = "b4089e46f670df5bb84923eba409db45b7b117f5f910c816b48de197cdc5fe5d";
+    const TABLES_SHA256: &str = "651850263d6adf1c2e5c2285910dc1fd6f0921293b6c0e7578a0cb780384a661";
+    let raw = data_bytes(SOURCE_FILE);
+    assert_eq!(format!("{:x}", Sha256::digest(&raw)), SOURCE_SHA256);
+    let measured: MeasuredBwe2Gains =
+        serde_json::from_slice(&raw).expect("measured BWE2 excitation gains");
+    assert_eq!(measured.schema_version, 1);
+    assert_eq!(measured.profile, "apac-bwe2-gains-measured-v1");
+    assert_eq!(measured.storage, "index-order-float32-bits");
+    assert_eq!(measured.count, 64);
+    assert_eq!(measured.excitation_gains_f32.len(), measured.count);
+    assert!(measured.excitation_gains_f32.iter().all(|&word| {
+        let value = f32::from_bits(word);
+        value.is_finite() && value > 0.
+    }));
+    assert!(
+        measured
+            .excitation_gains_f32
+            .windows(2)
+            .all(|pair| { f32::from_bits(pair[0]) < f32::from_bits(pair[1]) })
+    );
+    let mut digest = Sha256::new();
+    for word in &measured.excitation_gains_f32 {
+        digest.update(word.to_le_bytes());
+    }
+    assert_eq!(format!("{:x}", digest.finalize()), WORDS_SHA256);
+    assert_eq!(measured.gains_sha256, WORDS_SHA256);
     let format: Bwe2Format = data_json("bwe2-format-v1.json");
     let math: Bwe2Math = data_json("bwe2-math-v2.json");
+    assert_eq!(format.schema_version, 1);
     assert_eq!(format.format_profile, "apac-bwe2-format-v1");
     assert_eq!(math.numeric_profile, "apac-bwe2-math-v2");
     assert_eq!(format.lsf_codebooks_f32.len(), 2);
     assert!(format.lsf_codebooks_f32.iter().all(|b| b.len() == 512));
     assert_eq!(format.excitation_gains_f32.len(), 64);
+    assert_eq!(format.excitation_gains_f32, measured.excitation_gains_f32);
+    assert_eq!(format.source.gain_replacement.source_file, SOURCE_FILE);
+    assert_eq!(format.source.gain_replacement.source_sha256, SOURCE_SHA256);
+    assert_eq!(format.source.gain_replacement.gains_sha256, WORDS_SHA256);
+    assert_eq!(format.source.remaining_tables.len(), 1);
+    assert_eq!(
+        format
+            .source
+            .remaining_tables
+            .get("lsf_codebooks_f32")
+            .map(String::as_str),
+        Some("original_observation")
+    );
+    let semantic = serde_json::json!({
+        "lsf_codebooks_f32": format.lsf_codebooks_f32,
+        "excitation_gains_f32": format.excitation_gains_f32,
+    });
+    assert_eq!(
+        format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_vec(&semantic).expect("BWE2 semantic JSON"))
+        ),
+        TABLES_SHA256
+    );
+    assert_eq!(format.tables_sha256, TABLES_SHA256);
     let mut books = Vec::new();
     for (i, b) in format.lsf_codebooks_f32.iter().enumerate() {
         books.push(out.array(
@@ -229,7 +307,7 @@ pub fn bwe2(out: &mut Output) {
         false,
         "BWE2_GAINS",
         "f64",
-        format.excitation_gains_f32.iter().map(|&x| widened(x)),
+        measured.excitation_gains_f32.iter().map(|&x| widened(x)),
     );
     let mut sizes: Vec<(usize, &Vec<[u64; 2]>)> = math
         .twiddles_f64

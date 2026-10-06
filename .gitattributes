@@ -1,0 +1,2 @@
+# Frozen data and producer fingerprints must have identical bytes on every OS.
+* text=auto eol=lf

@@ -15,6 +15,8 @@ target/debug/apac-tool --help
 
 当前机器所需依赖已缓存，可以离线构建。新机器首次构建可使用 `cargo build`。项目关闭开发构建的调试符号和增量编译，所有构建产物使用当前目录的 `target/`。
 
+冻结数值原表与工具指纹按文件原始字节校验，`.gitattributes` 将文本检出固定为 LF；Windows 也保持相同字节，避免 `core.autocrlf` 改变已固定的摘要。
+
 代码是一个 Cargo workspace，默认成员是 `apac-tool`，因此在根目录运行的 `cargo build` 只构建命令行工具；测试和检查请加 `--workspace` 或 `-p <crate>`：
 
 | crate | 内容 |

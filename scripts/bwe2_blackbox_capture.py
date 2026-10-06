@@ -45,22 +45,27 @@ def volume_identity(mount):
     return dict(mount=str(mount),uuid=info['VolumeUUID'])
 
 
-def validate(artifacts, frames):
+def default_signature():
+    return dict(channels=2,layout_tag=(101<<16)|2,cookie_sha256=digest(cookie()))
+
+
+def validate(artifacts, frames, signature=None):
+    signature=default_signature() if signature is None else signature
     replay = json.loads(artifacts['native/replay.json'])
     pcm = json.loads(artifacts['native/pcm.json'])
     policy = json.loads(artifacts['native/processing-policy.json'])
     raw = artifacts['native/pcm.f32le']
-    if len(raw) != frames*2*4 or not all(math.isfinite(v[0]) for v in struct.iter_unpack('<f',raw)):
+    if len(raw) != frames*signature['channels']*4 or not all(math.isfinite(v[0]) for v in struct.iter_unpack('<f',raw)):
         raise RuntimeError('invalid PCM shape or values')
     if not (replay['complete'] and replay['backend']=='AudioConverterFillComplexBuffer'
             and replay['saved_frames']==frames and replay['consumed_packets']==frames//1024
             and replay['input_batch_packets']==1 and replay['original_source_accessed'] is False
             and replay['processing_policy']=='drc-off'):
         raise RuntimeError('native replay contract differs')
-    if not (pcm['complete'] and pcm['frames']==frames and pcm['channels']==2 and pcm['sample_rate']==48000
+    if not (pcm['complete'] and pcm['frames']==frames and pcm['channels']==signature['channels'] and pcm['sample_rate']==48000
             and pcm['encoding']=='f32le' and pcm['interleaved'] and pcm['all_finite']
             and pcm['sha256']==digest(raw) and pcm['start_frame']==0
-            and pcm['layout']['value']['tag']==((101<<16)|2) and pcm['source_cookie_sha256']==digest(cookie())):
+            and pcm['layout']['value']['tag']==signature['layout_tag'] and pcm['source_cookie_sha256']==signature['cookie_sha256']):
         raise RuntimeError('PCM metadata differs')
     if not (policy['verified'] and policy['policy']=='drc-off'
             and policy['request_order']=='properties_then_magic_cookie_then_initial_reset'
@@ -74,15 +79,15 @@ def validate(artifacts, frames):
 
 
 class Capture:
-    def __init__(self, out, binary, evidence=None, mount=None):
+    def __init__(self, out, binary, evidence=None, mount=None, writer=None):
         try:
-            self.initialize(out,binary,evidence,mount)
+            self.initialize(out,binary,evidence,mount,writer)
         except BaseException:
             if hasattr(self,'db'):self.db.close()
             if hasattr(self,'lock') and not self.lock.closed:self.lock.close()
             raise
 
-    def initialize(self, out, binary, evidence=None, mount=None):
+    def initialize(self, out, binary, evidence=None, mount=None, writer=None):
         self.out,self.binary = Path(out).resolve(),Path(binary).resolve()
         self.out.mkdir(parents=True,exist_ok=True)
         self.lock = (self.out/'writer.lock').open('a')
@@ -91,13 +96,16 @@ class Capture:
         except BlockingIOError:
             self.lock.close()
             raise RuntimeError('batch already has a writer')
-        self.writer = Writer()
+        self.writer = Writer() if writer is None else writer
+        self.signature=getattr(self.writer,'signature',default_signature)()
         self.identity = native_identity(self.binary)
         config = self.out/'manifest.json'
         if config.exists():
             self.config = json.loads(config.read_bytes())
             if self.config['native_identity'] != self.identity:
                 raise RuntimeError('native identity changed')
+            if self.config.get('wire_signature',default_signature()) != self.signature:
+                raise RuntimeError('capture wire signature differs')
             if evidence is not None and str(Path(evidence).resolve())!=self.config['evidence']:
                 raise RuntimeError('evidence path changed')
         else:
@@ -108,7 +116,7 @@ class Capture:
             if not path.is_relative_to(Path(mount).resolve()) or path.exists():
                 raise ValueError('new evidence directory must be absent on the mounted volume')
             path.mkdir(parents=True)
-            self.config=dict(schema_version=1,native_identity=self.identity,binary=str(self.binary),
+            self.config=dict(schema_version=1,native_identity=self.identity,binary=str(self.binary),wire_signature=self.signature,
                 evidence=str(path),volume=pin,max_native_calls=4096,max_evidence_bytes=512*MIB,
                 min_free_bytes=1024*MIB,timeout_seconds=30,created=time.time(),
                 code_commit=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip(),
@@ -187,9 +195,9 @@ class Capture:
     def probe(self, label, spec, replicate=''):
         self.check()
         packets=self.writer.program(spec)
-        request=dict(native_identity=self.identity,cookie_sha256=digest(cookie()),
+        request=dict(native_identity=self.identity,cookie_sha256=self.signature['cookie_sha256'],
             packets=[dict(sha256=digest(p),bytes=len(p)) for p in packets],frames=1024*len(packets),
-            channels=2,rate=48000,processing_policy='drc-off',input_batch_packets=1,replicate=replicate)
+            channels=self.signature['channels'],rate=48000,processing_policy='drc-off',input_batch_packets=1,replicate=replicate)
         key=digest(canonical(request))
         self.db.execute('INSERT OR IGNORE INTO uses VALUES (?,?,?)',(label,key,canonical(spec)))
         self.db.commit()
@@ -197,21 +205,23 @@ class Capture:
         if cached:
             receipt=json.loads(cached[0])
             artifacts={name:self.read_blob(h) for name,h in receipt['artifacts'].items()}
-            validate(artifacts,request['frames'])
+            validate(artifacts,request['frames'],self.signature)
             return key,artifacts['native/pcm.f32le']
         calls=self.db.execute('SELECT COUNT(*) FROM attempts').fetchone()[0]
         used=self.charged_bytes()
-        if calls>=self.config['max_native_calls'] or used+2*MIB>self.config['max_evidence_bytes']:
+        reservation=max(2*MIB,request['frames']*self.signature['channels']*4+2*sum(map(len,packets))+256*1024)
+        if calls>=self.config['max_native_calls'] or used+reservation>self.config['max_evidence_bytes']:
             raise RuntimeError('batch capture budget exhausted')
-        cur=self.db.execute('INSERT INTO attempts(key,status,started,reserved_bytes) VALUES (?,?,?,?)',(key,'running',time.time(),2*MIB))
+        cur=self.db.execute('INSERT INTO attempts(key,status,started,reserved_bytes) VALUES (?,?,?,?)',(key,'running',time.time(),reservation))
         attempt=cur.lastrowid
         self.db.commit()
         folder=self.evidence/'attempts'/f'{attempt:06d}'
         folder.mkdir()
         atomic(folder/'request.json',canonical(request))
-        bundle(folder/'input',packets)
+        getattr(self.writer,'bundle',bundle)(folder/'input',packets)
+        output_mib=max(1,(request['frames']*self.signature['channels']*4+65536+128+MIB-1)//MIB)
         command=[str(self.binary),'replay',str(folder/'input'),'--out',str(folder/'native'),'--frames',str(request['frames']),
-                 '--input-batch-packets','1','--processing-policy','drc-off','--max-output-mib','1']
+                 '--input-batch-packets','1','--processing-policy','drc-off','--max-output-mib',str(output_mib)]
         atomic(folder/'command.json',canonical(command))
         start=time.monotonic()
         try:
@@ -231,7 +241,7 @@ class Capture:
                 raise RuntimeError('native replay failed: '+stderr.decode(errors='replace')[-1200:])
             self.check()
             artifacts={str(p.relative_to(folder)):p.read_bytes() for p in sorted(folder.rglob('*')) if p.is_file()}
-            validate(artifacts,request['frames'])
+            validate(artifacts,request['frames'],self.signature)
             references={name:self.blob(raw) for name,raw in artifacts.items()}
             receipt=canonical(dict(key=key,artifacts=references,native_identity=self.identity,attempt=attempt))
             atomic(folder/'receipt.json',receipt)
@@ -279,7 +289,7 @@ class Capture:
             artifacts={name:objects[h] for name,h in receipt['artifacts'].items()}
             request=json.loads(artifacts['request.json'])
             if digest(canonical(request))!=key:raise RuntimeError('request key differs')
-            validate(artifacts,request['frames'])
+            validate(artifacts,request['frames'],self.signature)
             saved=self.evidence/'attempts'/f'{receipt["attempt"]:06d}'/'receipt.json'
             if saved.read_bytes()!=raw_receipt:raise RuntimeError('durable receipt differs from ledger')
             receipts+=1

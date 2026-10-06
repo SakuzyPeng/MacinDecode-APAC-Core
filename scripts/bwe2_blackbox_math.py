@@ -55,6 +55,16 @@ def fit_envelope(values, carrier, cutoff=256):
     transfer=values[cutoff+ids]/source
     if np.any(~np.isfinite(transfer)) or np.any(transfer<=0):
         raise ArithmeticError('nonpositive extension transfer')
+    return fit_transfer(ids,transfer)
+
+
+def fit_transfer(ids,transfer):
+    """Stable spectral factor from positive response at at least 17 bins."""
+    ids=np.asarray(ids);transfer=np.asarray(transfer,float)
+    if ids.ndim!=1 or transfer.shape!=ids.shape or len(ids)<17 or len(set(ids))!=len(ids):
+        raise ValueError('at least 17 distinct transfer bins required')
+    if np.any(ids<0) or np.any(ids>=512) or np.any(~np.isfinite(transfer)) or np.any(transfer<=0):
+        raise ArithmeticError('invalid transfer observation')
     power=transfer**-2
     design=np.cos(np.pi/512*ids[:,None]*np.arange(17)[None,:])
     design[:,1:]*=2

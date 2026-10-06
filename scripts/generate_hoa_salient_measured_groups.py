@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regenerate shared order-1/2/3 coefficient groups from measured q6 codebooks.
+"""Regenerate registered order-1–10 coefficient groups from measured q6 codebooks.
 
 The three groups retain their existing aliases and sharing across q6-q9.
 Codewords and matrices are verified, never repaired by this generator.
@@ -51,7 +51,7 @@ def replace_group(value, measurement):
 def regenerate(stored_variants, shared, measurements):
     require(set(stored_variants) == set(range(6, 10)), 'all four shared-group variants are required')
     order = shared['order']
-    require(shared['schema_version'] == 2 and order in (1,2,3), 'shared group scope differs')
+    require(shared['schema_version'] == 2 and order in range(1,11), 'shared group scope differs')
     shared = copy.deepcopy(shared)
     selected = set()
     for measurement in measurements:
@@ -79,7 +79,7 @@ def regenerate(stored_variants, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=(1,2,3), help='restrict to one order; default all registered orders')
+    parser.add_argument('--order', type=int, choices=range(1,11), help='restrict to one order; default all registered orders')
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--check', action='store_true')
     action.add_argument('--write', action='store_true')

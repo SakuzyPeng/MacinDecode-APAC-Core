@@ -62,7 +62,7 @@ class MeasuredGroupTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'four'):
             regenerate({6: stored[6]}, shared, load_measurements(self.order))
         with self.assertRaisesRegex(ValueError, 'scope'):
-            replace_group(dict(format_for(self.order, 6), order=4), load_measurements(self.order)[0])
+            replace_group(dict(format_for(self.order, 6), order=11), load_measurements(self.order)[0])
 
     def test_relabelled_or_malformed_groups_are_not_accepted_as_measurements(self):
         for measurement in load_measurements(self.order):
@@ -100,6 +100,14 @@ class Order1MeasuredGroupTests(MeasuredGroupTests):
 class Order2MeasuredGroupTests(MeasuredGroupTests):
     order = 2
 
+
+
+
+# Run the same source-integrity suite for every newly registered high order.
+from hoa_measured_high_order_sources import HIGHER_OUTPUTS
+for registered_order in sorted({key[0] for key in HIGHER_OUTPUTS}):
+    test_name = f'Order{registered_order}MeasuredGroupTests'
+    globals()[test_name] = type(test_name, (MeasuredGroupTests,), {'order': registered_order})
 
 if __name__ == '__main__':
     unittest.main()

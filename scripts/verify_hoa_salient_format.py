@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 import struct
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
-from generate_hoa_salient_measured import load_measurements, measured_book, replace_book
+from generate_hoa_salient_measured import MEASURED_FILES, load_measurements, measured_book, replace_book
 from generate_hoa_salient_measured_matrix import load_measurements as load_matrix_measurements, measured_matrix, replace_matrix
 from generate_hoa_salient_measured_groups import GROUP_USERS, load_measurements as load_group_measurements, replace_group
 from generate_hoa_salient_measured import measured_group
@@ -81,13 +81,13 @@ def extract(path, order=3, quantization_bits=6):
                 source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
-    if order in (1,2,3):
+    if order in {key[0] for key in MEASURED_FILES}:
         for measurement in load_measurements(quantization_bits, order):
             mode, book = measurement['mode'], measurement['book']
             if result['modes'][mode]['codebooks'][book] != measured_book(measurement):
                 raise ValueError(f'reference differs from measured codebook {mode}/{book}')
             result = replace_book(result, measurement)
-    if order in (1,2,3):
+    if order in {key[0] for key in MEASURED_FILES}:
         for measurement in load_matrix_measurements(order):
             cluster = measurement['cluster']
             if result['modes'][4]['matrices_f32'][cluster] != measured_matrix(measurement):

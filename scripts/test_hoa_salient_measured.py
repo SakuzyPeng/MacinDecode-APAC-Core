@@ -9,10 +9,14 @@ from generate_hoa_salient_measured import (
 from hoa_salient_format import DATA, format_for, format_name, shared_name
 
 
+REGISTERED_ORDERS = sorted({key[0] for key in BOOK_SHA256})
+
+
 class MeasuredCodebookTests(unittest.TestCase):
     def test_all_supported_order_codebooks_have_measured_sources(self):
+        self.assertTrue({1, 2, 3} <= set(REGISTERED_ORDERS))
         books = [(1, 0), (2, 0), (2, 1), (3, 0)] + [(4, c) for c in range(4)]
-        self.assertEqual(set(BOOK_SHA256), {(o, p, m, b) for o in (1, 2, 3) for p in (6, 7, 8, 9) for m, b in books})
+        self.assertEqual(set(BOOK_SHA256), {(o, p, m, b) for o in REGISTERED_ORDERS for p in (6, 7, 8, 9) for m, b in books})
 
     def test_measurement_matches_generated_packed_copy(self):
         for order, precision, mode, book in BOOK_SHA256:
@@ -34,12 +38,12 @@ class MeasuredCodebookTests(unittest.TestCase):
                 self.assertEqual(result, original)
                 self.assertNotEqual(changed, original)
                 with self.assertRaisesRegex(ValueError, 'scope'):
-                    replace_book(dict(format_for(order, precision), order=4), load_measurement(mode, book, precision, order))
+                    replace_book(dict(format_for(order, precision), order=11), load_measurement(mode, book, precision, order))
                 with self.assertRaisesRegex(ValueError, 'scope'):
                     replace_book(format_for(order, 15-precision), load_measurement(mode, book, precision, order))
 
     def test_replacements_compose_without_losing_the_other_source(self):
-        for order, precision in ((o,p) for o in (1,2,3) for p in (6,7,8,9)):
+        for order, precision in ((o,p) for o in REGISTERED_ORDERS for p in (6,7,8,9)):
             current = format_for(order, precision)
             original = copy.deepcopy(current)
             del original['source']['codebook_replacements']
@@ -56,7 +60,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                 from_candidate(raw)
 
     def test_regeneration_does_not_depend_on_the_previous_packed_book(self):
-        for order, precision in ((o,p) for o in (1,2,3) for p in (6,7,8,9)):
+        for order, precision in ((o,p) for o in REGISTERED_ORDERS for p in (6,7,8,9)):
             shared = json.loads((DATA / shared_name(order)).read_text())
             stored = json.loads((DATA / format_name(order, precision)).read_text())
             broken = copy.deepcopy(stored)
@@ -70,7 +74,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                 regenerate(broken, shared, [load_measurement(1, 0, precision, order)])
 
     def test_measurements_never_replace_the_shared_matrices(self):
-        for order, precision in ((o,p) for o in (1,2,3) for p in (6,7,8,9)):
+        for order, precision in ((o,p) for o in REGISTERED_ORDERS for p in (6,7,8,9)):
             shared = json.loads((DATA / shared_name(order)).read_text())
             changed = copy.deepcopy(shared)
             words = bytearray.fromhex(changed['matrices_f32'][0])
@@ -105,7 +109,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                     measured_book(measurement)
 
     def test_a_measurement_cannot_be_relabelled_as_another_cluster(self):
-        for order, precision in ((o,p) for o in (1,2,3) for p in (6,7,8,9)):
+        for order, precision in ((o,p) for o in REGISTERED_ORDERS for p in (6,7,8,9)):
             shared = json.loads((DATA / shared_name(order)).read_text())
             for cluster in range(4):
                 value = load_measurement(4, cluster, precision, order)
@@ -114,7 +118,7 @@ class MeasuredCodebookTests(unittest.TestCase):
                     measured_book(value)
 
     def test_precisions_cannot_be_relabelled_or_mixed_in_one_dictionary(self):
-        for order, precision in ((o,p) for o in (1,2,3) for p in (6,7,8,9)):
+        for order, precision in ((o,p) for o in REGISTERED_ORDERS for p in (6,7,8,9)):
             shared = json.loads((DATA / shared_name(order)).read_text())
             value = load_measurement(1, 0, precision, order)
             value['quantization_bits'] = 15-precision
@@ -128,7 +132,7 @@ class MeasuredCodebookTests(unittest.TestCase):
             regenerate(stored, shared, load_measurements(7))
 
     def test_wider_sources_reuse_geometry_without_replacing_its_source(self):
-        for value in (value for order in (1,2,3) for precision in (7,8,9) for value in load_measurements(precision, order)):
+        for value in (value for order in REGISTERED_ORDERS for precision in (7,8,9) for value in load_measurements(precision, order)):
             self.assertNotIn('coefficient_group', value)
             self.assertNotIn('group_sha256', value)
             with self.assertRaisesRegex(ValueError, 'no recovered group'):

@@ -3,7 +3,7 @@ from fractions import Fraction
 import math
 import statistics
 import struct
-from .common import require, MAX_DEPTH, REPEAT_EPS, LEAF_EPS
+from .common import require, geometry, MAX_DEPTH, REPEAT_EPS, LEAF_EPS
 
 
 def dot(a, b): return math.fsum(x * y for x, y in zip(a, b))
@@ -13,10 +13,39 @@ def vmul(v, matrix): return [math.fsum(v[j] * matrix[j][k] for j in range(len(v)
 def infnorm(matrix): return max(math.fsum(abs(x) for x in row) for row in matrix)
 
 
-def inverse(matrix):
+def heldout_rms_error(pcm, control, positive_half, zero, calibration_bound):
+    """Mode-0 half-scale carrier gives one quantization step on a held-out line.
+
+    Subtract the measured endpoint coefficient errors before applying the
+    original one-eighth classification margin. Float32 bit equality is recorded
+    separately; it is not a requirement for this held-out waveform.
+    """
+    require(len(pcm)==len(control)==len(positive_half) and len(pcm)>0, 'held-out waveform sizes differ')
+    step=2*math.sqrt(dot(positive_half,positive_half)/len(positive_half))*(1/zero-2*calibration_bound)
+    require(step>0, 'held-out calibration separation is insufficient')
+    error=math.sqrt(math.fsum((a-b)**2 for a,b in zip(pcm,control))/len(pcm))
+    limit=step/8
+    require(error<=limit, 'mode-1 held-out RMS exceeds calibration classification margin')
+    return error,limit
+
+
+def normalized_gram_residual(matrix):
+    n = len(matrix)
+    scale = math.fsum(dot(row, row) for row in matrix) / n
+    require(math.isfinite(scale) and scale > 0, 'invalid matrix Gram scale')
+    return max(math.fsum(abs(dot(row, other)/scale - float(i == j))
+                         for j, other in enumerate(matrix))
+               for i, row in enumerate(matrix))
+
+
+def inverse(matrix, *, order=None, diagnostics=None):
     n = len(matrix)
     require(n > 0 and all(len(row) == n for row in matrix), 'nonsquare matrix')
     require(all(math.isfinite(x) for row in matrix for x in row), 'nonfinite matrix')
+    if order is not None:
+        require(n == geometry(order)['channels'], 'matrix order and dimensions differ')
+    extended = order in (9, 10)
+    condition_limit = 128 if extended else 64
     scale = infnorm(matrix)
     require(scale > 0, 'singular matrix')
     a = [list(row) + [float(i == j) for j in range(n)] for i, row in enumerate(matrix)]
@@ -33,8 +62,17 @@ def inverse(matrix):
     result = [row[n:] for row in a]
     condition = scale * infnorm(result)
     residual = infnorm([[x - float(i == k) for k, x in enumerate(vmul(row, result))] for i, row in enumerate(matrix)])
-    require(condition <= 64, 'matrix condition exceeds 64')
+    require(condition <= condition_limit, f'matrix condition exceeds {condition_limit}')
     require(residual <= 1e-10, 'inverse residual exceeds 1e-10')
+    gram = normalized_gram_residual(matrix) if extended else None
+    if extended:
+        require(gram <= 1e-3, 'normalized matrix Gram residual exceeds 0.001')
+    if diagnostics is not None:
+        diagnostics.update(policy='order9-10-condition128-gram-v1' if extended else 'original-condition64-v1',
+                           order=order, condition_inf_limit=condition_limit,
+                           inverse_residual_inf_limit=1e-10,
+                           normalized_gram_residual_inf=gram,
+                           normalized_gram_residual_inf_limit=1e-3 if extended else None)
     return result, condition, residual
 
 

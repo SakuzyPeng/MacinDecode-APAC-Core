@@ -1,8 +1,9 @@
 """Bounded native concurrency; the calling thread owns every evidence write."""
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing, contextmanager
+from itertools import chain
 
-from .common import BudgetStop, require
+from .common import BudgetStop, ShardBoundary, require
 
 
 @contextmanager
@@ -70,7 +71,11 @@ def _parallel(runner, requests):
                     # Yield in request order, independent of completion order.
                     yield results[key]
                 if deferred_stop is not None:
-                    raise deferred_stop
+                    if isinstance(deferred_stop, ShardBoundary):
+                        store.pool.advance()
+                        requests = chain((request,), requests)
+                    else:
+                        raise deferred_stop
         finally:
             # An interrupted/failed analysis must not leave a decoder writing
             # after the writer lock is released. Unaccepted outputs stay raw.

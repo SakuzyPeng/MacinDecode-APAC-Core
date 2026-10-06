@@ -9,7 +9,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGETS = ('mode1', 'mode2:0', 'mode2:1', 'mode3', 'mode4:0', 'mode4:1', 'mode4:2', 'mode4:3')
-POLICY_VERSION = 'hoa-blackbox-orders1-3-q6-q9-joint-mode2-v6'
+POLICY_VERSION = 'hoa-blackbox-orders1-10-q6-q9-campaign-v12'
 GAINS = (128, 129)
 N = 16
 SYMBOLS = 320
@@ -21,11 +21,13 @@ DEFAULT_LIMITS = dict(max_bytes=512 * 1024**2, max_calls=4096, min_free=1024**3)
 
 
 def geometry(order=3):
-    require(type(order) is int and order in (1, 2, 3), 'unsupported HOA order')
+    require(type(order) is int and 1 <= order <= 10, 'unsupported HOA order')
     channels = (order + 1)**2
     components = min(5, channels)
+    profile, level = (5, 0) if channels <= 16 else (5, 1) if channels <= 36 else (5, 2) if channels <= 49 else (0, 0)
     return dict(order=order, channels=channels, components=components, bands=4,
-                symbols=channels*components*4, layout_tag=(190 << 16) | channels)
+                symbols=channels*components*4, layout_tag=(190 << 16) | channels,
+                profile=profile, level=level)
 
 
 class ExperimentError(Exception):
@@ -42,6 +44,26 @@ class IdentityError(EvidenceError):
 
 class BudgetStop(ExperimentError):
     pass
+
+
+class ShardBoundary(BudgetStop):
+    """A planned checkpoint, distinct from exhausting a resource limit."""
+
+
+def pcm_byte_count(order, frames=2048):
+    require(frames in (2048, 3072, 4096), 'unsupported PCM frame count', EvidenceError)
+    return frames * geometry(order)['channels'] * 4
+
+
+def capture_reservation(request):
+    signature = request['signature']
+    raw = pcm_byte_count(signature.get('order', 3), signature['frames'])
+    require(signature['channels'] == geometry(signature.get('order', 3))['channels'],
+            'capture geometry differs', EvidenceError)
+    inputs = sum(p['bytes'] for p in request['packets'])
+    # Raw output, a worst-case gzip copy, its verification buffer on disk,
+    # input bundle, journal/sidecars and a safety margin. Preserve the old floor.
+    return max(2 * 1024**2, 3*raw + 2*inputs + 256*1024)
 
 
 def require(condition, message, error=ExperimentError):
@@ -70,10 +92,14 @@ def now():
 
 
 def tool_fingerprint():
-    paths = [ROOT / 'scripts/hoa_blackbox.py', ROOT / 'data/sq-codebooks.json']
-    paths += sorted(Path(__file__).parent.glob('*.py'))
+    paths = producer_paths()
     return digest(canonical(dict(files={str(p.relative_to(ROOT)): file_digest(p) for p in paths},
                                  policy=POLICY_VERSION, python=sys.version)))
+
+
+def producer_paths():
+    return [ROOT / 'scripts/hoa_blackbox.py', ROOT / 'data/sq-codebooks.json',
+            *sorted(Path(__file__).parent.glob('*.py'))]
 
 
 def target_parts(target):
@@ -84,7 +110,8 @@ def target_parts(target):
 
 
 def pcm_samples(raw, channels=16):
-    require(channels in (4, 9, 16) and len(raw) in tuple(frames*channels*4 for frames in (2048, 3072, 4096)),
+    require(channels in tuple((o+1)**2 for o in range(1, 11))
+            and len(raw) in tuple(frames*channels*4 for frames in (2048, 3072, 4096)),
             'wrong PCM byte count', EvidenceError)
     values = array('f')
     values.frombytes(raw)

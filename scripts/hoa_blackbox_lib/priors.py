@@ -117,9 +117,10 @@ def export_batches(order, paths):
                             'unqualified prior matrix entry')
                     words = [e['float32_bits'] for e in entries]
                     floats = [struct.unpack('<f', struct.pack('<I', word))[0] for word in words]
-                    inverse([floats[i:i+n] for i in range(0,n*n,n)])
+                    inversion_policy = {}
+                    inverse([floats[i:i+n] for i in range(0,n*n,n)], order=order, diagnostics=inversion_policy)
                     item = dict(matrix_f32=words, empirical_half_width=max(e['empirical_half_width'] for e in entries),
-                                matrix_sha256=digest(canonical(matrix)), source=source)
+                                matrix_sha256=digest(canonical(matrix)), source=source, inversion_policy=inversion_policy)
                     key = target[-1]
                     require(key not in matrices or matrices[key] == item, 'conflicting prior matrices')
                     matrices[key] = item
@@ -150,7 +151,7 @@ def export_batches(order, paths):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=(1,2,3), default=3)
+    parser.add_argument('--order', type=int, choices=range(1,11), default=3)
     parser.add_argument('--evidence', type=Path, nargs='+')
     args = parser.parse_args()
     if args.evidence:

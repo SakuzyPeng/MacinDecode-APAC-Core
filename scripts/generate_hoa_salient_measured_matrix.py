@@ -14,6 +14,7 @@ from pathlib import Path
 
 from hoa_packed_tables import pack_matrix
 from hoa_measured_batch_sources import OUTPUTS, LOWER_MATRICES, source as batch_source, lower_source
+from hoa_measured_high_order_sources import HIGHER_MATRICES, higher_source
 from hoa_salient_format import DATA, check_digest, expand_format, format_name, json_bytes, shared_name, split_format
 
 MEASURED_FILES = {c: f'hoa-salient-order3-mode4-cluster{c}-matrix-measured-v1.json' for c in range(4)}
@@ -50,12 +51,12 @@ MEASURED_FILES = {(3, cluster): value for cluster, value in MEASURED_FILES.items
 CANDIDATE_SHA256 = {(3, cluster): value for cluster, value in CANDIDATE_SHA256.items()}
 MATRIX_SHA256 = {(3, cluster): value for cluster, value in MATRIX_SHA256.items()}
 SOURCES = {(3, cluster): value for cluster, value in SOURCES.items()}
-for key, record in LOWER_MATRICES.items():
+for key, record in {**LOWER_MATRICES, **HIGHER_MATRICES}.items():
     order, cluster = key
     MEASURED_FILES[key] = f'hoa-salient-order{order}-mode4-cluster{cluster}-matrix-measured-v1.json'
     CANDIDATE_SHA256[key] = record['candidate']
     MATRIX_SHA256[key] = record['matrix_values']
-    SOURCES[key] = lower_source(key, 'matrix')
+    SOURCES[key] = lower_source(key, 'matrix') if order <= 2 else higher_source(key, 'matrix')
 
 
 def require(condition, message):
@@ -98,7 +99,7 @@ def from_candidate(raw):
     else:
         require(candidate['profile'] == 'hoa-blackbox-matrix-v1'
                 and (candidate['rows'], candidate['columns']) == (n, n)
-                and candidate['codebook_sha256'] == (OUTPUTS[cluster] if order == 3 else LOWER_MATRICES[key])['codebook_candidate'],
+                and candidate['codebook_sha256'] == (OUTPUTS[cluster] if order == 3 else (LOWER_MATRICES if order <= 2 else HIGHER_MATRICES)[key])['codebook_candidate'],
                 'candidate codebook or dimensions differ')
     source = SOURCES[key]
     require(candidate['policy_sha256'] == source['policy_sha256'], 'candidate calibration policy differs')
@@ -152,7 +153,7 @@ def replace_matrix(value, measurement):
 def regenerate(stored_variants, shared, measurements):
     require(set(stored_variants) == set(range(6, 10)), 'all four shared-matrix variants are required')
     order = shared['order']
-    require(shared['schema_version'] == 2 and order in (1,2,3), 'shared matrix scope differs')
+    require(shared['schema_version'] == 2 and order in range(1,11), 'shared matrix scope differs')
     shared = copy.deepcopy(shared)
     if isinstance(measurements, dict):
         measurements = [measurements]
@@ -184,7 +185,7 @@ def regenerate(stored_variants, shared, measurements):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--order', type=int, choices=(1,2,3), help='restrict to one order; default all registered orders')
+    parser.add_argument('--order', type=int, choices=range(1,11), help='restrict to one order; default all registered orders')
     parser.add_argument('--candidate', type=Path, action='append', default=[],
                         help='qualified frozen matrix candidate; repeat for distinct orders/clusters')
     action = parser.add_mutually_exclusive_group(required=True)

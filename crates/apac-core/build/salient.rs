@@ -971,6 +971,58 @@ const LOWER_DIRECT_BOOKS: [DirectBook; 6] = [
     },
 ];
 
+// BEGIN HIGHER MEASURED SOURCES
+const HIGHER_CODEBOOKS: &[(usize, u8, usize, usize, &str, &str)] = &[
+    (10, 6, 1, 0, "hoa-salient-order10-q6-mode1-measured-v1.json", "7d857413038cc61b632ea627c050b3fc20e227f498f2161f8a313d3db0e94b07"),
+    (10, 6, 2, 0, "hoa-salient-order10-q6-mode2-book0-measured-v1.json", "5f346398815675b0cd9bd741dd60421b0febc5d41e06449c199c3f65e7ec8182"),
+    (10, 6, 2, 1, "hoa-salient-order10-q6-mode2-book1-measured-v1.json", "167f797c1e7ac12c9ffe60d3a3034909e097c2a353814502d02a23f1c741626c"),
+    (10, 6, 3, 0, "hoa-salient-order10-q6-mode3-measured-v1.json", "b52d178df42f9236b75532af2934f99dcefffaed03f18d28fd9758ab08c8689d"),
+    (10, 6, 4, 0, "hoa-salient-order10-q6-mode4-cluster0-measured-v1.json", "fe59133975172a73435d388101298c2ac9e55d60f8939160072006e4a1768117"),
+    (10, 6, 4, 1, "hoa-salient-order10-q6-mode4-cluster1-measured-v1.json", "b6c6d7a7f079d9ed851c44a5bb08e0d33c328a59f868d1fcb7790762f5df43f2"),
+    (10, 6, 4, 2, "hoa-salient-order10-q6-mode4-cluster2-measured-v1.json", "7a4c35b20b30f397a40980f5787a285b6a65879eb3b001bc0c975499033c31c2"),
+    (10, 6, 4, 3, "hoa-salient-order10-q6-mode4-cluster3-measured-v1.json", "d26d1c4b3979a985a9a2443c0e694e5cf6fcfb8c7c5f53a94c502beaa9be98b8"),
+    (10, 7, 1, 0, "hoa-salient-order10-q7-mode1-measured-v1.json", "414670c6f02830a3ab420f4ad8b4dca688876e8e2b3de089baea475c737e7517"),
+    (10, 7, 2, 0, "hoa-salient-order10-q7-mode2-book0-measured-v1.json", "f6466b3258bbdd17e894844b302c88d04574980fed183c7284eabc7839f63530"),
+    (10, 7, 2, 1, "hoa-salient-order10-q7-mode2-book1-measured-v1.json", "b84c7f671e7abe5bacdacc28f0f9c64cdd36d2c7acfdbef4230c6e79243c5fd8"),
+    (10, 7, 3, 0, "hoa-salient-order10-q7-mode3-measured-v1.json", "d613c9d508418cbd5793830db9734e683abda56c70f0374778ab59b6bad8eacb"),
+    (10, 7, 4, 0, "hoa-salient-order10-q7-mode4-cluster0-measured-v1.json", "53b83f49d0fdc8d7ac2ea20c0f0a07686bba58b5799477d59797fbd504332555"),
+    (10, 7, 4, 1, "hoa-salient-order10-q7-mode4-cluster1-measured-v1.json", "80be936f0c15d3bf09b85ba1fe051dec951418a108775d45f8244fa508af6ef5"),
+    (10, 7, 4, 2, "hoa-salient-order10-q7-mode4-cluster2-measured-v1.json", "6bd9ca2ccd4388f0225da79853e82eaa318cafd1519767f3c30c552fecf28725"),
+    (10, 7, 4, 3, "hoa-salient-order10-q7-mode4-cluster3-measured-v1.json", "332f54656985651d6cad114549163053ed6f55700f212e4f2879a2c3f5c4b35d"),
+    (10, 8, 1, 0, "hoa-salient-order10-q8-mode1-measured-v1.json", "d44a2f10518cca2e60758d3f957dc8ba4ff05768e05891a3a50b3c701297daf5"),
+    (10, 8, 2, 0, "hoa-salient-order10-q8-mode2-book0-measured-v1.json", "b7daf468881c7ec3bebe30daec68e81dbbe241a5914dd551a84aa8fdd9959334"),
+    (10, 8, 2, 1, "hoa-salient-order10-q8-mode2-book1-measured-v1.json", "fb83ee090986bafc4452807d408bdc382662f555b832f6cfed051017ccfed1f0"),
+    (10, 8, 3, 0, "hoa-salient-order10-q8-mode3-measured-v1.json", "9586952a9f5c012d1b85ad70f6bfc953599baab6baaecb8dcbffbbfc347abd22"),
+    (10, 8, 4, 0, "hoa-salient-order10-q8-mode4-cluster0-measured-v1.json", "c2a17e128d95b053527b3b6b86197391662b1a0dfbc1115378d3f37757a42519"),
+    (10, 8, 4, 1, "hoa-salient-order10-q8-mode4-cluster1-measured-v1.json", "48fb13d9ff1be8220ccb05e47cdf72a52df629a5fcfc8fe449f198b1242c1b57"),
+    (10, 8, 4, 2, "hoa-salient-order10-q8-mode4-cluster2-measured-v1.json", "15393dc0a398dd3701b64ea2abf71d4d757348d37dbf860e8566935229b43170"),
+    (10, 8, 4, 3, "hoa-salient-order10-q8-mode4-cluster3-measured-v1.json", "514812e237a38d7e5f036884f8a7a492ef5f741b1795574d0f74741ac4a7086a"),
+    (10, 9, 1, 0, "hoa-salient-order10-q9-mode1-measured-v1.json", "c6c8302573b9872e11b0d27f67c42bf3d63f870284ad6c6d581cc6ebc7e7d5f3"),
+    (10, 9, 2, 0, "hoa-salient-order10-q9-mode2-book0-measured-v1.json", "cffff98ffe4cf03e2eb2ac9672dac298ca1eb1b240fe259682b2b67a5094e60e"),
+    (10, 9, 2, 1, "hoa-salient-order10-q9-mode2-book1-measured-v1.json", "cd0117d5234edb2a0e958f2d17ae1bbd4a86415a7ff9214bbe20af60fb4b60f1"),
+    (10, 9, 3, 0, "hoa-salient-order10-q9-mode3-measured-v1.json", "41750b5d9cd60e5db2279efae70ec8aa2c3be4d3551ac6c9910e9bd854bcd60c"),
+    (10, 9, 4, 0, "hoa-salient-order10-q9-mode4-cluster0-measured-v1.json", "bcbf929cd5d28c00228929c89a29e309e2ba5005b397fb40536e1f93a9dde0d9"),
+    (10, 9, 4, 1, "hoa-salient-order10-q9-mode4-cluster1-measured-v1.json", "035711ef2607b2909eb079511deb60f4c89092c31690976fc24c86188a0d1a8c"),
+    (10, 9, 4, 2, "hoa-salient-order10-q9-mode4-cluster2-measured-v1.json", "0bfc881614336c767f96810340d0fddf4d58488631c51b48550f2943cbe6cb3a"),
+    (10, 9, 4, 3, "hoa-salient-order10-q9-mode4-cluster3-measured-v1.json", "5252d4ca819e08ff99c6b4ec4c70ec74bab685c372f9fd5d85c89b543325cb87"),
+];
+const HIGHER_MATRIX_SHA256: &[(usize, usize, &str)] = &[
+    (10, 0, "310c1e854eb37c56ad7eabad1a1ddf56c1cd44fc63b214489c2fa2701546cfb7"),
+    (10, 1, "a3f0e43b63b1aa1d242f6928a274eaf1dd0123807b0dd222f960d943678c5bba"),
+    (10, 2, "49e3711c859dc2aadafb010b7eea88528eab254dbd2b5edc22f040488f13e6c5"),
+    (10, 3, "16a5d3ef7df17b3453d74e1da42e5815d156e1d391838242730e8d43838a6392"),
+];
+const HIGHER_DIRECT_BOOKS: &[DirectBook] = &[
+    DirectBook { order: 10, mode: 2, book: 0, file: "hoa-salient-order10-q6-mode2-book0-measured-v1.json", book_sha256: "5f346398815675b0cd9bd741dd60421b0febc5d41e06449c199c3f65e7ec8182", group_sha256: "74b778962c5dca20770b558dfd57b8fcbc469d447eb2dab2b82588ab40ce98d4", group_users: &[(2, 0)] },
+    DirectBook { order: 10, mode: 2, book: 1, file: "hoa-salient-order10-q6-mode2-book1-measured-v1.json", book_sha256: "167f797c1e7ac12c9ffe60d3a3034909e097c2a353814502d02a23f1c741626c", group_sha256: "3b32138b90307a5b5fb71f10e4e7ce140066377031579456cf7ac44ed13be132", group_users: &[(2, 1)] },
+    DirectBook { order: 10, mode: 3, book: 0, file: "hoa-salient-order10-q6-mode3-measured-v1.json", book_sha256: "b52d178df42f9236b75532af2934f99dcefffaed03f18d28fd9758ab08c8689d", group_sha256: "252dce1bf40f9cf596d131f6962a29ef0fed11c6e6de9872754fdab48956c66e", group_users: &[(0, 0), (1, 0), (3, 0), (4, 0), (4, 1), (4, 2), (4, 3), (5, 0)] },
+];
+// END HIGHER MEASURED SOURCES
+
+fn is_measured_order(order: usize) -> bool {
+    (1..=3).contains(&order) || HIGHER_CODEBOOKS.iter().any(|source| source.0 == order)
+}
+
 /// Each order shares its matrices across all four quantization widths.
 fn measured_matrix(order: usize, cluster: usize) -> Vec<u32> {
     let data: MeasuredMatrix = data_json(&format!(
@@ -984,11 +1036,10 @@ fn measured_matrix(order: usize, cluster: usize) -> Vec<u32> {
     );
     assert_eq!(data.storage, "row-major");
     assert_eq!(data.matrix_f32.len(), (order + 1).pow(4));
-    assert!(
-        data.matrix_f32
-            .iter()
-            .all(|&word| f32::from_bits(word).is_finite())
-    );
+    assert!(data
+        .matrix_f32
+        .iter()
+        .all(|&word| f32::from_bits(word).is_finite()));
     let digest = format!(
         "{:x}",
         Sha256::digest(serde_json::to_vec(&data.matrix_f32).expect("measured matrix JSON"))
@@ -999,8 +1050,9 @@ fn measured_matrix(order: usize, cluster: usize) -> Vec<u32> {
     } else {
         LOWER_MATRIX_SHA256
             .iter()
+            .chain(HIGHER_MATRIX_SHA256.iter())
             .find_map(|&(o, c, sha)| (o == order && c == cluster).then_some(sha))
-            .expect("measured lower-order matrix source")
+            .expect("measured matrix source")
     };
     assert_eq!(digest, expected);
     data.matrix_f32
@@ -1074,7 +1126,7 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     assert_eq!(data.matrix_encoding, packed::MATRIX_ENCODING);
     assert_eq!(data.order, order);
     assert_eq!(data.modes.len(), 6);
-    let measured: Vec<_> = if (1..=3).contains(&order) {
+    let measured: Vec<_> = if is_measured_order(order) {
         assert_eq!(data.modes[4].mode, 4);
         assert_eq!(data.modes[4].matrix_indices.len(), 4);
         data.modes[4]
@@ -1100,10 +1152,11 @@ fn shared(out: &mut Output, order: usize) -> Shared {
     } else {
         Vec::new()
     };
-    if (1..=3).contains(&order) {
+    if is_measured_order(order) {
         let sources: Vec<_> = DIRECT_BOOKS
             .iter()
             .chain(LOWER_DIRECT_BOOKS.iter())
+            .chain(HIGHER_DIRECT_BOOKS.iter())
             .filter(|source| source.order == order)
             .collect();
         assert_eq!(sources.len(), 3, "measured coefficient group sources");
@@ -1219,6 +1272,7 @@ pub fn dictionaries(out: &mut Output) {
         .collect();
     let measured_lower: Vec<_> = LOWER_CODEBOOKS
         .iter()
+        .chain(HIGHER_CODEBOOKS.iter())
         .map(|&(order, precision, mode, book, file, sha)| {
             (
                 order,
@@ -1247,7 +1301,7 @@ pub fn dictionaries(out: &mut Output) {
             );
             assert_eq!(stored.format_profile, profile);
             assert_eq!(stored.modes.len(), 6);
-            if (1..=3).contains(&order) {
+            if is_measured_order(order) {
                 for (mode, count) in stored.modes.iter().zip([0, 1, 2, 1, 4, 0]) {
                     assert_eq!(mode.codebooks.len(), count);
                 }
@@ -1257,19 +1311,15 @@ pub fn dictionaries(out: &mut Output) {
             for (mode_index, (mode, common)) in stored.modes.iter().zip(&shared.modes).enumerate() {
                 assert_eq!(mode.mode, mode_index);
                 assert_eq!(common.mode, mode_index);
-                assert!(
-                    common
-                        .group_indices
-                        .iter()
-                        .flat_map(|&g| &shared.groups[g])
-                        .all(|&i| i < coefficients)
-                );
-                assert!(
-                    common
-                        .matrix_indices
-                        .iter()
-                        .all(|&m| shared.matrix_lengths[m] == coefficients * coefficients)
-                );
+                assert!(common
+                    .group_indices
+                    .iter()
+                    .flat_map(|&g| &shared.groups[g])
+                    .all(|&i| i < coefficients));
+                assert!(common
+                    .matrix_indices
+                    .iter()
+                    .all(|&m| shared.matrix_lengths[m] == coefficients * coefficients));
                 let groups: Vec<String> = common
                     .group_indices
                     .iter()
@@ -1291,15 +1341,19 @@ pub fn dictionaries(out: &mut Output) {
                     let packed_book =
                         packed::codebook(hex, precision).expect("built-in packed HOA codebook");
                     let measured = match (order, precision, mode_index, book_index) {
-                        (1 | 2, precision, mode, book) => Some(
-                            measured_lower
-                                .iter()
-                                .find_map(|(o, p, m, b, words)| {
-                                    (*o == order && *p == precision && *m == mode && *b == book)
-                                        .then_some(words)
-                                })
-                                .expect("measured lower-order codebook source"),
-                        ),
+                        (other_order, precision, mode, book)
+                            if other_order != 3 && is_measured_order(other_order) =>
+                        {
+                            Some(
+                                measured_lower
+                                    .iter()
+                                    .find_map(|(o, p, m, b, words)| {
+                                        (*o == order && *p == precision && *m == mode && *b == book)
+                                            .then_some(words)
+                                    })
+                                    .expect("measured codebook source"),
+                            )
+                        }
                         (3, 6, 1, 0) => Some(&measured_mode1),
                         (3, 6, 2, book) => Some(&measured_direct[book]),
                         (3, 6, 3, 0) => Some(&measured_direct[2]),

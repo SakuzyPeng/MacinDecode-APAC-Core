@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resumable HOA black-box batches (orders 1–3, q6–q9, modes 1 through 4).
+"""Resumable HOA black-box batches (orders 1–10, q6–q9, modes 1 through 4).
 
 Only public native replay is used. This command never changes production data.
 Candidates and complete lossless evidence remain under the selected output.
@@ -20,6 +20,8 @@ from hoa_blackbox_lib.store import Store, atomic_file, writer_lock
 def parser():
     p = argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest='command', required=True)
+    from hoa_blackbox_lib.campaign import add_commands
+    add_commands(sub)
     for command in ('run', 'resume', 'status', 'import-evidence', 'compare'):
         s = sub.add_parser(command)
         s.add_argument('--out', type=Path, required=True)
@@ -33,7 +35,7 @@ def parser():
         if command in ('run', 'import-evidence', 'compare'):
             s.add_argument('--targets', nargs='+', choices=TARGETS)
         if command in ('run', 'import-evidence'):
-            s.add_argument('--order', type=int, choices=(1, 2, 3),
+            s.add_argument('--order', type=int, choices=range(1, 11),
                            help='HOA order for a new batch (default 3)')
             s.add_argument('--quantization-bits', type=int, choices=(6, 7, 8, 9),
                            help='quantization width for a new batch (default 6)')
@@ -108,6 +110,8 @@ def initialize(args):
 
 
 def check_store(store):
+    from hoa_blackbox_lib.campaign import authorize_batch
+    authorize_batch(store)
     require(store.config['schema_version'] == 1, 'unsupported batch schema', EvidenceError)
     require(store.config['tool_fingerprint'] == tool_fingerprint(),
             'tool or analysis fingerprint changed; create a new batch and import raw evidence', IdentityError)
@@ -169,9 +173,16 @@ def compare_subprocess(out, targets):
 
 def main():
     args = parser().parse_args()
-    if args.command in ('run', 'resume', 'import-evidence'):
+    if args.command in ('run', 'resume', 'import-evidence', 'campaign-run', 'campaign-resume'):
         install_discovery_guard()
     try:
+        if args.command.startswith('campaign-'):
+            from hoa_blackbox_lib import campaign
+            if args.command == 'campaign-run':
+                campaign.create(args, limits(args))
+            result = campaign.status(args.out) if args.command == 'campaign-status' else campaign.run(args, progress)
+            print(json.dumps(result, ensure_ascii=False))
+            return 0 if result['status'] in ('complete','awaiting_application','pilot_complete') or args.command == 'campaign-status' else 1
         require(not (args.command == 'import-evidence' and args.out.exists() and args.prior_evidence),
                 'cannot replace priors in an existing batch; create a new batch')
         if args.command == 'status':

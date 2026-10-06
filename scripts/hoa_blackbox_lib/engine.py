@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from .common import (GAINS, MAX_DEPTH, POLICY_VERSION, geometry,
                      ExperimentError, EvidenceError, IdentityError, BudgetStop,
                      canonical, digest, require, target_parts)
-from .maths import dot, norm, vmul, subtract, inverse, direction_residual, infer_tree, matrix_entry
+from .maths import dot, norm, vmul, subtract, inverse, direction_residual, infer_tree, matrix_entry, heldout_rms_error
 from .wire import vector
 from .direct import DirectRecovery
 
@@ -49,8 +49,10 @@ class Engine(DirectRecovery):
             source = self.priors['matrices'][str(cluster)]
             values = [struct.unpack('<f', struct.pack('<I', word))[0] for word in source['matrix_f32']]
             rows = [values[i:i+self.n] for i in range(0, self.n*self.n, self.n)]
-            inv, condition, residual = inverse(rows)
-            self.prior_matrices[cluster] = dict(inverse=inv, condition_inf=condition, inverse_residual_inf=residual)
+            policy = {}
+            inv, condition, residual = inverse(rows, order=self.order, diagnostics=policy)
+            self.prior_matrices[cluster] = dict(inverse=inv, condition_inf=condition,
+                                               inverse_residual_inf=residual, inversion_policy=policy)
         return self.prior_matrices[cluster]
 
     def reused_matrix(self, cluster):
@@ -89,19 +91,23 @@ class Engine(DirectRecovery):
         responses = {}
         for line in (0, 1):
             for gain in GAINS:
-                evidence, waves = {}, {}
+                evidence = {}
                 symbols = range(self.levels) if line == 0 else (0, self.negative_half, self.zero, self.positive_half, self.levels-1)
                 cases = [(f'{gain}:{line}:{q}', self.writer.fixed(self.vector(q), gain, line)) for q in symbols]
                 with self.capture_batch('_shared', 'calibration', cases) as outputs:
                     for q, (key, pcm) in zip(symbols, outputs):
-                        evidence[str(q)], waves[q] = key, pcm
-                require(not any(waves[self.zero]), 'mode-0 zero is not zero')
-                refs = [waves[self.positive_half][k::self.n] for k in range(self.n)]
+                        evidence[str(q)] = key
+                        if q == self.zero:
+                            require(not any(pcm), 'mode-0 zero is not zero')
+                reference_pcm = self.runner.pcm(evidence[str(self.positive_half)])
+                refs = [reference_pcm[k::self.n] for k in range(self.n)]
+                del reference_pcm
                 energy = [dot(v, v) for v in refs]
                 require(all(v > 0 for v in energy), 'calibration carrier unobservable')
                 errors = [0.] * self.n
                 estimated = {}
-                for q, pcm in waves.items():
+                for q in symbols:
+                    pcm = self.runner.pcm(evidence[str(q)])
                     values = [0.5 * dot(pcm[k::self.n], refs[k]) / energy[k] for k in range(self.n)]
                     estimated[str(q)] = values
                     errors = [max(e, abs(y - (q - self.zero) / self.zero)) for e, y in zip(errors, values)]
@@ -134,6 +140,29 @@ class Engine(DirectRecovery):
             refs = [pcm[k::self.n] for k in range(self.n)]
             self.refs[key] = (response, refs, [dot(v, v) for v in refs])
         return self.refs[key]
+
+    def preflight(self):
+        """Verify every output channel independently, using only mode 0."""
+        previous = self.store.stage('_shared', 'preflight')
+        if previous is not None:
+            return previous
+        self.calibration = self.calibrate()
+        cases = [(f'{gain}:{row}', self.writer.fixed(self.vector(self.positive_half, row), gain))
+                 for gain in GAINS for row in range(self.n)]
+        checks = []
+        with self.capture_batch('_shared', 'preflight', cases, independent=True) as outputs:
+            for (label, _), (key, pcm) in zip(cases, outputs):
+                gain, row = map(int, label.split(':'))
+                values = self.estimate(pcm, gain)
+                error = max(abs(v-(0.5 if k == row else 0.)) for k,v in enumerate(values))
+                require(error < 1e-6, 'mode-0 basis channel is not observable')
+                require(any(pcm[row:1024*self.n:self.n]) and any(pcm[1024*self.n+row::self.n]),
+                        'basis onset or overlap is not observable')
+                checks.append(dict(evidence=key, gain=gain, channel=row, max_error=error))
+        result = dict(status='passed', order=self.order, channels=self.n, checks=checks,
+                      calibration_sha256=digest(canonical(self.calibration)))
+        self.store.save_stage('_shared', 'preflight', result)
+        return result
 
     def estimate(self, pcm, gain, line=0):
         response, refs, energy = self.reference(gain, line)
@@ -179,7 +208,8 @@ class Engine(DirectRecovery):
         for j in range(2, self.n):
             observations.append(self.observe(target, 'bootstrap', f'row:{j}', '0'*(j*length)+'1'))
         rows = [subtract(o['coefficients'], base['coefficients']) for o in observations]
-        inv, condition, residual = inverse(rows)
+        policy = {}
+        inv, condition, residual = inverse(rows, order=self.order, diagnostics=policy)
         coordinates = vmul(base['coefficients'], inv)
         require(max(abs(v-coordinates[0]) for v in coordinates) <= self.repeat_eps, 'zero stream coordinates not uniform')
         repeats = []
@@ -193,7 +223,8 @@ class Engine(DirectRecovery):
             require(deviation <= self.repeat_eps, 'coordinates changed with amplitude or padding')
             repeats.append(dict(deviation=deviation, trials=trials))
         result = dict(zero_code_length=length, baseline=base, scan=scans, row_observations=observations,
-                      scaled_matrix=rows, inverse=inv, condition_inf=condition, inverse_residual_inf=residual, repeats=repeats)
+                      scaled_matrix=rows, inverse=inv, condition_inf=condition, inverse_residual_inf=residual,
+                      inversion_policy=policy, repeats=repeats)
         self.store.save_stage(target, 'bootstrap', result)
         return result
 
@@ -228,7 +259,8 @@ class Engine(DirectRecovery):
                       old_dictionary_consulted=False)
         if reused:
             result.update(prior_sha256=self.store.config['prior_sha256'], matrix_reused=True,
-                          matrix_condition_inf=boot['condition_inf'], matrix_inverse_residual_inf=boot['inverse_residual_inf'])
+                          matrix_condition_inf=boot['condition_inf'], matrix_inverse_residual_inf=boot['inverse_residual_inf'],
+                          matrix_inversion_policy=boot['inversion_policy'])
         self.store.save_stage(target, 'codebook', result)
         return result
 
@@ -296,10 +328,25 @@ class Engine(DirectRecovery):
                 item.update(max_error=max(errors), max_error_to_bound_ratio=max(e/l for e, l in zip(errors, limits)),
                             coordinate_error=coordinate_error)
             else:
+                bit_identical=True;heldout=[]
+                columns_by_symbol = {}
                 for column, q in enumerate(values[:self.n]):
+                    columns_by_symbol.setdefault(q, []).append(column)
+                for q, columns in columns_by_symbol.items():
                     ref = self.runner.pcm(self.calibration['responses'][f'{gain}:{line}']['evidence'][str(q)])
-                    require(pcm[column::self.n].tobytes() == ref[column::self.n].tobytes(), 'mode-1 PCM differs from calibration')
-                item['pcm_bit_identical_to_mode0'] = True
+                    for column in columns:
+                        actual,control=pcm[column::self.n],ref[column::self.n]
+                        equal=actual.tobytes()==control.tobytes();bit_identical &= equal
+                        if line==0:
+                            require(equal, 'mode-1 PCM differs from calibration')
+                        else:
+                            response,half,_=self.reference(gain,line)
+                            heldout.append(heldout_rms_error(actual,control,half[column],self.zero,response['max_coefficient_error'][column]))
+                item['pcm_bit_identical_to_mode0'] = bit_identical
+                if heldout:
+                    item.update(max_heldout_rms_to_limit_ratio=max(error/limit for error,limit in heldout),
+                                max_heldout_rms_error=max(error for error,_ in heldout),
+                                min_heldout_rms_limit=min(limit for _,limit in heldout))
             checks.append(item)
             return digest(pcm.tobytes())
         if matrix:
@@ -327,6 +374,17 @@ class Engine(DirectRecovery):
                 add(values, 129, f'line1-mixed:{i}', line=1)
             for gain in GAINS:
                 add([self.zero]*self.symbols, gain, f'zero:{gain}')
+        else:
+            # The held-out carrier has five mode-0 calibration controls. Use
+            # those values for both uniform and independently mixed inputs.
+            heldout_symbols = (0, self.negative_half, self.zero, self.positive_half, self.levels-1)
+            for gain in GAINS:
+                for q in heldout_symbols:
+                    add(self.vector(q), gain, f'line1-symbol:{gain}:{q}', line=1)
+            heldout_rng = random.Random(0x484f4131)
+            for i in range(4):
+                values = [heldout_rng.choice(heldout_symbols) for _ in range(self.symbols)]
+                add(values, 129, f'line1-mixed:{i}', line=1)
         with self.capture_batch(target, 'validation', [(c['label'], c['payload']) for c in cases], True) as outputs:
             for case, (key, pcm) in zip(cases, outputs):
                 value = check(case, key, pcm)

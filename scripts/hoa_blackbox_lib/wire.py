@@ -1,4 +1,4 @@
-"""Order-1/2/3 q6–q9 APAC inputs; reads only the public-source AAC tables."""
+"""Order-1–10 q6–q9 APAC inputs; reads only the public-source AAC tables."""
 import json
 from .common import ROOT, MAX_DEPTH, canonical, digest, geometry, require
 
@@ -18,16 +18,28 @@ def pack(wire):
     return int(wire, 2).to_bytes(len(wire) // 8, 'big')
 
 
+def escaped(value, widths):
+    require(type(value) is int and value >= 0, 'invalid escaped integer')
+    result = ''
+    for i, width in enumerate(widths):
+        maximum = (1 << width) - 1
+        if value < maximum or i == len(widths)-1:
+            return result + bits(value, width)
+        result += bits(maximum, width)
+        value -= maximum
+    raise AssertionError('unreachable escaped integer')
+
+
 def cookie(quantization_bits=6, order=3):
     g = geometry(order)
     n, components = g["channels"], g["components"]
     require(quantization_bits in (6, 7, 8, 9), 'unsupported quantization width')
     fields = [(0, 32), (int.from_bytes(b'dapa', 'big'), 32), (0, 32), (0x800, 16),
-              (5, 6), (0, 4), (0, 1), (3, 6), (0, 6), (n, 8), (2, 8), (0, 1),
+              (g['profile'], 6), (g['level'], 4), (0, 1), (3, 6), (0, 6), (n, 8), (2, 8), (0, 1),
               (1, 3), (0, 8), (2, 3)]
     wire = ''.join(bits(v, w) for v, w in fields)
     wire += '1100110' + bits(1, 2) + bits(0, 2) + bits(quantization_bits-6, 2) + bits(order, 4) + bits(components, 4) + bits(0, (n-1).bit_length())
-    wire += (bits(3, 4) + bits(order, order.bit_length())) * components + '0' + bits(n, 5) + '000' * n
+    wire += (bits(3, 4) + bits(order, order.bit_length())) * components + '0' + escaped(n, (5, 10, 16)) + '000' * n
     wire += '0' + bits(190, 16) + bits(n, 16) + '0' + '0' + bits(0, 3) + bits(0, 2) + '000000'
     raw = pack(wire)
     return len(raw).to_bytes(4, 'big') + raw[4:]

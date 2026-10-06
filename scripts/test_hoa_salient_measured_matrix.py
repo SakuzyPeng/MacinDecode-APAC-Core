@@ -71,7 +71,7 @@ class MeasuredMatrixTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'four'):
             regenerate(stored, shared, load_measurement(order=self.order))
         with self.assertRaisesRegex(ValueError, 'scope'):
-            replace_matrix(dict(format_for(self.order, 6), order=4), load_measurement(order=self.order))
+            replace_matrix(dict(format_for(self.order, 6), order=11), load_measurement(order=self.order))
 
     def test_candidate_must_be_the_qualified_frozen_file(self):
         for raw in (b'{}', b'{"status":"precision_unresolved","float32_bits":null}'):
@@ -138,6 +138,14 @@ class Order1MeasuredMatrixTests(MeasuredMatrixTests):
 class Order2MeasuredMatrixTests(MeasuredMatrixTests):
     order = 2
 
+
+
+
+# Run the same source-integrity suite for every newly registered high order.
+from hoa_measured_high_order_sources import HIGHER_OUTPUTS
+for registered_order in sorted({key[0] for key in HIGHER_OUTPUTS}):
+    test_name = f'Order{registered_order}MeasuredMatrixTests'
+    globals()[test_name] = type(test_name, (MeasuredMatrixTests,), {'order': registered_order})
 
 if __name__ == '__main__':
     unittest.main()

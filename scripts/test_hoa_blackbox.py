@@ -15,7 +15,7 @@ import unittest
 from hoa_blackbox_lib.common import (BudgetStop, EvidenceError, ExperimentError, IdentityError,
     ROOT, canonical, digest, geometry, target_parts, tool_fingerprint)
 from hoa_blackbox_lib.engine import Engine
-from hoa_blackbox_lib.maths import infer_tree, inverse, matrix_entry, vmul
+from hoa_blackbox_lib.maths import infer_tree, inverse, matrix_entry, vmul, heldout_rms_error
 from hoa_blackbox_lib.native import Runner, import_batch
 from hoa_blackbox_lib.store import Store, writer_lock
 from hoa_blackbox_lib import wire
@@ -173,6 +173,39 @@ def fake_engine(store, backend, jobs=1):
 
 
 class BatchTests(unittest.TestCase):
+    def test_mode1_heldout_carrier_is_checked_against_fixed_width_controls(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store=new_store(Path(tmp)/'batch');backend=FakeBackend()
+            try:
+                fake_engine(store,backend).run()
+                validation=store.stage('mode1','validation')
+                heldout=[check for check in validation['checks'] if check['line']==1]
+                self.assertEqual(len(heldout),14)
+                self.assertTrue(all(check['pcm_bit_identical_to_mode0'] for check in heldout))
+            finally:store.close()
+
+    def test_mode1_heldout_carrier_corruption_rejects_validation(self):
+        class BrokenHeldout(FakeBackend):
+            def capture(self,packets,folder):
+                result=super().capture(packets,folder)
+                payload=json.loads(packets[0])
+                if payload['mode']==1 and payload['line']==1:
+                    values=array('f');values.frombytes(result['native/pcm.f32le'])
+                    raw=array('f',(x*1.1 for x in values)).tobytes()
+                    result['native/pcm.f32le']=raw
+                    meta=json.loads(result['native/pcm.json']);meta['sha256']=digest(raw)
+                    result['native/pcm.json']=canonical(meta)
+                return result
+        with tempfile.TemporaryDirectory() as tmp:
+            store=new_store(Path(tmp)/'batch')
+            try:
+                fake_engine(store,BrokenHeldout()).run()
+                job=store.summary()['targets'][0]
+                self.assertEqual(job['status'],'failed')
+                self.assertIn('mode-1 held-out RMS exceeds',job['error'])
+                self.assertIsNone(store.stage('mode1','validation'))
+            finally:store.close()
+
     def test_query_reuse_and_independent_replicates(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = new_store(Path(tmp)/'batch');backend = FakeBackend();engine = fake_engine(store, backend)
@@ -447,7 +480,7 @@ class OrderTests(unittest.TestCase):
                 imported.close()
         self.assertEqual(len(keys), 3)
         self.assertEqual(len(cookies), 3)
-        for order in (0, 4, True):
+        for order in (0, 11, True):
             with self.assertRaises(ExperimentError):wire.Writer(order=order)
 
     def test_lower_order_all_modes_and_qualified_geometry_export(self):
@@ -618,6 +651,18 @@ class ConcurrencyTests(unittest.TestCase):
 
 
 class MathTests(unittest.TestCase):
+    def test_heldout_rms_preserves_quantization_margin_under_float_rounding(self):
+        half=array('f',[0.1,-0.2,0.3,-0.4]*32)
+        control=array('f',(-x for x in half))
+        rounded=array('f',(x*1.0000001 for x in control))
+        self.assertNotEqual(rounded.tobytes(),control.tobytes())
+        error,limit=heldout_rms_error(rounded,control,half,256,3e-8)
+        self.assertLess(error/limit,1e-3)
+        with self.assertRaisesRegex(ExperimentError,'RMS exceeds'):
+            heldout_rms_error(array('f',(x*1.1 for x in control)),control,half,256,3e-8)
+        with self.assertRaisesRegex(ExperimentError,'separation'):
+            heldout_rms_error(control,control,half,256,1.)
+
     def test_search_boundary_accepts_32_bits_and_rejects_hidden_deeper_leaves(self):
         for symbols in (64, 128, 256, 512):
             for depth in (32, 33):

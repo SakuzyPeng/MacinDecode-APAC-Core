@@ -8,8 +8,8 @@ import shutil
 import sqlite3
 import uuid
 
-from .common import (BudgetStop, EvidenceError, ExperimentError, canonical, digest, geometry,
-                     now, pcm_samples, require, target_parts)
+from .common import (BudgetStop, EvidenceError, ExperimentError, canonical, capture_reservation,
+                     digest, geometry, now, pcm_byte_count, pcm_samples, require, target_parts)
 
 
 def atomic_file(path, raw):
@@ -46,7 +46,7 @@ def writer_lock(out):
         except BlockingIOError as error:
             raise ExperimentError('another writer is using this batch') from error
         try:
-            yield
+            yield stream.fileno()
         finally:
             fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
@@ -95,8 +95,14 @@ class Store:
         self.base_bytes = directory_bytes(self.out)
         self.hits = 0
         self.capture_reservations = {}
+        self.pool = None
+        if self.config.get('campaign_root'):
+            from .campaign_store import CampaignStorage
+            self.pool = CampaignStorage(self)
 
     def close(self):
+        if self.pool:
+            self.pool.close()
         self.db.close()
 
     def meta(self, key):
@@ -111,6 +117,8 @@ class Store:
         self.config['limits'].update({k: v for k, v in updates.items() if v is not None})
         self.set_meta('config', self.config)
         atomic_file(self.out / 'manifest.json', canonical(self.config))
+        if self.pool and updates:
+            self.pool.limit_updated()
 
     def disk_bytes(self):
         # Reconciled at every open; account for SQLite growth conservatively.
@@ -118,6 +126,8 @@ class Store:
         return self.base_bytes + database
 
     def reserve(self, size):
+        if self.pool:
+            return self.pool.reserve(size)
         limits = self.config['limits']
         outstanding = sum(self.capture_reservations.values())
         if self.disk_bytes() + outstanding + size + 65536 > limits['max_bytes']:
@@ -130,29 +140,41 @@ class Store:
         old = self.db.execute('SELECT sha FROM objects WHERE sha=?', (identity,)).fetchone()
         if old:
             require(self.read_blob(identity) == raw, 'object identity collision', EvidenceError)
+            if self.pool:self.pool.ensure(identity)
             return identity
         encoded = gzip.compress(raw, compresslevel=6, mtime=0)
-        self.reserve(len(encoded))
-        path = self.out / 'objects' / (identity + '.gz')
-        if path.exists():
-            require(gzip.decompress(path.read_bytes()) == raw, 'orphan object is corrupt', EvidenceError)
+        if self.pool:
+            reference = self.pool.blob(raw, identity, encoded)
+            self.add_reference(identity,reference)
+            return identity
         else:
-            atomic_file(path, encoded)
-            self.base_bytes += len(encoded)
+            self.reserve(len(encoded))
+            path = self.out / 'objects' / (identity + '.gz')
+            if path.exists():
+                require(gzip.decompress(path.read_bytes()) == raw, 'orphan object is corrupt', EvidenceError)
+            else:
+                atomic_file(path, encoded)
+                self.base_bytes += len(encoded)
         with self.db:
             self.db.execute('INSERT INTO objects VALUES (?,?,?,?,?)', (identity, len(raw), 'gzip', str(path), 0))
         return identity
 
+    def add_reference(self,identity,reference):
+        with self.db:
+            self.db.execute('INSERT OR IGNORE INTO objects VALUES (?,?,?,?,?)',
+                            (identity,reference['size'],reference['kind'],reference['path'],reference['offset']))
+
     def external(self, path, offset=0, size=None, compressed=False):
         path = Path(path).resolve()
+        maximum = max(2*1024**2, pcm_byte_count(self.config.get('order', 3), 4096) + 256*1024)
         if compressed:
             with gzip.open(path, 'rb') as stream:
-                raw = stream.read(2 * 1024 * 1024 + 1)
+                raw = stream.read(maximum + 1)
         else:
             with path.open('rb') as stream:
                 stream.seek(offset)
-                raw = stream.read(size if size is not None else 2 * 1024 * 1024 + 1)
-        require(len(raw) <= 2 * 1024 * 1024, 'external evidence object too large', EvidenceError)
+                raw = stream.read(min(size, maximum+1) if size is not None else maximum + 1)
+        require(len(raw) <= maximum, 'external evidence object too large', EvidenceError)
         if size is not None:
             require(len(raw) == size, 'truncated external object', EvidenceError)
         identity = digest(raw)
@@ -182,6 +204,8 @@ class Store:
 
     def query(self, key):
         row = self.db.execute('SELECT state,receipt,request FROM queries WHERE key=?', (key,)).fetchone()
+        if row is None and self.pool and self.pool.lookup(key):
+            row = self.db.execute('SELECT state,receipt,request FROM queries WHERE key=?', (key,)).fetchone()
         if row and row['state'] == 'passed':
             request = json.loads(row['request'])
             require(digest(canonical(request)) == key, 'query request hash differs', EvidenceError)
@@ -224,15 +248,21 @@ class Store:
             self.db.execute('INSERT OR IGNORE INTO uses VALUES (?,?,?,?)', (target, stage, label, key))
 
     def begin(self, key, request):
-        count = self.db.execute('SELECT COUNT(*) FROM attempts').fetchone()[0]
-        if count >= self.config['limits']['max_calls']:
-            raise BudgetStop('native call budget exhausted')
-        self.reserve(2 * 1024 * 1024)
+        if self.pool:
+            self.pool.before_capture()
+        else:
+            count = self.db.execute('SELECT COUNT(*) FROM attempts').fetchone()[0]
+            if count >= self.config['limits']['max_calls']:
+                raise BudgetStop('native call budget exhausted')
+        reserved = capture_reservation(request)
+        self.reserve(reserved)
         with self.db:
             self.db.execute('INSERT OR IGNORE INTO queries(key,request,state) VALUES (?,?,?)', (key, canonical(request).decode(), 'pending'))
             cursor = self.db.execute('INSERT INTO attempts(query_key,state,started) VALUES (?,?,?)', (key, 'started', now()))
             attempt = cursor.lastrowid
-        self.capture_reservations[attempt] = 2 * 1024 * 1024
+            if self.pool:
+                self.pool.note_attempt(attempt)
+        self.capture_reservations[attempt] = reserved
         folder = self.out / 'attempts' / str(attempt)
         folder.mkdir()
         atomic_file(folder / 'request.json', canonical(dict(key=key, request=request)))
@@ -247,6 +277,9 @@ class Store:
             self.db.execute('UPDATE queries SET state=?,receipt=?,error=NULL WHERE key=?',
                             ('passed', canonical(receipt).decode(), receipt['key']))
             self.db.execute('UPDATE attempts SET state=?,finished=? WHERE id=?', ('passed', now(), attempt))
+        if self.pool:
+            row = self.db.execute('SELECT request FROM queries WHERE key=?', (receipt['key'],)).fetchone()
+            self.pool.register(receipt['key'], json.loads(row['request']), receipt)
         # All input and output bytes have verified, persistent representations.
         shutil.rmtree(folder)
         self.capture_reservations.pop(attempt, None)
@@ -273,8 +306,9 @@ class Store:
         for row in self.db.execute("SELECT id,query_key FROM attempts WHERE state='passed'").fetchall():
             folder = self.out / 'attempts' / str(row['id'])
             if folder.exists():
-                require(self.query(row['query_key']) is not None, 'completed attempt lost its receipt', EvidenceError)
-                shutil.rmtree(folder)
+                receipt = self.query(row['query_key'])
+                require(receipt is not None, 'completed attempt lost its receipt', EvidenceError)
+                self.finish(row['id'], receipt)
 
     def imported_query(self, key, request, receipt):
         if self.query(key):
@@ -284,6 +318,7 @@ class Store:
         with self.db:
             self.db.execute('INSERT OR REPLACE INTO queries VALUES (?,?,?,?,?)',
                             (key, canonical(request).decode(), 'passed', canonical(receipt).decode(), None))
+        if self.pool:self.pool.register(key,request,receipt)
         return True
 
     def stage(self, target, name):
@@ -323,7 +358,7 @@ class Store:
                             (status, error, comparison, target))
 
     def summary(self):
-        return dict(schema_version=1, batch_status=self.meta('batch_status'),
+        result = dict(schema_version=1, batch_status=self.meta('batch_status'),
                     order=self.config.get('order', 3),
                     native_jobs=self.config.get('native_jobs', 1),
                     quantization_bits=self.config.get('quantization_bits', 6),
@@ -335,3 +370,9 @@ class Store:
                     limits=self.config['limits'], added_bytes=directory_bytes(self.out),
                     native_identity_sha256=digest(canonical(self.config['native_identity'])),
                     tool_fingerprint=self.config['tool_fingerprint'])
+        if self.pool:
+            result['shards'] = self.pool.summary()
+            result['limits_scope'] = 'planned_shard'
+            result['added_bytes'] += self.pool.db.execute('SELECT COALESCE(SUM(stored_bytes),0) FROM objects WHERE owner=?',
+                                                         (self.pool.batch,)).fetchone()[0]
+        return result

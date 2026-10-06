@@ -9,7 +9,7 @@ import time
 import threading
 
 from .common import (EvidenceError, ExperimentError, IdentityError, canonical, digest,
-                     file_digest, geometry, now, pcm_samples, require)
+                     file_digest, geometry, now, pcm_byte_count, pcm_samples, producer_paths, require, tool_fingerprint)
 from . import wire
 
 COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
@@ -59,6 +59,8 @@ class NativeBackend:
         self.quantization_bits = quantization_bits
         self.binary = Path(binary).resolve()
         self.identity = self.collect_identity()
+        self.producer_fingerprint=tool_fingerprint()
+        self.producer_stamps=self.source_stamps()
         self.stamps = self.file_stamps()
         self.identity_lock = threading.Lock()
         self.process_lock = threading.Lock()
@@ -72,8 +74,15 @@ class NativeBackend:
     def file_stamps(self):
         return [(p.stat().st_ino, p.stat().st_size, p.stat().st_mtime_ns) for p in (self.binary, COMPONENT)]
 
+    def source_stamps(self):
+        return [(str(p),p.stat().st_ino,p.stat().st_size,p.stat().st_mtime_ns) for p in producer_paths()]
+
     def check(self, force=False):
         with self.identity_lock:
+            source_stamps=self.source_stamps()
+            if force or source_stamps!=self.producer_stamps:
+                require(tool_fingerprint()==self.producer_fingerprint,'discovery producer changed during capture',IdentityError)
+                self.producer_stamps=source_stamps
             stamps = self.file_stamps()
             if force or stamps != self.stamps:
                 require(self.collect_identity() == self.identity, 'native environment changed', IdentityError)
@@ -87,8 +96,12 @@ class NativeBackend:
 
     def capture(self, packets, folder):
         wire.write_bundle(folder / 'input', packets, self.quantization_bits, self.order)
+        # replay reserves 64 KiB for sidecars after charging its incomplete
+        # marker (at most 128 bytes). Include both before rounding up to MiB.
+        output_bytes = pcm_byte_count(self.order, 1024*len(packets)) + 65536 + 128
+        max_output_mib = max(1, (output_bytes + 1024**2-1)//1024**2)
         command = [str(self.binary), 'replay', str(folder / 'input'), '--out', str(folder / 'native'),
-                   '--frames', str(1024*len(packets)), '--input-batch-packets', '1', '--processing-policy', 'drc-off', '--max-output-mib', '1']
+                   '--frames', str(1024*len(packets)), '--input-batch-packets', '1', '--processing-policy', 'drc-off', '--max-output-mib', str(max_output_mib)]
         (folder / 'command.json').write_bytes(canonical(command))
         start = time.monotonic()
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

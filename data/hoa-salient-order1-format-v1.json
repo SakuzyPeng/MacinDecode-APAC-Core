@@ -2,10 +2,174 @@
   "schema_version": 3,
   "format_profile": "apac-hoa-salient-order1-format-v1",
   "source": {
-    "component": "AudioCodecs 7.0",
-    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
-    "architecture": "x86_64",
-    "method": "shared spatial encoder/decoder wire dictionaries"
+    "method": "mixed sources with per-table replacements",
+    "original_observation": {
+      "component": "AudioCodecs 7.0",
+      "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+      "architecture": "x86_64",
+      "method": "shared spatial encoder/decoder wire dictionaries"
+    },
+    "remaining_tables": "original_observation",
+    "codebook_replacements": [
+      {
+        "mode": 1,
+        "book": 0,
+        "source_file": "hoa-salient-order1-q6-mode1-measured-v1.json",
+        "source_sha256": "103f4f5452b5f2ca9bfa47dc6c48f0bbb536af41ad9c65c7aceafd0f5464f3c2",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 2,
+        "book": 0,
+        "source_file": "hoa-salient-order1-q6-mode2-book0-measured-v1.json",
+        "source_sha256": "389dd51eaa4ed88e4c5aa2ba2acb4a219a8d694d77a41a62beecf7dabea73a4b",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 2,
+        "book": 1,
+        "source_file": "hoa-salient-order1-q6-mode2-book1-measured-v1.json",
+        "source_sha256": "5bdd8e8135359605409d3eaf8bfe8382f6c62dd12a65cb8f3f5d811c8f6e6961",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 3,
+        "book": 0,
+        "source_file": "hoa-salient-order1-q6-mode3-measured-v1.json",
+        "source_sha256": "a1baaab670e1af69ac8e2b6fa82cf9603d1bcded16f0eff9e1cd5d67b373b26e",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 4,
+        "book": 0,
+        "source_file": "hoa-salient-order1-q6-mode4-cluster0-measured-v1.json",
+        "source_sha256": "577669af673cc0b2913e7950c31fccfa9b3e2158c9f0f2245988363f9813e80c",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 4,
+        "book": 1,
+        "source_file": "hoa-salient-order1-q6-mode4-cluster1-measured-v1.json",
+        "source_sha256": "81b9652f51ca0f085ac60a09891423851434dedf4b34ef236e8721b74bd354ba",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 4,
+        "book": 2,
+        "source_file": "hoa-salient-order1-q6-mode4-cluster2-measured-v1.json",
+        "source_sha256": "27728b076628757da86f55a49a3ba413ed848912097dd5fe8b7a8c7299dfde46",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "mode": 4,
+        "book": 3,
+        "source_file": "hoa-salient-order1-q6-mode4-cluster3-measured-v1.json",
+        "source_sha256": "b5f22bd4749b425ba0db03bd7fe6c629fff03cbefc75dd4a187bf6b6755a1b7f",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      }
+    ],
+    "matrix_replacements": [
+      {
+        "mode": 4,
+        "cluster": 0,
+        "source_file": "hoa-salient-order1-mode4-cluster0-matrix-measured-v1.json",
+        "source_sha256": "95cf3408e436c7b30ac636ce9a63634870b6ce07558ab1f47ab197c1b22f6c10",
+        "method": "public AudioConverter PCM reconstruction with frozen calibration weights"
+      },
+      {
+        "mode": 4,
+        "cluster": 1,
+        "source_file": "hoa-salient-order1-mode4-cluster1-matrix-measured-v1.json",
+        "source_sha256": "174124ebd559f410a85e631207e17c6e859b09f5b180a2c277fdcd10f2814798",
+        "method": "public AudioConverter PCM reconstruction with frozen calibration weights"
+      },
+      {
+        "mode": 4,
+        "cluster": 2,
+        "source_file": "hoa-salient-order1-mode4-cluster2-matrix-measured-v1.json",
+        "source_sha256": "fd29191aec0763fd0a148fd719b8bd0f0032c0c7b044632385c74b8dfc6c0154",
+        "method": "public AudioConverter PCM reconstruction with frozen calibration weights"
+      },
+      {
+        "mode": 4,
+        "cluster": 3,
+        "source_file": "hoa-salient-order1-mode4-cluster3-matrix-measured-v1.json",
+        "source_sha256": "0f0bd417e4127e48fc876a890a66c2216717af1166b05a089c49ccdd885d56ae",
+        "method": "public AudioConverter PCM reconstruction with frozen calibration weights"
+      }
+    ],
+    "group_replacements": [
+      {
+        "measured_mode": 2,
+        "measured_book": 0,
+        "shared_uses": [
+          [
+            2,
+            0
+          ]
+        ],
+        "source_file": "hoa-salient-order1-q6-mode2-book0-measured-v1.json",
+        "source_sha256": "389dd51eaa4ed88e4c5aa2ba2acb4a219a8d694d77a41a62beecf7dabea73a4b",
+        "group_sha256": "038966de9f6b9a901b20b4c6ca8b2a46009feebe031babc842d43690c0bc222b",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "measured_mode": 2,
+        "measured_book": 1,
+        "shared_uses": [
+          [
+            2,
+            1
+          ]
+        ],
+        "source_file": "hoa-salient-order1-q6-mode2-book1-measured-v1.json",
+        "source_sha256": "5bdd8e8135359605409d3eaf8bfe8382f6c62dd12a65cb8f3f5d811c8f6e6961",
+        "group_sha256": "17f66f2f133c5b3a473a32750ffcef944a00b0581ef1750d412c6f0e26a852ee",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      },
+      {
+        "measured_mode": 3,
+        "measured_book": 0,
+        "shared_uses": [
+          [
+            0,
+            0
+          ],
+          [
+            1,
+            0
+          ],
+          [
+            3,
+            0
+          ],
+          [
+            4,
+            0
+          ],
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ],
+          [
+            5,
+            0
+          ]
+        ],
+        "source_file": "hoa-salient-order1-q6-mode3-measured-v1.json",
+        "source_sha256": "a1baaab670e1af69ac8e2b6fa82cf9603d1bcded16f0eff9e1cd5d67b373b26e",
+        "group_sha256": "f2f991d74dfbb2edf7f4475dcb7d82989de00a71e44bb11d4a6fbb49442577b6",
+        "method": "public AudioConverter PCM black-box reconstruction"
+      }
+    ]
   },
   "tables_sha256": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88",
   "order": 1,

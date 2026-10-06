@@ -19,7 +19,7 @@ APAC（Apple Positional Audio Codec）是苹果用于空间音频的编解码器
 - **容器与输入**：CAF v1、非分片单音轨 MP4／M4A 和导出的包目录；打开时完整读取并核验，每一遍读取都与首遍比对
 - **配置解析**：magic cookie／ASC 的逐字段语法与 cookie 位位置，含 DRC、HOA、场景图和被动 renderer 元数据
 - **声道解码**：频谱 Huffman、反量化、CAC、TNS、BWE2、IMDCT 与叠加，覆盖 Mono 至 22.2
-- **HOA 解码**：零至十阶，salient／ambient、动态选择、空间控制、源布局还原，以及与声道组成的组合流
+- **HOA 解码**：零至三阶，salient／ambient、动态选择、空间控制、源布局还原，以及与声道组成的组合流
 - **范围访问**：顺序解码或快速前缀扫描，双向 `seek`，结果与在该点新建的解码器逐位相同
 - **独立数值模型**：常量由公式以高精度生成，固定运算顺序，确定性输出；SQ 反量化（`apac-sq-math-v2`）以 Float64 相乘后只舍入一次到 Float32
 - **逐包语法报告**：`parse-packets` 按阶段输出字段、位偏移和中间频谱
@@ -153,7 +153,7 @@ DRC、响度、场景图和 renderer 元数据只读取语法、不处理音频�
 |---|---|---|
 | 配置语法 | ✅ | cookie／ASC、DRC、HOA、场景图、被动 renderer 元数据 |
 | 声道解码 | ✅ | Mono／Stereo／5.1／7.1／7.1.4／22.2；SQ、CAC、TNS、BWE2 |
-| HOA 解码 | ✅ | 零至十阶；salient／ambient、动态选择、空间控制、源布局还原 |
+| HOA 解码 | ✅ | 零至三阶；salient／ambient、动态选择、空间控制、源布局还原；四阶及以上明确拒绝 |
 | 组合流与共享配置 | ✅ | 多 ASC、HOA 与声道组合，最多 255 声道输出 |
 | 容器与访问 | ✅ | CAF、非分片单音轨 MP4／M4A、包目录；顺序或快速范围解码 |
 | 采样率 | ✅ | 索引 0–12（96 kHz–7.35 kHz）；部分 HOA 配置限 44.1／48 kHz |
@@ -183,6 +183,9 @@ DRC、响度、场景图和 renderer 元数据只读取语法、不处理音频�
 | [码流解析](guide/bitstream.md) | `parse-packets` 各解析深度、声道与 HOA 的语法和数值标识 |
 | [支持边界](guide/support.md) | 实现边界、与苹果参考的数值关系、共享配置、ASP 与帧长 |
 | [验收与回归](guide/validation.md) | 测试、独立数学验收、重构回归与苹果参考诊断 |
+| [HOA 黑盒批处理](guide/hoa-blackbox.md) | 三阶生产边界、断点续跑与历史测量证据 |
+| [HOA 空间控制均值](guide/hoa-mean-blackbox.md) | 精确抵消测量、独立验证与外置卷证据 |
+| [BWE2 黑盒重建](guide/bwe2-blackbox.md) | 增益重建、LSF 可识别性试验与冻结验证 |
 | [开发说明](guide/development.md) | workspace 结构、`no_std` 构建、API 分层、CAC feature、仓库约定 |
 | [第三方数据](THIRD_PARTY.md) | 格式常量的来源、许可与独立推导 |
 

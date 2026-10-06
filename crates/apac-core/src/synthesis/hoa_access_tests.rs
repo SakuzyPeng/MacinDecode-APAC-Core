@@ -147,8 +147,11 @@ fn hoa_scans_reject_frozen_component_numeric_and_late_state_errors() {
             .unwrap_or_else(|| vec![data]);
         for row in rows {
             let cookie = bytes(&row["cookie"]);
+            let Some(mut full) = crate::frame::hoa_support_tests::decoder_or_order_limit(&cookie)
+            else {
+                continue;
+            };
             let first = bytes(&row["first"]);
-            let mut full = Decoder::from_cookie(&cookie).unwrap();
             let mut scan = Decoder::from_cookie(&cookie).unwrap();
             full.decode_vec(&first).unwrap();
             scan.advance(&first).unwrap();

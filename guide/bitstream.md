@@ -79,9 +79,12 @@ TNS 数学参考从公式重新计算系数，转换为 200 位 LPC，再作直�
 
 两个控制位先于所有载荷：00 关闭，01 读取右参数，10 读取左参数并按有效声道条件复用到右侧，11 独立读取两侧。零 max_sfb 不读取该侧载荷。复用只接受已定义增益覆盖全部目标组的情况，缺失组明确报错，不借用上包缓存。两套 512×16 LSF 码本与 64 项激励增益是固定格式常量；增益索引 0 是非零小增益。短窗仍以八个 128 点窗口输出，每组增益作用于组内窗口。
 
+64 项激励增益使用 `data/bwe2-gains-measured-v1.json` 中通过公开 PCM 重建、冻结、独立验证及最终对照的 Float32 位模式。来源保留从观测推断的 `0.00001` 十进制网格假设。构建直接读取该测量原表，校验文件和增益摘要，并检查 `bwe2-format-v1.json` 中的副本与来源记录；缺失或不一致时拒绝构建。两套 LSF 码本保留原观测来源。全部 BWE2 数值、格式语义摘要和解码行为保持不变，详见 [BWE2 测量](bwe2-blackbox.md)。
+
 当前数值配置为 `apac-bwe2-math-v2`，保留 SQ／CAC／TNS 配置和关闭 BWE2 时的旧输出。使用 Float64 自相关、16 阶源 LPC、LSF 调理及包络恢复，乘加分别舍入，最终谱线转 Float32；准确零源分支保持输入。目标包络直接计算 LSF 的奇偶因子乘积及半角权重，避免展开 LPC 后的相消导致 PCM 超出数学容差；报告中的 `analysis.target_lpc` 仍保留展开系数供诊断，但不参与目标包络计算。该数值规则改变了部分启用 BWE2 时的输出，旧 v1 报告不能作为 v2 的逐位参考。BWE2 专用 radix-2／radix-3 内核继续用于源分析，覆盖 64、96、128、512、768、1024 点，原有 SQ 合成内核不变。旋转因子及三角多项式常量由 Decimal 100／200 位分别生成并核对；正式构建无需 Python、苹果文件、网络或 FFT 依赖。
 
 ```sh
+python3 -B scripts/generate_bwe2_gains_measured.py --check
 python3 -B scripts/verify_bwe2_format.py  # 可选，需匹配哈希的 macOS 组件
 python3 -B scripts/generate_bwe2_math.py --check
 python3 -B scripts/generate_bwe2_manifest.py --check
@@ -196,7 +199,7 @@ python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
 
 | 能力 | 当前支持范围 |
 |---|---|
-| 固定恢复域 | 零至十阶完整系数域，以及显式 1–121 系数域；单系数仅纯 ambient，显式维度的 salient 描述使用模式 0–3 |
+| 固定恢复域 | 零至三阶完整系数域，以及显式 1–16 系数域；单系数仅纯 ambient，显式维度的 salient 描述使用模式 0–3 |
 | 分量与描述 | 可变 salient／ambient 数量；salient 一至整体阶数、6–9 位量化、每分量 1–16 带、空间方法 0–2 |
 | 传输元素 | HOA SCE、CPE、LFE及零通道扩展元素；核心数量 ≤ 传输通道 ≤ 输出数量，元素数量独立计算 |
 | 空间恢复 | 既有静态 ambient 选择、四路变换、覆盖／叠加，以及按实际内部／输出维度的动态选择 |
@@ -537,46 +540,61 @@ python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-too
   --reference-report reports/hoa-quantization-math.json --report reports/hoa-quantization-release.json
 ```
 
-### 零至十阶完整系数域
+### 零至三阶解码范围
 
-固定配置扩展到 1／4／9／16／25／36／49／64／81／100／121 个系数。零阶支持纯 ambient；salient 描述支持一至十阶、6–9 位量化，数量受实际系数及传输容量约束。profile 5 的 level 0／1／2 分别允许最多 16／36／49 个输出通道；profile 0、level 0 允许最多 121 个。较高 level 可以承载较小配置，超出表中限制明确拒绝。
+当前正式恢复支持 1／4／9／16 个完整阶系数。零阶为纯 ambient，salient 为一至三阶、6–9 位量化；显式恢复域和动态 HOA 输出域也最多 16 个系数。四阶及以上、显式数量大于 16、动态输出域大于 16，以及指向 ACN16 及以上的显式 HOA 标签，在创建解码器时拒绝，不使用截断或较低阶字典替代。
 
-高阶方向采用独立关联勒让德递推、既有角度常量及 100／200 位一致舍入的归一化常量；一至三阶保留原运算顺序。高阶恢复使用 Float64 补偿求和，最后一次舍入为 Float32，保留强相消的小残差。内嵌容量按已核实的 ASP 规则取实际输出通道数乘 2048 字节，另受线上长度编码和普通包限额约束。
+原始 cookie 解析仍识别零至十阶及 1–121 项的历史语法；`HoaFrameContext::is_supported()`／`rejection()` 区分语法识别与当前解码资格。profile／level 仍按实际声明核对，但较大的声明上限不扩大实现支持范围。零阶及一至三阶已有数值、格式标识、状态和 PCM 保持不变。
 
-新增配置使用 `apac-hoa-expanded-orders-v1`、`apac-hoa-expanded-orders-math-v1`／`apac-hoa-expanded-orders-state-v1` 及 `rust_hoa_expanded_orders_sq_drc_off_f64_fft_v2`；PCM 记录 `hoa_expanded_orders_profile`、`hoa_expanded_math_sha256`，非默认 profile／level 另记录实际值。上下文新增 `profile_id()`、`level_id()`。包目录、CAF、MP4 均按 cookie 的实际 HOA 布局核对，零阶不冒充普通单声道。显式维度扩展见下文；零阶 salient 仍未开放，动态维度范围保持前述限制。
+限制按每个 HOA 系数域判断。组合流可以包含多个三阶以内组件；静态源布局转换可以输出超过 16 个普通声道，不把整个文件的总声道数当成 HOA 阶数。所有组件，包括最终未输出的组件，都必须通过资格检查。
+
+零阶沿用 `apac-hoa-expanded-orders-v1`、`apac-hoa-expanded-orders-math-v1`／`apac-hoa-expanded-orders-state-v1` 和 `rust_hoa_expanded_orders_sq_drc_off_f64_fft_v2`；PCM 记录 `hoa_expanded_orders_profile`、`hoa_expanded_math_sha256`。上下文的 `profile_id()`、`level_id()` 返回实际声明。
+
+历史高阶数学文件、格式存储和实验向量保留用于只读复核。当前回归使用：
 
 ```sh
-python3 -B scripts/generate_hoa_higher_order_math.py --check
-python3 -B scripts/generate_hoa_expanded_orders_manifest.py --check
-python3 -B scripts/validate_hoa_expanded_orders.py --binary target/debug/apac-tool --report reports/hoa-expanded-orders-math.json
-python3 -B scripts/validate_hoa_expanded_orders.py --binary target/release/apac-tool \
-  --reference-report reports/hoa-expanded-orders-math.json --report reports/hoa-expanded-orders-release.json
+cargo test -p apac-core --lib hoa
+APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### HOA 字典存储
 
-一至十阶的 40 份字典按阶数共用 `data/hoa-salient-orderN-shared-v1.json` 中的四个矩阵和三个唯一系数分组。字典文件使用存储 schema 3，`shared_file` 引用存储 schema 2 的共享文件。码表采用 `preorder-tree-msb-hex-v1`，矩阵采用 `micro21-msb-hex-v1`；两者均以小写十六进制存储。Python 的 `hoa_salient_format.format_for(order, quantization_bits)` 返回兼容旧 schema 的完整字典，仍可载入历史完整／共享字典；Rust 在初始化时展开并共享常量。`tables_sha256` 始终覆盖展开后的原始表内容，已有格式标识、报告和 PCM 摘要保持不变。
+历史存储包含一至十阶的 40 份字典，当前构建只读取一至三阶的 12 份；四至十阶字典不进入解码器。各份字典按阶数共用 `data/hoa-salient-orderN-shared-v1.json` 中的四个矩阵和三个唯一系数分组。字典文件使用存储 schema 3，`shared_file` 引用存储 schema 2 的共享文件。码表采用 `preorder-tree-msb-hex-v1`，矩阵采用 `micro21-msb-hex-v1`；两者均以小写十六进制存储。Python 的 `hoa_salient_format.format_for(order, quantization_bits)` 返回兼容旧 schema 的完整字典，仍可载入历史完整／共享字典；Rust 在构建时展开并共享常量。`tables_sha256` 始终覆盖展开后的原始表内容，已有格式标识、报告和 PCM 摘要保持不变。
 
 码表按原二叉树先序存储：一位区分内部节点和叶子，叶子随后携带与量化位数等宽的符号索引，左右路径恢复原始码长和码字。矩阵每项使用一位符号和二十位整数幅值，幅值除以一百万后舍入至 Float32，再恢复符号位，包括负零。生成器逐项检查原始 Float32 位模式；不能精确表示的数值会报错。两种编码均按高位优先排列，末字节补零；加载器校验长度、填充位以及完整树的深度和符号唯一性。
 
-`pack_hoa_salient_formats.py --check` 校验全部表摘要、共享内容及规范存储；省略 `--check` 可从完整或共享字典重新生成去重存储。`verify_hoa_salient_format.py --write` 同时生成字典与所需共享文件，并拒绝覆盖或复用内容不同的共享文件。无需原生组件即可执行存储校验：
+一至三阶 6–9 位量化的码表均使用黑盒测量结果。每种精度包含 mode 1／book 0、mode 2／book 0–1、mode 3／book 0 和 mode 4／cluster 0–3，共八张，每阶四种精度合计三十二张，三个阶数合计九十六张表；六至九位每表分别为 64、128、256、512 项。对应原表为 `data/hoa-salient-orderO-qP-mode1-measured-v1.json`、`data/hoa-salient-orderO-qP-mode2-bookN-measured-v1.json`（`N=0–1`）、`data/hoa-salient-orderO-qP-mode3-measured-v1.json` 和 `data/hoa-salient-orderO-qP-mode4-clusterN-measured-v1.json`（`N=0–3`），其中 `O=1–3`、`P=6–9`。构建直接读取原表，并检查精度、完整符号范围、映射摘要和打包副本；四阶及以上存储仅作历史对照，不参与当前构建。
+
+一至三阶的 mode 4／cluster 0–3 均使用 `data/hoa-salient-orderO-mode4-clusterN-matrix-measured-v1.json`（`O=1–3`、`N=0–3`）中通过精度验收的 Float32 位模式。一阶每张 4×4、二阶 9×9、三阶 16×16，共十二张矩阵；每阶的四张矩阵由本阶 6–9 位量化字典共享，构建直接读取测量原表，并校验共享文件中的打包副本。矩阵测量采用六位输入描述；七至九位码表恢复复用了这些矩阵并通过对应精度的正常码流验证，保留原矩阵来源。每种精度的 Huffman 码表均有独立的冻结候选、验证和对照记录。数值及语义摘要不变。
+
+每阶的三个系数分组由本阶六位 mode 2 两张码表和 mode 3 码表原表中的 `coefficient_group` 提供。构建检查分组摘要以及原有共享使用关系。mode 3 测得的完整通道顺序仍按既有结构供 mode 0／1／3／4／5 共用，mode 2 的两个分组分别独立使用；分组继续跨本阶 6–9 位字典共享。七至九位码表原表只记录分组复用关系，不复制分组数值或替换六位分组来源。
+
+`generate_hoa_salient_measured.py --write` 默认检查并重建三个阶数、四种精度的九十六份打包副本和逐码表来源说明；`--quantization-bits 6`、`7`、`8` 或 `9` 可限定一种精度，`--order 1`、`2` 或 `3` 可限定阶数；显式的高阶 `--check` 只供历史复核，高阶 `--write` 拒绝。`--candidate FILE` 可从摘要固定的本地冻结码表候选重建测量原表，可重复提供不同目标的候选。生成器按阶数、精度、mode、book 区分来源，拒绝跨精度混用或把七至九位复用分组当作新分组来源。未提供候选的码表使用仓库内原表，矩阵候选会被拒绝。构建和普通校验无需苹果组件或本地测量记录。
+
+`generate_hoa_salient_measured_matrix.py --write` 单独重建已注册矩阵的打包副本，并更新各阶四套字典的逐矩阵来源说明；`--order` 可限定阶数；`--candidate FILE` 可重复提供不同阶数和 cluster 的候选，只接受摘要固定且通过精度验收的产物。三阶 cluster 0 保留原加权复核来源；三阶 cluster 1–3 及一、二阶全部 cluster 使用各自批处理工具冻结的来源。
+
+`generate_hoa_salient_measured_groups.py --write` 从已经导出的本阶 mode 2／3 测量原表重建三个共享分组，并更新本阶四套字典的分组来源；`--order` 可限定阶数。三个生成器保留彼此的来源记录和既有分组别名；未注册阶数的数据不会被替换。
+
+来源元数据固定了测量基线、工具与策略指纹，以及候选、验证和最终对照摘要。六位 mode 2／3 另外绑定冻结分组；七至九位 mode 2／3 和 mode 4 记录 `group_reused`／`matrix_reused` 与先验快照摘要，明确复用本阶已测六位几何数据。只有已审核的批次产物能由生成器导入，任意新测量目录不自动获得正式来源资格。实验原始 PCM、输入和本地证据路径不随测量原表发布。
+
+`pack_hoa_salient_formats.py --check` 校验全部表摘要、共享内容及规范存储；省略 `--check` 可从完整或共享字典重新生成去重存储。`verify_hoa_salient_format.py --write` 同时生成字典与所需共享文件，并拒绝覆盖或复用内容不同的共享文件；已测码表和矩阵须与原生观测一致，随后保留测量来源。无需原生组件即可执行存储校验：
 
 ```sh
+python3 -B scripts/generate_hoa_salient_measured.py --check
+python3 -B scripts/generate_hoa_salient_measured_matrix.py --check
+python3 -B scripts/generate_hoa_salient_measured_groups.py --check
 python3 -B scripts/pack_hoa_salient_formats.py --check
-PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format
+PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format test_hoa_salient_measured test_hoa_salient_measured_matrix test_hoa_salient_measured_groups
 ```
 
 ### 显式 HOA 系数域
 
-`full_order=false` 接受固定的 1–121 个实际系数，包括非平方数及显式编码的平方数。纯 ambient 可为单系数；salient 每项至少两个系数，所有分量使用实际恢复维度，支持模式 0–3、6–9 位量化、每分量 1–16 子带及已有选择、变换、覆盖／叠加规则。字典取容纳阶数，系数组按实际范围过滤；矩阵和方向描述在参考组件的此配置下被拒绝，不能用完整阶矩阵截取来补齐。固定路径保持内部／输出同维；动态显式域见下文通用动态选择。
+`full_order=false` 接受固定的 1–16 个实际系数，包括非平方数及显式编码的平方数。纯 ambient 可为单系数；salient 每项至少两个系数，所有分量使用实际恢复维度，支持模式 0–3、6–9 位量化、每分量 1–16 子带及已有选择、变换、覆盖／叠加规则。字典取容纳阶数，系数组按实际范围过滤；矩阵和方向描述在参考组件的此配置下被拒绝，不能用完整阶矩阵截取来补齐。固定路径保持内部／输出同维；动态显式域见下文通用动态选择。
 
 `HoaFrameContext::full_order()` 返回线上完整阶标志；`order()` 是容纳实际系数所需的阶数，`recovery_slot_count()`、`channel_count()` 和分量配置分别返回实际维度。非完整平方输出不标注完整 `ambisonic_order`，两系数 HOA 仍按 ASC 类型走 HOA 入口。报告仅为新配置增加 `hoa.full_order=false`，PCM 记录 `hoa_full_order`、实际维度及 `hoa_partial_domain_profile=apac-hoa-partial-domain-v1`；数学／状态为 `apac-hoa-partial-domain-math-v1`／`apac-hoa-partial-domain-state-v1`，后端为 `rust_hoa_partial_domain_sq_drc_off_f64_fft_v2`。已有完整阶的标识与 PCM 保持不变。
 
 ```sh
-python3 -B scripts/generate_hoa_partial_manifest.py --check
-python3 -B scripts/validate_hoa_partial.py --binary target/debug/apac-tool --report reports/hoa-partial-math.json
-python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
-  --reference-report reports/hoa-partial-math.json --report reports/hoa-partial-release.json
+APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### 空间控制与帧内空间配置
@@ -584,6 +602,8 @@ python3 -B scripts/validate_hoa_partial.py --binary target/release/apac-tool \
 在既有 SQ 系数域内支持 `flag_a` 至 `flag_f` 的已核实组合；ACN/SN3D 的 `parameter_0` 可为 1 或 2，0／3 被绑定参考组件拒绝。未分配 salient 时，未使用的空间划分参数可保留 0–3；有 salient 时仍为方法 0–2。
 
 `flag_a=false` 在 ambient 覆盖／叠加之前加入格式定义的逐系数均值。`flag_e=false` 使方向描述只读取角度、不再读取四个显式系数。`flag_f=false` 保留未取整的频率边界；短窗按频率优先的实际谱线位置选取描述，不能将终点简单除以八。新边界来自经过读写两侧及原生缓存核验的固定整数表；表生成中的 Float32 运算用于确定码流分段，不降低音频恢复／合成的 Float64 精度。
+
+121 项均值使用 `data/hoa-spatial-means-measured-v1.json` 中通过公开 PCM 精确抵消重建的 Float32 位模式。构建直接读取测量原表，校验完整文件和均值摘要，并要求 `hoa-spatial-controls-format-v1.json` 中的副本与来源记录一致；缺失或不一致时拒绝构建。均值数值、格式语义摘要与解码行为保持不变，子带边界保留各自来源。`python3 -B scripts/generate_hoa_spatial_means_measured.py --check` 可离线核验原表与副本，测量和重建说明见 [HOA 均值测量](hoa-mean-blackbox.md)。
 
 `flag_b=true` 在每个核心帧增加空间配置存在位。当前独立帧（类型 1／2）须重述，类型 0 可沿用 cookie 或前帧配置；更新只改变活动 salient／ambient 数量、选择及 `flag_c=true` 时的分量阶数／子带数。活动数量受 cookie 的最大 salient、恢复维度和传输容量约束，子带数量受 cookie 的最大子带数约束。历史按 cookie 分配的固定分量／子带步长保存；未使用子带、停用分量及已处理描述的高位填充清零。内嵌帧先推进，配置、历史、DRC 和 overlap 仍按外层包原子提交。这与尚未实现的外层 ASP 配置替换是不同载荷。
 
@@ -598,19 +618,16 @@ python3 -B scripts/validate_hoa_controls.py --binary target/release/apac-tool \
 
 ### 实际维度的动态选择
 
-内部恢复域 M 与输出域 N 分别使用实际数量，范围为 1–121，继续受 profile／level、描述及传输容量约束。内部可为完整阶或显式维度，输出可为非平方数；允许既有空间控制、帧内活动配置及 SCE／CPE／LFE／扩展元素组合。
+内部恢复域 M 与输出域 N 分别使用实际数量，当前范围为 1–16，继续受 profile／level、描述及传输容量约束。内部可为完整阶或显式维度，输出可为非平方数；允许既有空间控制、帧内活动配置及 SCE／CPE／LFE／扩展元素组合。
 
 当 M < N 时，每帧读取一个编码方式位和八组映射。列表每组有 M 个 `ceil(log2(N))` 位索引，位图每组有 N 位且恰有 M 个置位；全部组均检查越界、重复及数量，只有配置的有效子带参与恢复，未选择输出为正零。当 M ≥ N 时，不读取编码方式位或映射，直接保留前 N 个内部系数。此前九槽→十六输出的线上数据、标识与 PCM 保持不变。
 
 `DynamicBandMapping::target_acn_indices` 改为实际长度 `Vec<u8>`，JSON 仍为数组。新域的报告记录 `domain_profile`、`configured_subband_count`、`wire_mapping_groups`；无映射时 `encoding` 为 `identity` 或 `prefix`，映射列表和频率表为空，有效映射带数为零。`output_order()` 查询返回容纳实际输出的阶数；非平方输出的 PCM 不伪造完整 `hoa_output_order`，改记 `hoa_output_containing_order` 和实际系数数。
 
-新规则为 `apac-hoa-dynamic-domains-v1`、`apac-hoa-dynamic-domains-math-v1`／`apac-hoa-dynamic-domains-state-v1`，后端为 `rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v2`。映射存储使用实际长度的有界集合。绑定参考组件的固定映射行只有 36 个槽位；更大的扩张域按同一已核实读写规则和独立数学验证，不执行超出该原生存储范围的跟踪，也不将原生存储限制冒充码流位宽限制。
+当前范围内继续沿用 `apac-hoa-dynamic-domains-v1`、`apac-hoa-dynamic-domains-math-v1`／`apac-hoa-dynamic-domains-state-v1` 和 `rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v2`。映射存储使用实际长度的有界集合；历史较大域的向量保留为拒绝测试和实验记录。
 
 ```sh
-python3 -B scripts/generate_hoa_dynamic_domains_manifest.py --check
-python3 -B scripts/validate_hoa_dynamic_domains.py --binary target/debug/apac-tool --report reports/hoa-dynamic-domains-math.json
-python3 -B scripts/validate_hoa_dynamic_domains.py --binary target/release/apac-tool \
-  --reference-report reports/hoa-dynamic-domains-math.json --report reports/hoa-dynamic-domains-release.json
+APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### HOA 传输组合

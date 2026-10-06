@@ -331,7 +331,9 @@ fn constants_for_bits(coefficients: usize, precision: u8) -> &'static Constants 
     // actual dimension. The shared dictionary data is not duplicated.
     let coefficients = ((coefficients - 1).isqrt() + 1).pow(2);
     let order = coefficients.isqrt() - 1;
-    if !(1..=10).contains(&order) || !(6..=9).contains(&precision) {
+    if !(1..=crate::tables::HOA_MAX_SUPPORTED_ORDER).contains(&order)
+        || !(6..=9).contains(&precision)
+    {
         unreachable!("qualified HOA dictionary key");
     }
     let constants = &crate::tables::SALIENT_CONSTANTS[(order - 1) * 4 + usize::from(precision - 6)];

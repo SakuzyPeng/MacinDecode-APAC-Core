@@ -4,6 +4,8 @@
 
 返回 [README](../README.md)。
 
+HOA salient 的公开接口测量、候选冻结和断点续跑见 [HOA 黑盒批处理](hoa-blackbox.md)。该工具输出本地候选与证据，不自动修改正式表。
+
 ## 基本检查与配置验收
 
 ```sh

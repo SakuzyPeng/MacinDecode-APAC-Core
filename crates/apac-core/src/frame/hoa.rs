@@ -445,7 +445,13 @@ impl HoaConfiguration {
         }
     }
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
-        self.component_orders_extended().then(|| {
+        // Unsupported cookies remain inspectable without indexing dictionaries
+        // that are deliberately absent from the production build.
+        (self.component_orders_extended()
+            && self.salient_configurations.iter().all(|c| {
+                (1..=crate::tables::HOA_MAX_SUPPORTED_ORDER).contains(&usize::from(c.order))
+            }))
+        .then(|| {
             let orders: Vec<_> = self
                 .salient_configurations
                 .iter()
@@ -504,6 +510,38 @@ impl HoaFrameContext {
         let salient = shape.salient_components != 0;
         let channels = u64::from(shape.channels);
         let mut rejected = Vec::new();
+        let maximum_order = crate::tables::HOA_MAX_SUPPORTED_ORDER;
+        let maximum_coefficients = crate::tables::HOA_MAX_SUPPORTED_COEFFICIENTS;
+        if usize::from(shape.order) > maximum_order
+            || usize::from(shape.recovery_slots) > maximum_coefficients
+            || shape.salient_configurations.iter().any(|c| {
+                usize::from(c.order) > maximum_order || c.coefficient_count > maximum_coefficients
+            })
+        {
+            rejected.push(format!(
+                "HOA implementation supports orders 0..{maximum_order} only (at most {maximum_coefficients} coefficients); requested recovery order {} with {} coefficients",
+                shape.order, shape.recovery_slots
+            ));
+        }
+        // Discrete source layouts and combined streams can have more than 16
+        // final channels. The bound is on HOA coefficient domains, not a global
+        // PCM channel count. Dynamic selection also operates in a coefficient
+        // domain even when its final source layout has another tag.
+        if (shape.dynamic_method.is_some() || shape.source_layout.normalization().is_some())
+            && usize::from(shape.channels) > maximum_coefficients
+        {
+            rejected.push(format!(
+                "HOA output coefficient domain {} exceeds the order-{maximum_order} implementation limit of {maximum_coefficients}",
+                shape.channels
+            ));
+        }
+        if shape.source_layout.layout.descriptions.iter().any(|d| {
+            matches!(d.label >> 16, 2 | 3) && (d.label & 0xffff) as usize >= maximum_coefficients
+        }) {
+            rejected.push(format!(
+                "HOA ACN source label exceeds the order-{maximum_order} implementation limit"
+            ));
+        }
         if let Some(reason) = shape
             .source_layout
             .rejection(usize::from(shape.recovery_slots))
@@ -936,6 +974,7 @@ impl HoaFrameContext {
         self.configuration.component_orders_extended()
     }
     /// Per-component order information, when component orders are extended.
+    /// Returns `None` when the cookie needs dictionaries above the supported order.
     pub fn component_order_info(&self) -> Option<Vec<super::SalientComponentOrderInfo>> {
         self.configuration.component_order_info()
     }

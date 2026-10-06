@@ -22,7 +22,7 @@ impl Constants {
             .expect("verified BWE2 transform size")
     }
 }
-/// Generated from `data/bwe2-format-v1.json` and `data/bwe2-math-v2.json`.
+/// Generated from the BWE2 format, measured gain source and mathematical tables.
 fn constants() -> &'static Constants {
     &crate::tables::BWE2
 }

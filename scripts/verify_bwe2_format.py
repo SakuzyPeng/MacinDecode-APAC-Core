@@ -54,6 +54,17 @@ def extract(path):
                 tables_sha256=digest,**values)
 
 
+def check_wire_values(stored, observed):
+    """Compare wire values without relabelling measured gain provenance."""
+    keys=('schema_version','format_profile','tables_sha256','lsf_codebooks_f32','excitation_gains_f32')
+    if any(stored.get(key)!=observed.get(key) for key in keys):
+        raise AssertionError('BWE2 wire dictionaries differ')
+    if 'gain_replacement' in stored.get('source',{}):
+        from generate_bwe2_gains_measured import load_measurement,regenerate
+        if regenerate(stored,load_measurement())!=stored:
+            raise AssertionError('BWE2 measured gain provenance differs')
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--component',type=Path,default=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))
@@ -63,7 +74,7 @@ def main():
     data=(json.dumps(result,indent=2)+'\n').encode()
     if args.write:
         with args.table.open('xb') as output:output.write(data)
-    elif args.table.read_bytes()!=data:raise AssertionError('BWE2 wire dictionaries differ')
+    else:check_wire_values(json.loads(args.table.read_bytes()),result)
     print(json.dumps(dict(tables_sha256=result['tables_sha256'],lsf_stages=2,lsf_entries=512,lsf_dimension=16,excitation_gains=64)))
 
 

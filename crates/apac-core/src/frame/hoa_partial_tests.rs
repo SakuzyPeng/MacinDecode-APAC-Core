@@ -25,7 +25,10 @@ fn explicit_dimensions_retain_last_coefficient_without_square_padding() {
         let cookie = bytes(&f["cookie"]);
         let n = f["coefficients"].as_u64().unwrap() as usize;
         let context = HoaFrameContext::from_cookie(&cookie).unwrap();
-        assert!(context.is_supported(), "{:?}", context.rejection());
+        if !crate::frame::hoa_support_tests::supported_or_order_limit(&cookie, &context) {
+            assert!(n > 16);
+            continue;
+        }
         assert!(!context.full_order());
         assert_eq!(context.order(), f["order"].as_u64().unwrap() as u8);
         assert_eq!(context.recovery_slot_count(), n);
@@ -70,6 +73,10 @@ fn explicit_dimensions_retain_last_coefficient_without_square_padding() {
 fn explicit_dimensions_preserve_packet_atomicity_and_reset() {
     for f in data()["fixtures"].as_array().unwrap() {
         let cookie = bytes(&f["cookie"]);
+        let context = HoaFrameContext::from_cookie(&cookie).unwrap();
+        if !crate::frame::hoa_support_tests::supported_or_order_limit(&cookie, &context) {
+            continue;
+        }
         let first = bytes(&f["first"]);
         let good = bytes(&f["good"]);
         let bad = bytes(&f["bad"]);
@@ -96,6 +103,9 @@ fn explicit_domain_matrix_and_direction_modes_are_rejected() {
         let cookie = bytes(&f["cookie"]);
         let packet = bytes(&f["packet"]);
         let context = HoaFrameContext::from_cookie(&cookie).unwrap();
+        if !crate::frame::hoa_support_tests::supported_or_order_limit(&cookie, &context) {
+            continue;
+        }
         let error = parse_hoa_packet(&context, &packet).unwrap_err();
         assert_eq!(error.kind, "hoa-coding-mode");
         assert!(

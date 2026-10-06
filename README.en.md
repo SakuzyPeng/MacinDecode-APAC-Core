@@ -19,7 +19,7 @@ This is an independent implementation written for interoperability and research.
 - **Containers & input**: CAF v1, unfragmented single-track MP4/M4A, and exported packet directories; files are read and verified in full on open, and every later pass is checked against the first
 - **Configuration parsing**: field-by-field magic cookie/ASC syntax with cookie bit positions, including DRC, HOA, scene graph and passive renderer metadata
 - **Channel decoding**: spectral Huffman, dequantization, CAC, TNS, BWE2, IMDCT and overlap, from mono up to 22.2
-- **HOA decoding**: orders zero to ten, salient/ambient, dynamic selection, spatial controls, source-layout recovery, and composite streams with channels
+- **HOA decoding**: orders zero to three, salient/ambient, dynamic selection, spatial controls, source-layout recovery, and composite streams with channels
 - **Range access**: sequential decoding or fast prefix scanning, bidirectional `seek`, bit-identical to a decoder opened fresh at that point
 - **Independent numeric model**: constants generated from formulas at high precision, a fixed order of operations, deterministic output; SQ dequantization (`apac-sq-math-v2`) multiplies in Float64 and rounds once to Float32
 - **Per-packet syntax reports**: `parse-packets` emits fields, bit offsets and intermediate spectra stage by stage
@@ -153,7 +153,7 @@ DRC, loudness, scene graph and renderer metadata are parsed but not applied to t
 |---|---|---|
 | Configuration syntax | ✅ | cookie/ASC, DRC, HOA, scene graph, passive renderer metadata |
 | Channel decoding | ✅ | Mono/Stereo/5.1/7.1/7.1.4/22.2; SQ, CAC, TNS, BWE2 |
-| HOA decoding | ✅ | orders 0–10; salient/ambient, dynamic selection, spatial controls, source-layout recovery |
+| HOA decoding | ✅ | orders 0–3; salient/ambient, dynamic selection, spatial controls, source-layout recovery; order 4 and above explicitly rejected |
 | Composite streams & shared configuration | ✅ | multiple ASCs, HOA combined with channels, up to 255 output channels |
 | Containers & access | ✅ | CAF, unfragmented single-track MP4/M4A, packet directories; sequential or fast range decoding |
 | Sample rates | ✅ | indices 0–12 (96 kHz–7.35 kHz); some HOA configurations limited to 44.1/48 kHz |
@@ -185,6 +185,9 @@ The guides are written in Chinese.
 | [Bitstream parsing](guide/bitstream.md) | `parse-packets` depths, channel and HOA syntax and numeric identifiers |
 | [Support boundaries](guide/support.md) | implementation boundaries, numeric relationship to Apple's reference, shared configuration, ASP and frame length |
 | [Validation & regression](guide/validation.md) | tests, independent math acceptance, refactor regression and Apple reference diagnostics |
+| [HOA black-box workflows](guide/hoa-blackbox.md) | third-order production limit, resumable campaigns and historical measurements |
+| [HOA spatial-control means](guide/hoa-mean-blackbox.md) | exact cancellation measurements, independent validation and external-volume evidence |
+| [BWE2 black-box reconstruction](guide/bwe2-blackbox.md) | gain reconstruction, LSF observability experiments and frozen validation |
 | [Development](guide/development.md) | workspace layout, `no_std` builds, API tiers, the CAC feature, repository rules |
 | [Third-party data](THIRD_PARTY.md) | sources, licenses and independent derivation of format constants (in English) |
 

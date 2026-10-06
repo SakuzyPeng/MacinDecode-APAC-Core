@@ -3,9 +3,19 @@
   "format_profile": "apac-hoa-spatial-controls-format-v1",
   "format_sha256": "cb37551eff7b36157be4ad6aeedeca7a33245782b9704c9db8a81379cfea8d01",
   "source": {
-    "component": "AudioCodecs 7.0",
-    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
-    "evidence": "named mean-coefficient dictionary; SplitSubbands pseudocode and controlled native snapshots"
+    "original_observation": {
+      "component": "AudioCodecs 7.0",
+      "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+      "evidence": "named mean-coefficient dictionary; SplitSubbands pseudocode and controlled native snapshots"
+    },
+    "method": "mixed sources with measured mean replacement",
+    "remaining_tables": "original_observation",
+    "mean_replacement": {
+      "source_file": "hoa-spatial-means-measured-v1.json",
+      "source_sha256": "e5fb483ca3eb0e109155e2f7282b4bd3a51371489e5bfa55a9f8e6ea7e938483",
+      "mean_sha256": "299576ce0a06ba6165b2a7ee1485d7211f9bed94b7e5936ce7ec51c5b4f30c42",
+      "method": "public AudioConverter PCM black-box reconstruction by exact dyadic cancellation"
+    }
   },
   "mean_coefficients_f32": [
     1073176793,

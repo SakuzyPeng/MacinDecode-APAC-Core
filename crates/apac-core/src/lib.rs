@@ -21,6 +21,9 @@
 //!
 //! Unsupported configurations and syntax are rejected with a reason, never
 //! guessed.
+//! HOA recovery supports orders 0 through 3 (salient orders 1 through 3),
+//! with at most 16 coefficients in each HOA recovery/output domain. Raw cookie
+//! inspection can still describe higher orders without enabling their decoding.
 //!
 //! # Example
 //!

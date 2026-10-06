@@ -1,6 +1,5 @@
 //! Header-only length controls independently encode both escape tiers.
 use super::*;
-use crate::prelude::*;
 fn header(size: u64, maximum: u64, fill: u64) -> Result<FrameReport, ParseError> {
     let mut wire = Vec::new();
     let mut put = |value: u64, width: usize| {

@@ -1,2 +1,5 @@
 # Frozen data and producer fingerprints must have identical bytes on every OS.
 * text=auto eol=lf
+
+# Research, validation and packaging helpers are auxiliary to the Rust decoder.
+scripts/** linguist-detectable=false

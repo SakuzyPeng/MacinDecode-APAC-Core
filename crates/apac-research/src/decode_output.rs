@@ -45,6 +45,14 @@ impl Export {
         limit: u64,
     ) -> Result<Self> {
         if let Some(format) = format {
+            // Path serialization in the final JSON report requires Unicode.
+            // Reject it before decoding or creating temporary output.
+            if destination.to_str().is_none() {
+                return Err(Error::new(
+                    "PCM output",
+                    "destination path must be valid UTF-8 for the JSON output report",
+                ));
+            }
             // A bad layout or impossible size must not create any output.
             let plan = PcmWritePlan::new(format, spec)?;
             Budget::new(limit).ensure(plan.file_bytes())?;

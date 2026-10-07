@@ -1,6 +1,7 @@
 """Portable CLI container export, channel identity and failure contracts."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import struct
@@ -245,6 +246,24 @@ class PcmOutputTests(unittest.TestCase):
             self.assertEqual(self.run_tool('decode-sq', source, '-o', link).returncode, 1)
             self.assertTrue(link.is_symlink())
             self.assertFalse((self.root/'missing-target').exists())
+
+    @unittest.skipUnless(os.name == 'posix', 'requires a non-UTF-8 argv path')
+    def test_non_utf8_destination_fails_before_decoding_or_creating_output(self):
+        good = self.channel_source()
+        bad = self.path('.caf')
+        bad.write_bytes(caf(channels.cookie(2), [b'\xff'])[0])
+        for source in (good, bad):
+            for extension in ('wav', 'rf64', 'caf'):
+                parent = self.path()
+                target = parent / (os.fsdecode(b'output-\xff') + '.' + extension)
+                p = self.run_tool('decode-sq', source, '-o', target)
+                self.assertEqual(p.returncode, 1, p.stderr)
+                error = json.loads(p.stderr)['error']
+                self.assertEqual(error['operation'], 'PCM output')
+                self.assertIn('UTF-8', error['message'])
+                self.assertNotIn('packet_index', error)
+                self.assertFalse(parent.exists())
+        self.assertFalse(list(self.root.glob('.apac-*')))
 
     def test_file_mode_has_no_default_quota_without_writing_a_large_file(self):
         # Declares >128 MiB of decoded audio, but fails on the very first packet.

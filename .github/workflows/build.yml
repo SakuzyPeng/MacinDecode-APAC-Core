@@ -73,8 +73,8 @@ jobs:
           rustc --version --verbose
           cargo --version
 
-      - name: Test release packaging
-        run: python -B -m unittest discover -s scripts -p 'test_package_release.py' -v
+      - name: Test release packaging and tag verification
+        run: python -B -m unittest discover -s scripts -p 'test_*release*.py' -v
 
       - name: Build release executable
         run: cargo build --locked --release --package mapac --target "$BUILD_TARGET"
@@ -141,6 +141,7 @@ jobs:
             (cd "$directory" && sha256sum --check "$archive.sha256")
             assets+=("$directory/$archive" "$directory/$archive.sha256")
           done
+          python3 -B scripts/verify_release_tag.py --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
           release_args=()
           if [[ "$RELEASE_TAG" == *-* ]]; then release_args+=(--prerelease); fi
           if draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft); then

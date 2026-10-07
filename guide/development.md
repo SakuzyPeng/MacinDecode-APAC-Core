@@ -106,7 +106,7 @@ Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `
 1. 更新根 `Cargo.toml` 的 workspace 版本、`Cargo.lock`，并编写 `guide/releases/vVERSION.md`。
 2. 推送待发布提交，在 Build 工作流选择对应分支，填写手动输入 `release_tag`（首版为 `v0.1.0`）。也可推送同名 `v*` 标签触发。
 3. 三个平台的构建、测试、Clippy 和打包均通过后，工作流核验全部安装包的 SHA-256，并创建带六个附件的 GitHub Release **草稿**。版本标签、workspace 版本和可执行文件 `--version` 必须一致。
-4. 审阅发布说明和附件后，在 GitHub 发布草稿。手动输入不会提前创建 Git 标签；发布草稿时，GitHub 将不存在的标签创建在工作流的完整提交 SHA 上。已有同名草稿会更新附件、说明和目标提交；已发布的同名 Release 会明确拒绝，避免替换正式版附件。同一版本的草稿更新串行执行。
+4. 审阅发布说明和附件后，在 GitHub 发布草稿。手动输入不会提前创建 Git 标签；发布草稿时，GitHub 将不存在的标签创建在工作流的完整提交 SHA 上。已有同名草稿会更新附件、说明和目标提交；如果 Git 标签已经存在，其最终指向的提交必须与构建提交一致，否则上传附件前直接拒绝。已发布的同名 Release 会明确拒绝，避免替换正式版附件。同一版本的草稿更新串行执行。
 
 日常推送、PR 和不填写 `release_tag` 的手动运行只生成 Actions 产物。发布流程只分发 CLI 安装包，不执行 `cargo publish`。
 

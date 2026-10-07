@@ -27,6 +27,8 @@ WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L
 
 文件输出默认不限总大小，使用固定上限的块缓冲，不先生成中间裸 PCM。`--max-output-mib` 可设置包含头部在内的整文件限额。目标文件必须尚不存在；先在同目录临时文件中写入，完成全部输入核验、帧数校验和 flush／sync 后无覆盖提交，失败清理临时文件。已有文件、目录或符号链接均不覆盖。
 
+目标路径须能表示为有效 Unicode（UTF-8），以便在 JSON 报告中保留完整路径；无法表示的路径在解码音频及创建输出前报错。
+
 仅创建指定的音频文件，JSON 报告写 stdout。文件报告不包含研究模式的 `pcm` 对象，而使用 `output`：实际 `container`、`encoding`、采样率、声道数、有效帧数和起点、`pcm_bytes`／`pcm_sha256`（文件顺序的 PCM 有效载荷）、`file_bytes`／`file_sha256`（含头部的整文件）、`source_layout`、`channel_mask` 和 `source_channel_indices`。后者按输出通道列出其零起始源通道索引。解码设置、环境、输入完整性及访问统计继续记录。
 
 输出 CAF 的音频编码是 LPCM；APAC 容器读取器仍只接受 APAC 音轨。`compare` 继续接受研究目录的 PCM 元数据，不直接读取 WAV／RF64／PCM CAF 文件。

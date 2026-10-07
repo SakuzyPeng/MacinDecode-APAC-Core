@@ -41,16 +41,16 @@ def canonical(value):
     if isinstance(value,dict):return {k:canonical(x) for k,x in value.items() if k!='scaled'}
     return value
 
-@lru_cache(maxsize=1)
-def math_manifest():
+@lru_cache(maxsize=2)
+def math_manifest(layouts=tuple(LAYOUTS),profile=PROFILE):
     rows=[]
-    for n,rate in itertools.product(LAYOUTS,(48000,44100)):
+    for n,rate in itertools.product(layouts,(48000,44100)):
         for index,(kind,options,seq) in enumerate(sequences(n)):
             h=hashlib.sha256(cookie(n,rate,**options));truths=[]
             for c in seq:
                 raw,t=packet(c,n,rate,**options);h.update(len(raw).to_bytes(8,'little'));h.update(raw);truths.append(t)
             rows.append(dict(channels=n,rate=rate,index=index,kind=kind,packets=len(seq),input_sha256=h.hexdigest(),truth_sha256=digest(canonical(truths))))
-    return dict(schema_version=1,profile=PROFILE,sequences=rows,sha256=digest(rows))
+    return dict(schema_version=1,profile=profile,sequences=rows,sha256=digest(rows))
 
 def access_cases(n):
     kinds={}
@@ -67,15 +67,15 @@ def access_cases(n):
         for i in indices:
             if 0<=i<len(rows):yield rows[i]
 
-@lru_cache(maxsize=1)
-def access_manifest():
+@lru_cache(maxsize=2)
+def access_manifest(layouts=tuple(LAYOUTS),profile=PROFILE):
     rows=[]
-    for n,rate in itertools.product(LAYOUTS,(48000,44100)):
+    for n,rate in itertools.product(layouts,(48000,44100)):
         for index,case in enumerate(access_cases(n)):
             d=generated(n,rate,index,case)
             truth=[dict(name=name,start=start,requested=count,access=expected_access(d,start,count)) for name,start,count in d['ranges']]
             rows.append(dict(channels=n,rate=rate,index=index,kind=case[0],packets=len(d['payloads']),caf_sha256=sha(d['caf']),mp4_sha256=sha(d['mp4']),expectations_sha256=digest(truth)))
-    return dict(schema_version=1,profile=PROFILE,cases=rows,sha256=digest(rows))
+    return dict(schema_version=1,profile=profile,cases=rows,sha256=digest(rows))
 
 def presence_templates(n,rate):
     raw,t=packet({},n,rate,scene=False);wire=''.join(format(v,'08b') for v in raw)
@@ -96,11 +96,11 @@ def presence_record(n,rate,mask,templates):
     identity+=b''.join(struct.pack('<3Q',*r) for r in ranges)
     return identity
 
-@lru_cache(maxsize=1)
-def presence_manifest():
+@lru_cache(maxsize=2)
+def presence_manifest(layouts=tuple(LAYOUTS),profile=PROFILE):
     rows=[];total=0
-    for n,rate in itertools.product(LAYOUTS,(48000,44100)):
+    for n,rate in itertools.product(layouts,(48000,44100)):
         templates=presence_templates(n,rate);h=hashlib.sha256();count=1<<len(templates)
         for mask in range(count):h.update(presence_record(n,rate,mask,templates))
         rows.append(dict(channels=n,rate=rate,cookie=cookie(n,rate,scene=False).hex(),templates=templates,cases=count,stage_sha256=h.hexdigest()));total+=count
-    return dict(schema_version=1,profile=PROFILE,cases=total,layouts=rows,sha256=digest(rows))
+    return dict(schema_version=1,profile=profile,cases=total,layouts=rows,sha256=digest(rows))

@@ -44,7 +44,8 @@ def check(report,truth,channels):
     require(report['packet_complete'] and report['status']=='complete','incomplete channel packet')
     require(report['channel_count']==channels and report['channel_labels']==layout(channels)[3],'channel map differs')
     require(report['packet_state_profile']==PROFILE,'wrong channel state profile')
-    require(report.get('channel_layout_profile')==('apac-channel-layout-v2' if channels in (12,24) else None),'wrong layout profile')
+    profile='apac-channel-layout-v3' if channels==16 else 'apac-channel-layout-v2' if channels in (12,24) else None
+    require(report.get('channel_layout_profile')==profile,'wrong layout profile')
     require(report['component_end_bit_offset']==truth['core_end_bit_offset'] and report['stop_bit_offset']==truth['tail']['packet_end_bit_offset'],'core/packet endpoint differs')
     require(not report['unknown_ranges'],'complete report retains unknown bits');coverage(report)
     same_fields(report['packet_tail'],truth['tail'],'tail')

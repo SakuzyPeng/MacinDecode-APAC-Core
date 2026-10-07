@@ -9,7 +9,7 @@ import native_frame_trace as base
 
 KINDS={};RETURNS={};EVENTS=[];PACKETS=[];ERRORS=[];ELEMENTS={}
 CURRENT=None;RAW=None;SEQUENCE=-1;ROLE=None;CURRENT_ELEMENT=None;CHANNELS=0
-LAYOUT_TYPES={1:[0],2:[1],6:[1,0,3,1],8:[1,0,3,1,1],12:[1,0,3,1,1,1,1],24:[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1]}
+LAYOUT_TYPES={1:[0],2:[1],6:[1,0,3,1],8:[1,0,3,1,1],12:[1,0,3,1,1,1,1],16:[1,0,3,1,1,1,1,1,1],24:[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1]}
 
 def ptr(frame,address):return struct.unpack('<Q',base.memory(frame,address,8))[0]
 def floats(frame,address,count=1024):return list(struct.unpack('<'+str(count)+'f',base.memory(frame,address,count*4)))

@@ -9,7 +9,11 @@ from drc_vectors import header as drc_header,payload as drc_payload
 LAYOUTS={1:(100,0,[0],['Mono']),2:(101,0,[1],['L','R']),6:(121,1,[1,0,3,1],['L','R','C','LFE','Ls','Rs']),8:(128,2,[1,0,3,1,1],['L','R','C','LFE','Ls','Rs','Rls','Rrs'])}
 # Additional layouts are addressable explicitly; legacy enumeration stays frozen.
 EXTENDED_LAYOUTS={12:(192,3,[1,0,3,1,1,1,1],['L','R','C','LFE','Ls','Rs','Rls','Rrs','Vhl','Vhr','Ltr','Rtr']),24:(204,4,[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1],['Lw','Rw','C','LFE2','Rls','Rrs','L','R','Cs','LFE3','Lss','Rss','Vhl','Vhr','Vhc','Ts','Ltr','Rtr','Ltm','Rtm','Ctr','Cb','Lb','Rb'])}
-def layout(channels):return LAYOUTS[channels] if channels in LAYOUTS else EXTENDED_LAYOUTS[channels]
+SURROUND916_LAYOUTS={16:(193,4,[1,0,3,1,1,1,1,1,1],['L','R','C','LFE','Ls','Rs','Rls','Rrs','Lw','Rw','Vhl','Vhr','Ltm','Rtm','Ltr','Rtr'])}
+def layout(channels):
+    for layouts in (LAYOUTS,EXTENDED_LAYOUTS,SURROUND916_LAYOUTS):
+        if channels in layouts:return layouts[channels]
+    raise KeyError(channels)
 WINDOWS=((0,0),(1,0),(2,0),(2,0x55),(2,0x7f),(3,0))
 PROFILE='apac-channel-state-v1'
 

@@ -14,7 +14,7 @@ def generated(channels,rate,index,case):
     parts=[packet(c,channels,rate,**options) for c in seq];payloads=[p for p,_ in parts]
     config=cookie(channels,rate,**options);prime=(0,1,1024,2048)[index%4];remainder=(0,1,127,1023)[index//4%4]
     kwargs=dict(rate=rate,channels=channels,priming=prime,remainder=remainder,variant=index)
-    caf,caf_truth=caf_encode(config,payloads,**kwargs);mp4,mp4_truth,_=mp4_encode(config,payloads,**kwargs)
+    caf,caf_truth=caf_encode(config,payloads,layout_tag=(layout(channels)[0]<<16)|channels,**kwargs);mp4,mp4_truth,_=mp4_encode(config,payloads,**kwargs)
     valid=len(seq)*1024-prime-remainder
     ranges=[('all',0,valid),('head',0,997),('target',(len(original)+1)*1024+11-prime,1051),('tail',max(0,valid-1001),2048),('eof',valid,17)]
     return dict(config=config,payloads=payloads,truths=[t for _,t in parts],caf=caf,mp4=mp4,caf_truth=caf_truth,mp4_truth=mp4_truth,ranges=ranges)

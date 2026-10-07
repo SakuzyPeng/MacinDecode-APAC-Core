@@ -141,7 +141,7 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 
 ### 受限离散声道深度 `channels`
 
-`parse-packets --depth channels` 新增单 channel ASC 的 Mono、Stereo、5.1、7.1、7.1.4、22.2 整包报告。旧 `prefix` 至 `packet` 深度继续使用原双声道入口和报告。
+`parse-packets --depth channels` 支持单 channel ASC 的 Mono、Stereo、5.1、7.1、7.1.4、9.1.6、22.2 整包报告。旧 `prefix` 至 `packet` 深度继续使用原双声道入口和报告。
 
 | 布局 | 声道数 | family / level | 元素及输出顺序 |
 |---|---:|---|---|
@@ -150,11 +150,14 @@ python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report 
 | 5.1 | 6 | 121 / 1 | CPE、SCE、LFE、CPE：L R C LFE Ls Rs |
 | 7.1 | 8 | 128 / 2 | CPE、SCE、LFE、CPE、CPE：L R C LFE Ls Rs Rls Rrs |
 | 7.1.4 | 12 | 192 / 3 | CPE、SCE、LFE、四个 CPE：L R C LFE Ls Rs Rls Rrs Vhl Vhr Ltr Rtr |
+| 9.1.6 | 16 | 193 / 4 | CPE、SCE、LFE、六个 CPE：L R C LFE Ls Rs Rls Rrs Lw Rw Vhl Vhr Ltm Rtm Ltr Rtr |
 | 22.2 | 24 | 204 / 4 | 固定 16 元素，顺序见下文 |
 
 22.2 的 TCE 类型序列为 `[1,0,3,1,1,0,3,1,1,0,0,1,1,0,0,1]`（0=SCE、1=CPE、3=LFE），输出顺序固定为 `Lw Rw C LFE2 Rls Rrs L R Cs LFE3 Lss Rss Vhl Vhr Vhc Ts Ltr Rtr Ltm Rtm Ctr Cb Lb Rb`。首对是标签 35／36 的 Lw／Rw；两个 LFE 分别占输出索引 3／9，独立保持 overlap。解码不重排声道，不增加低频管理或 LFE 播放增益。其他具有相同声道数的布局仍会被拒绝。
 
 上述 channel ASC 的 7.1.4／22.2 布局在 `ChannelPacketReport`、解码报告及 PCM 实现元数据中附带可选 `channel_layout_profile=apac-channel-layout-v2`；根据 ASC 类型与实际布局标签判定，不仅依据 12／24 声道数。HOA 输出不使用此离散布局标识，包括相同通道数、HOA 还原的扬声器布局及含离散 ASC 的 HOA 组合流；组件声明顺序不影响这一规则。历史报告缺失该字段仍可读取；旧布局不增加此字段，既有后端、状态、容器、访问及数学配置标识不变。
+
+9.1.6 使用 `channel_layout_profile=apac-channel-layout-v3` 和 `support_scope=single_asc_916_sq_drc_off`，原有布局保留原标识。其布局标签为 `(193 << 16) | 16`，9 个 TCE 的类型顺序为 `[1,0,3,1,1,1,1,1,1]`，preroll 容量为 32768 字节。输出按上表顺序交错，不重排宽声道与顶中声道，也不应用 LFE 增益。三阶 HOA 的 16 通道仍使用自身的 ACN/SN3D 布局及报告；含 9.1.6 组件的 HOA 组合流不附加整体离散布局标识。
 
 配置保持 profile 31、44.1/48 kHz、1024 帧、单 ASC、无重映射及既有中性场景规则。只读取 SQ；LRVQ、LRVQ-LFE、其他元素组合和布局、多个 ASC、空间渲染、非零 trimming 与结构重配置明确停止。HOA 使用下述单独的配置和解析入口。DRC 可缺席，或使用已验证的单序列／单频带／profile 0 关闭策略；基准声道数必须与 cookie 声明一致，不应用曲线、shape filter、响度处理或额外 LFE 增益。
 
@@ -179,6 +182,20 @@ python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
 ### 7.1.4／22.2 的独立验收
 
 新增 2,076 个数学序列、208 个三种输入及范围访问用例；单独用紧凑验收程序检查 131,328 个存在位组合，只输出摘要。旧矩阵的布局枚举和向量身份保持不变。生产解码无需 Python 或苹果文件。
+
+9.1.6 使用独立的 `surround916-*-v1.json` 向量，覆盖 44.1／48 kHz 下的 740 个数学序列、92 个包目录／CAF／MP4 范围访问用例，以及 1024 个元素存在位组合（每种采样率 512 个）。其状态夹具也进入错误回滚、reset、checkpoint 和播放 seek 回归。
+
+```sh
+cargo +1.98.0 build --offline --workspace --bins --examples
+python3 -B scripts/generate_surround916_manifest.py --check
+python3 -B scripts/validate_surround916.py --binary target/debug/apac-tool \
+  --presence-binary target/debug/examples/layout_presence --report reports/surround916-math.json
+# 仅 macOS：公开布局查询、全部声道与窗口、元素边界、DRC 关闭策略和原生编码样本。
+python3 -B scripts/validate_surround916_native.py --binary target/debug/apac-tool \
+  --report reports/surround916-native.json
+```
+
+以下命令继续验证原有 7.1.4／22.2 矩阵：
 
 ```sh
 cargo +1.98.0 build --offline --workspace --bins --examples

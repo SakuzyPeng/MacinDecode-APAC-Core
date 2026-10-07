@@ -43,7 +43,7 @@ class PortableSuiteTests(unittest.TestCase):
         return code, stderr.getvalue(), destination, run
 
     def test_missing_presence_argument_fails_before_starting_any_validator(self):
-        for index, options in enumerate(((), ('--only', 'validate_drc', 'validate_layouts'))):
+        for index, options in enumerate(((), ('--only', 'validate_drc', 'validate_layouts'), ('--only', 'validate_surround916'))):
             with self.subTest(options=options):
                 code, stderr, destination, run = self.run_suite(*options, output=str(index))
                 self.assertEqual(code, 2, stderr)

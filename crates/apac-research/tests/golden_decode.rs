@@ -16,6 +16,8 @@ use std::{collections::BTreeMap, path::Path};
 // Preserve the v1 snapshot as historical evidence. SQ v2 intentionally changes
 // spectral/PCM values and their profile identity; it needs its own baseline.
 const GOLDEN: &str = "tests/golden/sq-math-v2.json";
+// The additive layout profile has its own snapshot; the old baseline is frozen.
+const SURROUND916_GOLDEN: &str = "tests/golden/channel-layout-v3.json";
 
 fn sha<T: Serialize>(value: &T) -> String {
     format!(
@@ -172,12 +174,13 @@ fn walk(value: &Value, path: &str, out: &mut BTreeMap<String, Value>) {
     }
 }
 
-fn snapshot() -> BTreeMap<String, Value> {
+fn snapshot(surround916: bool) -> BTreeMap<String, Value> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let mut names: Vec<_> = std::fs::read_dir(root.join("data"))
         .expect("data directory")
         .map(|e| e.expect("entry").file_name().into_string().expect("UTF-8"))
         .filter(|n| n.ends_with(".json"))
+        .filter(|n| n.starts_with("surround916-") == surround916)
         .collect();
     names.sort();
     let mut out = BTreeMap::new();
@@ -191,10 +194,21 @@ fn snapshot() -> BTreeMap<String, Value> {
 
 #[test]
 fn frozen_fixtures_keep_identical_reports_and_pcm() {
-    let actual = snapshot();
+    let actual = snapshot(false);
     assert!(actual.len() > 1000, "fixture walk found {}", actual.len());
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(GOLDEN);
-    if std::env::var_os("APAC_GOLDEN_WRITE").is_some() {
+    check_snapshot(actual, GOLDEN, "APAC_GOLDEN_WRITE");
+}
+
+#[test]
+fn surround916_fixtures_keep_identical_reports_and_pcm() {
+    let actual = snapshot(true);
+    assert_eq!(actual.len(), 3);
+    check_snapshot(actual, SURROUND916_GOLDEN, "APAC_LAYOUT916_GOLDEN_WRITE");
+}
+
+fn check_snapshot(actual: BTreeMap<String, Value>, file: &str, write_env: &str) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(file);
+    if std::env::var_os(write_env).is_some() {
         let document = json!({
             "note": "implementation regression snapshot, not independent truth",
             "fixtures": actual,

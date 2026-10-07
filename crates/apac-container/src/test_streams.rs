@@ -103,6 +103,10 @@ pub(crate) fn streams() -> Vec<Stream> {
             include_str!("../../../data/layout-state-fixtures-v1.json"),
         ),
         (
+            "surround916",
+            include_str!("../../../data/surround916-state-fixtures-v1.json"),
+        ),
+        (
             "hoa-ambient",
             include_str!("../../../data/hoa-ambient-state-v1.json"),
         ),

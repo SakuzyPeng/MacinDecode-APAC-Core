@@ -19,5 +19,7 @@ class LayoutValidationTests(unittest.TestCase):
         self.assertEqual(list(LAYOUTS),[1,2,6,8]);self.assertEqual(list(EXTENDED_LAYOUTS),[12,24])
         self.assertEqual([i for i,t in enumerate(layout(24)[2]) if t==3],[2,6])
         self.assertEqual([layout(24)[3][i] for i in (0,1,3,9)],['Lw','Rw','LFE2','LFE3'])
+        self.assertEqual(layout(16)[:2],(193,4))
+        self.assertEqual(layout(16)[3][8:],['Lw','Rw','Vhl','Vhr','Ltm','Rtm','Ltr','Rtr'])
 
 if __name__=='__main__':unittest.main()

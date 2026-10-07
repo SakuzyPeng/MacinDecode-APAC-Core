@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""12/24-channel independent math, exhaustive syntax and exact portable access."""
+"""Fixed-layout independent math, exhaustive syntax and exact portable access."""
 import argparse,json,platform,subprocess
 from pathlib import Path
 from datetime import datetime,timezone
@@ -15,19 +15,25 @@ def identity(reference,report,counts):
     for key in ('profile','code_commit','source_sha256','vector_manifest_sha256','access_manifest_sha256','presence_manifest_sha256','atol','rtol','counts'):
         require(reference.get(key)==report.get(key),'reference identity differs: '+key)
     require(len(reference['sequences'])==counts['sequences'] and len(reference['cases'])==counts['cases'],'reference cases missing')
-    require(reference.get('presence',{}).get('cases')==131328 and reference['presence'].get('passed') is True,'missing exhaustive presence evidence')
+    require(reference.get('presence',{}).get('cases')==counts['presence'] and reference['presence'].get('passed') is True,'missing exhaustive presence evidence')
     require(all(r.get('passed') is True for k in ('sequences','cases') for r in reference[k]),'failed reference case')
     require(reference['pcm_metrics']['failed_samples']==0 and all(m['failed_samples']==0 for m in reference['metrics'].values()),'reference mathematical gate failed')
     require(reference['stage_sha256']==digest({k:reference[k] for k in ('sequences','cases','presence')}),'reference stage digest differs')
 
-def main():
+def main(default_layout='extended'):
     p=argparse.ArgumentParser(description=__doc__)
     for name in ('binary','presence-binary','report'):p.add_argument('--'+name,type=Path,required=True)
-    p.add_argument('--reference-report',type=Path);a=p.parse_args()
+    p.add_argument('--reference-report',type=Path)
+    p.add_argument('--layout',choices=('extended','surround916'),default=default_layout);a=p.parse_args()
     require(a.binary.is_file() and a.presence_binary.is_file() and not a.report.exists(),'binary missing or report exists')
-    frozen=math_manifest();access=access_manifest();presence=presence_manifest()
-    counts=dict(sequences=len(frozen['sequences']),cases=len(access['cases']),presence=131328)
-    r=dict(schema_version=1,passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),
+    layouts=(16,) if a.layout=='surround916' else tuple(LAYOUTS)
+    profile='apac-channel-layout-v3' if a.layout=='surround916' else PROFILE
+    prefix='surround916' if a.layout=='surround916' else 'layout'
+    math_fn=lambda:math_manifest(layouts,profile)
+    access_fn=lambda:access_manifest(layouts,profile)
+    frozen=math_fn();access=access_fn();presence=presence_manifest(layouts,profile)
+    counts=dict(sequences=len(frozen['sequences']),cases=len(access['cases']),presence=presence['cases'])
+    r=dict(schema_version=1,passed=False,profile=profile,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),
            code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),presence_binary_sha256=sha256_file(a.presence_binary),
            vector_manifest_sha256=frozen['sha256'],access_manifest_sha256=access['sha256'],presence_manifest_sha256=presence['sha256'],counts=counts,
            mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},sequences=[],cases=[],errors=[],presence=None,
@@ -36,17 +42,17 @@ def main():
     reference=json.loads(a.reference_report.read_text(encoding='utf-8')) if a.reference_report else None
     try:
         if reference:identity(reference,r,counts)
-        require(json.loads((ROOT/'data/layout-presence-v1.json').read_text(encoding='utf-8'))==presence,'presence manifest differs')
+        require(json.loads((ROOT/f'data/{prefix}-presence-v1.json').read_text(encoding='utf-8'))==presence,'presence manifest differs')
         destination=a.report.with_suffix('.presence.json');require(not destination.exists(),'presence report exists')
-        subprocess.run([str(a.presence_binary.resolve()),'--report',str(destination)],check=True)
-        evidence=json.loads(destination.read_text(encoding='utf-8'));require(evidence['passed'] and evidence['cases']==131328 and evidence['vector_manifest_sha256']==presence['sha256'],'presence incomplete')
+        subprocess.run([str(a.presence_binary.resolve()),'--report',str(destination),'--layout',a.layout],check=True)
+        evidence=json.loads(destination.read_text(encoding='utf-8'));require(evidence['passed'] and evidence['profile']==profile and evidence['cases']==counts['presence'] and evidence['vector_manifest_sha256']==presence['sha256'],'presence incomplete')
         require(evidence['layouts']==[{k:row[k] for k in ('channels','rate','cases','stage_sha256')} for row in presence['layouts']],'presence stages differ')
         r['presence']={k:v for k,v in evidence.items() if k not in ('compiler','debug_assertions')}
-        check_math(a.binary.resolve(),r,reference,layouts=LAYOUTS,manifest_fn=math_manifest,manifest_path=ROOT/'data/layout-vectors-v1.json',count=counts['sequences'],sequences_fn=sequences)
-        check_access(a.binary.resolve(),r,reference,layouts=LAYOUTS,manifest_fn=access_manifest,manifest_path=ROOT/'data/layout-access-vectors-v1.json',count=counts['cases'],cases_fn=access_cases,generated_fn=generated,include_bundle=True)
+        check_math(a.binary.resolve(),r,reference,layouts=layouts,manifest_fn=math_fn,manifest_path=ROOT/f'data/{prefix}-vectors-v1.json',count=counts['sequences'],sequences_fn=sequences)
+        check_access(a.binary.resolve(),r,reference,layouts=layouts,manifest_fn=access_fn,manifest_path=ROOT/f'data/{prefix}-access-vectors-v1.json',count=counts['cases'],cases_fn=access_cases,generated_fn=generated,include_bundle=True)
         require(len(r['sequences'])==counts['sequences'] and len(r['cases'])==counts['cases'],'missing required layout vectors')
         for impl in r['implementations'].values():
-            require(impl['channel_layout_profile']==PROFILE,'missing layout profile')
+            require(impl['channel_layout_profile']==profile,'missing layout profile')
             require((impl['compiler'],impl['debug_assertions'])==(evidence['compiler'],evidence['debug_assertions']),'presence binary toolchain/build differs')
         require(source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(a.presence_binary)==r['presence_binary_sha256'],'source or binary changed during acceptance')
         r['passed']=True

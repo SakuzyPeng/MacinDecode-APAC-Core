@@ -97,7 +97,7 @@ impl ChannelFrameContext {
             && config.global.flag_c.is(false);
         let rejection = if types.is_empty() {
             Some(format!(
-                "unsupported declared channel count {count}; expected 1, 2, 6, 8, 12 or 24"
+                "unsupported declared channel count {count}; expected 1, 2, 6, 8, 12, 16 or 24"
             ))
         } else {
             configuration.rejection.clone().or(drc.rejection.clone())

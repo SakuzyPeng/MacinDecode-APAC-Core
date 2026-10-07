@@ -15,13 +15,14 @@ class LayoutTests(unittest.TestCase):
     def command(self,*args):return subprocess.run([str(self.binary),*map(str,args)],capture_output=True,text=True,encoding='utf-8')
     def next(self):self.counter+=1;return self.root/str(self.counter)
     def source(self,n,payloads,kind='caf',rate=48000,**opts):
-        p=self.next();raw=(caf if kind=='caf' else mp4)(cookie(n,rate,**opts),payloads,rate=rate,channels=n)[0];p.write_bytes(raw);return p
+        p=self.next();extra=dict(layout_tag=(layout(n)[0]<<16)|n) if kind=='caf' else {}
+        raw=(caf if kind=='caf' else mp4)(cookie(n,rate,**opts),payloads,rate=rate,channels=n,**extra)[0];p.write_bytes(raw);return p
     def decode(self,source,mode=None,**opts):
         out=self.next();args=[] if mode is None else ['--access',mode]
         for k,v in opts.items():args+=['--'+k.replace('_','-'),v]
         return self.command('decode-sq',source,'--out',out,*args),out
     def test_all_channels_are_isolated_and_new_profile_is_explicit(self):
-        for n in (12,24):
+        for n in (12,16,24):
             seq=[]
             for ch in range(n):seq += [excitation(n,ch),dict(elements=[None]*len(layout(n)[2]))]
             generated=[packet(c,n) for c in seq];root=self.next();bundle(root,[p for p,t in generated],n)
@@ -29,14 +30,16 @@ class LayoutTests(unittest.TestCase):
             rows=[json.loads(l)['report'] for l in (root/'parsed').read_text().splitlines()]
             for row,(_,truth) in zip(rows,generated):check(row,truth,n)
             p,out=self.decode(root);self.assertEqual(p.returncode,0,p.stderr);report=json.loads(p.stdout)
-            self.assertEqual(report['channel_layout_profile'],PROFILE);self.assertEqual(report['pcm']['decoder_settings']['implementation']['value']['channel_layout_profile'],PROFILE)
+            profile='apac-channel-layout-v3' if n==16 else PROFILE
+            self.assertEqual(report['channel_layout_profile'],profile);self.assertEqual(report['pcm']['decoder_settings']['implementation']['value']['channel_layout_profile'],profile)
+            if n==16:self.assertEqual(report['pcm']['decoder_settings']['implementation']['value']['support_scope'],'single_asc_916_sq_drc_off')
             raw=(out/'pcm.f32le').read_bytes();v=struct.unpack('<'+str(len(raw)//4)+'f',raw)
             for ch in range(n):
                 window=v[ch*2048*n:(ch+1)*2048*n];self.assertTrue(any(window[ch::n]))
                 for other in range(n):
                     if ch!=other:self.assertFalse(any(window[other::n]))
     def test_tools_and_metadata_ranges_match_three_inputs(self):
-        for n in (12,24):
+        for n in (12,16,24):
             for rate in (48000,44100):
                 options=dict(scene=True,drc=True,rich=True);seq=next(seq for kind,opts,seq in sequences(n) if kind=='joint_tools')
                 raw=[packet(c,n,rate,**options)[0] for c in seq];root=self.next();bundle(root,raw,n,rate,**options)
@@ -52,6 +55,7 @@ class LayoutTests(unittest.TestCase):
                         self.assertEqual(*outputs);self.assertEqual(*states);self.assertEqual(outputs[0],full[start*n*4:(start+frames)*n*4])
     def test_truncations_late_errors_and_limits_leave_failure_markers(self):
         fixtures=json.loads((Path(__file__).resolve().parents[1]/'data/layout-state-fixtures-v1.json').read_text())['fixtures']
+        fixtures+=json.loads((Path(__file__).resolve().parents[1]/'data/surround916-state-fixtures-v1.json').read_text())['fixtures']
         for f in fixtures:
             n=f['channels'];options=dict(drc=True,rich=True);good=bytes.fromhex(f['first']);bad=[bytes.fromhex(f[k]) for k in ('last_element_error','late_drc_error')]
             bad += [good[:i] for i in range(1,len(good))]
@@ -65,7 +69,7 @@ class LayoutTests(unittest.TestCase):
             r,out=self.decode(src,'fast',frames=1);self.assertEqual(r.returncode,0,r.stderr);before=(out/'pcm.f32le').read_bytes()
             r=self.command('decode-sq',src,'--out',out);self.assertEqual(r.returncode,1);self.assertEqual(before,(out/'pcm.f32le').read_bytes())
     def test_fixed_capacity_nested_preroll_and_layout_qualification(self):
-        for n,capacity in ((12,24576),(24,49152)):
+        for n,capacity in ((12,24576),(16,32768),(24,49152)):
             for payload in (pack('10001'+bits(capacity+1,16)),pack('10001'+bits(0,16)),pack('10001'+bits(1,16)+'000'+'10000000'+'00000000')):
                 root=self.next();bundle(root,[payload],n);r=self.command('parse-packets',root,'--depth','channels','--output',root/'parsed');self.assertEqual(r.returncode,1,r.stdout)
                 error=json.loads((root/'parsed').read_text())['error'];self.assertIn(error['kind'],('preroll-size','nested-preroll'))
@@ -76,7 +80,7 @@ class LayoutTests(unittest.TestCase):
             (root/'cookie.bin').write_bytes(cfg);m['file']['cookie']['value']['sha256']=__import__('hashlib').sha256(cfg).hexdigest();(root/'manifest.json').write_text(json.dumps(m))
             r,out=self.decode(root);self.assertEqual(r.returncode,1);self.assertFalse(out.exists());self.assertIn('level_id',r.stderr)
     def test_long_prefix_empty_output_and_unparsed_tail(self):
-        for n in (12,24):
+        for n in (12,16,24):
             raw=packet({},n)[0];src=self.source(n,[raw]*4101)
             r,out=self.decode(src,'fast',start_frame=4098*1024+1,frames=1);self.assertEqual(r.returncode,0,r.stderr);v=json.loads(r.stdout);self.assertEqual(v['access']['prefix_scanned_packets'],4097)
             r,out=self.decode(src,'fast',start_frame=4101*1024,frames=1);self.assertEqual(r.returncode,0,r.stderr);v=json.loads(r.stdout);self.assertEqual(v['access']['synthesized_packets'],0)
@@ -86,5 +90,32 @@ class LayoutTests(unittest.TestCase):
         for n in (1,2,6,8):
             src=self.source(n,[packet({},n)[0]]);r,_=self.decode(src);self.assertEqual(r.returncode,0,r.stderr);v=json.loads(r.stdout)
             self.assertNotIn('channel_layout_profile',v);self.assertNotIn('channel_layout_profile',v['pcm']['decoder_settings']['implementation']['value'])
+
+    def test_surround916_requires_the_declared_family_and_every_element(self):
+        original=cookie(16)
+        # Same count with an HOA tag, a different discrete tag, or a changed
+        # final CPE must not be accepted as 9.1.6.
+        for start,width,value,name in ((199,16,190,'layout'),(199,16,192,'layout'),(175,3,3,'tce[1].type'),(196,3,0,'channel-count')):
+            data=bytearray(original)
+            for i in range(width):
+                position=start+i;mask=1<<(7-position%8)
+                data[position//8]=(data[position//8]&~mask)|(((value>>(width-i-1))&1)<<(7-position%8))
+            source=self.next();source.write_bytes(caf(bytes(data),[packet({},16)[0]],channels=16,layout_tag=(193<<16)|16)[0])
+            result,out=self.decode(source)
+            self.assertEqual(result.returncode,1,result.stdout);self.assertIn(name,result.stderr);self.assertFalse(out.exists())
+
+    def test_surround916_and_hoa_keep_distinct_metadata_in_both_component_orders(self):
+        from hoa_shared_vectors import bundle as shared_bundle,packet as shared_packet,ambient
+        hoa=ambient(16)
+        discrete=dict(type=0,options=dict(channels=16))
+        # 16-channel HOA must not acquire the new discrete layout profile.
+        for components in ([hoa],[hoa,discrete],[discrete,hoa]):
+            options=dict(components=components,level=1)
+            source=self.next();shared_bundle(source,[shared_packet(dict(components=[{} for _ in components]),**options)[0]],**options)
+            result,out=self.decode(source)
+            self.assertEqual(result.returncode,0,result.stderr);report=json.loads(result.stdout)
+            self.assertNotIn('channel_layout_profile',report)
+            self.assertNotIn('channel_layout_profile',report['pcm']['decoder_settings']['implementation']['value'])
+            self.assertEqual(report['pcm']['channels'],16*len(components))
 
 if __name__=='__main__':unittest.main()

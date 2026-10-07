@@ -57,7 +57,7 @@ target/debug/apac-tool fixture --out artifacts/demo/drc-none --signals sine --du
 target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/start/pcm.json
 ```
 
-`fixture` 的布局选项为 `mono`、`stereo`、`surround51`、`surround71`、`surround714`、`hoa1`、`hoa2`、`hoa3`、`surround222`。三个 HOA 预设分别是 4、9、16 声道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
+`fixture` 的布局选项为 `mono`、`stereo`、`surround51`、`surround71`、`surround714`、`surround916`、`hoa1`、`hoa2`、`hoa3`、`surround222`。`surround916` 是 16 声道的 9.1.6 离散扬声器布局；三个 HOA 预设分别是 4、9、16 通道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
 
 所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 

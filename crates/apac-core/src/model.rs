@@ -68,7 +68,7 @@ impl ChannelLayout {
         }
     }
     /// The qualified discrete layout for a channel count (Mono, Stereo, 5.1,
-    /// 7.1, 7.1.4 and 22.2), tagged with its layout family; `None` for any
+    /// 7.1, 7.1.4, 9.1.6 and 22.2), tagged with its layout family; `None` for any
     /// other count, which only a qualified HOA configuration can carry.
     pub fn discrete(channels: u32) -> Option<Self> {
         let layout = crate::channel_layout::layout(u64::from(channels))?;
@@ -104,5 +104,18 @@ mod tests {
             assert_eq!(ChannelLayout::discrete(channels), former, "{channels}");
         }
         assert_eq!(ChannelLayout::discrete(2).unwrap().tag, (101 << 16) | 2);
+    }
+
+    #[test]
+    fn sixteen_discrete_channels_are_distinct_from_third_order_hoa() {
+        use super::ChannelLayout;
+        let discrete = ChannelLayout::discrete(16).unwrap();
+        let hoa = ChannelLayout::tagged((190 << 16) | 16, 16, None);
+        assert_eq!(discrete.tag, (193 << 16) | 16);
+        assert_eq!(discrete.ambisonic_order, None);
+        assert_eq!(discrete.ambisonic_channel_order, None);
+        assert_eq!(discrete.ambisonic_normalization, None);
+        assert_eq!(hoa.ambisonic_order, Some(3));
+        assert!(!discrete.equivalent(&hoa));
     }
 }

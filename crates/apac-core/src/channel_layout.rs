@@ -1,5 +1,6 @@
 //! Qualified discrete layouts; not a channel-count-derived generic mapping.
 pub(crate) const EXTENDED_PROFILE: &str = "apac-channel-layout-v2";
+pub(crate) const SURROUND916_PROFILE: &str = "apac-channel-layout-v3";
 
 pub struct Layout {
     pub family: u64,
@@ -43,6 +44,17 @@ pub fn layout(channels: u64) -> Option<Layout> {
                 "Surround714",
                 24576,
             ),
+            16 => (
+                193,
+                4,
+                &[1, 0, 3, 1, 1, 1, 1, 1, 1],
+                &[
+                    "L", "R", "C", "LFE", "Ls", "Rs", "Rls", "Rrs", "Lw", "Rw", "Vhl", "Vhr",
+                    "Ltm", "Rtm", "Ltr", "Rtr",
+                ],
+                "Surround916",
+                32768,
+            ),
             // Public ChannelLayoutForTag returns labels 35/36 (Lw/Rw), despite
             // the SDK's CICP_13 comment saying Lc/Rc. Preserve the tagged order.
             24 => (
@@ -69,9 +81,9 @@ pub fn layout(channels: u64) -> Option<Layout> {
 }
 
 pub(crate) fn profile(layout_tag: u32) -> Option<&'static str> {
-    matches!(
-        (layout_tag >> 16, layout_tag & 0xffff),
-        (192, 12) | (204, 24)
-    )
-    .then_some(EXTENDED_PROFILE)
+    match (layout_tag >> 16, layout_tag & 0xffff) {
+        (192, 12) | (204, 24) => Some(EXTENDED_PROFILE),
+        (193, 16) => Some(SURROUND916_PROFILE),
+        _ => None,
+    }
 }

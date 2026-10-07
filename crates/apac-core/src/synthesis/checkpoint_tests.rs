@@ -39,6 +39,11 @@ fn streams() -> Vec<(String, Vec<u8>, Vec<Vec<u8>>)> {
             1,
         ),
         (
+            "surround916",
+            include_str!("../../../../data/surround916-state-fixtures-v1.json"),
+            1,
+        ),
+        (
             "hoa-mixed",
             include_str!("../../../../data/hoa-mixed-state-v1.json"),
             1,

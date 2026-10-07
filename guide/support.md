@@ -10,6 +10,8 @@ Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/a
 
 当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。CAC 逆混合在独立的 `apac-cac` crate 中；不含它的构建（`apac-tool --no-default-features`，或不开 `cac` feature 的 `apac-core`）只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放（音频输出）不在当前交付范围；播放器所需的快速打开和按帧 seek 由 `apac_container::Playback` 提供（见 [decoding.md](decoding.md#播放media-与-playback)）。
 
+离散扬声器布局包括 Mono、Stereo、5.1、7.1、7.1.4、9.1.6 和 22.2。单 channel ASC 的 9.1.6 要求 profile 31、level 4、family 193、固定 9 个编码元素及 44.1／48 kHz；相同声道数的其他布局仍明确拒绝。它直接输出码流声明的 16 个扬声器声道，解码后不进行空间渲染。布局、声道顺序与验收入口见 [bitstream.md](bitstream.md#受限离散声道深度-channels)。
+
 ## 与苹果参考的数值关系
 
 本项目的数值模型由公式和固定运算顺序定义（`apac-sq-math-v2`、`apac-cac-math-v1` 等），跨平台、跨构建逐位一致性须由同一数值版本的实际运行报告证明。以下已定位的差异来自刻意选择的数值规则；未解释的差异仍须调查，不能一概归为苹果误差：

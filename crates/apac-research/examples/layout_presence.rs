@@ -20,6 +20,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         return Err("expected --report PATH".into());
     }
     let destination = PathBuf::from(args.next().ok_or("missing report path")?);
+    let (input, profile) = match args.next().as_deref() {
+        None => (
+            include_str!("../../../data/layout-presence-v1.json"),
+            "apac-channel-layout-v2",
+        ),
+        Some("--layout") => match args.next().as_deref() {
+            Some("extended") => (
+                include_str!("../../../data/layout-presence-v1.json"),
+                "apac-channel-layout-v2",
+            ),
+            Some("surround916") => (
+                include_str!("../../../data/surround916-presence-v1.json"),
+                "apac-channel-layout-v3",
+            ),
+            _ => return Err("expected layout extended or surround916".into()),
+        },
+        _ => return Err("unexpected argument".into()),
+    };
     if args.next().is_some() {
         return Err("unexpected argument".into());
     }
@@ -28,8 +46,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         .write(true)
         .create_new(true)
         .open(destination)?;
-    let frozen: Value =
-        serde_json::from_str(include_str!("../../../data/layout-presence-v1.json"))?;
+    let frozen: Value = serde_json::from_str(input)?;
+    assert_eq!(frozen["profile"], profile);
     let mut rows = Vec::new();
     let mut total = 0;
     for row in frozen["layouts"].as_array().unwrap() {
@@ -76,10 +94,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .collect();
             let r = parse_channel_packet(&context, &packet)?;
             assert!(r.packet_complete && r.frame.unknown_ranges.is_empty());
-            assert_eq!(
-                r.channel_layout_profile.as_deref(),
-                Some("apac-channel-layout-v2")
-            );
+            assert_eq!(r.channel_layout_profile.as_deref(), Some(profile));
             assert_eq!(r.frame.component_end_bit_offset, Some(core));
             assert_eq!(r.frame.stop_bit_offset, wire.len());
             assert_eq!(r.elements.len(), templates.len());
@@ -127,8 +142,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         rows.push(json!({"channels":n,"rate":rate,"cases":count,"stage_sha256":digest}));
         total += count;
     }
-    assert_eq!(total, 131328);
-    let result = json!({"passed":true,"profile":"apac-channel-layout-v2","cases":total,"layouts":rows,"vector_manifest_sha256":frozen["sha256"],"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
+    assert_eq!(total, frozen["cases"].as_u64().unwrap());
+    let result = json!({"passed":true,"profile":profile,"cases":total,"layouts":rows,"vector_manifest_sha256":frozen["sha256"],"compiler":env!("APAC_BUILD_RUSTC"),"debug_assertions":cfg!(debug_assertions)});
     serde_json::to_writer_pretty(&mut out, &result)?;
     out.write_all(b"\n")?;
     Ok(())

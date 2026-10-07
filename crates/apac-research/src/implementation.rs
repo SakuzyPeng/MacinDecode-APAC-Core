@@ -179,7 +179,9 @@ pub fn support_scope(decoder: &Decoder) -> &'static str {
             _ => "hoa3_ambient16_sq_drc_off",
         };
     }
-    if matches!(decoder.info().channel_count, 12 | 24) {
+    if decoder.info().channel_count == 16 {
+        "single_asc_916_sq_drc_off"
+    } else if matches!(decoder.info().channel_count, 12 | 24) {
         "single_asc_714_222_sq_drc_off"
     } else if decoder.info().kind == StreamKind::Channels {
         "single_asc_mono_51_71_sq_drc_off"

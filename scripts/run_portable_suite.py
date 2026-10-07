@@ -31,6 +31,7 @@ SUITE = {
     'validate_mp4': ('--report', []),
     'validate_channels': ('--report', []),
     'validate_layouts': ('--report', ['presence']),
+    'validate_surround916': ('--report', ['presence']),
     'validate_drc': ('--report', []),
     'validate_drc_pcm': ('--report', []),
     'validate_hoa': ('--report', []),
@@ -71,7 +72,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--presence-binary', type=Path,
-                        help='layout_presence example binary (required for validate_layouts)')
+                        help='layout_presence example binary (required for fixed-layout validators)')
     parser.add_argument('--out', type=Path, required=True, help='new report directory')
     parser.add_argument('--only', nargs='*', help='validator names to run (default: all)')
     parser.add_argument('--fast', action='store_true', help='run only the quick subset')
@@ -79,10 +80,11 @@ def main():
     parser.add_argument('--jobs', type=int, default=1, help='validators run concurrently')
     args = parser.parse_args()
     names = [n for n in (args.only or (FAST if args.fast else list(SUITE))) if n not in args.skip]
-    if 'validate_layouts' in names:
+    presence_validators = [name for name in names if 'presence' in SUITE[name][1]]
+    if presence_validators:
         if not args.presence_binary:
-            parser.error('--presence-binary is required for validate_layouts; '
-                         'use --skip validate_layouts to omit it explicitly')
+            parser.error('--presence-binary is required for ' + ', '.join(presence_validators)
+                         + '; omit those validators explicitly with --skip')
         if not args.presence_binary.is_file():
             parser.error('--presence-binary is not a file: ' + str(args.presence_binary))
     if args.out.exists():

@@ -14,6 +14,7 @@ fn fixtures() -> Vec<Value> {
     [
         include_str!("../../../../data/channel-state-fixtures-v1.json"),
         include_str!("../../../../data/layout-state-fixtures-v1.json"),
+        include_str!("../../../../data/surround916-state-fixtures-v1.json"),
     ]
     .into_iter()
     .flat_map(|raw| {

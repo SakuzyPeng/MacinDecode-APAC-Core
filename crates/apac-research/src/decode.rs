@@ -1,14 +1,17 @@
 use crate::{
     error::{Error, Result},
     model::*,
-    output::{Budget, OutputDir, pcm_bytes, pcm_to_le},
+    output::pcm_bytes,
 };
 use crate::{implementation, input::Input, packets::ReplayRange};
-use apac_container::{Access, PacketSource, Reader};
+pub use apac_container::PcmFormat;
+use apac_container::{Access, PacketSource, PcmSpec, Reader};
 use apac_core::Decoder;
 use serde_json::{Value, json};
-use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, io::Write, path::Path, time::Instant};
+use std::{collections::BTreeMap, path::Path, time::Instant};
+
+#[path = "decode_output.rs"]
+mod destination;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
@@ -59,7 +62,7 @@ pub fn decode_sq_with_options(
     options: SqDecodeOptions,
     limit: u64,
 ) -> Result<Value> {
-    decode_with_access(input, destination, options, None, limit)
+    decode_with_access(input, destination, options, None, limit, None)
 }
 
 /// Explicit container access policy. Existing entry points retain sequential access.
@@ -70,7 +73,28 @@ pub fn decode_sq_with_access(
     access: SqAccessMode,
     limit: u64,
 ) -> Result<Value> {
-    decode_with_access(input, destination, options, Some(access), limit)
+    decode_with_access(input, destination, options, Some(access), limit, None)
+}
+
+/// Stream Float32 PCM to a new WAV/RF64/CAF file and return its JSON report.
+/// `limit=None` has no total-size quota. The destination is committed without
+/// replacing existing files only after decoding and full input verification.
+pub fn decode_sq_to_file(
+    input: &Path,
+    destination: &Path,
+    options: SqDecodeOptions,
+    access: Option<SqAccessMode>,
+    format: PcmFormat,
+    limit: Option<u64>,
+) -> Result<Value> {
+    decode_with_access(
+        input,
+        destination,
+        options,
+        access,
+        limit.unwrap_or(u64::MAX),
+        Some(format),
+    )
 }
 
 fn decode_with_access(
@@ -79,6 +103,7 @@ fn decode_with_access(
     options: SqDecodeOptions,
     access: Option<SqAccessMode>,
     limit: u64,
+    format: Option<PcmFormat>,
 ) -> Result<Value> {
     let total_timer = Instant::now();
     let fast = access == Some(SqAccessMode::Fast);
@@ -111,14 +136,14 @@ fn decode_with_access(
     let backend = implementation::backend(reader.decoder());
     let state_profile = implementation::state_profile(reader.decoder());
     let support_scope = implementation::support_scope(reader.decoder());
-    let out = OutputDir::create(destination, Budget::new(limit))?;
-    out.budget.ensure(
-        pcm_bytes(range.frames, channels)?
-            .checked_add(65536)
-            .ok_or_else(|| Error::new("SQ decoder", "output size overflow"))?,
-    )?;
-    let mut writer = out.writer("pcm.f32le")?;
-    let mut hash = Sha256::new();
+    let spec = PcmSpec {
+        sample_rate: u32::try_from(reader.decoder().info().sample_rate_hz)
+            .map_err(|_| Error::new("PCM output", "sample rate exceeds container range"))?,
+        channels,
+        frames: range.frames,
+        layout: reader.decoder().info().layout.clone(),
+    };
+    let mut output = destination::Export::create(destination, spec, format, limit)?;
     let mut state_before_output = None;
     let mut samples = vec![0f32; 1024 * channels as usize];
     loop {
@@ -130,16 +155,14 @@ fn decode_with_access(
         if frames == 0 {
             break;
         }
-        let bytes = pcm_to_le(&samples[..frames * channels as usize])?;
-        writer.write_all(&bytes)?;
-        hash.update(&bytes);
+        output.write_samples(&samples[..frames * channels as usize])?;
     }
     let (bundle, decoder, stats) = reader.finish()?;
-    writer.finish()?;
     let saved = stats.saved_frames;
     if saved != range.frames {
         return Err(Error::new("SQ decoder", "incomplete PCM frame range"));
     }
+    let output = output.finish()?;
     let seconds = |d: std::time::Duration| d.as_secs_f64();
     let timings = stats.timings;
     let (read_seconds, scan_seconds, synthesis_seconds) = (
@@ -188,7 +211,7 @@ fn decode_with_access(
         requested_frames: range.requested_frames,
         frames: saved,
         bytes: pcm_bytes(saved, channels)?,
-        sha256: format!("{:x}", hash.finalize()),
+        sha256: output.pcm_sha256().into(),
         source: None,
         source_cookie_sha256: Some(crate::model::sha256(bundle.cookie())),
         source_packet_table: Some(table),
@@ -490,7 +513,6 @@ fn decode_with_access(
                 json!(crate::identity::HOA_SALIENT_PARTITION_PROFILE);
         }
     }
-    out.json("pcm.json", &pcm)?;
     let mut report = json!({"schema_version":SCHEMA_VERSION,"complete":true,"experimental":true,"numeric_profile":crate::identity::NUMERIC_PROFILE,"cac_numeric_profile":crate::identity::CAC_NUMERIC_PROFILE,"tns_numeric_profile":crate::identity::TNS_NUMERIC_PROFILE,"tns_tables_sha256":crate::identity::tns_math_sha256(),"bwe2_numeric_profile":crate::identity::BWE2_NUMERIC_PROFILE,"bwe2_format_sha256":crate::identity::bwe2_format_sha256(),"bwe2_tables_sha256":crate::identity::bwe2_math_sha256(),"numerical_qualification":implementation::QUALIFICATION,"backend":backend,"native_apis_used":false,
         "packet_state_profile":state_profile,
         "drc_processing":"off","loudness_normalization":"off",
@@ -501,7 +523,7 @@ fn decode_with_access(
         "warmup_packets":warmup_packets,"cpe_absent_packets":absent_packets,
         "embedded_preroll_frames":embedded_frames,"embedded_cpe_absent_frames":embedded_absent,
         "raw_frames_decoded":decoded_packets*1024,
-        "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames","pcm":pcm});
+        "input":bundle.report(),"range":range,"saved_frames":saved,"tail_policy":"no implicit flush or added frames"});
     if let Some(profile) = implementation::channel_layout_profile(&decoder) {
         report["channel_layout_profile"] = json!(profile);
     }
@@ -531,8 +553,7 @@ fn decode_with_access(
                 "prefix_scan":scan_seconds,"full_decode_parse":full_parse_seconds,"synthesis":render_seconds,
                 "packet_decode_and_synthesis":synthesis_seconds,"total":total_timer.elapsed().as_secs_f64()}});
     }
-    out.json("decode-sq.json", &report)?;
-    out.complete()?;
+    output.complete(&mut report, &pcm)?;
     Ok(report)
 }
 

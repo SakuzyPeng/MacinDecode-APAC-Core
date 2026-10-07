@@ -23,7 +23,7 @@ target/debug/apac-tool --help
 | --- | --- |
 | `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；`no_std` + `alloc`，默认只依赖 sha2 与 libm |
 | `crates/apac-cac` | CAC 逆混合（`rotate`）和 `apac-cac-math-v1` 旋转表；`no_std`，无运行时依赖。`apac-core` 的 `cac` feature 接入它，`apac-tool` 默认开启，`apac-research` 转发同名 feature |
-| `crates/apac-container` | CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对。播放用的 `Media` 只读元数据、按游标读包、不核验完整性，`Playback` 在它之上用解码器检查点做按帧 seek，`Indexer` 在另一线程上为它建索引 |
+| `crates/apac-container` | WAV／RF64／CAF 的流式 Float32 PCM 写出，以及 CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对。播放用的 `Media` 只读元数据、按游标读包、不核验完整性，`Playback` 在它之上用解码器检查点做按帧 seek，`Indexer` 在另一线程上为它建索引 |
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、输入报告组装、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
 | `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |
@@ -74,7 +74,7 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 ## CI 与构建产物
 
-[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生构建，固定使用 Rust 1.98.0、`Cargo.lock` 和 release profile；默认开启 CAC。每个任务运行打包回归、workspace Rust 测试及 Clippy（`-D warnings`），并执行产物的 `--version`／`--help` 后上传。
+[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生构建，固定使用 Rust 1.98.0、`Cargo.lock` 和 release profile；默认开启 CAC。每个任务运行打包回归、PCM 容器导出的 CLI 回归、workspace Rust 测试及 Clippy（`-D warnings`），并执行产物的 `--version`／`--help` 后上传。
 
 | 平台 | Runner | Rust target | 压缩格式 |
 | --- | --- | --- | --- |
@@ -106,7 +106,7 @@ Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `
 1. 更新根 `Cargo.toml` 的 workspace 版本、`Cargo.lock`，并编写 `guide/releases/vVERSION.md`。
 2. 推送待发布提交，在 Build 工作流选择对应分支，填写手动输入 `release_tag`（首版为 `v0.1.0`）。也可推送同名 `v*` 标签触发。
 3. 三个平台的构建、测试、Clippy 和打包均通过后，工作流核验全部安装包的 SHA-256，并创建带六个附件的 GitHub Release **草稿**。版本标签、workspace 版本和可执行文件 `--version` 必须一致。
-4. 审阅发布说明和附件后，在 GitHub 发布草稿。手动输入不会提前创建 Git 标签；发布草稿时，GitHub 将不存在的标签创建在工作流的完整提交 SHA 上。已有同名 Release 会使创建步骤失败，避免替换已发布附件。
+4. 审阅发布说明和附件后，在 GitHub 发布草稿。手动输入不会提前创建 Git 标签；发布草稿时，GitHub 将不存在的标签创建在工作流的完整提交 SHA 上。已有同名草稿会更新附件、说明和目标提交；已发布的同名 Release 会明确拒绝，避免替换正式版附件。同一版本的草稿更新串行执行。
 
 日常推送、PR 和不填写 `release_tag` 的手动运行只生成 Actions 产物。发布流程只分发 CLI 安装包，不执行 `cargo publish`。
 

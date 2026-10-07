@@ -3,7 +3,7 @@ name = "apac-container"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Restricted CAF and MP4 APAC input over any Read + Seek source"
+description = "APAC CAF/MP4 input and streaming Float32 WAV/RF64/CAF output"
 
 [dependencies]
 apac-core.workspace = true

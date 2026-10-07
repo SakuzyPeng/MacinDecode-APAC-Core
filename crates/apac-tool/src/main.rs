@@ -17,20 +17,37 @@ use std::{io::Write, path::PathBuf};
     about = "Decode and inspect Apple Positional Audio Codec (APAC) streams; native reference commands require macOS"
 )]
 struct Cli {
-    /// Maximum cumulative bytes written by an export command (MiB).
-    #[arg(long, global = true, default_value_t = 128)]
-    max_output_mib: u64,
+    /// Output limit in MiB (default: unlimited for -o files, 128 for directory exports).
+    #[arg(long, global = true)]
+    max_output_mib: Option<u64>,
     #[command(subcommand)]
     command: Command,
 }
 #[derive(Subcommand)]
 enum Command {
-    /// Portable PCM from a packet directory or restricted APAC CAF/MP4.
+    /// Decode APAC to a WAV/RF64/CAF file or a raw PCM research directory.
     DecodeSq {
         /// Complete packet directory, CAF v1 or single-audio-track MP4/M4A (recognized by content).
         input: PathBuf,
-        #[arg(long)]
-        out: PathBuf,
+        /// New research directory containing raw Float32 PCM and JSON reports.
+        #[arg(long, required_unless_present = "output", conflicts_with = "output")]
+        out: Option<PathBuf>,
+        /// New WAV/RF64/CAF file; existing paths are never overwritten.
+        #[arg(
+            short = 'o',
+            long,
+            required_unless_present = "out",
+            conflicts_with = "out"
+        )]
+        output: Option<PathBuf>,
+        /// Output container; otherwise inferred from the file extension. WAV auto-selects RF64 for large files.
+        #[arg(
+            long,
+            requires = "output",
+            conflicts_with = "out",
+            value_name = "wav|rf64|caf"
+        )]
+        format: Option<apac_research::decode::PcmFormat>,
         /// Absolute valid-audio frame; container inputs warm up sequentially from packet zero.
         #[arg(long)]
         start_frame: Option<u64>,
@@ -146,6 +163,7 @@ enum Command {
 fn run(cli: Cli) -> Result<(Value, u8)> {
     let limit = cli
         .max_output_mib
+        .unwrap_or(128)
         .checked_mul(1024 * 1024)
         .ok_or_else(|| Error::new("output limit", "MiB value overflow"))?;
     if let Command::Compare {
@@ -184,6 +202,8 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
     if let Command::DecodeSq {
         input,
         out,
+        output,
+        format,
         start_frame,
         frames,
         access,
@@ -195,9 +215,39 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
                     start_frame: *start_frame,
                     frames: *frames,
                 };
-                if let Some(mode) = access {
+                if let Some(path) = output {
+                    let format = match format {
+                        Some(format) => *format,
+                        None => match path
+                            .extension()
+                            .and_then(|s| s.to_str())
+                            .map(str::to_ascii_lowercase)
+                            .as_deref()
+                        {
+                            Some("wav" | "wave") => apac_research::decode::PcmFormat::Wav,
+                            Some("rf64") => apac_research::decode::PcmFormat::Rf64,
+                            Some("caf") => apac_research::decode::PcmFormat::Caf,
+                            _ => {
+                                return Err(Error::new(
+                                    "PCM output",
+                                    "unknown output extension; specify --format wav, rf64 or caf",
+                                ));
+                            }
+                        },
+                    };
+                    apac_research::decode::decode_sq_to_file(
+                        input,
+                        path,
+                        options,
+                        *access,
+                        format,
+                        cli.max_output_mib.map(|_| limit),
+                    )?
+                } else if let Some(mode) = access {
+                    let out = out.as_ref().expect("clap requires a destination");
                     apac_research::decode::decode_sq_with_access(input, out, options, *mode, limit)?
                 } else {
+                    let out = out.as_ref().expect("clap requires a destination");
                     apac_research::decode::decode_sq_with_options(input, out, options, limit)?
                 }
             },

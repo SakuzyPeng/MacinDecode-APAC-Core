@@ -1,10 +1,37 @@
 # 便携解码：`decode-sq` 与库接口
 
-纯 Rust 的 PCM 解码命令 `decode-sq`、CAF／MP4 输入、快速范围解码，以及 `apac_core::Decoder` 和 `apac_container::Reader` 库接口。支持的声道布局与 HOA 配置见 [bitstream.md](bitstream.md)。
+纯 Rust 的解码命令 `decode-sq`、WAV／RF64／CAF 文件输出、APAC CAF／MP4 输入、快速范围解码，以及解码和容器读写库接口。支持的声道布局与 HOA 配置见 [bitstream.md](bitstream.md)。
 
 返回 [README](../README.md)。
 
-## `decode-sq INPUT`
+## 音频文件输出：`decode-sq INPUT -o FILE`
+
+```sh
+apac-tool decode-sq input.m4a -o output.wav
+apac-tool decode-sq spatial.caf -o output.caf
+apac-tool decode-sq input.m4a -o output.wav --format rf64
+apac-tool decode-sq input.m4a -o window.wav --start-frame 480000 --frames 48000 --access fast
+```
+
+Windows PowerShell 使用 `.\apac-tool.exe`；macOS／Linux 在程序目录使用 `./apac-tool`。`-o` 是 `--output` 的缩写，与研究目录参数 `--out` 互斥，必须选择其中一个。未提供 `--format` 时，按扩展名（不区分大小写）推断：`.wav`／`.wave` 为 WAV，`.rf64` 为 RF64，`.caf` 为 CAF。`--format wav|rf64|caf` 优先于扩展名；未知扩展名且未显式指定格式时报错。
+
+所有文件均保存交错、小端 **Float32 PCM**，保持采样率与样本精度，不重采样、不下混、不施加 DRC／响度处理。
+
+| 容器 | 布局与写入规则 |
+| --- | --- |
+| WAV | WAVE_FORMAT_EXTENSIBLE、IEEE Float32、明确的声道 mask 和 `fact`；支持 Mono、Stereo、5.1、7.1、7.1.4 的已确认布局标签 |
+| RF64 | 与 WAV 相同的格式和布局；使用 `ds64` 保存 64 位大小与帧数。WAV 的 RIFF 长度无法用 32 位表示时自动升级，也可显式强制使用 |
+| CAF | `lpcm`、Float32、小端，保存 `desc`、`chan`、`data`；保留原布局标签、bitmap、描述项及通道顺序，支持 9.1.6、22.2、零至三阶 HOA 和已支持的组合流 |
+
+WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L R C LFE Ls Rs Rls Rrs ...` 转为 `L R C LFE Rls Rrs Ls Rs ...`，只复制样本位模式。不能准确映射的布局在创建输出前拒绝，并提示 `apac-tool decode-sq INPUT -o output.caf`；不改成匿名通道。CAF 保留解码器的通道顺序和已有布局描述，HOA 不会被解释为扬声器布局。
+
+文件输出默认不限总大小，使用固定上限的块缓冲，不先生成中间裸 PCM。`--max-output-mib` 可设置包含头部在内的整文件限额。目标文件必须尚不存在；先在同目录临时文件中写入，完成全部输入核验、帧数校验和 flush／sync 后无覆盖提交，失败清理临时文件。已有文件、目录或符号链接均不覆盖。
+
+仅创建指定的音频文件，JSON 报告写 stdout。文件报告不包含研究模式的 `pcm` 对象，而使用 `output`：实际 `container`、`encoding`、采样率、声道数、有效帧数和起点、`pcm_bytes`／`pcm_sha256`（文件顺序的 PCM 有效载荷）、`file_bytes`／`file_sha256`（含头部的整文件）、`source_layout`、`channel_mask` 和 `source_channel_indices`。后者按输出通道列出其零起始源通道索引。解码设置、环境、输入完整性及访问统计继续记录。
+
+输出 CAF 的音频编码是 LPCM；APAC 容器读取器仍只接受 APAC 音轨。`compare` 继续接受研究目录的 PCM 元数据，不直接读取 WAV／RF64／PCM CAF 文件。
+
+## 研究目录输出：`decode-sq INPUT --out DIRECTORY`
 
 从自包含包目录或 [bitstream.md](bitstream.md) 所列布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
@@ -118,6 +145,30 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 显式访问模式入口为 `apac_research::decode::decode_sq_with_access(input, destination, SqDecodeOptions { start_frame, frames }, SqAccessMode::Fast, limit)`；`SqDecodeOptions` 和 `SqAccessMode` 均从 `apac_research::decode` 导入，也可使用 `SqAccessMode::Sequential`。省略 CLI 访问选项时，旧报告形状和默认行为不变。数值模型、后端及容器规则标识保持原样，DRC／响度处理关闭和默认 128 MiB 限额仍适用。报告中的 `experimental` 字段是冻结报告格式的一部分，始终为 `true`，验收脚本也依赖它；它不表示解码器的成熟度。
 
 ## 库接口
+
+`apac_research::decode::decode_sq_to_file(input, destination, options, access, format, limit)` 提供与 CLI 相同的文件导出。`options` 沿用 `SqDecodeOptions`；`access: Option<SqAccessMode>` 沿用顺序／快速策略；`format` 为 `PcmFormat::{Wav,Rf64,Caf}`；`limit: Option<u64>` 的单位为字节，`None` 表示不限总大小。它返回文件模式的 JSON 报告，旧目录导出入口不变。
+
+已有解码样本的调用方可直接使用 `apac_container::{PcmFormat, PcmSpec, PcmWritePlan, PcmWriter}`：
+
+```rust
+let info = decoder.info();
+let spec = apac_container::PcmSpec {
+    sample_rate: info.sample_rate_hz as u32,
+    channels: info.channel_count,
+    frames: output_frames,
+    layout: info.layout.clone(),
+};
+let plan = apac_container::PcmWritePlan::new(apac_container::PcmFormat::Caf, spec)?;
+// 在创建文件前，可用 plan.file_bytes() 检查空间或配额。
+let file = std::fs::OpenOptions::new().write(true).create_new(true).open(output_path)?;
+let mut writer = apac_container::PcmWriter::new(file, plan)?;
+for samples in decoded_blocks {
+    writer.write_samples(&samples)?;
+}
+let (file, result) = writer.finish()?;
+```
+
+计划类型在 I/O 前核验布局与长度，并确定是否使用 RF64。写入器只要求 `Write`，不要求 seek；接收源顺序的完整帧，拒绝非有限值和超额帧数。`finish()` 校验精确帧数和字节数并 flush，返回 sink 与 `PcmWriteResult`（实际计划、PCM 摘要及整文件摘要）。任一写入错误后不能再成功完成。直接使用库写入器时，目标文件的创建、回滚和持久化由调用方负责；CLI 的临时文件提交策略在研究层实现。
 
 使用 CAC 的流需要 `apac-core` 的 `cac` feature（`apac-tool` 默认开启）；没有它时，`Decoder` 遇到非零 CAC 增益的帧返回 `cac-unavailable` 错误，状态不提交。
 

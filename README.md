@@ -5,8 +5,8 @@
 [![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
 
 一个用来**解码 Apple Positional Audio Codec（APAC）空间音频、查看码流结构**的命令行工具和 Rust 库。
-命令行程序叫 `apac-tool`，自带独立解码器，在 Windows、Linux 和 macOS 上把音频导出为 PCM，
-并保存采样率、声道布局和解码过程的 JSON 记录。
+命令行程序叫 `apac-tool`，自带独立解码器，在 Windows、Linux 和 macOS 上把音频导出为
+**WAV／RF64 或 CAF 文件**，音频均为 Float32 PCM，并在标准输出返回 JSON 解码报告。
 
 支持含 APAC 音轨的 `.m4a`、`.mp4` 和 `.caf`，以及本工具导出的包目录。输出保留声道或 HOA 系数，
 供后续分析、处理或接入播放器使用；CLI 本身不播放声音。
@@ -29,7 +29,7 @@
 
 ## 能用它做什么
 
-- **把 APAC 文件解码成 PCM**：支持单声道、立体声、5.1、7.1、7.1.4、9.1.6 和 22.2，保持输入采样率与声道布局。
+- **把 APAC 文件解码成音频文件**：可选 WAV／RF64 或 CAF，支持单声道、立体声、5.1、7.1、7.1.4、9.1.6 和 22.2，保持输入采样率与声道布局。
 - **导出 HOA 音频**：支持零至三阶高阶 Ambisonics，可输出 ACN/SN3D 系数，或还原码流声明的源声道。
 - **只取需要的一段**：按音频帧指定起点和长度，也可选择快速范围访问，适合检查较长文件中的短片段。
 - **看清码流里有什么**：解析独立配置和导出的音频包，输出字段、位位置、元数据及中间频谱。
@@ -58,51 +58,57 @@ Linux 和 macOS 程序为 `apac-tool`；请在终端中运行。
 
 1. 解压下载的压缩包，在终端中进入包含 `apac-tool` 的目录。
 2. 运行 `--version` 或 `--help`，确认程序可用。
-3. 把下面的 `input.m4a` 换成你的 APAC 文件路径，开始解码。
+3. 把下面的 `input.m4a` 换成你的 APAC 文件路径，导出 WAV。
 
 **Windows PowerShell：**
 
 ```powershell
 .\apac-tool.exe --version
-.\apac-tool.exe decode-sq "input.m4a" --out decoded
+.\apac-tool.exe decode-sq "input.m4a" -o output.wav
 ```
 
 **macOS / Linux：**
 
 ```sh
 ./apac-tool --version
-./apac-tool decode-sq "input.m4a" --out decoded
+./apac-tool decode-sq "input.m4a" -o output.wav
 ```
 
-`decoded` 必须是尚不存在的目录。成功后里面会有：
+成功后得到 `output.wav`，可交给支持浮点 WAV 的音频工具使用。目标文件必须尚不存在；
+解码报告写到标准输出，不会额外生成 JSON 文件。容器选择如下：
 
-| 文件 | 内容 |
+| 输出文件 | 格式与适用范围 |
 | --- | --- |
-| `pcm.f32le` | 交错、小端 32 位浮点原始音频 |
-| `pcm.json` | 采样率、声道数、布局、帧数和 PCM 摘要 |
-| `decode-sq.json` | 输入信息、解码范围与完整性检查记录 |
+| `.wav`／`.wave` | Float32 WAV；Mono、Stereo、5.1、7.1、7.1.4；超过 RIFF 大小限制时自动使用 RF64 |
+| `.rf64` | 强制使用 RF64，可保存超过 4 GiB 的音频；布局范围与 WAV 相同 |
+| `.caf` | Float32 LPCM CAF；保存全部已支持的解码输出布局，包括 9.1.6、22.2、HOA 和组合流 |
 
-原始 PCM 没有 WAV 文件头。导入音频工具时，请选择 **32 位浮点、小端、交错**，
-并按 `pcm.json` 填写采样率和声道数。
-
-默认输出上限为 **128 MiB**。较长文件或多声道音频可按需提高，例如：
+**9.1.6、22.2 或 HOA 音频使用 CAF：**
 
 ```sh
-./apac-tool decode-sq "input.m4a" --out decoded-long --max-output-mib 1024
+./apac-tool decode-sq "spatial.m4a" -o output.caf
 ```
 
-只取一段时，`--start-frame` 和 `--frames` 使用音频帧数。以下示例在 48 kHz 音频中，从第 10 秒开始取 1 秒：
+输出 CAF 内是 PCM 音频。WAV 无法准确表达的布局会明确提示改用 CAF，不会静默改成匿名通道。
+WAV 按标准声道顺序写入，7.1／7.1.4 的后环绕排在侧环绕之前；CAF 保留原始通道顺序。
+两者都不重采样、不下混、不改变样本精度。用 `--format wav|rf64|caf` 可显式选择格式。
+
+文件输出**默认不限制总大小**，按块写入，内存不随时长增长。需要限额时，可添加 `--max-output-mib 1024`。
+只取一段时，`--start-frame` 和 `--frames` 使用音频帧数；以下在 48 kHz 音频中从第 10 秒起取 1 秒：
 
 ```sh
-./apac-tool decode-sq "input.caf" --out window \
+./apac-tool decode-sq "input.caf" -o window.wav \
   --start-frame 480000 --frames 48000 --access fast
 ```
+
+研究或 PCM 对比仍可使用 `--out decoded`：生成 `pcm.f32le` 裸 PCM、`pcm.json` 和 `decode-sq.json`，
+默认限额保持 **128 MiB**。`--out` 与 `-o` 互斥；只有裸 PCM 需要按 JSON 手动填写采样率和声道数。
 
 后续示例使用 macOS / Linux 写法；Windows PowerShell 将 `./apac-tool` 换为 `.\apac-tool.exe`，并将多行命令写成一行。
 
 ## 查看和比较
 
-已经有独立配置文件或导出的包目录时，可以进一步查看语法：
+已经有独立配置文件或导出的包目录时，可以进一步查看语法；`compare` 比较的是 `--out` 产生的裸 PCM 包：
 
 ```sh
 ./apac-tool parse-cookie cookie.bin
@@ -130,11 +136,11 @@ CI 在 Windows Server 2022、Ubuntu 22.04 和 macOS 26 上构建并运行测试�
 ## 使用前了解
 
 - **输入必须是 APAC 音频**：普通 AAC `.m4a`、MP3、FLAC，以及加密／DRM 文件不受支持。MP4／M4A 当前限非分片、单音轨文件。
-- **输出保留原始声道含义**：HOA 系数仍需空间渲染，不能直接当作普通扬声器声道播放。CLI 不提供空间渲染、播放、WAV 封装或其他格式编码。
+- **输出保留原始声道含义**：HOA 系数仍需空间渲染，不能直接当作普通扬声器声道播放。HOA、9.1.6、22.2 等布局请输出 CAF；CLI 不提供空间渲染、播放或 AAC／FLAC 等压缩编码。
 - **不施加 DRC、响度或 EQ 处理**：相关元数据会被解析，但不会改变输出音频。
 - **部分 APAC 路径尚未实现**：四阶及以上 HOA、LRVQ、外层 ASP 重配置和非零帧长索引会明确报错。各布局和采样率的完整条件见[支持边界](guide/support.md)。
 - **数值结果按本项目模型定义**：与苹果 AudioToolbox 参考按容差比较，设计上不逐位一致，原因见[数值关系](guide/support.md#与苹果参考的数值关系)。
-- **失败结果留有标记**：带 `.incomplete.json` 或 `.incomplete` 的输出尚未完成，不能当作有效解码结果。
+- **输出不会覆盖现有文件**：文件导出成功前只写同目录临时文件，失败时清理。研究目录中带 `.incomplete.json` 或 `.incomplete` 的输出尚未完成，不能当作有效结果。
 
 遇到问题时，欢迎在 [Issues](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/issues) 中提供程序版本、
 操作系统、使用的命令和错误提示。提交前请去掉命令里的个人路径；分享音频时请确认拥有相应权限。

@@ -6,7 +6,7 @@
 
 A command-line tool and Rust library for **decoding Apple Positional Audio Codec (APAC) spatial audio
 and inspecting its bitstream**. The CLI is called `apac-tool`. It brings its own decoder, runs on
-Windows, Linux and macOS, and exports PCM with JSON records of the sample rate, channel layout and decoding process.
+Windows, Linux and macOS, and exports **WAV/RF64 or CAF files** containing Float32 PCM, with a JSON decoding report on stdout.
 
 It accepts APAC `.m4a`, `.mp4` and `.caf` files, plus exported packet bundles. Output preserves the
 channels or HOA coefficients for further analysis, processing or integration into a player. The CLI itself does not play audio.
@@ -30,7 +30,7 @@ The detailed guides are in Chinese; this quickstart and the release notes includ
 
 ## What you can do with it
 
-- **Decode APAC files to PCM:** mono, stereo, 5.1, 7.1, 7.1.4, 9.1.6 and 22.2, preserving the input sample rate and channel layout.
+- **Decode APAC files to audio files:** choose WAV/RF64 or CAF for mono, stereo, 5.1, 7.1, 7.1.4, 9.1.6 and 22.2, preserving the input sample rate and channel layout.
 - **Export HOA audio:** Higher-Order Ambisonics from order zero to three, as ACN/SN3D coefficients or the source channels declared by the stream.
 - **Take just the part you need:** specify a start frame and length, with optional fast range access for short excerpts from long files.
 - **Inspect the bitstream:** parse standalone configuration data and exported audio packets into fields, bit positions, metadata and intermediate spectra.
@@ -60,53 +60,61 @@ Development builds remain available under **Artifacts** in the [Build workflow](
 
 1. Extract the download and open a terminal in the directory containing `apac-tool`.
 2. Run `--version` or `--help` to check that the program starts.
-3. Replace `input.m4a` below with the path to your APAC file and start decoding.
+3. Replace `input.m4a` below with the path to your APAC file and export a WAV.
 
 **Windows PowerShell:**
 
 ```powershell
 .\apac-tool.exe --version
-.\apac-tool.exe decode-sq "input.m4a" --out decoded
+.\apac-tool.exe decode-sq "input.m4a" -o output.wav
 ```
 
 **macOS / Linux:**
 
 ```sh
 ./apac-tool --version
-./apac-tool decode-sq "input.m4a" --out decoded
+./apac-tool decode-sq "input.m4a" -o output.wav
 ```
 
-`decoded` must not already exist. A successful decode creates:
+A successful export creates `output.wav` for audio tools that support floating-point WAV. The destination
+must not already exist. A JSON report goes to stdout; no additional JSON files are created.
 
-| File | Contents |
+| Output file | Format and supported layouts |
 | --- | --- |
-| `pcm.f32le` | Interleaved little-endian 32-bit floating-point raw audio |
-| `pcm.json` | Sample rate, channel count, layout, frame count and PCM hash |
-| `decode-sq.json` | Input details, decoded range and integrity checks |
+| `.wav` / `.wave` | Float32 WAV; mono, stereo, 5.1, 7.1 and 7.1.4; automatically uses RF64 beyond the RIFF size limit |
+| `.rf64` | Forced RF64, including files larger than 4 GiB; the same layouts as WAV |
+| `.caf` | Float32 LPCM CAF; all supported decoded layouts, including 9.1.6, 22.2, HOA and composite streams |
 
-Raw PCM has no WAV header. When importing it into an audio tool, select **32-bit float, little-endian,
-interleaved**, using the sample rate and channel count from `pcm.json`.
-
-The default output limit is **128 MiB**. Raise it as needed for longer files or multichannel audio:
+**Use CAF for 9.1.6, 22.2 or HOA audio:**
 
 ```sh
-./apac-tool decode-sq "input.m4a" --out decoded-long --max-output-mib 1024
+./apac-tool decode-sq "spatial.m4a" -o output.caf
 ```
 
-For an excerpt, `--start-frame` and `--frames` count audio frames. This example takes one second
-starting ten seconds into a 48 kHz file:
+The exported CAF contains PCM audio. Layouts that WAV cannot represent accurately fail with guidance to
+use CAF, rather than being exported as anonymous channels. WAV uses its standard speaker order, with rear
+surrounds before side surrounds in 7.1/7.1.4; CAF retains the source channel order. Neither resamples,
+downmixes or changes sample precision. Use `--format wav|rf64|caf` to select the container explicitly.
+
+File output has **no default total-size limit** and streams in bounded blocks. Add `--max-output-mib 1024`
+when a size limit is wanted. `--start-frame` and `--frames` count audio frames; this example takes one
+second starting ten seconds into a 48 kHz file:
 
 ```sh
-./apac-tool decode-sq "input.caf" --out window \
+./apac-tool decode-sq "input.caf" -o window.wav \
   --start-frame 480000 --frames 48000 --access fast
 ```
+
+For research or PCM comparison, `--out decoded` still creates raw `pcm.f32le`, `pcm.json` and
+`decode-sq.json`, with the existing **128 MiB** default limit. `--out` and `-o` are mutually exclusive.
+Only raw PCM needs its sample rate and channel count entered manually from the JSON metadata.
 
 Later examples use macOS / Linux syntax. In Windows PowerShell, replace `./apac-tool` with
 `.\apac-tool.exe` and write multiline commands on one line.
 
 ## Inspecting and comparing
 
-With a standalone configuration file or an exported packet bundle, inspect the syntax in more detail:
+Inspect standalone configuration files and exported packet bundles. `compare` takes the raw PCM bundles produced by `--out`:
 
 ```sh
 ./apac-tool parse-cookie cookie.bin
@@ -136,11 +144,11 @@ Apple Silicon only. Use `decode-sq` for independent decoding; `decode` is the ma
 ## Before you start
 
 - **Input must contain APAC audio:** ordinary AAC `.m4a`, MP3, FLAC and encrypted/DRM files are unsupported. MP4/M4A is currently limited to unfragmented, single-audio-track files.
-- **Output retains its channel meaning:** HOA coefficients need spatial rendering before speaker playback. The CLI does not render spatial audio, play sound, write WAV headers or encode other formats.
+- **Output retains its channel meaning:** HOA coefficients need spatial rendering before speaker playback. Use CAF for HOA, 9.1.6 and 22.2. The CLI does not render spatial audio, play sound or encode compressed formats such as AAC or FLAC.
 - **DRC, loudness and EQ are not applied:** their metadata is parsed without processing the output audio.
 - **Some APAC paths are not implemented:** HOA above third order, LRVQ, outer ASP reconfiguration and nonzero frame-length indices fail explicitly. See [support boundaries](guide/support.md) for layout and sample-rate requirements.
 - **Results follow this project's numeric model:** comparisons with Apple's AudioToolbox reference use a tolerance and are not bit-identical by design. See the [numeric relationship](guide/support.md#与苹果参考的数值关系).
-- **Failed exports keep a marker:** output with `.incomplete.json` or `.incomplete` is unfinished and must not be treated as a valid result.
+- **Existing output is never overwritten:** file exports use an adjacent temporary file until successful, cleaning up on failure. Research-directory output with `.incomplete.json` or `.incomplete` is unfinished and must not be treated as a valid result.
 
 Report problems through [Issues](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/issues), including the
 program version, operating system, command and error message. Remove personal paths from commands before

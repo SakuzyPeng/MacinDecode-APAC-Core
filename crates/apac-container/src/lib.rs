@@ -17,6 +17,9 @@
 //! verification; [`Playback`] decodes it with frame-exact seeks whose cost
 //! is bounded by decoder checkpoints ([`apac_core::Checkpoint`]), which an
 //! [`Indexer`] can build on another thread.
+//!
+//! [`PcmWritePlan`] and [`PcmWriter`] stream decoded Float32 audio into WAV,
+//! RF64 or CAF over any `Write` sink without using a native codec.
 #![warn(missing_docs)]
 use apac_core::{config::ParseError, error::DecodeError, model::ChannelLayout};
 use std::{
@@ -29,6 +32,7 @@ use std::{
 mod caf;
 mod media;
 mod mp4;
+mod pcm;
 mod playback;
 mod range;
 mod reader;
@@ -40,6 +44,7 @@ mod test_streams;
 pub use caf::{CafReader, CafSummary, Chunk};
 pub use media::{Media, PacketCursor};
 pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
+pub use pcm::{PcmFormat, PcmSpec, PcmWritePlan, PcmWriteResult, PcmWriter};
 pub use playback::{IndexBatch, Indexer, Playback, PlaybackOptions, PlaybackStats};
 pub use range::Range;
 pub use reader::{Access, ReadError, Reader, Stats, Timings};

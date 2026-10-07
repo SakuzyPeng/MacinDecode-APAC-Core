@@ -10,7 +10,8 @@
 
 | 目的 | 命令 | 平台 |
 | --- | --- | --- |
-| 解码 APAC 文件或包目录 | `decode-sq INPUT --out NEW_DIRECTORY` | Windows／Linux／macOS |
+| 导出 WAV／RF64／CAF 文件 | `decode-sq INPUT -o NEW_FILE`，可选 `--format` | Windows／Linux／macOS |
+| 导出裸 PCM 和研究报告 | `decode-sq INPUT --out NEW_DIRECTORY` | Windows／Linux／macOS |
 | 解析独立配置 | `parse-cookie COOKIE` | Windows／Linux／macOS |
 | 查看导出包的语法 | `parse-packets DIRECTORY --output REPORT.jsonl` | Windows／Linux／macOS |
 | 比较两份 PCM | `compare REFERENCE/pcm.json CANDIDATE/pcm.json` | Windows／Linux／macOS |
@@ -21,7 +22,7 @@
 
 ## 概览
 
-输出结果写 stdout，进度和错误写 stderr。除索引文件外，导出命令的 `--out` 必须指定一个**不存在的新目录**；工具不覆盖现有结果。
+输出结果写 stdout，进度和错误写 stderr。`decode-sq -o FILE` 输出单个音频文件；`--out` 输出研究目录，两者互斥，`--format wav|rf64|caf` 仅与 `-o` 搭配。目标文件或目录必须尚不存在；工具不覆盖现有结果。
 
 ```sh
 APAC_SAMPLE='/path/to/APAC/sample.caf'
@@ -74,7 +75,7 @@ target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/star
 
 `fixture` 的布局选项为 `mono`、`stereo`、`surround51`、`surround71`、`surround714`、`surround916`、`hoa1`、`hoa2`、`hoa3`、`surround222`。`surround916` 是 16 声道的 9.1.6 离散扬声器布局；三个 HOA 预设分别是 4、9、16 通道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
 
-所有导出命令默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
+`decode-sq -o FILE` 默认不限总文件大小，可用 `--max-output-mib` 设置包含容器头的整文件限额。其他导出命令（包括 `decode-sq --out DIRECTORY`）默认限制累计输出为 128 MiB，包含二进制数据和元数据。需要更大导出时显式添加 `--max-output-mib 256`。读取和写入采用小块缓冲；编码器的原生文件写入回调也受此上限约束。为了给元数据留出空间，导出可能在达到限额之前拒绝请求。
 
 退出码：`0` 表示成功、比较通过或结构解析完整；`1` 表示运行、输入或完整性错误；`2` 表示 PCM 超出容差、索引/配置采集存在未解决错误，或配置／帧解析为 `partial` / `unsupported`。命令行语法错误也由 clap 返回 `2`。`parse-packets` 达到前缀目标后通常仍返回 `2`，因为整包载荷没有解析。
 

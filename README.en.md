@@ -32,11 +32,18 @@ This is an independent implementation written for interoperability and research.
 
 ### Download prebuilt binaries
 
-Open a successful run of the [Build workflow](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) and download your platform from **Artifacts**: Windows x64, Linux x64, or macOS arm64. macOS builds are Apple Silicon only.
+Download the `apac-tool` CLI from [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) for Windows x64, Linux x64, or macOS arm64. macOS builds are Apple Silicon only. See the [v0.1.0 release notes](guide/releases/v0.1.0.md#english) for features and requirements.
 
-Each download contains a portable archive and its `.sha256` checksum. Extract the archive and run `apac-tool` (`apac-tool.exe` on Windows). Documentation, licenses, and build revision metadata are included. See [CI and build artifacts](guide/development.md#ci-与构建产物) (Chinese) for triggers, platform requirements, and checksum verification.
+Download the portable archive and its adjacent `.sha256` checksum, verify it, then extract it. No Rust installation is required. Documentation, licenses, and build revision metadata are included. From the extracted directory, run:
 
-### Prerequisites
+```sh
+./apac-tool --version
+./apac-tool decode-sq input.m4a --out decoded
+```
+
+Use `.\apac-tool.exe` in Windows PowerShell. Output is raw Float32 PCM with JSON metadata, not a WAV file. `decoded` must not already exist; raise the default 128 MiB output limit with `--max-output-mib` for longer files. Development builds remain available under **Artifacts** in the [Build workflow](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml). See [CI and build artifacts](guide/development.md#ci-与构建产物) (Chinese) for platform requirements, checksum verification, and release steps.
+
+### Building from source: prerequisites
 
 - Rust 1.98.0 ([install](https://rustup.rs/); numeric acceptance is pinned to this version)
 - The macOS reference tools additionally need the Xcode Command Line Tools

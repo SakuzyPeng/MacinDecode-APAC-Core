@@ -3,7 +3,7 @@ name = "apac-tool"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "AudioToolbox reference tools for Apple Positional Audio Codec research"
+description = "Portable Apple Positional Audio Codec decoder and inspection CLI"
 
 [features]
 # On by default; `--no-default-features` builds a tool without CAC inverse mixing, which

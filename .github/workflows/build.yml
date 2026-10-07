@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Prepare a draft CLI release (e.g. v0.1.0); leave empty for CI artifacts only'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,6 +22,7 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   RUSTUP_TOOLCHAIN: '1.98.0'
+  RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || inputs.release_tag }}
 
 jobs:
   build:
@@ -80,7 +86,12 @@ jobs:
         run: cargo clippy --locked --release --workspace --all-targets --target "$BUILD_TARGET" -- -D warnings
 
       - name: Package executable, documentation and licenses
-        run: python -B scripts/package_release.py --target "$BUILD_TARGET" --commit "$GITHUB_SHA" --out artifacts/release
+        run: |
+          release_args=()
+          if [[ -n "$RELEASE_TAG" ]]; then
+            release_args+=(--release-tag "$RELEASE_TAG")
+          fi
+          python -B scripts/package_release.py --target "$BUILD_TARGET" --commit "$GITHUB_SHA" --out artifacts/release "${release_args[@]}"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -90,3 +101,39 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+
+  release:
+    name: Prepare CLI release draft
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download and verify all three platform packages
+        shell: bash
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir artifacts/release --pattern 'apac-tool-*'
+          assets=()
+          for target in x86_64-unknown-linux-gnu x86_64-pc-windows-msvc aarch64-apple-darwin; do
+            extension=tar.gz
+            if [[ "$target" == x86_64-pc-windows-msvc ]]; then extension=zip; fi
+            archive="apac-tool-${RELEASE_TAG}-${target}.${extension}"
+            directory="artifacts/release/apac-tool-${target}"
+            (cd "$directory" && sha256sum --check "$archive.sha256")
+            assets+=("$directory/$archive" "$directory/$archive.sha256")
+          done
+          release_args=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then release_args+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --draft --title "apac-tool $RELEASE_TAG" \
+            --notes-file "guide/releases/$RELEASE_TAG.md" "${release_args[@]}"

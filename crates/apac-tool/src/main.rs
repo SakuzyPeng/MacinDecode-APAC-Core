@@ -14,7 +14,7 @@ use std::{io::Write, path::PathBuf};
 #[command(
     name = "apac-tool",
     version,
-    about = "Apple APAC research tools; native codec operations require macOS"
+    about = "Decode and inspect Apple Positional Audio Codec (APAC) streams; native reference commands require macOS"
 )]
 struct Cli {
     /// Maximum cumulative bytes written by an export command (MiB).

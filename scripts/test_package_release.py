@@ -25,11 +25,18 @@ class ReleasePackageTests(unittest.TestCase):
         self.binary = self.root/'executable'
         self.binary.write_bytes(b'synthetic executable')
         self.commit = 'a'*40
+        (self.source/'Cargo.toml').write_text('[workspace.package]\nversion = "0.1.0"\n', encoding='utf-8')
 
-    def package(self, target, out='dist', commit=None):
+    def package(self, target, out='dist', commit=None, **kwargs):
         return create_package(self.binary, target, self.root/out, commit or self.commit,
                               binary_version='apac-tool 0.1.0', rust_version='rustc synthetic',
-                              root=self.source)
+                              root=self.source, **kwargs)
+
+    def release_notes(self):
+        path = self.source/'guide/releases/v0.1.0.md'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text('First CLI release.\n', encoding='utf-8')
+        return path
 
     def test_all_archives_contain_only_public_files_and_executable(self):
         for target, (executable, extension) in TARGETS.items():
@@ -79,6 +86,52 @@ class ReleasePackageTests(unittest.TestCase):
         (self.source/'LICENSES/Apache-2.0.txt').unlink()
         with self.assertRaises(FileNotFoundError):
             self.package('aarch64-apple-darwin')
+        self.assertFalse((self.root/'dist').exists())
+
+    def test_release_archives_are_versioned_and_include_notes_and_revision(self):
+        notes = self.release_notes()
+        for target, (_, extension) in TARGETS.items():
+            with self.subTest(target=target):
+                archive, checksum = self.package(target, release_tag='v0.1.0')
+                name = f'apac-tool-v0.1.0-{target}'
+                self.assertEqual(archive.name, name + extension)
+                self.assertEqual(checksum.name, archive.name + '.sha256')
+                if extension == '.zip':
+                    with zipfile.ZipFile(archive) as bundle:
+                        info = json.loads(bundle.read(name + '/build-info.json'))
+                        packaged_notes = bundle.read(name + '/guide/releases/v0.1.0.md')
+                else:
+                    with tarfile.open(archive) as bundle:
+                        info = json.load(bundle.extractfile(name + '/build-info.json'))
+                        packaged_notes = bundle.extractfile(name + '/guide/releases/v0.1.0.md').read()
+                self.assertEqual(info['commit'], self.commit)
+                self.assertEqual(info['release_tag'], 'v0.1.0')
+                self.assertEqual(packaged_notes, notes.read_bytes())
+
+    def test_mismatched_versions_or_missing_notes_cannot_be_released(self):
+        for tag in ('v0.2.0', '0.1.0', '../v0.1.0', 'v0.1.0/../../private'):
+            with self.subTest(tag=tag), self.assertRaises(ValueError):
+                self.package('aarch64-apple-darwin', release_tag=tag)
+        with self.assertRaises(FileNotFoundError):
+            self.package('aarch64-apple-darwin', release_tag='v0.1.0')
+        self.release_notes()
+        with self.assertRaises(ValueError):
+            create_package(self.binary, 'aarch64-apple-darwin', self.root/'dist', self.commit,
+                           binary_version='apac-tool 0.0.9', rust_version='rustc synthetic',
+                           release_tag='v0.1.0', root=self.source)
+        self.assertFalse((self.root/'dist').exists())
+
+    def test_symlinked_documentation_is_rejected(self):
+        notes = self.release_notes()
+        notes.unlink()
+        try:
+            notes.symlink_to(self.source/'docs/private.md')
+        except OSError as error:
+            if getattr(error, 'winerror', None) == 1314:
+                self.skipTest('Windows account cannot create symlinks')
+            raise
+        with self.assertRaises(ValueError):
+            self.package('aarch64-apple-darwin', release_tag='v0.1.0')
         self.assertFalse((self.root/'dist').exists())
 
 

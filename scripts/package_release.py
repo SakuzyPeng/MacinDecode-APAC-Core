@@ -10,6 +10,7 @@ import re
 import stat
 import subprocess
 import tarfile
+import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,7 +21,19 @@ TARGETS = {
 }
 
 
-def create_package(binary, target, out, commit, *, binary_version, rust_version, root=ROOT):
+def validate_release_tag(release_tag, binary_version, root):
+    if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?', release_tag):
+        raise ValueError('release tag must be vMAJOR.MINOR.PATCH with an optional prerelease suffix')
+    with (root/'Cargo.toml').open('rb') as source:
+        version = tomllib.load(source)['workspace']['package']['version']
+    if release_tag != 'v' + version or binary_version != 'apac-tool ' + version:
+        raise ValueError('release tag, workspace version and executable version must match')
+    if not (root/'guide'/'releases'/(release_tag + '.md')).is_file():
+        raise FileNotFoundError('release notes are missing for ' + release_tag)
+
+
+def create_package(binary, target, out, commit, *, binary_version, rust_version,
+                   release_tag=None, root=ROOT):
     if target not in TARGETS:
         raise ValueError('unsupported release target: ' + target)
     if not re.fullmatch(r'[0-9a-f]{40}', commit):
@@ -28,7 +41,10 @@ def create_package(binary, target, out, commit, *, binary_version, rust_version,
     executable, extension = TARGETS[target]
     binary = Path(binary)
     root, out = Path(root), Path(out)
-    name = f'apac-tool-{target}-{commit[:12]}'
+    if release_tag is not None:
+        validate_release_tag(release_tag, binary_version, root)
+    name = (f'apac-tool-{release_tag}-{target}' if release_tag is not None
+            else f'apac-tool-{target}-{commit[:12]}')
     archive = out/(name + extension)
     checksum = out/(archive.name + '.sha256')
     if archive.exists() or checksum.exists():
@@ -38,11 +54,13 @@ def create_package(binary, target, out, commit, *, binary_version, rust_version,
     metadata = dict(binary=executable, binary_version=binary_version,
                     binary_sha256=hashlib.sha256(raw).hexdigest(), target=target,
                     commit=commit, rust_version=rust_version)
+    if release_tag is not None:
+        metadata['release_tag'] = release_tag
     files = {executable: (raw, 0o755),
              'build-info.json': ((json.dumps(metadata, sort_keys=True, indent=2) + '\n').encode(), 0o644)}
     sources = [root/name for name in ('README.md', 'README.en.md', 'LICENSE', 'THIRD_PARTY.md')]
     sources += sorted((root/'LICENSES').glob('*.txt'))
-    sources += sorted((root/'guide').glob('*.md'))
+    sources += sorted((root/'guide').rglob('*.md'))
     if not (root/'LICENSES/Apache-2.0.txt').is_file():
         raise FileNotFoundError('required Apache-2.0 license is missing')
     for source in sources:
@@ -77,6 +95,7 @@ def main():
     parser.add_argument('--target', choices=TARGETS, required=True)
     parser.add_argument('--commit', required=True)
     parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--release-tag', help='versioned release name, e.g. v0.1.0; must match Cargo.toml and --version')
     parser.add_argument('--binary', type=Path, help='default: target/TARGET/release/apac-tool[.exe]')
     args = parser.parse_args()
     executable = TARGETS[args.target][0]
@@ -85,7 +104,8 @@ def main():
     subprocess.run([str(binary), '--help'], check=True, stdout=subprocess.DEVNULL)
     rust_version = subprocess.check_output(['rustc', '--version'], text=True).strip()
     archive, checksum = create_package(binary, args.target, args.out, args.commit,
-                                      binary_version=version, rust_version=rust_version)
+                                      binary_version=version, rust_version=rust_version,
+                                      release_tag=args.release_tag)
     print(json.dumps(dict(archive=str(archive), checksum=str(checksum), binary_version=version)))
 
 

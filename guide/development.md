@@ -84,32 +84,43 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 macOS 不构建 Intel 或 Universal 版本，任务会核验 runner 的实际架构。Windows 静态链接 CRT；Linux 在 glibc 2.35 环境构建，建议使用 Ubuntu 22.04 或更新的兼容系统。macOS 包包含 AudioToolbox 参考命令，Windows／Linux 提供纯 Rust 命令。
 
-在成功运行的 **Artifacts** 中下载 `apac-tool-TARGET`。下载项包含 `apac-tool-TARGET-SHA12` 压缩包和同名 `.sha256` 文件，保留 14 天；需要时可对目标提交重新运行工作流。CI 上传 Actions 产物，不自动创建 GitHub Release。
+正式 CLI 版本从 [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 下载，文件名为 `apac-tool-vVERSION-TARGET`，附同名 `.sha256` 文件。
 
-压缩包包含可执行文件、两个 README、`guide/` 使用文档、MIT／Apache-2.0 许可证、第三方来源说明和 `build-info.json`。构建信息记录完整提交、target、编译器版本、程序版本及程序 SHA-256。打包使用显式文件清单，研究文档仓库、实验报告、音频、SDK 和本地缓存不进入产物；tar 包保留可执行权限。
+普通开发构建在成功运行的 **Artifacts** 中下载 `apac-tool-TARGET`。下载项包含 `apac-tool-TARGET-SHA12` 压缩包和同名 `.sha256` 文件，保留 14 天；需要时可对目标提交重新运行工作流。
 
-解开下载项的外层 ZIP 后，先校验包，再解压内部压缩包：
+压缩包包含可执行文件、两个 README、`guide/` 使用文档与发布说明、MIT／Apache-2.0 许可证、第三方来源说明和 `build-info.json`。构建信息记录完整提交、target、编译器版本、程序版本及程序 SHA-256，版本化安装包另记录 `release_tag`。打包使用显式文件清单，研究文档仓库、实验报告、音频、SDK 和本地缓存不进入产物；tar 包保留可执行权限。
+
+Release 直接下载包和校验文件；Actions 产物先解开下载项的外层 ZIP。随后校验包，再解压内部压缩包：
 
 ```sh
 # Linux
-sha256sum -c apac-tool-x86_64-unknown-linux-gnu-SHA12.tar.gz.sha256
+sha256sum -c apac-tool-v0.1.0-x86_64-unknown-linux-gnu.tar.gz.sha256
 # macOS
-shasum -a 256 -c apac-tool-aarch64-apple-darwin-SHA12.tar.gz.sha256
+shasum -a 256 -c apac-tool-v0.1.0-aarch64-apple-darwin.tar.gz.sha256
 ```
 
-Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `.sha256` 文件中的值核对。包内程序位于顶层目录，直接运行 `./apac-tool --help` 或 `.\apac-tool.exe --help` 即可。上述 `SHA12`、`PACKAGE` 替换为实际文件名。
+Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `.sha256` 文件中的值核对。包内程序位于顶层目录，直接运行 `./apac-tool --help` 或 `.\apac-tool.exe --help` 即可。命令中的版本及 `PACKAGE` 替换为实际文件名；开发产物使用包含提交短哈希的文件名。
+
+### 准备 CLI Release
+
+1. 更新根 `Cargo.toml` 的 workspace 版本、`Cargo.lock`，并编写 `guide/releases/vVERSION.md`。
+2. 推送待发布提交，在 Build 工作流选择对应分支，填写手动输入 `release_tag`（首版为 `v0.1.0`）。也可推送同名 `v*` 标签触发。
+3. 三个平台的构建、测试、Clippy 和打包均通过后，工作流核验全部安装包的 SHA-256，并创建带六个附件的 GitHub Release **草稿**。版本标签、workspace 版本和可执行文件 `--version` 必须一致。
+4. 审阅发布说明和附件后，在 GitHub 发布草稿。手动输入不会提前创建 Git 标签；发布草稿时，GitHub 将不存在的标签创建在工作流的完整提交 SHA 上。已有同名 Release 会使创建步骤失败，避免替换已发布附件。
+
+日常推送、PR 和不填写 `release_tag` 的手动运行只生成 Actions 产物。发布流程只分发 CLI 安装包，不执行 `cargo publish`。
 
 需要本地打包时，复用已有二进制并指定输出目录：
 
 ```sh
 python3 -B scripts/package_release.py --target aarch64-apple-darwin \
   --binary /path/to/shared-target/release/apac-tool \
-  --commit FULL_COMMIT_SHA --out artifacts/release
+  --commit FULL_COMMIT_SHA --release-tag v0.1.0 --out artifacts/release
 ```
 
 ## 仓库与数据边界
 
-代码与研究文档使用两个独立的 Git 仓库，各自同步至 private 远端：
+代码与研究文档使用两个独立的 Git 仓库，分别同步至各自远端：
 
 - 当前仓库保存 Rust/C 源码、测试、构建配置、验证脚本和本 README。
 - `docs/` 保存调查笔记和阶段总结，有自己的 Git 历史；整个目录被当前仓库忽略，不是子模块。只获取代码仓库时不会包含这些本地研究文档。
@@ -117,7 +128,7 @@ python3 -B scripts/package_release.py --target aarch64-apple-darwin \
 
 | 仓库 | 远端 | 可见性 |
 | --- | --- | --- |
-| 代码 | [MacinDecode-APAC-Core](https://github.com/SakuzyPeng/MacinDecode-APAC-Core) | Private |
+| 代码 | [MacinDecode-APAC-Core](https://github.com/SakuzyPeng/MacinDecode-APAC-Core) | Public |
 | 研究文档 | [MacinDecode-APAC-Docs](https://github.com/SakuzyPeng/MacinDecode-APAC-Docs) | Private |
 
 从项目根目录使用 `git status` 检查代码，使用 `git -C docs status` 检查文档。研究结论在文档仓库中记录对应的代码提交，分别提交可以保持两套历史清晰。

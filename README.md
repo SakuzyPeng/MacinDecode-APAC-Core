@@ -32,11 +32,18 @@ APAC（Apple Positional Audio Codec）是苹果用于空间音频的编解码器
 
 ### 下载预构建产物
 
-在 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 中打开一次成功的运行，从 **Artifacts** 下载对应平台：Windows x64、Linux x64 或 macOS arm64。macOS 仅提供 Apple Silicon 版本。
+在 [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 下载 `apac-tool` CLI：Windows x64、Linux x64 或 macOS arm64。macOS 仅提供 Apple Silicon 版本。首版功能和运行环境见 [v0.1.0 发布说明](guide/releases/v0.1.0.md)。
 
-下载项包含便携压缩包和 `.sha256` 校验文件；解压后可直接运行 `apac-tool`（Windows 为 `apac-tool.exe`）。包内附带使用文档、许可证和构建提交信息。构建触发条件、平台要求及校验方式见 [CI 与构建产物](guide/development.md#ci-与构建产物)。
+下载便携压缩包和同名 `.sha256` 校验文件；校验、解压后即可运行，无需安装 Rust。包内附带使用文档、许可证和构建提交信息。在解压目录执行：
 
-### 前置条件
+```sh
+./apac-tool --version
+./apac-tool decode-sq input.m4a --out decoded
+```
+
+Windows PowerShell 使用 `.\apac-tool.exe`。输出是原始 Float32 PCM 和 JSON 元数据，不是 WAV；`decoded` 必须尚不存在，长文件可用 `--max-output-mib` 调整默认 128 MiB 上限。开发构建仍可从 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 的 **Artifacts** 下载。平台要求、校验及发布步骤见 [CI 与构建产物](guide/development.md#ci-与构建产物)。
+
+### 从源码构建：前置条件
 
 - Rust 1.98.0（[安装](https://rustup.rs/)；数值验收固定这一版本）
 - macOS 上的参考工具另需 Xcode Command Line Tools

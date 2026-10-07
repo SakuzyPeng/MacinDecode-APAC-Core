@@ -18,7 +18,7 @@
 | 查看原生文件信息、导出包和配置 | `inspect`、`scan`、`dump`、`collect-configs` | macOS |
 | 使用苹果参考编解码或生成测试信号 | `decode`、`replay`、`fixture` | macOS |
 
-独立解码使用 `decode-sq`，具体参数和 PCM 输出说明见[解码指南](decoding.md)。
+独立解码使用 `decode-sq`，具体参数和 PCM 输出说明见[解码指南](decoding.md)。 CAF 外部布局标签有误时，可添加 `--input-layout 9.1.6` 等预设；它必须与 APAC 配置一致，不能强制重标输出，也不适用于 MP4／M4A。
 
 ## 概览
 

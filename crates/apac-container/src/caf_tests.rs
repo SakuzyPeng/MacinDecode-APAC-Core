@@ -158,6 +158,72 @@ fn stereo_layout_and_cookie_must_agree_with_description() {
     t.change(20, &44100f64.to_be_bytes());
     assert!(open(&t).is_err());
 }
+
+#[test]
+fn explicit_layout_correction_preserves_original_bytes_and_checks_them_again() {
+    let requested = ChannelLayout::discrete(2).unwrap();
+    let missing = CafReader::new_with_layout(Shared::new(&fixture()), &requested).unwrap();
+    assert_eq!(missing.summary().layout_source, "explicit_cookie_layout");
+    let audit = missing.summary().layout_override.unwrap();
+    assert!(audit.original.is_none());
+    assert_eq!(audit.original_matched_cookie, None);
+
+    for tag in [STEREO, (102 << 16) | 2, (147 << 16) | 6] {
+        let mut raw = fixture();
+        let mut chan = tag.to_be_bytes().to_vec();
+        chan.extend([0; 8]);
+        raw.extend(chunk(b"chan", &chan));
+        let source = Shared::new(&raw);
+        assert_eq!(open(&source).is_ok(), tag == STEREO);
+        let mut reader = CafReader::new_with_layout(source.clone(), &requested).unwrap();
+        assert_eq!(reader.track().cookie, COOKIE);
+        assert!(reader.track().layout.equivalent(&requested));
+        let audit = reader.summary().layout_override.unwrap();
+        assert_eq!(audit.original_matched_cookie, Some(tag == STEREO));
+        let original = audit.original.unwrap();
+        assert_eq!(original.tag, tag);
+        assert_eq!(original.bitmap, 0);
+        assert_eq!(original.description_count, 0);
+        assert_eq!(original.sha256, format!("{:x}", Sha256::digest(&chan)));
+        reader.verify_remaining().unwrap();
+        assert!(reader.summary().verified);
+        assert_eq!(source.bytes(), raw);
+        reader.rewind();
+        source.change_quietly(
+            reader.summary().chunks[b"chan"].offset,
+            &((103u32 << 16) | 2).to_be_bytes(),
+        );
+        assert!(
+            reader.verify_remaining().is_err(),
+            "overridden chan still belongs to the integrity digest"
+        );
+    }
+}
+
+#[test]
+fn explicit_layout_cannot_change_codec_or_repair_broken_structure() {
+    for layout in [
+        ChannelLayout::discrete(1).unwrap(),
+        ChannelLayout::tagged((102 << 16) | 2, 2, None),
+    ] {
+        assert!(CafReader::new_with_layout(Shared::new(&fixture()), &layout).is_err());
+    }
+    let requested = ChannelLayout::discrete(2).unwrap();
+    let mut bad = fixture();
+    let mut chan = STEREO.to_be_bytes().to_vec();
+    chan.extend(0u32.to_be_bytes());
+    chan.extend(1u32.to_be_bytes()); // Missing the claimed description.
+    bad.extend(chunk(b"chan", &chan));
+    assert!(CafReader::new_with_layout(Shared::new(&bad), &requested).is_err());
+    for (offset, bytes) in [
+        (20, 44100f64.to_be_bytes().to_vec()),
+        (44, 6u32.to_be_bytes().to_vec()),
+    ] {
+        let source = Shared::new(&fixture());
+        source.change(offset, &bytes);
+        assert!(CafReader::new_with_layout(source, &requested).is_err());
+    }
+}
 #[test]
 fn packet_length_varints_are_bounded_and_cover_data_exactly() {
     for sizes in [

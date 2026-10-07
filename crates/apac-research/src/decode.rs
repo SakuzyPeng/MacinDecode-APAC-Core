@@ -30,6 +30,44 @@ pub struct SqDecodeOptions {
     pub frames: Option<u64>,
 }
 
+/// Parse a named expected CAF input layout. HOA names default to ACN/SN3D;
+/// the `-n3d` suffix requests ACN/N3D. This never modifies an APAC cookie.
+pub fn parse_input_layout(value: &str) -> Result<ChannelLayout> {
+    let value = value.to_ascii_lowercase();
+    let channels = match value.as_str() {
+        "mono" => Some(1),
+        "stereo" => Some(2),
+        "5.1" | "surround51" => Some(6),
+        "7.1" | "surround71" => Some(8),
+        "7.1.4" | "surround714" => Some(12),
+        "9.1.6" | "surround916" => Some(16),
+        "22.2" | "surround222" => Some(24),
+        _ => None,
+    };
+    if let Some(channels) = channels {
+        return Ok(ChannelLayout::discrete(channels).expect("named discrete layout"));
+    }
+    let (name, family) = value
+        .strip_suffix("-n3d")
+        .map_or((value.as_str(), 190), |name| (name, 191));
+    if let Some(order) = name
+        .strip_prefix("hoa")
+        .and_then(|n| n.parse::<u32>().ok())
+        .filter(|&n| n <= 3)
+    {
+        let channels = (order + 1).pow(2);
+        return Ok(ChannelLayout::tagged(
+            (family << 16) | channels,
+            channels,
+            None,
+        ));
+    }
+    Err(Error::new(
+        "input layout",
+        "choose mono, stereo, 5.1, 7.1, 7.1.4, 9.1.6, 22.2 or hoa0..hoa3 (optional -n3d suffix)",
+    ))
+}
+
 /// `metadata_after_processing_sha256`: the SHA-256 of the committed DRC, scene
 /// graph and composite/HOA state as a key-sorted JSON object.
 pub(crate) fn metadata_sha256(decoder: &Decoder) -> String {
@@ -62,7 +100,7 @@ pub fn decode_sq_with_options(
     options: SqDecodeOptions,
     limit: u64,
 ) -> Result<Value> {
-    decode_with_access(input, destination, options, None, limit, None)
+    decode_with_access(input, destination, options, None, limit, None, None)
 }
 
 /// Explicit container access policy. Existing entry points retain sequential access.
@@ -73,7 +111,7 @@ pub fn decode_sq_with_access(
     access: SqAccessMode,
     limit: u64,
 ) -> Result<Value> {
-    decode_with_access(input, destination, options, Some(access), limit, None)
+    decode_with_access(input, destination, options, Some(access), limit, None, None)
 }
 
 /// Stream Float32 PCM to a new WAV/RF64/CAF file and return its JSON report.
@@ -94,6 +132,35 @@ pub fn decode_sq_to_file(
         access,
         limit.unwrap_or(u64::MAX),
         Some(format),
+        None,
+    )
+}
+
+/// Decode with an explicit correction of a CAF container's layout metadata.
+/// The expected layout must match the APAC cookie. `format=None` writes a
+/// research directory (default limit 128 MiB); otherwise it writes a PCM file
+/// (default unlimited). An explicit limit is always in bytes.
+pub fn decode_sq_with_input_layout(
+    input: &Path,
+    destination: &Path,
+    options: SqDecodeOptions,
+    access: Option<SqAccessMode>,
+    format: Option<PcmFormat>,
+    layout: &ChannelLayout,
+    limit: Option<u64>,
+) -> Result<Value> {
+    decode_with_access(
+        input,
+        destination,
+        options,
+        access,
+        limit.unwrap_or(if format.is_some() {
+            u64::MAX
+        } else {
+            128 * 1024 * 1024
+        }),
+        format,
+        Some(layout),
     )
 }
 
@@ -104,6 +171,7 @@ fn decode_with_access(
     access: Option<SqAccessMode>,
     limit: u64,
     format: Option<PcmFormat>,
+    input_layout: Option<&ChannelLayout>,
 ) -> Result<Value> {
     let total_timer = Instant::now();
     let fast = access == Some(SqAccessMode::Fast);
@@ -113,7 +181,11 @@ fn decode_with_access(
             "fast access requires a CAF/MP4 file",
         ));
     }
-    let bundle = Input::open(input)?;
+    let bundle = if input_layout.is_some() {
+        Input::open_with_layout(input, input_layout)?
+    } else {
+        Input::open(input)?
+    };
     let preparation_seconds = total_timer.elapsed().as_secs_f64();
     let info = bundle.info().clone();
     let mut reader = Reader::open(

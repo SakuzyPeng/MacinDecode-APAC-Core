@@ -96,6 +96,16 @@ use CAF, rather than being exported as anonymous channels. WAV uses its standard
 surrounds before side surrounds in 7.1/7.1.4; CAF retains the source channel order. Neither resamples,
 downmixes or changes sample precision. Use `--format wav|rf64|caf` to select the container explicitly.
 
+For an incorrect CAF layout tag, explicitly supply the expected layout:
+
+```sh
+./apac-tool decode-sq "input.caf" -o output.caf --input-layout 9.1.6
+```
+
+The choice must match the APAC configuration. It only corrects container metadata and records the
+original declaration in the report. Missing CAF layout chunks already fall back to the APAC configuration.
+This option does not relabel output, modify the bitstream or apply to MP4/M4A.
+
 File output has **no default total-size limit** and streams in bounded blocks. Add `--max-output-mib 1024`
 when a size limit is wanted. `--start-frame` and `--frames` count audio frames; this example takes one
 second starting ten seconds into a 48 kHz file:

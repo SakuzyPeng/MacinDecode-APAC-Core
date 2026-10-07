@@ -162,8 +162,10 @@ pub struct CafSummary {
     pub skipped_chunks: u64,
     /// Digest of the header, chunk headers and retained chunk payloads.
     pub metadata_sha256: String,
-    /// `"chan"` when a channel layout chunk was checked, else `"cookie"`.
+    /// `"chan"`, `"cookie"`, or `"explicit_cookie_layout"` for an opt-in correction.
     pub layout_source: &'static str,
+    /// Audit of an explicitly requested container-layout correction.
+    pub layout_override: Option<CafLayoutOverride>,
     /// The data chunk's edit count.
     pub edit_count: u32,
     /// Digest of the current pass's audio bytes.
@@ -175,12 +177,37 @@ pub struct CafSummary {
     pub verified: bool,
 }
 
+/// Original CAF `chan` metadata retained for an explicit correction report.
+#[derive(Debug, Clone)]
+pub struct CafDeclaredLayout {
+    /// Original Core Audio layout tag.
+    pub tag: u32,
+    /// Original channel bitmap.
+    pub bitmap: u32,
+    /// Original number of channel descriptions.
+    pub description_count: u32,
+    /// SHA-256 of the entire original `chan` payload, including descriptions.
+    pub sha256: String,
+}
+
+/// The requested layout must equal the independently qualified cookie layout.
+#[derive(Debug, Clone)]
+pub struct CafLayoutOverride {
+    /// Explicit layout supplied by the caller, checked against the APAC cookie.
+    pub requested: ChannelLayout,
+    /// Original container metadata, or `None` when `chan` was absent.
+    pub original: Option<CafDeclaredLayout>,
+    /// Whether an existing `chan` already agreed with the cookie; `None` if absent.
+    pub original_matched_cookie: Option<bool>,
+}
+
 /// What opening validates: the structure, the stream description and the
 /// fields an input report shows. Playback reads no audio or packet entries.
 pub(crate) struct Header {
     structure: Structure,
     pub(crate) track: Track,
     layout_source: &'static str,
+    layout_override: Option<CafLayoutOverride>,
     edit_count: u32,
 }
 impl Header {
@@ -195,6 +222,14 @@ impl Header {
 /// Validate the structure, description, cookie, channel layout and packet
 /// table header.
 pub(crate) fn header<R: Source>(file: &mut R, mode: OpenMode) -> Result<Header> {
+    header_with_layout(file, mode, None)
+}
+
+fn header_with_layout<R: Source>(
+    file: &mut R,
+    mode: OpenMode,
+    requested: Option<&ChannelLayout>,
+) -> Result<Header> {
     let structure = scan(file, mode)?;
     let chunks = &structure.chunks;
     let desc = chunks[b"desc"];
@@ -288,6 +323,23 @@ pub(crate) fn header<R: Source>(file: &mut R, mode: OpenMode) -> Result<Header> 
             "cookie layout tag disagrees with output",
         ));
     }
+    if let Some(requested) = requested
+        && !requested.equivalent(&output_layout)
+    {
+        return Err(invalid(
+            b"kuki",
+            kuki.offset,
+            format!(
+                "requested input layout {:#010x} disagrees with APAC cookie layout {:#010x}; container correction cannot change the decoder layout",
+                requested.tag, output_layout.tag
+            ),
+        ));
+    }
+    let mut layout_override = requested.map(|layout| CafLayoutOverride {
+        requested: layout.clone(),
+        original: None,
+        original_matched_cookie: None,
+    });
     let layout_source = if let Some(chan) = chunks.get(b"chan") {
         let mut expected = Vec::with_capacity(12 + 20 * output_layout.descriptions.len());
         expected.extend_from_slice(&layout_tag.to_be_bytes());
@@ -300,25 +352,50 @@ pub(crate) fn header<R: Source>(file: &mut R, mode: OpenMode) -> Result<Header> 
                 expected.extend_from_slice(&coordinate.to_be_bytes());
             }
         }
-        if chan.bytes != expected.len() as u64 {
+        if requested.is_none() && chan.bytes != expected.len() as u64 {
             return Err(invalid(
                 b"chan",
                 chan.offset,
                 "channel layout size disagrees with cookie",
             ));
         }
-        let mut raw = vec![0; expected.len()];
+        // scan() already bounded this payload to 12 + 255 * 20 bytes.
+        let mut raw = vec![0; chan.bytes as usize];
         read(file, b"chan", chan.offset, &mut raw)?;
-        if raw != expected {
+        if let Some(audit) = &mut layout_override {
+            let description_count = u32::from_be_bytes(raw[8..12].try_into().unwrap());
+            if 12 + u64::from(description_count) * 20 != chan.bytes {
+                return Err(invalid(
+                    b"chan",
+                    chan.offset + 8,
+                    "layout correction cannot repair a malformed channel-description count",
+                ));
+            }
+            audit.original = Some(CafDeclaredLayout {
+                tag: u32::from_be_bytes(raw[..4].try_into().unwrap()),
+                bitmap: u32::from_be_bytes(raw[4..8].try_into().unwrap()),
+                description_count,
+                sha256: format!("{:x}", Sha256::digest(&raw)),
+            });
+            audit.original_matched_cookie = Some(raw == expected);
+        } else if raw != expected {
             return Err(invalid(
                 b"chan",
                 chan.offset,
                 "channel layout tag, bitmap or descriptions disagree with cookie",
             ));
         }
-        "chan"
+        if requested.is_some() {
+            "explicit_cookie_layout"
+        } else {
+            "chan"
+        }
     } else {
-        "cookie"
+        if requested.is_some() {
+            "explicit_cookie_layout"
+        } else {
+            "cookie"
+        }
     };
     let pakt = chunks[b"pakt"];
     let mut raw = [0; 24];
@@ -370,6 +447,7 @@ pub(crate) fn header<R: Source>(file: &mut R, mode: OpenMode) -> Result<Header> 
         structure,
         track,
         layout_source,
+        layout_override,
         edit_count: u32::from_be_bytes(raw),
     })
 }
@@ -461,6 +539,7 @@ pub struct CafReader<R> {
     structure: Structure,
     track: Track,
     layout_source: &'static str,
+    layout_override: Option<CafLayoutOverride>,
     edit_count: u32,
     cursor: Cursor,
     data_hash: Sha256,
@@ -471,14 +550,24 @@ pub struct CafReader<R> {
 impl<R: Source> CafReader<R> {
     /// Validate the file and read it once to record its digests; the reader
     /// is then positioned at packet zero.
-    pub fn new(mut file: R) -> Result<Self> {
-        let header = header(&mut file, OpenMode::Verified)?;
+    pub fn new(file: R) -> Result<Self> {
+        Self::open(file, None)
+    }
+    /// Correct a conflicting or missing `chan` declaration without changing
+    /// codec configuration. `layout` must equal the qualified APAC cookie layout.
+    /// All original metadata bytes remain covered by the input integrity checks.
+    pub fn new_with_layout(file: R, layout: &ChannelLayout) -> Result<Self> {
+        Self::open(file, Some(layout))
+    }
+    fn open(mut file: R, layout: Option<&ChannelLayout>) -> Result<Self> {
+        let header = header_with_layout(&mut file, OpenMode::Verified, layout)?;
         let (pakt, data) = header.packets();
         let mut reader = Self {
             file,
             structure: header.structure,
             track: header.track,
             layout_source: header.layout_source,
+            layout_override: header.layout_override,
             edit_count: header.edit_count,
             cursor: Cursor::start(pakt, data),
             data_hash: Sha256::new(),
@@ -528,6 +617,7 @@ impl<R: Source> CafReader<R> {
             skipped_chunks: self.structure.skipped,
             metadata_sha256: self.structure.hash.clone(),
             layout_source: self.layout_source,
+            layout_override: self.layout_override.clone(),
             edit_count: self.edit_count,
             audio_sha256,
             packets_sha256,

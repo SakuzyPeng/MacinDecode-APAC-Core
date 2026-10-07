@@ -41,7 +41,7 @@ mod source;
 mod test_source;
 #[cfg(test)]
 mod test_streams;
-pub use caf::{CafReader, CafSummary, Chunk};
+pub use caf::{CafDeclaredLayout, CafLayoutOverride, CafReader, CafSummary, Chunk};
 pub use media::{Media, PacketCursor};
 pub use mp4::{BoxRange, Brands, Mp4Reader, Mp4Summary};
 pub use pcm::{PcmFormat, PcmSpec, PcmWritePlan, PcmWriteResult, PcmWriter};

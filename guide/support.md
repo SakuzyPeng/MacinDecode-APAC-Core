@@ -12,6 +12,8 @@ Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/a
 
 离散扬声器布局包括 Mono、Stereo、5.1、7.1、7.1.4、9.1.6 和 22.2。单 channel ASC 的 9.1.6 要求 profile 31、level 4、family 193、固定 9 个编码元素及 44.1／48 kHz；相同声道数的其他布局仍明确拒绝。它直接输出码流声明的 16 个扬声器声道，解码后不进行空间渲染。布局、声道顺序与验收入口见 [bitstream.md](bitstream.md#受限离散声道深度-channels)。
 
+CAF 外部布局标签可通过显式 `--input-layout` 纠错，但指定布局必须与 APAC cookie 一致；默认校验和其他格式保持原规则。原始元数据仍参与完整性核验，不能借此绕过损坏结构或改变 HOA／扬声器语义。详见[CAF 布局纠错](decoding.md#caf-容器布局纠错--input-layout)。
+
 ## PCM 输出容器
 
 `decode-sq -o FILE` 支持 Float32 WAV／RF64 和 LPCM CAF。WAV／RF64 仅接受已确认的 Mono、Stereo、5.1、7.1、7.1.4 布局标签，按 WAVE speaker mask 顺序写入。9.1.6、22.2、HOA 和不能准确映射的其他布局必须使用 CAF；不通过匿名通道或近似标签绕过限制。CAF 保留解码器的布局标签、声道描述和原始顺序。文件模式不会重采样、下混、归一化或降低样本精度；完整参数和报告契约见[文件输出](decoding.md#音频文件输出decode-sq-input--o-file)。

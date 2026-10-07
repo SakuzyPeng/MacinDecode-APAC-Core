@@ -31,6 +31,22 @@ WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L
 
 输出 CAF 的音频编码是 LPCM；APAC 容器读取器仍只接受 APAC 音轨。`compare` 继续接受研究目录的 PCM 元数据，不直接读取 WAV／RF64／PCM CAF 文件。
 
+## CAF 容器布局纠错：`--input-layout`
+
+CAF 缺少 `chan` 布局块时，默认已经采用 APAC cookie 的布局；存在但冲突时，默认仍拒绝。确认容器标签有误后，可显式要求：
+
+```sh
+apac-tool decode-sq input.caf -o output.caf --input-layout 9.1.6
+apac-tool decode-sq input.caf --out decoded --input-layout 7.1
+apac-tool decode-sq hoa.caf -o hoa-output.caf --input-layout hoa3
+```
+
+可用名称为 `mono`、`stereo`、`5.1`、`7.1`、`7.1.4`、`9.1.6`、`22.2`、`hoa0` 至 `hoa3`；HOA 默认为 ACN/SN3D，`hoa3-n3d` 等后缀表示 ACN/N3D。兼容 `surround51`、`surround71`、`surround714`、`surround916`、`surround222` 别名。
+
+指定布局必须与 cookie 决定的布局等价，不仅比较通道数量。16 通道的三阶 HOA 与 9.1.6、SN3D 与 N3D 不能互相替换。参数只允许修正 CAF 的外部 `chan` 标签／bitmap／描述声明，不修改原文件或 cookie、不重排解码通道、不改变编码元素解释；结构损坏、声道数或采样率冲突仍拒绝。MP4／M4A 直接使用 cookie 布局，包目录也不属于本选项的纠错范围。
+
+显式模式将 `input.layout_source` 记为 `explicit_cookie_layout`，增加 `input.layout_override`：`profile=apac-caf-layout-override-v1`、用户请求与有效布局、原始标签／bitmap／描述项数量及完整 `chan` 载荷 SHA-256、原声明是否匹配 cookie。布局块缺失时原始声明为 null；未启用选项时不增加这些字段。原始标签字节仍参与每次读取的完整性核验，读到一半修改被忽略的标签也会失败。
+
 ## 研究目录输出：`decode-sq INPUT --out DIRECTORY`
 
 从自包含包目录或 [bitstream.md](bitstream.md) 所列布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
@@ -145,6 +161,8 @@ python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --r
 显式访问模式入口为 `apac_research::decode::decode_sq_with_access(input, destination, SqDecodeOptions { start_frame, frames }, SqAccessMode::Fast, limit)`；`SqDecodeOptions` 和 `SqAccessMode` 均从 `apac_research::decode` 导入，也可使用 `SqAccessMode::Sequential`。省略 CLI 访问选项时，旧报告形状和默认行为不变。数值模型、后端及容器规则标识保持原样，DRC／响度处理关闭和默认 128 MiB 限额仍适用。报告中的 `experimental` 字段是冻结报告格式的一部分，始终为 `true`，验收脚本也依赖它；它不表示解码器的成熟度。
 
 ## 库接口
+
+使用 `apac_container::CafReader::new_with_layout(source, &layout)` 可显式纠正容器声明，`CafReader::new` 保持严格校验。研究层入口为 `decode_sq_with_input_layout(input, destination, options, access, format, &layout, limit)`：`format=None` 表示研究目录，否则输出对应容器文件；`limit=None` 分别采用目录 128 MiB／文件不限大小。`parse_input_layout` 可将 CLI 使用的布局名称转换为 `ChannelLayout`。
 
 `apac_research::decode::decode_sq_to_file(input, destination, options, access, format, limit)` 提供与 CLI 相同的文件导出。`options` 沿用 `SqDecodeOptions`；`access: Option<SqAccessMode>` 沿用顺序／快速策略；`format` 为 `PcmFormat::{Wav,Rf64,Caf}`；`limit: Option<u64>` 的单位为字节，`None` 表示不限总大小。它返回文件模式的 JSON 报告，旧目录导出入口不变。
 

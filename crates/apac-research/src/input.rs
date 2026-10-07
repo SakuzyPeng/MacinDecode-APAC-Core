@@ -43,19 +43,38 @@ pub(crate) struct CafInput {
     info: FileInfo,
 }
 impl CafInput {
-    fn open(path: &Path) -> Result<Self> {
-        let reader = CafReader::new(open_regular(path, "CAF input", "caff")?)?;
+    fn open(path: &Path, layout: Option<&ChannelLayout>) -> Result<Self> {
+        let file = open_regular(path, "CAF input", "caff")?;
+        let reader = if let Some(layout) = layout {
+            CafReader::new_with_layout(file, layout)?
+        } else {
+            CafReader::new(file)?
+        };
         let info = file_info(path, "caff", reader.track());
         Ok(Self { reader, info })
     }
     fn report(&self) -> Value {
         let s = self.reader.summary();
         let info = &self.info;
-        json!({"kind":"caf","profile":if info.format.channels == 2 {CAF_PROFILE} else {"apac-caf-input-v2"},"format":info.format,"packet_table":info.packet_table.value,"packet_count":info.packet_count.value,
+        let mut report = json!({"kind":"caf","profile":if info.format.channels == 2 {CAF_PROFILE} else {"apac-caf-input-v2"},"format":info.format,"packet_table":info.packet_table.value,"packet_count":info.packet_count.value,
             "file_bytes":s.file_bytes,"layout_source":s.layout_source,"layout":info.layout.value,
             "edit_count":s.edit_count,"chunks":s.chunks.iter().map(|(k,v)|(String::from_utf8_lossy(k).into_owned(),json!({"offset":v.offset,"bytes":v.bytes}))).collect::<BTreeMap<_,_>>(),
             "skipped_chunks":s.skipped_chunks,"metadata_sha256":s.metadata_sha256,"cookie_sha256":sha256(&self.reader.track().cookie),"audio_sha256":s.audio_sha256,"packets_sha256":s.packets_sha256,
-            "consistency_verified":s.verified,"verification":"two_pass_read_consistency_no_stored_checksums","access":"sequential_from_packet_zero"})
+            "consistency_verified":s.verified,"verification":"two_pass_read_consistency_no_stored_checksums","access":"sequential_from_packet_zero"});
+        if let Some(audit) = s.layout_override {
+            report["layout_override"] = json!({
+                "profile": "apac-caf-layout-override-v1",
+                "policy": "explicit_layout_matches_cookie",
+                "requested": audit.requested,
+                "effective": info.layout.value,
+                "original": audit.original.map(|original| json!({
+                    "tag": original.tag, "bitmap": original.bitmap,
+                    "description_count": original.description_count, "sha256": original.sha256,
+                })),
+                "original_matched_cookie": audit.original_matched_cookie,
+            });
+        }
+        report
     }
 }
 
@@ -212,7 +231,16 @@ fn file_info(path: &Path, container: &str, track: &Track) -> FileInfo {
 }
 impl Input {
     pub(super) fn open(path: &Path) -> Result<Self> {
+        Self::open_with_layout(path, None)
+    }
+    pub(super) fn open_with_layout(path: &Path, layout: Option<&ChannelLayout>) -> Result<Self> {
         if path.is_dir() {
+            if layout.is_some() {
+                return Err(Error::new(
+                    "input layout",
+                    "--input-layout corrects CAF container tags only; packet bundles are not CAF files",
+                ));
+            }
             Ok(Self::Bundle(Box::new(PacketBundle::open(path)?)))
         } else {
             if !path.metadata()?.is_file() {
@@ -224,8 +252,14 @@ impl Input {
             let mut magic = [0; 4];
             let n = File::open(path)?.read(&mut magic)?;
             if n == 4 && magic == *b"caff" {
-                Ok(Self::Caf(Box::new(CafInput::open(path)?)))
+                Ok(Self::Caf(Box::new(CafInput::open(path, layout)?)))
             } else {
+                if layout.is_some() {
+                    return Err(Error::new(
+                        "input layout",
+                        "--input-layout corrects CAF container tags only; MP4/M4A layout comes from the APAC cookie",
+                    ));
+                }
                 Ok(Self::Mp4(Box::new(Mp4Input::open(path)?)))
             }
         }

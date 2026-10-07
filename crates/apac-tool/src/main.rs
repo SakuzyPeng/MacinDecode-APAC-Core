@@ -48,6 +48,9 @@ enum Command {
             value_name = "wav|rf64|caf"
         )]
         format: Option<apac_research::decode::PcmFormat>,
+        /// Correct CAF layout tags only; must match APAC configuration. Names: mono, stereo, 5.1, 7.1, 7.1.4, 9.1.6, 22.2, hoa0..hoa3 (optional -n3d).
+        #[arg(long, value_parser = apac_research::decode::parse_input_layout, value_name = "LAYOUT")]
+        input_layout: Option<apac_research::model::ChannelLayout>,
         /// Absolute valid-audio frame; container inputs warm up sequentially from packet zero.
         #[arg(long)]
         start_frame: Option<u64>,
@@ -204,6 +207,7 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
         out,
         output,
         format,
+        input_layout,
         start_frame,
         frames,
         access,
@@ -235,13 +239,36 @@ fn run(cli: Cli) -> Result<(Value, u8)> {
                             }
                         },
                     };
-                    apac_research::decode::decode_sq_to_file(
+                    if let Some(layout) = input_layout {
+                        apac_research::decode::decode_sq_with_input_layout(
+                            input,
+                            path,
+                            options,
+                            *access,
+                            Some(format),
+                            layout,
+                            cli.max_output_mib.map(|_| limit),
+                        )?
+                    } else {
+                        apac_research::decode::decode_sq_to_file(
+                            input,
+                            path,
+                            options,
+                            *access,
+                            format,
+                            cli.max_output_mib.map(|_| limit),
+                        )?
+                    }
+                } else if let Some(layout) = input_layout {
+                    let out = out.as_ref().expect("clap requires a destination");
+                    apac_research::decode::decode_sq_with_input_layout(
                         input,
-                        path,
+                        out,
                         options,
                         *access,
-                        format,
-                        cli.max_output_mib.map(|_| limit),
+                        None,
+                        layout,
+                        Some(limit),
                     )?
                 } else if let Some(mode) = access {
                     let out = out.as_ref().expect("clap requires a destination");

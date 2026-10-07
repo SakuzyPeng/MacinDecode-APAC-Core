@@ -263,6 +263,106 @@ class PcmOutputTests(unittest.TestCase):
             self.assertEqual(json.loads(p.stderr)['error']['operation'], 'output limit')
         self.assertFalse(list(self.root.glob('.apac-*')))
 
+    def caf_chan(self, source):
+        raw = source.read_bytes()
+        at = 8
+        while at < len(raw):
+            tag, size = struct.unpack_from('>4sq', raw, at)
+            if tag == b'chan':
+                return raw, at, size
+            at += 12+size
+        self.fail('fixture has no chan chunk')
+
+    def test_manual_input_layout_repairs_caf_tags_without_changing_source_or_pcm(self):
+        source = self.channel_source(8)
+        reference, _ = self.raw(source)
+        _, wave_reference, _, _ = self.export(source, 'wav')
+        raw, at, size = self.caf_chan(source)
+        changed = bytearray(raw)
+        struct.pack_into('>I', changed, at+12, (147 << 16) | 8)
+        source.write_bytes(changed)
+        original_sha = digest(source.read_bytes())
+        target = self.path('.caf')
+        strict = self.run_tool('decode-sq', source, '-o', target)
+        self.assertEqual(strict.returncode, 1)
+        self.assertFalse(target.exists())
+        _, actual, _, report = self.export(source, 'wav', '--input-layout', '7.1')
+        self.assertEqual(actual, wave_reference)
+        audit = report['input']['layout_override']
+        self.assertEqual(audit['profile'], 'apac-caf-layout-override-v1')
+        self.assertEqual(audit['original']['tag'], (147 << 16) | 8)
+        self.assertEqual(audit['original']['sha256'], digest(changed[at+12:at+12+size]))
+        self.assertFalse(audit['original_matched_cookie'])
+        self.assertEqual(audit['effective']['tag'], (128 << 16) | 8)
+        self.assertTrue(report['input']['consistency_verified'])
+        actual, report = self.raw(source, '--input-layout', 'surround71')
+        self.assertEqual(actual, reference)
+        self.assertIn('layout_override', report['input'])
+        _, actual, _, report = self.export(source, 'caf', '--input-layout', '7.1', '--access', 'fast',
+                                         '--start-frame', 1007, '--frames', 2051)
+        self.assertEqual(actual, reference[1007*32:3058*32])
+        self.assertTrue(report['input']['consistency_verified'])
+        self.assertEqual(digest(source.read_bytes()), original_sha)
+
+    def test_missing_caf_layout_already_uses_cookie_and_explicit_choice_is_audited(self):
+        source = self.channel_source(2)
+        raw, at, size = self.caf_chan(source)
+        source.write_bytes(raw[:at]+raw[at+12+size:])
+        _, automatic, _, report = self.export(source, 'wav')
+        self.assertEqual(report['input']['layout_source'], 'cookie')
+        self.assertNotIn('layout_override', report['input'])
+        _, explicit, _, report = self.export(source, 'wav', '--input-layout', 'stereo')
+        self.assertEqual(explicit, automatic)
+        audit = report['input']['layout_override']
+        self.assertIsNone(audit['original'])
+        self.assertIsNone(audit['original_matched_cookie'])
+
+    def test_manual_input_layout_cannot_relabel_channels_or_bypass_bad_metadata(self):
+        source = self.channel_source(16)
+        for layout in ('hoa3', 'stereo'):
+            target = self.path('.caf')
+            p = self.run_tool('decode-sq', source, '-o', target, '--input-layout', layout)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn('disagrees with APAC cookie', p.stderr)
+            self.assertFalse(target.exists())
+        _, _, _, report = self.export(source, 'caf', '--input-layout', '9.1.6')
+        self.assertTrue(report['input']['layout_override']['original_matched_cookie'])
+        raw, at, _ = self.caf_chan(source)
+        for position, value in ((at+20, 1), (44, 2)):
+            changed = bytearray(raw)
+            struct.pack_into('>I', changed, position, value)
+            source.write_bytes(changed)
+            target = self.path('.caf')
+            self.assertEqual(self.run_tool('decode-sq', source, '-o', target, '--input-layout', '9.1.6').returncode, 1)
+            self.assertFalse(target.exists())
+        for kind in ('m4a', 'bundle'):
+            path = self.channel_source(kind=kind)
+            target = self.path('.wav')
+            p = self.run_tool('decode-sq', path, '-o', target, '--input-layout', 'stereo')
+            self.assertEqual(p.returncode, 1)
+            self.assertIn('CAF container tags only', p.stderr)
+            self.assertFalse(target.exists())
+        p = self.run_tool('decode-sq', source, '-o', self.path('.caf'), '--input-layout', 'guess')
+        self.assertEqual(p.returncode, 2)
+        self.assertFalse(list(self.root.glob('.apac-*')))
+
+    def test_manual_hoa_layout_keeps_its_domain_and_normalization(self):
+        source = self.path('.caf')
+        packets = [hoa.packet(hoa.excitation(0))[0]]*2
+        source.write_bytes(caf(hoa.cookie(), packets, channels=16, layout_tag=(193 << 16) | 16)[0])
+        target = self.path('.caf')
+        self.assertEqual(self.run_tool('decode-sq', source, '-o', target).returncode, 1)
+        self.assertFalse(target.exists())
+        _, _, header, report = self.export(source, 'caf', '--input-layout', 'hoa3')
+        self.assertEqual(struct.unpack_from('>I', header['chunks'][b'chan'])[0], (190 << 16) | 16)
+        self.assertEqual(report['output']['source_layout']['ambisonic_normalization'], 'SN3D')
+        for layout in ('9.1.6', 'hoa3-n3d'):
+            target = self.path('.caf')
+            p = self.run_tool('decode-sq', source, '-o', target, '--input-layout', layout)
+            self.assertEqual(p.returncode, 1)
+            self.assertIn('disagrees with APAC cookie', p.stderr)
+            self.assertFalse(target.exists())
+
     @unittest.skipUnless(shutil.which('ffprobe') and shutil.which('ffmpeg'), 'FFmpeg tools are optional independent readers')
     def test_ffmpeg_reads_all_containers_without_changing_samples(self):
         source = self.channel_source(8)

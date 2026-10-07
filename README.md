@@ -1,212 +1,202 @@
-# MacinDecode-APAC-Core
+# MacinDecode APAC Core
 
-[English](README.en.md) | 中文
+**简体中文** · [English](README.en.md)
 
 [![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
 
-Apple Positional Audio Codec 独立解码核心 · Rust 2024 · Rust 1.98.0 · 核心 `no_std` · `unsafe` 禁用
+一个用来**解码 Apple Positional Audio Codec（APAC）空间音频、查看码流结构**的命令行工具和 Rust 库。
+命令行程序叫 `apac-tool`，自带独立解码器，在 Windows、Linux 和 macOS 上把音频导出为 PCM，
+并保存采样率、声道布局和解码过程的 JSON 记录。
 
-## 这是什么
+支持含 APAC 音轨的 `.m4a`、`.mp4` 和 `.caf`，以及本工具导出的包目录。输出保留声道或 HOA 系数，
+供后续分析、处理或接入播放器使用；CLI 本身不播放声音。
 
-APAC（Apple Positional Audio Codec）是苹果用于空间音频的编解码器，承载声道音频与高阶 Ambisonics（HOA）。MacinDecode-APAC-Core 的目标是不调用苹果接口，在任意平台把 APAC 码流还原为**交错 Float32 PCM**：声道布局输出各声道，HOA 输出 ACN/SN3D 系数或码流声明的源声道；同时给出配置与逐包语法的结构化报告。
+本文介绍下载、上手和构建。**全部命令和参数见[命令行参考](guide/commands.md)，
+解码方式与 Rust 接口见[使用指南](guide/decoding.md)。**
 
-本项目**不负责**空间渲染、DRC／响度／EQ 音频处理或实时播放。
+## 目录
 
-解码器按独立公式定义的固定数值模型实现，并刻意不复现苹果原生实现的数值细节，因此在设计上不与 AudioToolbox 参考逐位一致；两者按容差比较，原因见[与苹果参考的数值关系](guide/support.md#与苹果参考的数值关系)。
+- [能用它做什么](#能用它做什么)
+- [获取 CLI](#获取-cli)
+- [第一次解码](#第一次解码)
+- [查看和比较](#查看和比较)
+- [平台支持](#平台支持)
+- [使用前了解](#使用前了解)
+- [从源码构建](#从源码构建)
+- [作为 Rust 库使用](#作为-rust-库使用)
+- [文档](#文档)
+- [许可证](#许可证)
 
-本项目是为互操作和研究目的独立编写的实现，与 Apple Inc. 不存在隶属、赞助或认可关系。Apple 和 AudioToolbox 是 Apple Inc. 的商标；文中提及 APAC 等名称仅用于说明兼容对象。
+## 能用它做什么
 
-## 特性
+- **把 APAC 文件解码成 PCM**：支持单声道、立体声、5.1、7.1、7.1.4、9.1.6 和 22.2，保持输入采样率与声道布局。
+- **导出 HOA 音频**：支持零至三阶高阶 Ambisonics，可输出 ACN/SN3D 系数，或还原码流声明的源声道。
+- **只取需要的一段**：按音频帧指定起点和长度，也可选择快速范围访问，适合检查较长文件中的短片段。
+- **看清码流里有什么**：解析独立配置和导出的音频包，输出字段、位位置、元数据及中间频谱。
+- **比较两份解码结果**：检查 PCM 格式、布局和摘要，报告逐声道误差；不自动对齐或调整增益。
+- **接入自己的程序**：核心库支持 `no_std` + `alloc`；文件读取接口提供顺序解码、按帧定位和播放所需的检查点。
 
-- **容器与输入**：CAF v1、非分片单音轨 MP4／M4A 和导出的包目录；打开时完整读取并核验，每一遍读取都与首遍比对
-- **配置解析**：magic cookie／ASC 的逐字段语法与 cookie 位位置，含 DRC、HOA、场景图和被动 renderer 元数据
-- **声道解码**：频谱 Huffman、反量化、CAC、TNS、BWE2、IMDCT 与叠加，覆盖 Mono 至 22.2
-- **HOA 解码**：零至三阶，salient／ambient、动态选择、空间控制、源布局还原，以及与声道组成的组合流
-- **范围访问**：顺序解码或快速前缀扫描，双向 `seek`，结果与在该点新建的解码器逐位相同
-- **独立数值模型**：常量由公式以高精度生成，固定运算顺序，确定性输出；SQ 反量化（`apac-sq-math-v2`）以 Float64 相乘后只舍入一次到 Float32
-- **逐包语法报告**：`parse-packets` 按阶段输出字段、位偏移和中间频谱
-- **`#![no_std]` 核心**：解码库只依赖 `alloc`、`sha2` 与 `libm`；CAC 逆混合是可选 crate，可以不编入构建
-- **苹果参考对照（macOS）**：AudioToolbox 编解码、测试信号与 PCM 比较，用于验收
+## 获取 CLI
 
-## 快速开始
+请到 [GitHub Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 查看版本和发布说明。
+在对应版本页面下方的 **Assets** 中，按电脑选择压缩包：
 
-### 下载预构建产物
+| 你的电脑 | 下载哪个文件 |
+| --- | --- |
+| Windows 10／11，Intel / AMD 64 位电脑 | 以 `x86_64-pc-windows-msvc.zip` 结尾的文件 |
+| Linux，Intel / AMD 64 位电脑，glibc 2.35 或更新（如 Ubuntu 22.04） | 以 `x86_64-unknown-linux-gnu.tar.gz` 结尾的文件 |
+| Apple 芯片 Mac（M1 及更新机型；当前在 macOS 26 验证） | 以 `aarch64-apple-darwin.tar.gz` 结尾的文件 |
 
-在 [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 下载 `apac-tool` CLI：Windows x64、Linux x64 或 macOS arm64。macOS 仅提供 Apple Silicon 版本。首版功能和运行环境见 [v0.1.0 发布说明](guide/releases/v0.1.0.md)。
+解压后即可使用，无需安装 Rust 或其他解码器，也不需要管理员权限。Windows 程序为 `apac-tool.exe`，
+Linux 和 macOS 程序为 `apac-tool`；请在终端中运行。
 
-下载便携压缩包和同名 `.sha256` 校验文件；校验、解压后即可运行，无需安装 Rust。包内附带使用文档、许可证和构建提交信息。在解压目录执行：
+同名 `.sha256` 附件用于核对下载是否完整，无需安装。包内已附使用文档、许可证和构建信息。
+校验方法见[下载校验](guide/development.md#ci-与构建产物)，首版内容见 [v0.1.0 发布说明](guide/releases/v0.1.0.md)。
+开发构建仍可从 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 的 **Artifacts** 下载。
+
+## 第一次解码
+
+1. 解压下载的压缩包，在终端中进入包含 `apac-tool` 的目录。
+2. 运行 `--version` 或 `--help`，确认程序可用。
+3. 把下面的 `input.m4a` 换成你的 APAC 文件路径，开始解码。
+
+**Windows PowerShell：**
+
+```powershell
+.\apac-tool.exe --version
+.\apac-tool.exe decode-sq "input.m4a" --out decoded
+```
+
+**macOS / Linux：**
 
 ```sh
 ./apac-tool --version
-./apac-tool decode-sq input.m4a --out decoded
+./apac-tool decode-sq "input.m4a" --out decoded
 ```
 
-Windows PowerShell 使用 `.\apac-tool.exe`。输出是原始 Float32 PCM 和 JSON 元数据，不是 WAV；`decoded` 必须尚不存在，长文件可用 `--max-output-mib` 调整默认 128 MiB 上限。开发构建仍可从 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 的 **Artifacts** 下载。平台要求、校验及发布步骤见 [CI 与构建产物](guide/development.md#ci-与构建产物)。
+`decoded` 必须是尚不存在的目录。成功后里面会有：
 
-### 从源码构建：前置条件
+| 文件 | 内容 |
+| --- | --- |
+| `pcm.f32le` | 交错、小端 32 位浮点原始音频 |
+| `pcm.json` | 采样率、声道数、布局、帧数和 PCM 摘要 |
+| `decode-sq.json` | 输入信息、解码范围与完整性检查记录 |
 
-- Rust 1.98.0（[安装](https://rustup.rs/)；数值验收固定这一版本）
-- macOS 上的参考工具另需 Xcode Command Line Tools
+原始 PCM 没有 WAV 文件头。导入音频工具时，请选择 **32 位浮点、小端、交错**，
+并按 `pcm.json` 填写采样率和声道数。
 
-### 构建与测试
+默认输出上限为 **128 MiB**。较长文件或多声道音频可按需提高，例如：
 
-```bash
-cargo build --release
-cargo test --workspace
+```sh
+./apac-tool decode-sq "input.m4a" --out decoded-long --max-output-mib 1024
 ```
 
-### 解码
+只取一段时，`--start-frame` 和 `--frames` 使用音频帧数。以下示例在 48 kHz 音频中，从第 10 秒开始取 1 秒：
 
-```bash
-# 解码全部有效音频：输出 pcm.f32le（交错小端 Float32）、pcm.json 和 decode-sq.json
-# 长文件或多声道时用 --max-output-mib 提高默认 128 MiB 的输出上限
-target/release/apac-tool decode-sq input.m4a --out decoded
-
-# 解码一个窗口：从第 480000 帧起 8192 帧，快速定位
-target/release/apac-tool decode-sq input.caf --out window \
-  --start-frame 480000 --frames 8192 --access fast
+```sh
+./apac-tool decode-sq "input.caf" --out window \
+  --start-frame 480000 --frames 48000 --access fast
 ```
 
-### 作为库使用
+后续示例使用 macOS / Linux 写法；Windows PowerShell 将 `./apac-tool` 换为 `.\apac-tool.exe`，并将多行命令写成一行。
+
+## 查看和比较
+
+已经有独立配置文件或导出的包目录时，可以进一步查看语法：
+
+```sh
+./apac-tool parse-cookie cookie.bin
+./apac-tool parse-packets packets/ --depth cac --output cac.jsonl
+./apac-tool compare reference/pcm.json decoded/pcm.json
+```
+
+`parse-cookie` 接受独立的 magic cookie，`parse-packets` 接受包目录；直接解码 `.m4a`／`.mp4`／`.caf` 使用 `decode-sq`。
+macOS 另有 `inspect`、`dump` 等参考工具，详细用法见[命令行参考](guide/commands.md)。
+
+命令结果写到标准输出，进度和错误写到标准错误。退出码 `0` 表示成功，`1` 表示运行、输入或完整性错误，
+`2` 表示比较超出容差、解析未完成或命令行参数有误；完整约定见[命令行参考](guide/commands.md#概览)。
+
+## 平台支持
+
+| 功能 | Windows x64 | Linux x64 | macOS arm64 |
+| --- | --- | --- | --- |
+| 独立解码、配置解析、逐包解析、PCM 比较 | ✅ | ✅ | ✅ |
+| AudioToolbox 参考采集、编解码和回放 | — | — | ✅ |
+| 预构建 CLI | `.zip` | `.tar.gz` | `.tar.gz` |
+
+CI 在 Windows Server 2022、Ubuntu 22.04 和 macOS 26 上构建并运行测试。macOS 首版只提供 Apple Silicon 产物。
+独立解码使用 `decode-sq`；`decode` 是 macOS 的 AudioToolbox 参考命令。
+
+## 使用前了解
+
+- **输入必须是 APAC 音频**：普通 AAC `.m4a`、MP3、FLAC，以及加密／DRM 文件不受支持。MP4／M4A 当前限非分片、单音轨文件。
+- **输出保留原始声道含义**：HOA 系数仍需空间渲染，不能直接当作普通扬声器声道播放。CLI 不提供空间渲染、播放、WAV 封装或其他格式编码。
+- **不施加 DRC、响度或 EQ 处理**：相关元数据会被解析，但不会改变输出音频。
+- **部分 APAC 路径尚未实现**：四阶及以上 HOA、LRVQ、外层 ASP 重配置和非零帧长索引会明确报错。各布局和采样率的完整条件见[支持边界](guide/support.md)。
+- **数值结果按本项目模型定义**：与苹果 AudioToolbox 参考按容差比较，设计上不逐位一致，原因见[数值关系](guide/support.md#与苹果参考的数值关系)。
+- **失败结果留有标记**：带 `.incomplete.json` 或 `.incomplete` 的输出尚未完成，不能当作有效解码结果。
+
+遇到问题时，欢迎在 [Issues](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/issues) 中提供程序版本、
+操作系统、使用的命令和错误提示。提交前请去掉命令里的个人路径；分享音频时请确认拥有相应权限。
+
+## 从源码构建
+
+需要 **Rust 1.98.0**。macOS 构建额外需要 Xcode Command Line Tools；Windows 和 Linux 的独立解码无需苹果 SDK。
+
+```sh
+cargo +1.98.0 build --locked --release
+cargo +1.98.0 test --locked --workspace
+```
+
+程序位于 `target/release/apac-tool`，Windows 为 `target/release/apac-tool.exe`。默认开启 CAC 逆混合，
+`--no-default-features` 构建会拒绝使用非零 CAC 增益的帧。
+workspace 结构、无 std 构建、发布流程和回归检查见[开发说明](guide/development.md)及[验收与回归](guide/validation.md)。
+
+## 作为 Rust 库使用
+
+`apac-core` 是 `no_std` + `alloc` 的解码核心；`apac-container` 提供 CAF／MP4 读取和定位。
+可移植 crate 通过 workspace lint 禁用 `unsafe`；macOS 的 AudioToolbox 参考代码单独放在 `apac-native`。
 
 ```rust
 use apac_core::{Config, Decoder};
 
-let config = Config::parse(&cookie)?;          // magic cookie
-let mut decoder = Decoder::new(&config)?;      // 不支持的配置在这里返回带原因的错误
-let info = decoder.info();                     // 采样率、声道数、每包 1024 帧、布局
+let config = Config::parse(&cookie)?;
+let mut decoder = Decoder::new(&config)?;
 for packet in packets {
-    let pcm: Vec<f32> = decoder.decode_vec(packet)?;  // 1024 × 声道数个交错样本
+    let pcm: Vec<f32> = decoder.decode_vec(packet)?;
+    // 使用交错 Float32 PCM；采样率和声道数可从 decoder.info() 读取。
 }
 ```
 
-解码使用 CAC 的流（共享声道头的声道对）需要开启 `cac` feature：`apac-core = { ..., features = ["cac"] }`。`apac_core::CAC_ENABLED` 表示当前 core 构建在 Cargo 合并依赖 feature 后是否包含 CAC 逆混合；关闭时完整解码和快速前缀扫描都拒绝非零 CAC 增益。
+使用 CAC 的流需要开启 `apac-core` 的 `cac` feature。文件级解码与双向 seek 使用 `Reader`，
+面向播放器的快速打开、按帧 seek 和后台索引使用 `Media`／`Playback`／`Indexer`。
+完整接口、代码示例和限制见[解码与库接口](guide/decoding.md)。生成 API 文档：
 
-从文件读取时，`apac_container::Reader` 封装了 CAF／MP4 读取、范围裁剪和双向 `seek`，完整示例见 `crates/apac-container/examples/decode_file.rs`；无 std 用法见 `crates/apac-no-std-example`。播放器使用 `apac_container::Playback`：打开时只读元数据，按帧精确 `seek`，代价由解码器检查点限定，索引可由 `Indexer` 在后台线程建立，示例见 `crates/apac-container/examples/playback.rs`，说明见[播放：`Media` 与 `Playback`](guide/decoding.md#播放media-与-playback)。API 文档：
-
-```bash
-cargo doc --no-deps -p apac-core -p apac-container --open
+```sh
+cargo +1.98.0 doc --no-deps -p apac-core -p apac-container --open
 ```
-
-## 基础用法
-
-以下是最常用的命令，全部子命令见[命令行参考](guide/commands.md)。
-
-**解码为 PCM**——声道或 HOA 系数，交错 Float32：
-
-```bash
-target/release/apac-tool decode-sq input.m4a --out decoded
-```
-
-**查看配置**——magic cookie 的逐字段解析与位位置：
-
-```bash
-target/release/apac-tool parse-cookie cookie.bin
-```
-
-**逐包解析**——按阶段输出语法与中间频谱，例如到 CAC 为止：
-
-```bash
-target/release/apac-tool parse-packets packets/ --depth cac --output cac.jsonl
-```
-
-**比较 PCM**——按容差 `1e-6 + 1e-5·|reference|` 比较两份输出：
-
-```bash
-target/release/apac-tool compare reference/pcm.json decoded/pcm.json
-```
-
-结果写 stdout，进度和错误写 stderr。`--out` 必须是尚不存在的目录。退出码：`0` 成功；`1` 运行、输入或完整性错误；`2` PCM 超出容差，或解析结果为 `partial`／`unsupported`。
-
-## 项目结构
-
-```text
-apac-tool ──→ research / core / native（仅 macOS）
-apac-native ──→ research / core
-apac-research ──→ container / core
-apac-container ──→ core
-apac-core ──→ cac（可选 `cac` feature）
-apac-no-std-example ──→ core
-```
-
-| Crate | 职责 | `no_std` |
-|---|---|---|
-| [`apac-core`](crates/apac-core) | cookie／ASC 配置、包与帧解析（SQ、CAC 语法、TNS、BWE2、DRC、HOA、ASP、场景图）、独立 Float64 合成 | ✅ |
-| [`apac-cac`](crates/apac-cac) | CAC 逆混合与 `apac-cac-math-v1` 旋转表；经 `apac-core` 的 `cac` feature 接入 | ✅ |
-| [`apac-container`](crates/apac-container) | CAF／MP4 读取、完整性核验、帧范围计算与 `Reader` 解码循环；播放用的 `Media`／`Playback` | — |
-| [`apac-research`](crates/apac-research) | `parse-cookie`、`parse-packets`、`decode-sq` 的报告组装，包目录、输出限额、PCM 比较、测试信号 | — |
-| [`apac-native`](crates/apac-native) | macOS AudioToolbox 参考工具：采集、导出、回放、参考解码与测试信号编码 | — |
-| [`apac-tool`](crates/apac-tool) | `apac-tool` 命令行及其集成测试 | — |
-| [`apac-no-std-example`](crates/apac-no-std-example) | 不发布的示例：在 `no_std` 库中把包解码到调用方缓冲 | ✅ |
-
-`cac` feature 是一道隔离边界：不开启时，`apac-core` 仍完整读取并报告 CAC 语法，只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。`cargo build -p apac-tool --no-default-features` 构建不含 `apac-cac` 的工具。
-
-### 平台
-
-| 命令 | 平台 |
-| --- | --- |
-| `decode-sq`、`parse-cookie`、`parse-packets`、`compare` | Linux、Windows、macOS（纯 Rust） |
-| `inspect`、`scan`、`collect-configs`、`dump`、`replay`、`decode`、`fixture` | 仅 macOS（AudioToolbox） |
-
-## 数据流
-
-```text
-CAF / MP4 / 包目录
-    → 容器读取与完整性核验                      (apac-container)
-    → magic cookie → Config                     (apac-core::config)
-    → 逐包解析：SQ 频谱 → CAC → TNS → BWE2       (apac-core::frame)
-    → HOA 恢复、动态选择、源布局还原
-    → IMDCT、窗口与叠加（Float64）               (apac-core::synthesis)
-    → 交错 Float32 PCM
-```
-
-DRC、响度、场景图和 renderer 元数据只读取语法、不处理音频；状态按外层包原子提交，失败的包不留下半个包的状态。
-
-## 支持范围
-
-| 能力 | 状态 | 说明 |
-|---|---|---|
-| 配置语法 | ✅ | cookie／ASC、DRC、HOA、场景图、被动 renderer 元数据 |
-| 声道解码 | ✅ | Mono／Stereo／5.1／7.1／7.1.4／9.1.6／22.2；SQ、CAC、TNS、BWE2 |
-| HOA 解码 | ✅ | 零至三阶；salient／ambient、动态选择、空间控制、源布局还原；四阶及以上明确拒绝 |
-| 组合流与共享配置 | ✅ | 多 ASC、HOA 与声道组合，最多 255 声道输出 |
-| 容器与访问 | ✅ | CAF、非分片单音轨 MP4／M4A、包目录；顺序或快速范围解码 |
-| 采样率 | ✅ | 索引 0–12（96 kHz–7.35 kHz）；部分 HOA 配置限 44.1／48 kHz |
-| DRC／响度／EQ | 只读 | 读取并报告语法，不处理音频 |
-| LRVQ | ⏸ | 延期；遇到时明确拒绝 |
-| 外层 ASP 重配置、帧长索引 ≠ 0 | ✗ | 参考实现未实现，明确拒绝 |
-| 空间渲染、实时播放 | — | 不在范围内 |
-
-不支持的输入一律报错并说明原因（字段名、取值和 cookie 位位置），不会猜测或静默降级。完整边界见[支持边界](guide/support.md)。
-
-## 设计原则
-
-1. 不支持的路径明确拒绝，不猜测、不静默降级。
-2. 输入默认不可信：容器整体核验，cookie 不超过 8 MiB、包不超过 16 MiB，资源上限明确报错。
-3. 数值身份冻结：profile 字符串、常量位模式和浮点运算顺序是已发布结果的一部分；新行为使用新的 profile。
-4. 常量由公式独立生成，或来自许可兼容的公开来源；与苹果参考按容差比较，逐位比较只用于本项目自身的跨平台、跨构建一致性。
-5. 状态按外层包原子提交；失败不提交任何描述、映射、DRC 历史或叠加，`reset()` 恢复初始状态。
-6. 可移植部分不调用苹果接口，并由 workspace lint `unsafe_code = "forbid"` 禁止 `unsafe`；AudioToolbox 参考代码只在 macOS 专用的 `apac-native` 中，它是唯一不继承这条 lint 的 crate。
-7. 仓库不提交苹果二进制、反编译输出、SDK 文件、源媒体或含本机路径的原始报告。
 
 ## 文档
 
 | 文档 | 说明 |
-|---|---|
-| [解码与库接口](guide/decoding.md) | `decode-sq`、CAF／MP4 输入、快速范围解码、`Decoder` 与 `Reader` |
-| [命令行参考](guide/commands.md) | 全部子命令、导出文件与报告字段、退出码 |
-| [码流解析](guide/bitstream.md) | `parse-packets` 各解析深度、声道与 HOA 的语法和数值标识 |
-| [支持边界](guide/support.md) | 实现边界、与苹果参考的数值关系、共享配置、ASP 与帧长 |
-| [验收与回归](guide/validation.md) | 测试、独立数学验收、重构回归与苹果参考诊断 |
-| [HOA 黑盒批处理](guide/hoa-blackbox.md) | 三阶生产边界、断点续跑与历史测量证据 |
-| [HOA 空间控制均值](guide/hoa-mean-blackbox.md) | 精确抵消测量、独立验证与外置卷证据 |
-| [BWE2 黑盒重建](guide/bwe2-blackbox.md) | 增益重建、LSF 可识别性试验与冻结验证 |
-| [开发说明](guide/development.md) | workspace 结构、`no_std` 构建、API 分层、CAC feature、仓库约定 |
+| --- | --- |
+| [v0.1.0 发布说明](guide/releases/v0.1.0.md) | 下载、首版功能和使用前须知（中英文） |
+| [命令行参考](guide/commands.md) | 全部子命令、参数、输出和退出码 |
+| [解码与库接口](guide/decoding.md) | PCM 输出、范围解码、`Decoder`、`Reader` 与 `Playback` |
+| [支持边界](guide/support.md) | 已实现路径、拒绝条件及与苹果参考的数值关系 |
+| [码流解析](guide/bitstream.md) | 声道与 HOA 语法、解析深度和数值标识 |
+| [开发说明](guide/development.md) | workspace、`no_std`、CAC feature 和 CLI 发布流程 |
+| [验收与回归](guide/validation.md) | 独立数学验收、跨构建检查及参考诊断 |
+| [HOA 黑盒批处理](guide/hoa-blackbox.md) | 三阶生产边界、断点续跑和历史测量证据 |
+| [HOA 空间控制均值](guide/hoa-mean-blackbox.md) | 精确抵消测量与独立验证 |
+| [BWE2 黑盒重建](guide/bwe2-blackbox.md) | 增益重建和 LSF 可识别性实验 |
 | [第三方数据](THIRD_PARTY.md) | 格式常量的来源、许可与独立推导 |
 
-## License
+## 许可证
 
 项目代码以 [MIT](LICENSE) 发布。`data/sq-codebooks.json` 中的 AAC Huffman 码表和频带边界取自 vo-aacenc，适用 Apache-2.0（见 [THIRD_PARTY.md](THIRD_PARTY.md) 和 [LICENSES/Apache-2.0.txt](LICENSES/Apache-2.0.txt)）；它们在构建时编入 `apac-core`，因此该 crate 声明 `MIT AND Apache-2.0`，其他 crate 为 `MIT`。
+
+本项目为互操作和研究目的独立编写，与 Apple Inc. 不存在隶属、赞助或认可关系。Apple 和 AudioToolbox 是 Apple Inc. 的商标；提及 APAC 等名称仅用于说明兼容对象。
 
 ### 免责声明
 

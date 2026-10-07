@@ -110,7 +110,7 @@ Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `
 
 日常推送、PR 和不填写 `release_tag` 的手动运行只生成 Actions 产物。发布流程只分发 CLI 安装包，不执行 `cargo publish`。
 
-需要本地打包时，复用已有二进制并指定输出目录：
+需要本地打包时，使用 Python 3.11 或更新版本，复用已有二进制并指定输出目录：
 
 ```sh
 python3 -B scripts/package_release.py --target aarch64-apple-darwin \

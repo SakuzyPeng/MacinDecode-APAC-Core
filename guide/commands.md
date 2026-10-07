@@ -4,6 +4,21 @@
 
 返回 [README](../README.md)。
 
+使用下载的 CLI 时，在解压目录的终端中运行 `./apac-tool`；Windows PowerShell 使用 `.\apac-tool.exe`。下文的 `target/debug/apac-tool` 是源码构建路径，使用安装包时替换为对应程序路径即可，PowerShell 中将多行命令写成一行。
+
+常用命令：
+
+| 目的 | 命令 | 平台 |
+| --- | --- | --- |
+| 解码 APAC 文件或包目录 | `decode-sq INPUT --out NEW_DIRECTORY` | Windows／Linux／macOS |
+| 解析独立配置 | `parse-cookie COOKIE` | Windows／Linux／macOS |
+| 查看导出包的语法 | `parse-packets DIRECTORY --output REPORT.jsonl` | Windows／Linux／macOS |
+| 比较两份 PCM | `compare REFERENCE/pcm.json CANDIDATE/pcm.json` | Windows／Linux／macOS |
+| 查看原生文件信息、导出包和配置 | `inspect`、`scan`、`dump`、`collect-configs` | macOS |
+| 使用苹果参考编解码或生成测试信号 | `decode`、`replay`、`fixture` | macOS |
+
+独立解码使用 `decode-sq`，具体参数和 PCM 输出说明见[解码指南](decoding.md)。
+
 ## 概览
 
 输出结果写 stdout，进度和错误写 stderr。除索引文件外，导出命令的 `--out` 必须指定一个**不存在的新目录**；工具不覆盖现有结果。

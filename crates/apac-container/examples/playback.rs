@@ -12,7 +12,7 @@
 //! `--index` builds the whole seek index before seeking; `--background`
 //! builds it on a second thread with an `Indexer` while decoding, merging
 //! its batches between reads. The output file must
-//! not exist yet. The PCM equals what `apac-tool decode-sq` and the
+//! not exist yet. The PCM equals what `mapac decode-sq` and the
 //! `decode_file` example write for the same range. Timings and counts go to
 //! stderr.
 use apac_container::{Error, IndexBatch, Media, Playback, ReadError};

@@ -97,10 +97,10 @@ python3 -B scripts/generate_sq_math.py --check
 python3 -B scripts/generate_sq_math.py --output artifacts/sq-math-regenerated.json
 
 # 第一关：17,800 个频谱用例及 9,948 个 PCM 序列的独立数学验收
-python3 -B scripts/validate_portable.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_portable.py --binary target/debug/mapac \
   --output reports/sq-math-baseline.json
 # 第二关：用另一个构建复现相同输入、整数、频谱与 PCM 的字节摘要
-python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
+python3 -B scripts/validate_portable.py --binary target/release/mapac \
   --reference-report reports/sq-math-baseline.json --output reports/sq-math-release.json
 ```
 
@@ -116,17 +116,17 @@ python3 -B scripts/validate_portable.py --binary target/release/apac-tool \
 
 ```sh
 python3 -B scripts/generate_cac_math.py --check
-python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --output reports/cac-math-new.json
-python3 -B scripts/validate_cac.py --binary target/release/apac-tool \
+python3 -B scripts/validate_cac.py --binary target/debug/mapac --output reports/cac-math-new.json
+python3 -B scripts/validate_cac.py --binary target/release/mapac \
   --reference-report reports/cac-math-new.json --output reports/cac-release-new.json
 # 可选：受组件哈希约束的原生参数／边界／频谱对照及真实控制样本
 python3 -B scripts/verify_cac_codebooks.py
-python3 -B scripts/validate_cac.py --binary target/debug/apac-tool --native --output reports/cac-native-new.json
+python3 -B scripts/validate_cac.py --binary target/debug/mapac --native --output reports/cac-native-new.json
 ```
 
 原生核对要求参数、位边界和全部单位幅度基向量通过。其他原生浮点差异记录在 `native_artificial[].numeric_passed`、误差指标及 `native_float_comparison_passed` 中，不删除压力案例、不放宽容差；独立数学与六构建逐位检查仍是硬性验收。真实样本单列 CAC 完成率和 PCM 的明确停止原因，后续工具关闭之前不能将 CAC 完成理解为整包可播放。
 
-Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `APAC_TOOL_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
+Windows 使用对应的 `.exe` 路径。Python CLI 单元测试通过 `MAPAC_BINARY` 指定构建，默认在 `target/debug` 查找本机二进制；缺失时直接失败。报告路径必须不存在；验收分批清理临时音频，单份报告与导出沿用 128 MiB 限额。
 
 ## HOA 格式常量的独立规则
 
@@ -147,7 +147,7 @@ python3 -B scripts/generate_sq_codebooks.py --check --source /path/to/vo-aacenc/
 ```sh
 cargo +1.98.0 test --offline -p apac-research --test golden_decode
 cargo +1.98.0 build --offline --workspace --bins --examples
-python3 -B scripts/run_portable_suite.py --binary target/debug/apac-tool \
+python3 -B scripts/run_portable_suite.py --binary target/debug/mapac \
   --presence-binary target/debug/examples/layout_presence --jobs 2 --out reports/portable-suite-new
 python3 -B scripts/compare_reports.py reports/portable-suite-before reports/portable-suite-new --limit 50
 ```

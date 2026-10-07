@@ -232,7 +232,7 @@ class CampaignTests(unittest.TestCase):
                 def communicate(self,timeout=None):return b'',b''
                 def poll(self):return 0
             native=object.__new__(NativeBackend)
-            native.order=10;native.quantization_bits=6;native.binary=Path('/synthetic/apac-tool')
+            native.order=10;native.quantization_bits=6;native.binary=Path('/synthetic/mapac')
             native.process_lock=threading.Lock();native.processes=set();native.check=lambda:None
             with patch('hoa_blackbox_lib.native.subprocess.Popen',Process):
                 result=native.capture(packets,folder)
@@ -264,7 +264,7 @@ class CampaignTests(unittest.TestCase):
                         return b'',b'output limit: PCM and sidecar reservation' if self.returncode else b''
                     def poll(self):return self.returncode
                 native=object.__new__(NativeBackend)
-                native.order=order;native.quantization_bits=6;native.binary=Path('/synthetic/apac-tool')
+                native.order=order;native.quantization_bits=6;native.binary=Path('/synthetic/mapac')
                 native.process_lock=threading.Lock();native.processes=set();native.check=lambda:None
                 with patch('hoa_blackbox_lib.native.subprocess.Popen',Process):
                     result=native.capture(packets,folder)

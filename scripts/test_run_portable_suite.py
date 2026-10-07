@@ -17,7 +17,7 @@ class PortableSuiteTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory(prefix='apac-portable-suite-')
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name)
-        self.binary = self.root / 'apac-tool'
+        self.binary = self.root / 'mapac'
         self.binary.touch()
         self.presence = self.root / 'layout_presence'
         self.presence.touch()

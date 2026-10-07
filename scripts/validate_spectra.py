@@ -214,7 +214,7 @@ def real_cases(binary, baseline, report, metrics):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--binary',type=Path,default=Path('target/debug/apac-tool'))
+    p.add_argument('--binary',type=Path,default=Path('target/debug/mapac'))
     p.add_argument('--output',type=Path,required=True)
     p.add_argument('--native',action='store_true',help='Also compare Apple pre-tool snapshots and real/control windows (macOS arm64).')
     p.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))

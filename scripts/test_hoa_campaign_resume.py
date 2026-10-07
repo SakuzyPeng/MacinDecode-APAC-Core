@@ -21,7 +21,7 @@ def campaign_config(root):
     create_pool(root, totals)
     config = dict(schema_version=1, plan=campaign.make_plan([4]), code_commit='synthetic',
                   tool_fingerprint=tool_fingerprint(), native_identity=FakeBackend.identity,
-                  binary='/synthetic/apac-tool', evidence_device=root.stat().st_dev,
+                  binary='/synthetic/mapac', evidence_device=root.stat().st_dev,
                   limits=limits, total_limits=totals, jobs=1, status='interrupted',
                   orders={'4': dict(status='running', application='pending')})
     campaign.save(root, config)

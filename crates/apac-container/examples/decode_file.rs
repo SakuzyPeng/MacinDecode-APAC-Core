@@ -7,7 +7,7 @@
 //!
 //! `--start` and `--frames` select valid-audio frames (priming excluded);
 //! `--fast` scans the prefix with state-only access. The output file must not
-//! exist yet. The PCM equals what `apac-tool decode-sq` writes for the same
+//! exist yet. The PCM equals what `mapac decode-sq` writes for the same
 //! range.
 use apac_container::{Access, CafReader, Error, Mp4Reader, PacketSource, ReadError, Reader};
 use std::{

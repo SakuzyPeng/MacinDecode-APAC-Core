@@ -94,7 +94,7 @@ class MathematicalTests(unittest.TestCase):
 
 class AcceptanceGateTests(unittest.TestCase):
     def test_missing_binary_is_a_failure(self):
-        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'APAC_TOOL_BINARY':str(Path(tmp)/'missing')}):
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {'MAPAC_BINARY':str(Path(tmp)/'missing')}):
             with self.assertRaises(FileNotFoundError):
                 required_binary()
 

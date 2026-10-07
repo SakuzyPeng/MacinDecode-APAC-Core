@@ -4,11 +4,11 @@
 
 ## 运行与阶段
 
-需要 macOS、已有的 `apac-tool` 和已挂载的证据卷。继续使用项目的共享构建目录，无需额外构建。以下路径均由调用者提供：
+需要 macOS、已有的 `mapac` 和已挂载的证据卷。继续使用项目的共享构建目录，无需额外构建。以下路径均由调用者提供：
 
 ```sh
 python3 -B scripts/hoa_mean_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --volume /path/to/evidence-volume \
   --out /path/to/evidence-volume/hoa-spatial-means-v1
 
@@ -45,7 +45,7 @@ python3 -B scripts/hoa_mean_blackbox.py compare \
 
 ```sh
 python3 -B scripts/hoa_mean_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --volume /path/to/evidence-volume \
   --out /path/to/evidence-volume/hoa-spatial-means-v2 \
   --import-evidence /path/to/evidence-volume/hoa-spatial-means-v1

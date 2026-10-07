@@ -7,13 +7,13 @@
 ## 音频文件输出：`decode-sq INPUT -o FILE`
 
 ```sh
-apac-tool decode-sq input.m4a -o output.wav
-apac-tool decode-sq spatial.caf -o output.caf
-apac-tool decode-sq input.m4a -o output.wav --format rf64
-apac-tool decode-sq input.m4a -o window.wav --start-frame 480000 --frames 48000 --access fast
+mapac decode-sq input.m4a -o output.wav
+mapac decode-sq spatial.caf -o output.caf
+mapac decode-sq input.m4a -o output.wav --format rf64
+mapac decode-sq input.m4a -o window.wav --start-frame 480000 --frames 48000 --access fast
 ```
 
-Windows PowerShell 使用 `.\apac-tool.exe`；macOS／Linux 在程序目录使用 `./apac-tool`。`-o` 是 `--output` 的缩写，与研究目录参数 `--out` 互斥，必须选择其中一个。未提供 `--format` 时，按扩展名（不区分大小写）推断：`.wav`／`.wave` 为 WAV，`.rf64` 为 RF64，`.caf` 为 CAF。`--format wav|rf64|caf` 优先于扩展名；未知扩展名且未显式指定格式时报错。
+Windows PowerShell 使用 `.\mapac.exe`；macOS／Linux 在程序目录使用 `./mapac`。`-o` 是 `--output` 的缩写，与研究目录参数 `--out` 互斥，必须选择其中一个。未提供 `--format` 时，按扩展名（不区分大小写）推断：`.wav`／`.wave` 为 WAV，`.rf64` 为 RF64，`.caf` 为 CAF。`--format wav|rf64|caf` 优先于扩展名；未知扩展名且未显式指定格式时报错。
 
 所有文件均保存交错、小端 **Float32 PCM**，保持采样率与样本精度，不重采样、不下混、不施加 DRC／响度处理。
 
@@ -23,7 +23,7 @@ Windows PowerShell 使用 `.\apac-tool.exe`；macOS／Linux 在程序目录使�
 | RF64 | 与 WAV 相同的格式和布局；使用 `ds64` 保存 64 位大小与帧数。WAV 的 RIFF 长度无法用 32 位表示时自动升级，也可显式强制使用 |
 | CAF | `lpcm`、Float32、小端，保存 `desc`、`chan`、`data`；保留原布局标签、bitmap、描述项及通道顺序，支持 9.1.6、22.2、零至三阶 HOA 和已支持的组合流 |
 
-WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L R C LFE Ls Rs Rls Rrs ...` 转为 `L R C LFE Rls Rrs Ls Rs ...`，只复制样本位模式。不能准确映射的布局在创建输出前拒绝，并提示 `apac-tool decode-sq INPUT -o output.caf`；不改成匿名通道。CAF 保留解码器的通道顺序和已有布局描述，HOA 不会被解释为扬声器布局。
+WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L R C LFE Ls Rs Rls Rrs ...` 转为 `L R C LFE Rls Rrs Ls Rs ...`，只复制样本位模式。不能准确映射的布局在创建输出前拒绝，并提示 `mapac decode-sq INPUT -o output.caf`；不改成匿名通道。CAF 保留解码器的通道顺序和已有布局描述，HOA 不会被解释为扬声器布局。
 
 文件输出默认不限总大小，使用固定上限的块缓冲，不先生成中间裸 PCM。`--max-output-mib` 可设置包含头部在内的整文件限额。目标文件必须尚不存在；先在同目录临时文件中写入，完成全部输入核验、帧数校验和 flush／sync 后无覆盖提交，失败清理临时文件。已有文件、目录或符号链接均不覆盖。
 
@@ -36,9 +36,9 @@ WAV 按其标准 speaker mask 的位顺序写入。7.1 和 7.1.4 的源顺序 `L
 CAF 缺少 `chan` 布局块时，默认已经采用 APAC cookie 的布局；存在但冲突时，默认仍拒绝。确认容器标签有误后，可显式要求：
 
 ```sh
-apac-tool decode-sq input.caf -o output.caf --input-layout 9.1.6
-apac-tool decode-sq input.caf --out decoded --input-layout 7.1
-apac-tool decode-sq hoa.caf -o hoa-output.caf --input-layout hoa3
+mapac decode-sq input.caf -o output.caf --input-layout 9.1.6
+mapac decode-sq input.caf --out decoded --input-layout 7.1
+mapac decode-sq hoa.caf -o hoa-output.caf --input-layout hoa3
 ```
 
 可用名称为 `mono`、`stereo`、`5.1`、`7.1`、`7.1.4`、`9.1.6`、`22.2`、`hoa0` 至 `hoa3`；HOA 默认为 ACN/SN3D，`hoa3-n3d` 等后缀表示 ACN/N3D。兼容 `surround51`、`surround71`、`surround714`、`surround916`、`surround222` 别名。
@@ -52,12 +52,12 @@ apac-tool decode-sq hoa.caf -o hoa-output.caf --input-layout hoa3
 从自包含包目录或 [bitstream.md](bitstream.md) 所列布局及限定 HOA 的 CAF／MP4／M4A 原文件输出独立 PCM：
 
 ```sh
-target/debug/apac-tool decode-sq /path/to/input.caf --out artifacts/demo/caf-pcm
+target/debug/mapac decode-sq /path/to/input.caf --out artifacts/demo/caf-pcm
 # CAF 范围解码从第 0 包预热；起点越靠后，需要处理的前置包越多
-target/debug/apac-tool decode-sq /path/to/input.caf --out artifacts/demo/caf-window --start-frame 480000 --frames 8192
-target/debug/apac-tool decode-sq artifacts/demo/independent-sq-packets --out artifacts/demo/rust-pcm
+target/debug/mapac decode-sq /path/to/input.caf --out artifacts/demo/caf-window --start-frame 480000 --frames 8192
+target/debug/mapac decode-sq artifacts/demo/independent-sq-packets --out artifacts/demo/rust-pcm
 # 有效音频坐标，适用于包含已验证前置依赖的包目录
-target/debug/apac-tool decode-sq artifacts/demo/replay-packets --out artifacts/demo/window-pcm --frames 8192
+target/debug/mapac decode-sq artifacts/demo/replay-packets --out artifacts/demo/window-pcm --frames 8192
 ```
 
 一个可重建的独立声道头人工包目录可这样生成（目的目录须不存在）：
@@ -94,11 +94,11 @@ CAF 读取器不缓存完整包表或整文件，cookie 上限 8 MiB、单包上
 ```sh
 # 人工容器、PCM 数学与逐位验收：无需苹果文件或研究目录
 python3 -B scripts/generate_caf_manifest.py --check
-python3 -B scripts/validate_caf.py --binary target/debug/apac-tool --report reports/caf-math.json
-python3 -B scripts/validate_caf.py --binary target/release/apac-tool \
+python3 -B scripts/validate_caf.py --binary target/debug/mapac --report reports/caf-math.json
+python3 -B scripts/validate_caf.py --binary target/release/mapac \
   --reference-report reports/caf-math.json --report reports/caf-release.json
 # macOS AudioFile 容器证据；显式指定受支持的真实 CAF
-python3 -B scripts/validate_caf_native.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_caf_native.py --binary target/debug/mapac \
   --caf /path/to/input.caf --report reports/caf-native.json
 ```
 
@@ -109,13 +109,13 @@ python3 -B scripts/validate_caf_native.py --binary target/debug/apac-tool \
 支持非分片、自包含、唯一音轨且唯一 `apac` 样本描述的 ISO BMFF 文件。按内容识别，扩展名不参与判断；保持上述离散布局、限定 HOA、采样率和 SQ 配置限制。
 
 ```sh
-apac-tool decode-sq input.m4a --out artifacts/mp4-pcm --start-frame 48000 --frames 8192
+mapac decode-sq input.m4a --out artifacts/mp4-pcm --start-frame 48000 --frames 8192
 python3 -B scripts/generate_mp4_manifest.py --check
-python3 -B scripts/validate_mp4.py --binary target/debug/apac-tool --report reports/mp4-math.json
-python3 -B scripts/validate_mp4.py --binary target/release/apac-tool \
+python3 -B scripts/validate_mp4.py --binary target/debug/mapac --report reports/mp4-math.json
+python3 -B scripts/validate_mp4.py --binary target/release/mapac \
   --reference-report reports/mp4-math.json --report reports/mp4-release.json
 # macOS：显式提供既有配置集合和第十阶段 B 的合格真实窗口报告
-python3 -B scripts/validate_mp4_native.py --binary target/release/apac-tool \
+python3 -B scripts/validate_mp4_native.py --binary target/release/mapac \
   --collection artifacts/config-collection/index.json \
   --channel-reference reports/channels-native-qualified.json --report reports/mp4-native.json
 ```
@@ -135,19 +135,19 @@ MP4 默认顺序模式也从第 0 包预热，不设 4096 包依赖搜索上限�
 受支持的离散声道、单 HOA 和 HOA 组合流 CAF／MP4 文件均可显式选择 `--access fast`；默认及原库入口仍使用顺序模式：
 
 ```sh
-apac-tool decode-sq input.m4a --out artifacts/fast-window \
+mapac decode-sq input.m4a --out artifacts/fast-window \
   --start-frame 480000 --frames 8192 --access fast
 # 显式顺序模式同时输出访问计数和计时，方便同输入对照
-apac-tool decode-sq input.caf --out artifacts/sequential-window \
+mapac decode-sq input.caf --out artifacts/sequential-window \
   --start-frame 480000 --frames 8192 --access sequential
 python3 -B scripts/generate_access_manifest.py --check
-python3 -B scripts/validate_access.py --binary target/debug/apac-tool --report reports/access-math.json
-python3 -B scripts/validate_access.py --binary target/release/apac-tool \
+python3 -B scripts/validate_access.py --binary target/debug/mapac --report reports/access-math.json
+python3 -B scripts/validate_access.py --binary target/release/mapac \
   --reference-report reports/access-math.json --report reports/access-release.json
-python3 -B scripts/benchmark_access.py --binary target/release/apac-tool --report reports/access-performance.json
+python3 -B scripts/benchmark_access.py --binary target/release/mapac --report reports/access-performance.json
 # HOA 与组合流：独立输入、范围／状态对照，以及配对性能测试
-python3 -B scripts/validate_hoa_access.py --binary target/debug/apac-tool --report reports/hoa-access.json
-python3 -B scripts/benchmark_hoa_access.py --binary target/release/apac-tool --report reports/hoa-access-performance.json
+python3 -B scripts/validate_hoa_access.py --binary target/debug/mapac --report reports/hoa-access.json
+python3 -B scripts/benchmark_hoa_access.py --binary target/release/mapac --report reports/hoa-access-performance.json
 ```
 
 快速模式仍完整读取、核验文件，前缀按码流顺序解析内嵌帧及所有核心，推进空间描述、动态映射、帧内配置、场景图和 DRC 历史。HOA 载波始终完成反量化、CAC／TNS／BWE2、空间恢复、源转换及数值校验，包含最终不输出的组件；扫描省去详细字段／诊断报告和 PCM 合成。离散声道仍沿用原规则：没有有效 TNS／BWE2 运算时使用已证明的有限值界，否则执行相同数值内核。该模式不引入持久索引，不解释 MP4 分组来绕过历史校验，读取成本仍随文件大小增长。
@@ -188,7 +188,7 @@ let (file, result) = writer.finish()?;
 
 计划类型在 I/O 前核验布局与长度，并确定是否使用 RF64。写入器只要求 `Write`，不要求 seek；接收源顺序的完整帧，拒绝非有限值和超额帧数。`finish()` 校验精确帧数和字节数并 flush，返回 sink 与 `PcmWriteResult`（实际计划、PCM 摘要及整文件摘要）。任一写入错误后不能再成功完成。直接使用库写入器时，目标文件的创建、回滚和持久化由调用方负责；CLI 的临时文件提交策略在研究层实现。
 
-使用 CAC 的流需要 `apac-core` 的 `cac` feature（`apac-tool` 默认开启）；没有它时，`Decoder` 遇到非零 CAC 增益的帧返回 `cac-unavailable` 错误，状态不提交。
+使用 CAC 的流需要 `apac-core` 的 `cac` feature（`mapac` 默认开启）；没有它时，`Decoder` 遇到非零 CAC 增益的帧返回 `cac-unavailable` 错误，状态不提交。
 
 `apac_core::Decoder` 是单包解码接口：`Decoder::new(&Config)`（或 `from_cookie`）按配置选择立体声、单 ASC 多声道、HOA 或组合流路径，不支持时返回带原因的错误；`info()` 给出采样率、声道数、每包 1024 帧、路径类型和布局；`decode(packet, &mut out)` 把 `1024 × channel_count` 个交错 Float32 样本写入调用方缓冲（不足时报错且不改状态），返回该包的统计 `FrameInfo`；`decode_vec` 返回新分配的样本；`advance(packet)` 只推进状态（快速定位用，之后须先完整解码前一包再导出 PCM）；`checkpoint()` 和 `restore(&checkpoint)` 保存、恢复两包之间的状态（见[播放](#播放media-与-playback)）；`reset()` 回到初始状态。内嵌帧、当前帧、尾部和全部声道合成都成功后才提交状态，失败及重置不会留下半个包的状态。解码路径不记录语法字段；backend、support_scope 等报告标识由 `apac_research::implementation` 根据所选路径给出。文件级入口为 `apac_research::decode::decode_sq` 和 `apac_research::decode::decode_sq_with_options`，后者接受 `(input, destination, SqDecodeOptions { start_frame, frames }, limit)`。这两个文件级入口均接受包目录、CAF 或受限 MP4／M4A 文件。直接使用单包接口时，调用者负责顺序与外部依赖，包目录入口会验证这些条件。
 
@@ -298,11 +298,11 @@ cargo run --release -p apac-container --example realtime -- bench-streams/*.caf 
 ```sh
 # 冻结的 2,268 个状态序列；正式测试不依赖研究目录或苹果文件
 python3 -B scripts/generate_packet_manifest.py --check
-python3 -B scripts/validate_packets.py --binary target/debug/apac-tool --output reports/packet-math.json
-python3 -B scripts/validate_packets.py --binary target/release/apac-tool \
+python3 -B scripts/validate_packets.py --binary target/debug/mapac --output reports/packet-math.json
+python3 -B scripts/validate_packets.py --binary target/release/mapac \
   --reference-report reports/packet-math.json --output reports/packet-release.json
 # 可选 macOS 原生状态／边界诊断，组件必须匹配已核实的哈希
-python3 -B scripts/validate_packet_native.py --binary target/debug/apac-tool --output reports/packet-native.json
+python3 -B scripts/validate_packet_native.py --binary target/debug/mapac --output reports/packet-native.json
 ```
 
 状态参考由人工生成器声明的窗口、频谱与内嵌事件驱动，用 Decimal 直接 IMDCT 求和计算 PCM。验收保留 `atol=1e-6, rtol=1e-5`，跨构建另对所有阶段及 PCM 的小端字节摘要逐位比较。原生诊断区分输入频谱差异、状态／边界证据及完整 PCM 差异；既有 TNS／BWE2 原生压力差异不会被当作新的状态真值。无 DRC 及固定关闭策略的 DRC 编码控制样本完整 PCM 仍按上述容差比较，超差指标与输入保留。`validate_packet_native.py` 和 `validate_drc_native.py` 默认将它单列为兼容性诊断；显式加 `--require-native-pcm` 时，结构通过但 PCM 超差退出 2。独立数学判断仍由便携验证器完成。

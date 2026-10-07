@@ -115,7 +115,7 @@ class Scheduling(unittest.TestCase):
     def test_commands_reuse_outputs_and_share_native_budget(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);exp=Experiment.__new__(Experiment)
-            exp.out=root;exp.evidence=root/'evidence';exp.evidence.mkdir();exp.binary=Path('/synthetic/apac-tool')
+            exp.out=root;exp.evidence=root/'evidence';exp.evidence.mkdir();exp.binary=Path('/synthetic/mapac')
             exp.identity={'fake':True};exp.check=lambda:None
             exp.config=dict(max_native_calls=2,max_evidence_bytes=32*1024**2,timeout_seconds=30)
             exp.db=sqlite3.connect(':memory:')

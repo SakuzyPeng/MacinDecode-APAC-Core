@@ -15,9 +15,9 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
-    'x86_64-unknown-linux-gnu': ('apac-tool', '.tar.gz'),
-    'x86_64-pc-windows-msvc': ('apac-tool.exe', '.zip'),
-    'aarch64-apple-darwin': ('apac-tool', '.tar.gz'),
+    'x86_64-unknown-linux-gnu': ('mapac', '.tar.gz'),
+    'x86_64-pc-windows-msvc': ('mapac.exe', '.zip'),
+    'aarch64-apple-darwin': ('mapac', '.tar.gz'),
 }
 
 
@@ -26,7 +26,7 @@ def validate_release_tag(release_tag, binary_version, root):
         raise ValueError('release tag must be vMAJOR.MINOR.PATCH with an optional prerelease suffix')
     with (root/'Cargo.toml').open('rb') as source:
         version = tomllib.load(source)['workspace']['package']['version']
-    if release_tag != 'v' + version or binary_version != 'apac-tool ' + version:
+    if release_tag != 'v' + version or binary_version != 'mapac ' + version:
         raise ValueError('release tag, workspace version and executable version must match')
     if not (root/'guide'/'releases'/(release_tag + '.md')).is_file():
         raise FileNotFoundError('release notes are missing for ' + release_tag)
@@ -43,8 +43,8 @@ def create_package(binary, target, out, commit, *, binary_version, rust_version,
     root, out = Path(root), Path(out)
     if release_tag is not None:
         validate_release_tag(release_tag, binary_version, root)
-    name = (f'apac-tool-{release_tag}-{target}' if release_tag is not None
-            else f'apac-tool-{target}-{commit[:12]}')
+    name = (f'mapac-{release_tag}-{target}' if release_tag is not None
+            else f'mapac-{target}-{commit[:12]}')
     archive = out/(name + extension)
     checksum = out/(archive.name + '.sha256')
     if archive.exists() or checksum.exists():
@@ -96,7 +96,7 @@ def main():
     parser.add_argument('--commit', required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--release-tag', help='versioned release name, e.g. v0.1.0; must match Cargo.toml and --version')
-    parser.add_argument('--binary', type=Path, help='default: target/TARGET/release/apac-tool[.exe]')
+    parser.add_argument('--binary', type=Path, help='default: target/TARGET/release/mapac[.exe]')
     args = parser.parse_args()
     executable = TARGETS[args.target][0]
     binary = (args.binary or ROOT/'target'/args.target/'release'/executable).resolve()

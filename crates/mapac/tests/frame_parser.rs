@@ -411,7 +411,7 @@ mod bundles {
             "--packets",
             "9",
         ];
-        let result = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        let result = Command::new(env!("CARGO_BIN_EXE_mapac"))
             .args(args)
             .output()
             .unwrap();
@@ -428,7 +428,7 @@ mod bundles {
         assert!(!t.0.join("prefix.jsonl.incomplete").exists());
         let contents = fs::read(&out).unwrap();
         assert_eq!(
-            Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+            Command::new(env!("CARGO_BIN_EXE_mapac"))
                 .args(args)
                 .output()
                 .unwrap()
@@ -491,7 +491,7 @@ mod bundles {
         let input = t.0.join("packets");
         build(&input, &[&[0x60, 0, 0xa5], &[0x60], &[0x40, 0xff]]);
         let out = t.0.join("prefix.jsonl");
-        let result = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        let result = Command::new(env!("CARGO_BIN_EXE_mapac"))
             .args([
                 "parse-packets",
                 input.to_str().unwrap(),
@@ -892,7 +892,7 @@ mod cac_tests {
     #[test]
     fn without_the_cac_feature_only_zero_gains_decode() {
         // Workspace dev-dependencies can enable core's feature independently
-        // of apac-tool's. The package-only no-default-features run tests absence.
+        // of mapac's. The package-only no-default-features run tests absence.
         if apac_core::CAC_ENABLED {
             return;
         }

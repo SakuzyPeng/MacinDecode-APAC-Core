@@ -8,7 +8,7 @@
 
 Rust 处理命令行、数据模型、哈希、生成器和比较器；`native/audio_toolbox.c` 通过 SDK 头文件封装 `AudioFile`、`ExtAudioFile` 和 `AudioConverter`。原生资源由 Rust 所有权封装释放，编码结束时显式检查刷新与文件关闭错误。实现不需要 Xcode workspace 的运行目标，也不依赖 Xcode MCP 授权。
 
-当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。CAC 逆混合在独立的 `apac-cac` crate 中；不含它的构建（`apac-tool --no-default-features`，或不开 `cac` feature 的 `apac-core`）只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放（音频输出）不在当前交付范围；播放器所需的快速打开和按帧 seek 由 `apac_container::Playback` 提供（见 [decoding.md](decoding.md#播放media-与-playback)）。
+当前工具提供 SQ、CAC、TNS、BWE2、HOA 恢复及码流自带的源声道还原，包含共享配置、多 ASC、必要元数据语法和 CAF／MP4 快速范围解码。独立数学与跨平台验收保持实验标识；帧内 trimming 只记录声明，原始块仍输出 1024 帧。CAC 逆混合在独立的 `apac-cac` crate 中；不含它的构建（`mapac --no-default-features`，或不开 `cac` feature 的 `apac-core`）只解码 CAC 增益全为 0 的帧，其余以 `cac-unavailable` 明确拒绝。LRVQ、开启 DRC／响度／EQ 音频处理、外层 ASP 重配置、外部空间渲染和实时播放（音频输出）不在当前交付范围；播放器所需的快速打开和按帧 seek 由 `apac_container::Playback` 提供（见 [decoding.md](decoding.md#播放media-与-playback)）。
 
 离散扬声器布局包括 Mono、Stereo、5.1、7.1、7.1.4、9.1.6 和 22.2。单 channel ASC 的 9.1.6 要求 profile 31、level 4、family 193、固定 9 个编码元素及 44.1／48 kHz；相同声道数的其他布局仍明确拒绝。它直接输出码流声明的 16 个扬声器声道，解码后不进行空间渲染。布局、声道顺序与验收入口见 [bitstream.md](bitstream.md#受限离散声道深度-channels)。
 
@@ -57,7 +57,7 @@ CAF 外部布局标签可通过显式 `--input-layout` 纠错，但指定布局�
 python3 scripts/hoa_shared_vectors.py --check
 python3 scripts/generate_hoa_shared_config_format.py --check
 python3 scripts/generate_hoa_shared_drc_format.py --check
-python3 scripts/validate_hoa_shared.py --binary target/debug/apac-tool --report reports/shared-check.json
+python3 scripts/validate_hoa_shared.py --binary target/debug/mapac --report reports/shared-check.json
 ```
 
 当前共享矩阵覆盖 282 组采样率、工具、空间恢复、组合路由、DRC、被动元数据和中性场景序列；冻结验收及参考差异在独立文档仓库记录。

@@ -1,8 +1,8 @@
 # BWE2 公开接口测量
 
-`scripts/bwe2_blackbox.py` 通过现有 `apac-tool replay --processing-policy drc-off` 测量 BWE2。工具使用受控的 AAC 频谱输入、公开 PCM 和属性回读，恢复 64 项激励增益候选，并检查两级 LSF 码本的可识别性。它不会应用正式数据、提交或推送。
+`scripts/bwe2_blackbox.py` 通过现有 `mapac replay --processing-policy drc-off` 测量 BWE2。工具使用受控的 AAC 频谱输入、公开 PCM 和属性回读，恢复 64 项激励增益候选，并检查两级 LSF 码本的可识别性。它不会应用正式数据、提交或推送。
 
-采集需要 macOS、已构建的 `apac-tool`、Python 和 NumPy。NumPy 只用于离线数学分析，不增加 Rust 构建或产品运行依赖。输入生成器只加载公开来源的 AAC 表；重建进程拒绝打开原 BWE2 字典及其参考提取器。
+采集需要 macOS、已构建的 `mapac`、Python 和 NumPy。NumPy 只用于离线数学分析，不增加 Rust 构建或产品运行依赖。输入生成器只加载公开来源的 AAC 表；重建进程拒绝打开原 BWE2 字典及其参考提取器。
 
 ## 采集与恢复
 
@@ -10,29 +10,29 @@
 
 ```sh
 python3 -B scripts/bwe2_blackbox.py pilot \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new \
   --mount /Volumes/cache \
   --evidence /Volumes/cache/apac-evidence/bwe2-blackbox-new
 
 python3 -B scripts/bwe2_blackbox.py gains \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new --seeds 8
 
 python3 -B scripts/bwe2_blackbox.py anchors \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new --seeds 64
 
 python3 -B scripts/bwe2_blackbox.py refine-gains \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new --seeds 64
 
 python3 -B scripts/bwe2_blackbox.py freeze \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new
 
 python3 -B scripts/bwe2_blackbox.py validate \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new
 ```
 
@@ -48,11 +48,11 @@ LSF 独立重建目前按项目优先级暂缓为 TODO，原 LSF 数据和来源
 
 ```sh
 python3 -B scripts/bwe2_blackbox.py lsf-probe \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new
 
 python3 -B scripts/bwe2_blackbox.py lsf-result \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new
 ```
 
@@ -96,7 +96,7 @@ python3 -B scripts/generate_bwe2_gains_measured.py --check \
 python3 -B scripts/bwe2_blackbox.py status --out reports/bwe2-blackbox-new
 
 python3 -B scripts/bwe2_blackbox.py audit \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-blackbox-new
 
 PYTHONPATH=scripts python3 -B -m unittest test_bwe2_blackbox -v
@@ -116,7 +116,7 @@ SQLite、冻结 JSON、工具快照和分析失败日志保存在本地 `--out`�
 
 ```sh
 python3 -B scripts/bwe2_lsf_probe.py refine \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --observations reports/bwe2-blackbox-first \
   --out reports/bwe2-lsf-followup-new \
   --mount /Volumes/cache \
@@ -124,7 +124,7 @@ python3 -B scripts/bwe2_lsf_probe.py refine \
 
 # 后续阶段使用相同的 binary、observations 和 out，无需再次提供 mount/evidence。
 python3 -B scripts/bwe2_lsf_probe.py encoder \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --observations reports/bwe2-blackbox-first \
   --out reports/bwe2-lsf-followup-new --cases 12
 ```
@@ -149,12 +149,12 @@ PYTHONPATH=scripts python3 -B -m unittest test_bwe2_lsf_probe test_bwe2_blackbox
 
 ```sh
 python3 -B scripts/bwe2_single_spectrum.py controls --wide \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-single-new --mount /Volumes/cache \
   --evidence /Volumes/cache/apac-evidence/bwe2-single-new
 
 python3 -B scripts/bwe2_single_spectrum.py measure --wide \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-single-new --pair 0 0 \
   --controls /path/to/single-controls-HASH.json \
   --profile /path/to/pcm-derived-lpc-estimate.json
@@ -164,7 +164,7 @@ python3 -B scripts/bwe2_public_lpc.py \
   --out reports/bwe2-single-new/lpc-models
 
 python3 -B scripts/bwe2_single_spectrum.py validate-model --wide \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/bwe2-single-new --model /path/to/frozen-lpc-model.json \
   --source-gain 132 --seed 20261007 --replicate heldout-1
 ```

@@ -4,17 +4,17 @@ from pathlib import Path
 
 
 def default_binary():
-    override = os.environ.get('APAC_TOOL_BINARY')
+    override = os.environ.get('MAPAC_BINARY')
     if override:
         return Path(override).resolve()
-    name = 'apac-tool.exe' if os.name == 'nt' else 'apac-tool'
+    name = 'mapac.exe' if os.name == 'nt' else 'mapac'
     return Path(__file__).resolve().parents[1] / 'target/debug' / name
 
 
 def required_binary():
     binary = default_binary()
     if not binary.is_file():
-        raise FileNotFoundError('build apac-tool or set APAC_TOOL_BINARY: ' + str(binary))
+        raise FileNotFoundError('build mapac or set MAPAC_BINARY: ' + str(binary))
     return binary
 
 

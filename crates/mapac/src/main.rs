@@ -12,7 +12,7 @@ use std::{io::Write, path::PathBuf};
 
 #[derive(Parser)]
 #[command(
-    name = "apac-tool",
+    name = "mapac",
     version,
     about = "Decode and inspect Apple Positional Audio Codec (APAC) streams; native reference commands require macOS"
 )]

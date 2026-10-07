@@ -8,7 +8,7 @@ from caf_vectors import encode
 class SourceLayoutTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.binary=Path(os.environ.get('APAC_TOOL_BINARY',vectors.ROOT/'target/debug/apac-tool')).resolve()
+        cls.binary=Path(os.environ.get('MAPAC_BINARY',vectors.ROOT/'target/debug/mapac')).resolve()
 
     def command(self,*args,code=0):
         r=subprocess.run([str(self.binary),*map(str,args)],capture_output=True,text=True)

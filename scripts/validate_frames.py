@@ -197,7 +197,7 @@ def control_specs():
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=Path("target/debug/apac-tool"))
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/mapac"))
     parser.add_argument("--replay-baseline", type=Path, default=Path("reports/replay-validation-a76d2f4.json"))
     parser.add_argument("--output", type=Path, default=Path("reports/frame-validation.json"))
     args = parser.parse_args()

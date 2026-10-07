@@ -77,13 +77,13 @@ jobs:
         run: python -B -m unittest discover -s scripts -p 'test_package_release.py' -v
 
       - name: Build release executable
-        run: cargo build --locked --release --package apac-tool --target "$BUILD_TARGET"
+        run: cargo build --locked --release --package mapac --target "$BUILD_TARGET"
 
       - name: Test PCM container exports
         run: |
-          binary="target/$BUILD_TARGET/release/apac-tool"
+          binary="target/$BUILD_TARGET/release/mapac"
           if [[ "$RUNNER_OS" == Windows ]]; then binary+=.exe; fi
-          APAC_TOOL_BINARY="$binary" python -B -m unittest discover -s scripts -p 'test_pcm_output.py' -v
+          MAPAC_BINARY="$binary" python -B -m unittest discover -s scripts -p 'test_pcm_output.py' -v
 
       - name: Test workspace
         run: cargo test --locked --release --workspace --target "$BUILD_TARGET" --no-fail-fast
@@ -102,7 +102,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: apac-tool-${{ matrix.target }}
+          name: mapac-${{ matrix.target }}
           path: artifacts/release/*
           if-no-files-found: error
           compression-level: 0
@@ -131,13 +131,13 @@ jobs:
       - name: Download and verify all three platform packages
         shell: bash
         run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir artifacts/release --pattern 'apac-tool-*'
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir artifacts/release --pattern 'mapac-*'
           assets=()
           for target in x86_64-unknown-linux-gnu x86_64-pc-windows-msvc aarch64-apple-darwin; do
             extension=tar.gz
             if [[ "$target" == x86_64-pc-windows-msvc ]]; then extension=zip; fi
-            archive="apac-tool-${RELEASE_TAG}-${target}.${extension}"
-            directory="artifacts/release/apac-tool-${target}"
+            archive="mapac-${RELEASE_TAG}-${target}.${extension}"
+            directory="artifacts/release/mapac-${target}"
             (cd "$directory" && sha256sum --check "$archive.sha256")
             assets+=("$directory/$archive" "$directory/$archive.sha256")
           done
@@ -150,10 +150,10 @@ jobs:
             fi
             gh release upload "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" --title "apac-tool $RELEASE_TAG" \
+              --target "$GITHUB_SHA" --title "mapac $RELEASE_TAG" \
               --notes-file "guide/releases/$RELEASE_TAG.md" "${release_args[@]}"
           else
             gh release create "$RELEASE_TAG" "${assets[@]}" --repo "$GITHUB_REPOSITORY" \
-              --target "$GITHUB_SHA" --draft --title "apac-tool $RELEASE_TAG" \
+              --target "$GITHUB_SHA" --draft --title "mapac $RELEASE_TAG" \
               --notes-file "guide/releases/$RELEASE_TAG.md" "${release_args[@]}"
           fi

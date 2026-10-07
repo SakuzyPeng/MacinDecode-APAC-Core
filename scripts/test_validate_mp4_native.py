@@ -33,7 +33,7 @@ class Mp4NativeTests(unittest.TestCase):
                          patch('validate_mp4_native.verify') as verified, \
                          patch('validate_mp4_native.command') as command:
                         with self.assertRaisesRegex(AssertionError,'media window'):
-                            media(root/'apac-tool',{},collection,prior)
+                            media(root/'mapac',{},collection,prior)
                         hashed.assert_not_called();verified.assert_not_called();command.assert_not_called()
 
     def test_pcm_byte_length_and_any_channel_difference_are_fatal(self):

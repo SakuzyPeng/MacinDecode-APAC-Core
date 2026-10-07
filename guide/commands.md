@@ -1,10 +1,10 @@
 # 命令行参考
 
-`apac-tool` 各子命令的参数、输出文件、报告字段与退出码。`decode-sq`、`parse-cookie`、`parse-packets` 和 `compare` 在所有平台可用，其他命令需要 macOS AudioToolbox。便携解码见 [decoding.md](decoding.md)，逐包解析深度见 [bitstream.md](bitstream.md)。
+`mapac` 各子命令的参数、输出文件、报告字段与退出码。`decode-sq`、`parse-cookie`、`parse-packets` 和 `compare` 在所有平台可用，其他命令需要 macOS AudioToolbox。便携解码见 [decoding.md](decoding.md)，逐包解析深度见 [bitstream.md](bitstream.md)。
 
 返回 [README](../README.md)。
 
-使用下载的 CLI 时，在解压目录的终端中运行 `./apac-tool`；Windows PowerShell 使用 `.\apac-tool.exe`。下文的 `target/debug/apac-tool` 是源码构建路径，使用安装包时替换为对应程序路径即可，PowerShell 中将多行命令写成一行。
+使用下载的 CLI 时，在解压目录的终端中运行 `./mapac`；Windows PowerShell 使用 `.\mapac.exe`。下文的 `target/debug/mapac` 是源码构建路径，使用安装包时替换为对应程序路径即可，PowerShell 中将多行命令写成一行。
 
 常用命令：
 
@@ -29,48 +29,48 @@ APAC_SAMPLE='/path/to/APAC/sample.caf'
 APAC_CORPUS='/path/to/APAC'
 
 # 信息查询：格式、声道布局、配置哈希、有效帧与 priming/padding
-target/debug/apac-tool inspect "$APAC_SAMPLE"
+target/debug/mapac inspect "$APAC_SAMPLE"
 
 # 递归索引，只读元数据；不复制源音频，不全曲解码
-target/debug/apac-tool scan "$APAC_CORPUS" --output artifacts/demo/corpus.jsonl
+target/debug/mapac scan "$APAC_CORPUS" --output artifacts/demo/corpus.jsonl
 
 # 按配置哈希去重采集，校验配置仍与索引一致
-target/debug/apac-tool collect-configs artifacts/demo/corpus.jsonl --out artifacts/demo/configs
+target/debug/mapac collect-configs artifacts/demo/corpus.jsonl --out artifacts/demo/configs
 
 # 从集合的 index.json 选择 cookie_file，替换以下 CONFIG_SHA256
-target/debug/apac-tool parse-cookie 'artifacts/demo/configs/cookies/CONFIG_SHA256.bin'
+target/debug/mapac parse-cookie 'artifacts/demo/configs/cookies/CONFIG_SHA256.bin'
 
 # 默认导出前 150 包；范围可显式调整
-target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets
-target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/packets-75 --start-packet 75 --packets 32
+target/debug/mapac dump "$APAC_SAMPLE" --out artifacts/demo/packets
+target/debug/mapac dump "$APAC_SAMPLE" --out artifacts/demo/packets-75 --start-packet 75 --packets 32
 
 # 包目录回放：补齐前置依赖后，回放过程不访问原始音频
-target/debug/apac-tool dump "$APAC_SAMPLE" --out artifacts/demo/replay-packets --start-packet 75 --packets 32 --with-preroll
-target/debug/apac-tool replay artifacts/demo/replay-packets --out artifacts/demo/replayed --frames 8192
+target/debug/mapac dump "$APAC_SAMPLE" --out artifacts/demo/replay-packets --start-packet 75 --packets 32 --with-preroll
+target/debug/mapac replay artifacts/demo/replay-packets --out artifacts/demo/replayed --frames 8192
 
 # 逐包解析默认双声道 SQ 帧头，报告仍保留未解析的音频载荷
-target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes.jsonl
-target/debug/apac-tool parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes-75.jsonl --start-packet 75 --packets 8
+target/debug/mapac parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes.jsonl
+target/debug/mapac parse-packets artifacts/demo/replay-packets --output artifacts/demo/prefixes-75.jsonl --start-packet 75 --packets 8
 # 继续读取基础 SQ 频谱，输出量化整数和 CAC/TNS 之前的缩放后频谱
-target/debug/apac-tool parse-packets artifacts/demo/replay-packets --depth spectrum --output artifacts/demo/spectra.jsonl
+target/debug/mapac parse-packets artifacts/demo/replay-packets --depth spectrum --output artifacts/demo/spectra.jsonl
 # 继续读取共享头右流与 CAC，输出 TNS 之前的左右频谱
-target/debug/apac-tool parse-packets artifacts/demo/replay-packets --depth cac --output artifacts/demo/cac.jsonl
+target/debug/mapac parse-packets artifacts/demo/replay-packets --depth cac --output artifacts/demo/cac.jsonl
 
 # 默认从有效音频起点解码 8192 帧；帧是所有声道共享的采样时刻
-target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/start
-target/debug/apac-tool decode "$APAC_SAMPLE" --out artifacts/demo/one-second --start-frame 48000 --frames 48000
+target/debug/mapac decode "$APAC_SAMPLE" --out artifacts/demo/start
+target/debug/mapac decode "$APAC_SAMPLE" --out artifacts/demo/one-second --start-frame 48000 --frames 48000
 
 # 默认生成 48 kHz、双声道、两秒的六种测试信号，编码为 APAC 并生成参考 PCM
-target/debug/apac-tool fixture --out artifacts/demo/fixtures
+target/debug/mapac fixture --out artifacts/demo/fixtures
 
 # 多声道或 HOA 的逐声道测试
-target/debug/apac-tool fixture --out artifacts/demo/hoa --layout hoa3 --signals channel-solo
+target/debug/mapac fixture --out artifacts/demo/hoa --layout hoa3 --signals channel-solo
 
 # 显式关闭编码端 DRC，生成短小的配置对照
-target/debug/apac-tool fixture --out artifacts/demo/drc-none --signals sine --duration 0.125 --drc-configuration none
+target/debug/mapac fixture --out artifacts/demo/drc-none --signals sine --duration 0.125 --drc-configuration none
 
 # 比较元数据所指向的 Float32 PCM
-target/debug/apac-tool compare artifacts/demo/start/pcm.json artifacts/demo/start/pcm.json
+target/debug/mapac compare artifacts/demo/start/pcm.json artifacts/demo/start/pcm.json
 ```
 
 `fixture` 的布局选项为 `mono`、`stereo`、`surround51`、`surround71`、`surround714`、`surround916`、`hoa1`、`hoa2`、`hoa3`、`surround222`。`surround916` 是 16 声道的 9.1.6 离散扬声器布局；三个 HOA 预设分别是 4、9、16 通道的一、二、三阶 ACN/SN3D。信号选项为 `silence`、`impulse`、`sine`、`sweep`、`noise`、`channel-solo`，可用逗号组合。还支持 `--sample-rate`、`--duration`、`--seed`、`--bitrate`、`--quality 0..127` 和 `--drc-configuration none|music|speech|movie|capture`。省略 DRC 参数保留系统默认行为；显式设置失败时返回操作名称及原始 `OSStatus`。
@@ -155,7 +155,7 @@ LRVQ 当前保留为 **TODO**：读出 `coding_type=1` 后，以 `lrvq_prefix_de
 原生参考 `replay --processing-policy drc-off` 在载入 cookie 之前显式请求压缩配置 None、DRC mode None 和目标响度 None，随后载入 cookie 并在任何输入之前调用一次公开的 `AudioConverterReset`，保存 `processing-policy.json` 的设置、reset 状态与前后回读。默认 `--processing-policy default` 保持既有原生行为。属性审计中的 `verified` 仅验证公开属性与初始化调用，音频恒等由独立的前后快照验收。完整只读证明可使用：
 
 ```sh
-python3 scripts/validate_drc_off.py --binary target/debug/apac-tool \
+python3 scripts/validate_drc_off.py --binary target/debug/mapac \
   --bundle artifacts/demo/replay-packets --report reports/drc-off-proof.json \
   --artifacts artifacts/drc-off-proof
 ```

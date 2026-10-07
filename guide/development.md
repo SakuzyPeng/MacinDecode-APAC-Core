@@ -10,23 +10,23 @@ workspace 布局、`no_std` 构建、公开 API 分层，以及代码仓库与�
 
 ```sh
 cargo build --offline
-target/debug/apac-tool --help
+target/debug/mapac --help
 ```
 
 当前机器所需依赖已缓存，可以离线构建。新机器首次构建可使用 `cargo build`。项目关闭开发构建的调试符号和增量编译，所有构建产物使用当前目录的 `target/`。
 
 冻结数值原表与工具指纹按文件原始字节校验，`.gitattributes` 将文本检出固定为 LF；Windows 也保持相同字节，避免 `core.autocrlf` 改变已固定的摘要。
 
-代码是一个 Cargo workspace，默认成员是 `apac-tool`，因此在根目录运行的 `cargo build` 只构建命令行工具；测试和检查请加 `--workspace` 或 `-p <crate>`：
+代码是一个 Cargo workspace，默认成员是 `mapac`，因此在根目录运行的 `cargo build` 只构建命令行工具；测试和检查请加 `--workspace` 或 `-p <crate>`：
 
 | crate | 内容 |
 | --- | --- |
 | `crates/apac-core` | cookie 配置、帧解析（SQ、CAC、TNS、BWE2、DRC、HOA、ASP）与独立合成；不调用苹果接口；`no_std` + `alloc`，默认只依赖 sha2 与 libm |
-| `crates/apac-cac` | CAC 逆混合（`rotate`）和 `apac-cac-math-v1` 旋转表；`no_std`，无运行时依赖。`apac-core` 的 `cac` feature 接入它，`apac-tool` 默认开启，`apac-research` 转发同名 feature |
+| `crates/apac-cac` | CAC 逆混合（`rotate`）和 `apac-cac-math-v1` 旋转表；`no_std`，无运行时依赖。`apac-core` 的 `cac` feature 接入它，`mapac` 默认开启，`apac-research` 转发同名 feature |
 | `crates/apac-container` | WAV／RF64／CAF 的流式 Float32 PCM 写出，以及 CAF／MP4 读取：对任意 `Read + Seek` 来源校验结构，输出类型化的轨道信息和逐包数据；打开时完整读一遍，之后每一遍读到末尾都与首遍核对。播放用的 `Media` 只读元数据、按游标读包、不核验完整性，`Playback` 在它之上用解码器检查点做按帧 seek，`Indexer` 在另一线程上为它建索引 |
 | `crates/apac-research` | `parse-cookie` 报告组装、`parse-packets`／`decode-sq` 报告驱动、输入报告组装、包目录、导出限额、PCM 比较和测试信号 |
 | `crates/apac-native` | macOS AudioToolbox 参考工具（`collect`、`replay`、`fixture`、`dump`、`decode` 等），其他系统上为空 |
-| `crates/apac-tool` | `apac-tool` 命令行及调用它的集成测试 |
+| `crates/mapac` | `mapac` 命令行及调用它的集成测试 |
 | `crates/apac-no-std-example` | 示例：在 `no_std` + `alloc` 库中用 `apac-core` 把包解码到调用方缓冲；不发布 |
 
 `apac-core` 的报告与状态类型只在 `serde` feature 下派生 `Serialize`（`apac-research` 开启它；结构化字段值经 serde_json 渲染以保持键排序）。`apac_core::config::Config::parse` 只做类型化解析，不记录字段；`parse_recorded` 另外返回字段记录，`parse-cookie` 输出的报告由 `apac_research::config::parse_cookie` 组装。
@@ -66,9 +66,9 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 - 开启时，行为与数值和拆分前逐位相同；`cac_tables_sha256` 等报告标识不变。
 - 不开启时，增益全为 0 的帧不需要逆混合，照常解码；完整解码和状态扫描都在共用语法入口检查，第一个非零增益游程以 `cac-unavailable` 拒绝，位偏移指向该游程。`decode-sq` 的顺序和快速模式因此均返回退出码 1。
-- `apac-tool` 默认开启；`--no-default-features` 构建不含 `apac-cac` 的工具。workspace 的单元测试、`apac-research`、`apac-container` 和 `apac-no-std-example` 的测试通过 dev-dependency 开启它。
+- `mapac` 默认开启；`--no-default-features` 构建不含 `apac-cac` 的工具。workspace 的单元测试、`apac-research`、`apac-container` 和 `apac-no-std-example` 的测试通过 dev-dependency 开启它。
 - `apac_core::CAC_ENABLED` 查询的是 core 构建的实际能力，而非调用方 crate 的同名 feature。集成测试按这个值选择 CAC 用例，因此兼容 workspace 中 dev-dependency 的 feature 合并。
-- 不含 CAC 的路径由 `apac-core` 的单元测试和单独运行的 `cargo +1.98.0 test -p apac-tool --no-default-features --test frame_parser` 覆盖；后者验证完整解码、状态扫描的错误一致性和失败恢复，不运行需要 CAC 运算的检查。`--workspace --no-default-features` 仍会被其他 crate 的 dev-dependency 开启 core 的 CAC，不能代替这项分包验收。
+- 不含 CAC 的路径由 `apac-core` 的单元测试和单独运行的 `cargo +1.98.0 test -p mapac --no-default-features --test frame_parser` 覆盖；后者验证完整解码、状态扫描的错误一致性和失败恢复，不运行需要 CAC 运算的检查。`--workspace --no-default-features` 仍会被其他 crate 的 dev-dependency 开启 core 的 CAC，不能代替这项分包验收。
 
 `native/audio_toolbox.c`、`data/` 和 `scripts/` 仍在仓库根目录。在非 macOS 主机上可以用 `APAC_NATIVE_RUST_CHECK=1 cargo check --workspace --target aarch64-apple-darwin` 对原生 crate 的 Rust 部分做类型检查；该开关跳过 C 编译，不能代替 macOS 上的构建与运行。
 
@@ -84,9 +84,9 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 macOS 不构建 Intel 或 Universal 版本，任务会核验 runner 的实际架构。Windows 静态链接 CRT；Linux 在 glibc 2.35 环境构建，建议使用 Ubuntu 22.04 或更新的兼容系统。macOS 包包含 AudioToolbox 参考命令，Windows／Linux 提供纯 Rust 命令。
 
-正式 CLI 版本从 [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 下载，文件名为 `apac-tool-vVERSION-TARGET`，附同名 `.sha256` 文件。
+正式 CLI 版本从 [Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases) 下载，文件名为 `mapac-vVERSION-TARGET`，附同名 `.sha256` 文件。
 
-普通开发构建在成功运行的 **Artifacts** 中下载 `apac-tool-TARGET`。下载项包含 `apac-tool-TARGET-SHA12` 压缩包和同名 `.sha256` 文件，保留 14 天；需要时可对目标提交重新运行工作流。
+普通开发构建在成功运行的 **Artifacts** 中下载 `mapac-TARGET`。下载项包含 `mapac-TARGET-SHA12` 压缩包和同名 `.sha256` 文件，保留 14 天；需要时可对目标提交重新运行工作流。
 
 压缩包包含可执行文件、两个 README、`guide/` 使用文档与发布说明、MIT／Apache-2.0 许可证、第三方来源说明和 `build-info.json`。构建信息记录完整提交、target、编译器版本、程序版本及程序 SHA-256，版本化安装包另记录 `release_tag`。打包使用显式文件清单，研究文档仓库、实验报告、音频、SDK 和本地缓存不进入产物；tar 包保留可执行权限。
 
@@ -94,12 +94,12 @@ Release 直接下载包和校验文件；Actions 产物先解开下载项的外�
 
 ```sh
 # Linux
-sha256sum -c apac-tool-v0.1.0-x86_64-unknown-linux-gnu.tar.gz.sha256
+sha256sum -c mapac-v0.1.0-x86_64-unknown-linux-gnu.tar.gz.sha256
 # macOS
-shasum -a 256 -c apac-tool-v0.1.0-aarch64-apple-darwin.tar.gz.sha256
+shasum -a 256 -c mapac-v0.1.0-aarch64-apple-darwin.tar.gz.sha256
 ```
 
-Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `.sha256` 文件中的值核对。包内程序位于顶层目录，直接运行 `./apac-tool --help` 或 `.\apac-tool.exe --help` 即可。命令中的版本及 `PACKAGE` 替换为实际文件名；开发产物使用包含提交短哈希的文件名。
+Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `.sha256` 文件中的值核对。包内程序位于顶层目录，直接运行 `./mapac --help` 或 `.\mapac.exe --help` 即可。命令中的版本及 `PACKAGE` 替换为实际文件名；开发产物使用包含提交短哈希的文件名。
 
 ### 准备 CLI Release
 
@@ -114,7 +114,7 @@ Windows 可用 PowerShell 的 `Get-FileHash PACKAGE.zip -Algorithm SHA256` 与 `
 
 ```sh
 python3 -B scripts/package_release.py --target aarch64-apple-darwin \
-  --binary /path/to/shared-target/release/apac-tool \
+  --binary /path/to/shared-target/release/mapac \
   --commit FULL_COMMIT_SHA --release-tag v0.1.0 --out artifacts/release
 ```
 

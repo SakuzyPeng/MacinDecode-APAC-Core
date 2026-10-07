@@ -73,7 +73,7 @@ class MixedHoaTests(unittest.TestCase):
     def test_missing_binary_is_an_error(self):
         import os
         from unittest.mock import patch
-        with patch.dict(os.environ,{'APAC_TOOL_BINARY':str(self.path())}):
+        with patch.dict(os.environ,{'MAPAC_BINARY':str(self.path())}):
             with self.assertRaises(FileNotFoundError): required_binary()
 
 

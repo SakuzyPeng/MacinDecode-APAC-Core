@@ -117,7 +117,7 @@ def run(binary, rate, batch, first_index, report, reference_fft=None, reference_
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--binary',type=Path,default=Path('target/debug/apac-tool'))
+    parser.add_argument('--binary',type=Path,default=Path('target/debug/mapac'))
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--reference-fft',type=Path,help='Explicit diagnostic public-DFT replacement library; not unmodified Apple output.')
     parser.add_argument('--reference-mode',choices=['f64','aligned64','offset16'],default='f64')

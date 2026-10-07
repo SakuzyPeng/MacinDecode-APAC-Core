@@ -32,7 +32,7 @@ def main(*,first_order=False,salient_counts=False,ambient_counts=False,quantizat
             require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'test result: ok\. (\d+) passed;',proc.stdout)
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))
             print(module,count[1],flush=True)
-        env=dict(os.environ,APAC_TOOL_BINARY=str(a.binary),PYTHONDONTWRITEBYTECODE='1')
+        env=dict(os.environ,MAPAC_BINARY=str(a.binary),PYTHONDONTWRITEBYTECODE='1')
         modules=['test_hoa_order1','test_hoa_component_orders','test_hoa_salient_partition'] if first_order else ['test_hoa_component_orders','test_hoa_salient_partition','test_hoa_salient_subbands']
         if transports:modules.append('test_hoa_transports')
         if dynamic_domains:modules.extend(['test_hoa_dynamic','test_hoa_dynamic_subbands'])

@@ -29,7 +29,7 @@ class ReleasePackageTests(unittest.TestCase):
 
     def package(self, target, out='dist', commit=None, **kwargs):
         return create_package(self.binary, target, self.root/out, commit or self.commit,
-                              binary_version='apac-tool 0.1.0', rust_version='rustc synthetic',
+                              binary_version='mapac 0.1.0', rust_version='rustc synthetic',
                               root=self.source, **kwargs)
 
     def release_notes(self):
@@ -93,7 +93,7 @@ class ReleasePackageTests(unittest.TestCase):
         for target, (_, extension) in TARGETS.items():
             with self.subTest(target=target):
                 archive, checksum = self.package(target, release_tag='v0.1.0')
-                name = f'apac-tool-v0.1.0-{target}'
+                name = f'mapac-v0.1.0-{target}'
                 self.assertEqual(archive.name, name + extension)
                 self.assertEqual(checksum.name, archive.name + '.sha256')
                 if extension == '.zip':
@@ -117,7 +117,7 @@ class ReleasePackageTests(unittest.TestCase):
         self.release_notes()
         with self.assertRaises(ValueError):
             create_package(self.binary, 'aarch64-apple-darwin', self.root/'dist', self.commit,
-                           binary_version='apac-tool 0.0.9', rust_version='rustc synthetic',
+                           binary_version='mapac 0.0.9', rust_version='rustc synthetic',
                            release_tag='v0.1.0', root=self.source)
         self.assertFalse((self.root/'dist').exists())
 

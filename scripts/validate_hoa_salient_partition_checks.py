@@ -23,7 +23,7 @@ def main():
             require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'test result: ok\. (\d+) passed;',proc.stdout)
             require(count and int(count[1])>0,'missing Rust tests');r['rust'].append(dict(module=module,passed=int(count[1])))
             print(module,count[1],flush=True)
-        env=dict(os.environ,APAC_TOOL_BINARY=str(a.binary),PYTHONDONTWRITEBYTECODE='1')
+        env=dict(os.environ,MAPAC_BINARY=str(a.binary),PYTHONDONTWRITEBYTECODE='1')
         proc=subprocess.run([sys.executable,'-B','-m','unittest','-v','test_hoa_salient_partition','test_hoa_salient_subbands','test_access.AccessTests.test_default_is_unchanged_and_fast_is_explicit_for_files'],cwd=ROOT/'scripts',env=env,capture_output=True,text=True)
         require(proc.returncode==0,proc.stdout+proc.stderr);count=re.search(r'Ran (\d+) tests',proc.stderr);require(count,'missing Python tests')
         r['python']=dict(passed=int(count[1]),output=proc.stderr)

@@ -1,5 +1,5 @@
 [package]
-name = "apac-tool"
+name = "mapac"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,7 +12,7 @@ default = ["cac"]
 cac = ["apac-core/cac", "apac-research/cac"]
 
 [[bin]]
-name = "apac-tool"
+name = "mapac"
 path = "src/main.rs"
 
 [dependencies]

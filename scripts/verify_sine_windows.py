@@ -36,7 +36,7 @@ def check_windows(expected, trace):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--binary',type=Path,default=Path('target/debug/apac-tool'))
+    p.add_argument('--binary',type=Path,default=Path('target/debug/mapac'))
     p.add_argument('--tables',type=Path,default=Path(__file__).resolve().parents[1]/'data/sq-sine-windows.json')
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args()

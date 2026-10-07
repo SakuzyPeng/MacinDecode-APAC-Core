@@ -216,7 +216,7 @@ fn wave_layout(spec: &PcmSpec) -> Result<(u32, Vec<usize>)> {
         return Ok(mapping);
     }
     Err(invalid(
-        "WAV/RF64 cannot represent this layout unambiguously; export CAF instead: apac-tool decode-sq INPUT -o output.caf",
+        "WAV/RF64 cannot represent this layout unambiguously; export CAF instead: mapac decode-sq INPUT -o output.caf",
     ))
 }
 

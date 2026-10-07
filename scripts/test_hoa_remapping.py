@@ -6,7 +6,7 @@ import hoa_remapping_vectors as vectors
 
 class RemappingTests(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):cls.binary=Path(os.environ.get('APAC_TOOL_BINARY',vectors.ROOT/'target/debug/apac-tool')).resolve()
+    def setUpClass(cls):cls.binary=Path(os.environ.get('MAPAC_BINARY',vectors.ROOT/'target/debug/mapac')).resolve()
     def command(self,*args,code=0):
         r=subprocess.run([str(self.binary),*map(str,args)],capture_output=True,text=True,timeout=30)
         self.assertEqual(r.returncode,code,r.stdout+r.stderr)

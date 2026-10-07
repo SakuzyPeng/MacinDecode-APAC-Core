@@ -4,14 +4,14 @@
 
 `scripts/hoa_blackbox.py` 使用公开 AudioConverter 回放接口重建一至十阶、六至九位量化的 salient 码表。支持 `mode1`、`mode2:0`、`mode2:1`、`mode3` 和 `mode4:0` 至 `mode4:3`。六位流程同时识别各自阶数的 mode 2／3 分组及四张 mode 4 矩阵；七至九位流程复用同阶已合格的六位矩阵和分组，分别输出 128、256、512 项码表候选。工具不会修改正式数据或执行提交、推送。支持某个阶数的测量不表示该阶已经完成重建；资格以该次冻结验证和最终对照为准。
 
-原生采集需要 macOS 和已构建的 `apac-tool`。工具仅使用 Python 标准库；纯数学、调度和恢复测试通过假原生接口离线运行。已有原型与原始实验目录不需要移动。
+原生采集需要 macOS 和已构建的 `mapac`。工具仅使用 Python 标准库；纯数学、调度和恢复测试通过假原生接口离线运行。已有原型与原始实验目录不需要移动。
 
 ## 启动与续跑
 
 ```sh
 # 使用项目现有的共享 target，不创建独立构建缓存。
 python3 -B scripts/hoa_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-blackbox-batch-new
 
 python3 -B scripts/hoa_blackbox.py status --out reports/hoa-blackbox-batch-new
@@ -22,7 +22,7 @@ python3 -B scripts/hoa_blackbox.py resume --out reports/hoa-blackbox-batch-new
 
 ```sh
 python3 -B scripts/hoa_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-blackbox-parallel-new --jobs 4
 
 # 续跑可以调整并发数；省略 --jobs 则沿用该批次保存的值。
@@ -42,11 +42,11 @@ python3 -B scripts/hoa_blackbox.py resume \
 
 ```sh
 python3 -B scripts/hoa_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-q7-pilot --quantization-bits 7 --targets mode1 --jobs 4
 
 python3 -B scripts/hoa_blackbox.py import-evidence \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-q7-mode23 --quantization-bits 7 \
   --targets mode2:0 mode2:1 mode3 --jobs 4 --evidence reports/hoa-q7-pilot
 python3 -B scripts/hoa_blackbox.py resume --out reports/hoa-q7-mode23
@@ -73,7 +73,7 @@ python3 -B scripts/hoa_blackbox.py resume \
 
 ```sh
 python3 -B scripts/hoa_blackbox.py import-evidence \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-blackbox-batch-new \
   --evidence /path/to/mode1/run-001 /path/to/mode4/run-001
 
@@ -98,7 +98,7 @@ python3 -B scripts/hoa_blackbox.py resume --out reports/hoa-blackbox-batch-new
 
 ```sh
 python3 -B scripts/hoa_blackbox.py run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out reports/hoa-order1-q7-pilot --order 1 --quantization-bits 7 \
   --targets mode1 --jobs 4 --prior-evidence reports/hoa-order1-q6
 ```
@@ -144,7 +144,7 @@ PYTHONPATH=scripts python3 -B -m unittest test_hoa_blackbox -v
 
 ```sh
 python3 -B scripts/hoa_blackbox.py campaign-run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out /path/to/evidence/hoa-campaign --jobs 4 \
   --max-total-native-calls 1000000 --max-total-evidence-mib 262144 \
   --min-free-mib 10240
@@ -157,7 +157,7 @@ python3 -B scripts/hoa_blackbox.py campaign-resume --out /path/to/evidence/hoa-c
 
 ```sh
 python3 -B scripts/hoa_blackbox.py campaign-run \
-  --binary /path/to/shared-target/debug/apac-tool \
+  --binary /path/to/shared-target/debug/mapac \
   --out /path/to/evidence/hoa-conditioning-campaign --orders 9 10 \
   --conditioning-pilot --evidence-campaign /path/to/previous-campaign \
   --max-total-native-calls 50000 --max-total-evidence-mib 32768
@@ -214,7 +214,7 @@ python3 -B scripts/register_hoa_measured_campaign.py \
 原主流程必须已经冻结本阶六位方向观测，以及所选高精度的 mode 0 校准。下面命令会自动选择该阶满足条件的 cluster，只读引用原始校准证据，并采集独立的正常码流验证。默认一个采集进程，每个预定分片仍至多 128 次新尝试，单次超时 30 秒。
 
 ```sh
-python3 -B scripts/hoa_blackbox_coordinate.py run --binary /path/to/shared-target/debug/apac-tool --source-campaign /path/to/primary --out /path/to/supplement --order 4 --quantization-bits 7 --jobs 1
+python3 -B scripts/hoa_blackbox_coordinate.py run --binary /path/to/shared-target/debug/mapac --source-campaign /path/to/primary --out /path/to/supplement --order 4 --quantization-bits 7 --jobs 1
 python3 -B scripts/hoa_blackbox_coordinate.py status --out /path/to/supplement
 python3 -B scripts/hoa_blackbox_coordinate.py resume --out /path/to/supplement
 ```

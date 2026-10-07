@@ -61,12 +61,12 @@ PY
 ```sh
 python3 -B scripts/generate_tns_math.py --check
 # 4,326 个频谱用例、4,330 个 PCM 序列；独立 LPC 递推及 Decimal 直接 IMDCT
-python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --output reports/tns-math.json
+python3 -B scripts/validate_tns.py --binary target/debug/mapac --output reports/tns-math.json
 # 同提交、同源码、同常量的逐位验收
-python3 -B scripts/validate_tns.py --binary target/release/apac-tool \
+python3 -B scripts/validate_tns.py --binary target/release/mapac \
   --reference-report reports/tns-math.json --output reports/tns-release.json
 # 可选原生只读诊断，仍单独保留高阶密集压力差异
-python3 -B scripts/validate_tns.py --binary target/debug/apac-tool --native-only --output reports/tns-native.json
+python3 -B scripts/validate_tns.py --binary target/debug/mapac --native-only --output reports/tns-native.json
 ```
 
 人工包使用 `scripts/tns_vectors.py` 的 `packet(case, rate)` 与原 `bundle` 写入器生成；`left_tns`／`right_tns` 为按窗口索引的参数字典，缺失表示关闭，空字典表示存在但所有窗口零滤波器。例如 `left_tns={0: {"resolution": 4, "filters": [{"length": 49, "q": [1, -1], "direction": False, "compression": False}]}}`。同一窗口共用分辨率；压缩只改变编码宽度。
@@ -89,11 +89,11 @@ python3 -B scripts/verify_bwe2_format.py  # 可选，需匹配哈希的 macOS �
 python3 -B scripts/generate_bwe2_math.py --check
 python3 -B scripts/generate_bwe2_manifest.py --check
 # 8,218 个频谱用例、8,218 个 PCM 序列，输入清单预先冻结
-python3 -B scripts/validate_bwe2.py --binary target/debug/apac-tool --output reports/bwe2-math.json
-python3 -B scripts/validate_bwe2.py --binary target/release/apac-tool \
+python3 -B scripts/validate_bwe2.py --binary target/debug/mapac --output reports/bwe2-math.json
+python3 -B scripts/validate_bwe2.py --binary target/release/mapac \
   --reference-report reports/bwe2-math.json --output reports/bwe2-release.json
 # 原生可选诊断，不作为便携数学真值
-python3 -B scripts/validate_bwe2.py --binary target/debug/apac-tool --native-only --output reports/bwe2-native.json
+python3 -B scripts/validate_bwe2.py --binary target/debug/mapac --native-only --output reports/bwe2-native.json
 # 每个实际运行平台显式执行 release 性能门槛
 cargo test -p apac-core --release --lib bwe2_math::tests::optimized_768_is_at_least_twice_as_fast_as_direct_dft -- --exact --ignored --nocapture
 ```
@@ -117,14 +117,14 @@ BWE2 参考采用 Decimal 直接 DFT、独立 Toeplitz 求解和直接多项式�
 ```sh
 python3 scripts/generate_drc_manifest.py --check
 python3 scripts/generate_drc_pcm_manifest.py --check
-python3 scripts/validate_drc.py --binary target/debug/apac-tool --report reports/drc-parser.json
-python3 scripts/validate_drc_pcm.py --binary target/debug/apac-tool --report reports/drc-pcm-math.json
+python3 scripts/validate_drc.py --binary target/debug/mapac --report reports/drc-parser.json
+python3 scripts/validate_drc_pcm.py --binary target/debug/mapac --report reports/drc-pcm-math.json
 # 其他平台／release 用同一提交的完整数学报告逐位核对
-python3 scripts/validate_drc_pcm.py --binary target/release/apac-tool \
+python3 scripts/validate_drc_pcm.py --binary target/release/mapac \
   --reference-report reports/drc-pcm-math.json --report reports/drc-pcm-release.json
 # macOS：原生整数与边界；以及完整编码媒体、关闭处理、恢复路径与随机窗口
-python3 scripts/validate_drc.py --binary target/debug/apac-tool --native --report reports/drc-native-parameters.json
-python3 scripts/validate_drc_native.py --binary target/debug/apac-tool --report reports/drc-native-media.json
+python3 scripts/validate_drc.py --binary target/debug/mapac --native --report reports/drc-native-parameters.json
+python3 scripts/validate_drc_native.py --binary target/debug/mapac --report reports/drc-native-media.json
 ```
 
 人工清单分别冻结 2,516 个解析用例和 2,640 个 PCM 序列，正式构建和便携验收均不依赖研究目录、网络或苹果文件。完整编码器控制的 PCM 超差保留指标与输入，并使 `native_pcm_comparison.passed=false`；原生工具的通过不代表独立数学通过。
@@ -169,13 +169,13 @@ channel ASC 的实际读取顺序是**每个元素后立即读取该元素的 BW
 
 ```sh
 # macOS 原生编码控制新增 5.1 预设
-apac-tool fixture --layout surround51 --signals noise --out artifacts/demo/51-fixture
+mapac fixture --layout surround51 --signals noise --out artifacts/demo/51-fixture
 # 新深度仍读取包目录
-apac-tool parse-packets artifacts/demo/51-packets --depth channels --output reports/51-channels.jsonl
+mapac parse-packets artifacts/demo/51-packets --depth channels --output reports/51-channels.jsonl
 # 2,742 个独立人工序列；便携验收不依赖苹果文件或研究目录
 python3 -B scripts/generate_channel_manifest.py --check
-python3 -B scripts/validate_channels.py --binary target/debug/apac-tool --report reports/channels-math.json
-python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
+python3 -B scripts/validate_channels.py --binary target/debug/mapac --report reports/channels-math.json
+python3 -B scripts/validate_channels.py --binary target/release/mapac \
   --reference-report reports/channels-math.json --report reports/channels-release.json
 ```
 
@@ -188,10 +188,10 @@ python3 -B scripts/validate_channels.py --binary target/release/apac-tool \
 ```sh
 cargo +1.98.0 build --offline --workspace --bins --examples
 python3 -B scripts/generate_surround916_manifest.py --check
-python3 -B scripts/validate_surround916.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_surround916.py --binary target/debug/mapac \
   --presence-binary target/debug/examples/layout_presence --report reports/surround916-math.json
 # 仅 macOS：公开布局查询、全部声道与窗口、元素边界、DRC 关闭策略和原生编码样本。
-python3 -B scripts/validate_surround916_native.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_surround916_native.py --binary target/debug/mapac \
   --report reports/surround916-native.json
 ```
 
@@ -200,10 +200,10 @@ python3 -B scripts/validate_surround916_native.py --binary target/debug/apac-too
 ```sh
 cargo +1.98.0 build --offline --workspace --bins --examples
 python3 -B scripts/generate_layout_manifest.py --check
-python3 -B scripts/validate_layouts.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_layouts.py --binary target/debug/mapac \
   --presence-binary target/debug/examples/layout_presence --report reports/layouts-math.json
 # Windows 将二进制路径替换为对应的 .exe；两个二进制必须来自同一构建。
-python3 -B scripts/validate_layouts.py --binary target/release/apac-tool \
+python3 -B scripts/validate_layouts.py --binary target/release/mapac \
   --presence-binary target/release/examples/layout_presence \
   --reference-report reports/layouts-math.json --report reports/layouts-release.json
 ```
@@ -237,7 +237,7 @@ LRVQ 与外层 ASP 重配置尚未开放；HOA CAF／MP4 支持下述 fast 访�
 ```sh
 python3 -B scripts/generate_hoa_source_layout_format.py --check
 python3 -B scripts/hoa_source_layout_vectors.py --check
-python3 -B scripts/validate_hoa_source_layouts.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_hoa_source_layouts.py --binary target/debug/mapac \
   --report reports/hoa-source-layout-math.json
 ```
 
@@ -251,7 +251,7 @@ SQ／CAC／TNS／BWE2 完成后，按 cookie 的固定核心前缀重排载波�
 
 ```sh
 python3 -B scripts/hoa_remapping_vectors.py --check
-python3 -B scripts/validate_hoa_remapping.py --binary target/debug/apac-tool \
+python3 -B scripts/validate_hoa_remapping.py --binary target/debug/mapac \
   --report reports/hoa-remapping-math.json
 ```
 
@@ -262,12 +262,12 @@ python3 -B scripts/validate_hoa_remapping.py --binary target/debug/apac-tool \
 HOA 的三个输入入口均按包序建立状态；包目录必须包含包零，CAF／MP4 默认解码并丢弃前置 PCM，也可显式使用下述 `--access fast`。离散声道快速模式不变。一／二／三阶分别实测的内嵌 preroll 容量为 8,192／18,432／32,768 字节，普通包仍受独立的 16 MiB 限制。内嵌帧先于当前帧推进；HOA 模式／描述历史、全部系数 overlap 与 DRC 按外层包原子提交，错误回滚，reset 恢复初始状态。原恒等 ambient 路径的缺席 SCE 仅输出自身旧 overlap 后清零，原始频谱数组保持空；启用变换时按恢复后的输出系数管理 overlap。
 
 ```sh
-apac-tool parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
-apac-tool decode-sq input.m4a --out artifacts/hoa-pcm --frames 8192
+mapac parse-packets artifacts/hoa-packets --depth hoa --output reports/hoa.jsonl
+mapac decode-sq input.m4a --out artifacts/hoa-pcm --frames 8192
 python3 -B scripts/generate_hoa_manifest.py --check
 # 原三阶 48 kHz ambient 矩阵；需要复核该路径时运行
-python3 -B scripts/validate_hoa.py --binary target/debug/apac-tool --report reports/hoa-math.json
-python3 -B scripts/validate_hoa.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa.py --binary target/debug/mapac --report reports/hoa-math.json
+python3 -B scripts/validate_hoa.py --binary target/release/mapac \
   --reference-report reports/hoa-math.json --report reports/hoa-release.json
 ```
 
@@ -287,13 +287,13 @@ HOA 验证只运行新增用例和受影响接口的精简回归，不要求重�
 python3 -B scripts/generate_hoa_salient_math.py --check
 python3 -B scripts/generate_hoa_salient_manifest.py --check
 # 原三阶 48 kHz salient 矩阵；需要复核该路径时运行
-python3 -B scripts/validate_hoa_salient.py --binary target/debug/apac-tool --report reports/salient-math.json
-python3 -B scripts/validate_hoa_salient.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_salient.py --binary target/debug/mapac --report reports/salient-math.json
+python3 -B scripts/validate_hoa_salient.py --binary target/release/mapac \
   --reference-report reports/salient-math.json --report reports/salient-release.json
 # 两份短控制；默认 DRC 的回读保留原值，不把它解释成关闭处理
-apac-tool fixture --layout hoa3 --signals channel-solo --duration 2 --out artifacts/salient-default
-apac-tool fixture --layout hoa3 --signals channel-solo --duration 2 --drc-configuration none --out artifacts/salient-none
-python3 -B scripts/validate_hoa_salient_media.py --binary target/release/apac-tool \
+mapac fixture --layout hoa3 --signals channel-solo --duration 2 --out artifacts/salient-default
+mapac fixture --layout hoa3 --signals channel-solo --duration 2 --drc-configuration none --out artifacts/salient-none
+python3 -B scripts/validate_hoa_salient_media.py --binary target/release/mapac \
   --default-control artifacts/salient-default --none-control artifacts/salient-none --report reports/salient-controls.json
 ```
 
@@ -305,12 +305,12 @@ python3 -B scripts/validate_hoa_salient_media.py --binary target/release/apac-to
 
 ```sh
 python3 -B scripts/generate_hoa_orders_manifest.py --check
-python3 -B scripts/validate_hoa_orders.py --binary target/debug/apac-tool --report reports/hoa-orders-math.json
-python3 -B scripts/validate_hoa_orders.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_orders.py --binary target/debug/mapac --report reports/hoa-orders-math.json
+python3 -B scripts/validate_hoa_orders.py --binary target/release/mapac \
   --reference-report reports/hoa-orders-math.json --report reports/hoa-orders-release.json
-apac-tool fixture --layout hoa1 --sample-rate 44100 --signals channel-solo --duration 2 --out artifacts/hoa1-control
-apac-tool fixture --layout hoa2 --sample-rate 48000 --signals channel-solo --duration 2 --drc-configuration none --out artifacts/hoa2-control
-python3 -B scripts/validate_hoa_orders_media.py --binary target/release/apac-tool \
+mapac fixture --layout hoa1 --sample-rate 44100 --signals channel-solo --duration 2 --out artifacts/hoa1-control
+mapac fixture --layout hoa2 --sample-rate 48000 --signals channel-solo --duration 2 --drc-configuration none --out artifacts/hoa2-control
+python3 -B scripts/validate_hoa_orders_media.py --binary target/release/mapac \
   --hoa1-control artifacts/hoa1-control --hoa2-control artifacts/hoa2-control --report reports/hoa-orders-controls.json
 ```
 
@@ -328,11 +328,11 @@ python3 -B scripts/validate_hoa_orders_media.py --binary target/release/apac-too
 
 ```sh
 python3 -B scripts/generate_hoa_mixed_manifest.py --check
-python3 -B scripts/validate_hoa_mixed.py --binary target/debug/apac-tool --report reports/hoa-mixed-math.json
-python3 -B scripts/validate_hoa_mixed.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_mixed.py --binary target/debug/mapac --report reports/hoa-mixed-math.json
+python3 -B scripts/validate_hoa_mixed.py --binary target/release/mapac \
   --reference-report reports/hoa-mixed-math.json --report reports/hoa-mixed-release.json
 # Windows 使用对应 .exe；必需二进制缺失会报错。
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_mixed
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_mixed
 ```
 
 `validate_hoa_mixed_native.py --binary PATH --capture ORDER2_CAPTURE --capture ORDER3_CAPTURE --report REPORT` 复核已有混合原生捕获；省略 `--binary` 仅证明原生规则，不代表 Rust 验收完成。`validate_hoa_mixed_checks.py` 接受 CLI／库测试二进制和旧报告路径，运行受影响接口测试及旧 HOA、离散声道代表摘要检查；具体参数见 `--help`。
@@ -350,8 +350,8 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```sh
 python3 -B scripts/generate_hoa_static_ambient_tables.py --check
 python3 -B scripts/generate_hoa_static_ambient_manifest.py --check
-python3 -B scripts/validate_hoa_static_ambient.py --binary target/debug/apac-tool --report reports/hoa-static-math.json
-python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_static_ambient.py --binary target/debug/mapac --report reports/hoa-static-math.json
+python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/mapac \
   --reference-report reports/hoa-static-math.json --report reports/hoa-static-release.json
 ```
 
@@ -374,8 +374,8 @@ python3 -B scripts/validate_hoa_static_ambient.py --binary target/release/apac-t
 ```sh
 python3 -B scripts/generate_hoa_dynamic_format.py --check
 python3 -B scripts/generate_hoa_dynamic_manifest.py --check
-python3 -B scripts/validate_hoa_dynamic.py --binary target/debug/apac-tool --report reports/hoa-dynamic-math.json
-python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_dynamic.py --binary target/debug/mapac --report reports/hoa-dynamic-math.json
+python3 -B scripts/validate_hoa_dynamic.py --binary target/release/mapac \
   --reference-report reports/hoa-dynamic-math.json --report reports/hoa-dynamic-release.json
 ```
 
@@ -393,10 +393,10 @@ python3 -B scripts/validate_hoa_dynamic.py --binary target/release/apac-tool \
 
 ```sh
 python3 -B scripts/generate_hoa_additive_manifest.py --check
-python3 -B scripts/validate_hoa_additive.py --binary target/debug/apac-tool --report reports/hoa-additive-math.json
-python3 -B scripts/validate_hoa_additive.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_additive.py --binary target/debug/mapac --report reports/hoa-additive-math.json
+python3 -B scripts/validate_hoa_additive.py --binary target/release/mapac \
   --reference-report reports/hoa-additive-math.json --report reports/hoa-additive-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_additive
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_additive
 ```
 
 `validate_hoa_additive_native.py` 复核三份指定原生捕获；`validate_hoa_additive_checks.py` 运行新增／受影响接口检查及旧代表摘要核对。人工控制不代表真实叠加媒体覆盖，日常和发布均不重跑旧全量矩阵或媒体库。
@@ -414,10 +414,10 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```sh
 python3 -B scripts/generate_hoa_dynamic_subbands_format.py --check
 python3 -B scripts/generate_hoa_dynamic_subbands_manifest.py --check
-python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/debug/apac-tool --report reports/hoa-subbands-math.json
-python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/debug/mapac --report reports/hoa-subbands-math.json
+python3 -B scripts/validate_hoa_dynamic_subbands.py --binary target/release/mapac \
   --reference-report reports/hoa-subbands-math.json --report reports/hoa-subbands-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_dynamic_subbands
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_dynamic_subbands
 ```
 
 新增验收把轻量边界／复制检查与代表 PCM 序列分开；`validate_hoa_dynamic_subbands_native.py` 复核指定的原生捕获，`validate_hoa_dynamic_subbands_checks.py` 执行相关接口及旧代表回归。原八带生成器和清单保持不变。
@@ -437,10 +437,10 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```sh
 python3 -B scripts/generate_hoa_salient_subbands_format.py --check
 python3 -B scripts/generate_hoa_salient_subbands_manifest.py --check
-python3 -B scripts/validate_hoa_salient_subbands.py --binary target/debug/apac-tool --report reports/hoa-spatial-subbands-math.json
-python3 -B scripts/validate_hoa_salient_subbands.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_salient_subbands.py --binary target/debug/mapac --report reports/hoa-spatial-subbands-math.json
+python3 -B scripts/validate_hoa_salient_subbands.py --binary target/release/mapac \
   --reference-report reports/hoa-spatial-subbands-math.json --report reports/hoa-spatial-subbands-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_subbands
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_subbands
 ```
 
 `validate_hoa_salient_subbands_native.py` 复核四份短原生捕获；`validate_hoa_salient_subbands_checks.py` 运行相关接口与旧四带代表摘要检查。边界按缓存整组核对，完整数学只使用语义代表序列，不枚举五个数量的全部组合或重跑旧全量矩阵。
@@ -464,10 +464,10 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 ```sh
 python3 -B scripts/generate_hoa_salient_partition_format.py --check
 python3 -B scripts/generate_hoa_salient_partition_manifest.py --check
-python3 -B scripts/validate_hoa_salient_partition.py --binary target/debug/apac-tool --report reports/hoa-partition-math.json
-python3 -B scripts/validate_hoa_salient_partition.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_salient_partition.py --binary target/debug/mapac --report reports/hoa-partition-math.json
+python3 -B scripts/validate_hoa_salient_partition.py --binary target/release/mapac \
   --reference-report reports/hoa-partition-math.json --report reports/hoa-partition-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_partition
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_partition
 ```
 
 `validate_hoa_salient_partition_native.py` 复核四份短原生捕获与整组 1–16 带缓存；`validate_hoa_salient_partition_checks.py` 检查受影响接口及五个旧代表。独立数学使用六组短序列，逐线边界测试不执行额外 IMDCT；不重跑旧完整矩阵或媒体库。
@@ -488,10 +488,10 @@ PCM 实现元数据增加 `hoa_salient_component_orders`、`hoa_salient_componen
 
 ```sh
 python3 -B scripts/generate_hoa_component_orders_manifest.py --check
-python3 -B scripts/validate_hoa_component_orders.py --binary target/debug/apac-tool --report reports/hoa-component-orders-math.json
-python3 -B scripts/validate_hoa_component_orders.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_component_orders.py --binary target/debug/mapac --report reports/hoa-component-orders-math.json
+python3 -B scripts/validate_hoa_component_orders.py --binary target/release/mapac \
   --reference-report reports/hoa-component-orders-math.json --report reports/hoa-component-orders-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_component_orders
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_component_orders
 ```
 
 `validate_hoa_component_orders_native.py` 复核三份主控制及全二阶短探针；`validate_hoa_component_orders_checks.py` 执行相关检查与六个旧代表，元数据必须使用对应平台的旧报告。独立数学只运行新增短序列，不重跑旧完整矩阵或媒体库。
@@ -510,10 +510,10 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 ```sh
 python3 -B scripts/generate_hoa_order1_manifest.py --check
-python3 -B scripts/validate_hoa_order1.py --binary target/debug/apac-tool --report reports/hoa-order1-math.json
-python3 -B scripts/validate_hoa_order1.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_order1.py --binary target/debug/mapac --report reports/hoa-order1-math.json
+python3 -B scripts/validate_hoa_order1.py --binary target/release/mapac \
   --reference-report reports/hoa-order1-math.json --report reports/hoa-order1-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_order1
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_order1
 ```
 
 `validate_hoa_order1_native.py` 复核四份短原生捕获，`validate_hoa_order1_checks.py` 检查受影响接口与七个旧代表（使用对应平台的旧元数据参考）。一阶码表完整检查及逐位截断属于低成本验证；完整数学仅使用新增短序列，不重跑旧完整矩阵或媒体库。
@@ -526,8 +526,8 @@ APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittes
 
 ```sh
 python3 -B scripts/generate_hoa_salient_counts_manifest.py --check
-python3 -B scripts/validate_hoa_salient_counts.py --binary target/debug/apac-tool --report reports/hoa-counts-math.json
-python3 -B scripts/validate_hoa_salient_counts.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_salient_counts.py --binary target/debug/mapac --report reports/hoa-counts-math.json
+python3 -B scripts/validate_hoa_salient_counts.py --binary target/release/mapac \
   --reference-report reports/hoa-counts-math.json --report reports/hoa-counts-release.json
 ```
 
@@ -539,8 +539,8 @@ python3 -B scripts/validate_hoa_salient_counts.py --binary target/release/apac-t
 
 ```sh
 python3 -B scripts/generate_hoa_ambient_counts_manifest.py --check
-python3 -B scripts/validate_hoa_ambient_counts.py --binary target/debug/apac-tool --report reports/hoa-ambient-counts-math.json
-python3 -B scripts/validate_hoa_ambient_counts.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_ambient_counts.py --binary target/debug/mapac --report reports/hoa-ambient-counts-math.json
+python3 -B scripts/validate_hoa_ambient_counts.py --binary target/release/mapac \
   --reference-report reports/hoa-ambient-counts-math.json --report reports/hoa-ambient-counts-release.json
 ```
 
@@ -552,8 +552,8 @@ Rust `SalientDescriptor.quantized` 改为 `Vec<u16>`，新增 `HoaFrameContext::
 
 ```sh
 python3 -B scripts/generate_hoa_quantization_manifest.py --check
-python3 -B scripts/validate_hoa_quantization.py --binary target/debug/apac-tool --report reports/hoa-quantization-math.json
-python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_quantization.py --binary target/debug/mapac --report reports/hoa-quantization-math.json
+python3 -B scripts/validate_hoa_quantization.py --binary target/release/mapac \
   --reference-report reports/hoa-quantization-math.json --report reports/hoa-quantization-release.json
 ```
 
@@ -571,7 +571,7 @@ python3 -B scripts/validate_hoa_quantization.py --binary target/release/apac-too
 
 ```sh
 cargo test -p apac-core --lib hoa
-APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
+MAPAC_BINARY=/path/to/shared-target/debug/mapac python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### HOA 字典存储
@@ -611,7 +611,7 @@ PYTHONPATH=scripts python3 -B -m unittest test_hoa_salient_format test_hoa_salie
 `HoaFrameContext::full_order()` 返回线上完整阶标志；`order()` 是容纳实际系数所需的阶数，`recovery_slot_count()`、`channel_count()` 和分量配置分别返回实际维度。非完整平方输出不标注完整 `ambisonic_order`，两系数 HOA 仍按 ASC 类型走 HOA 入口。报告仅为新配置增加 `hoa.full_order=false`，PCM 记录 `hoa_full_order`、实际维度及 `hoa_partial_domain_profile=apac-hoa-partial-domain-v1`；数学／状态为 `apac-hoa-partial-domain-math-v1`／`apac-hoa-partial-domain-state-v1`，后端为 `rust_hoa_partial_domain_sq_drc_off_f64_fft_v2`。已有完整阶的标识与 PCM 保持不变。
 
 ```sh
-APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
+MAPAC_BINARY=/path/to/shared-target/debug/mapac python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### 空间控制与帧内空间配置
@@ -628,8 +628,8 @@ APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_
 
 ```sh
 python3 -B scripts/generate_hoa_controls_manifest.py --check
-python3 -B scripts/validate_hoa_controls.py --binary target/debug/apac-tool --report reports/hoa-controls-math.json
-python3 -B scripts/validate_hoa_controls.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_controls.py --binary target/debug/mapac --report reports/hoa-controls-math.json
+python3 -B scripts/validate_hoa_controls.py --binary target/release/mapac \
   --reference-report reports/hoa-controls-math.json --report reports/hoa-controls-release.json
 ```
 
@@ -644,7 +644,7 @@ python3 -B scripts/validate_hoa_controls.py --binary target/release/apac-tool \
 当前范围内继续沿用 `apac-hoa-dynamic-domains-v1`、`apac-hoa-dynamic-domains-math-v1`／`apac-hoa-dynamic-domains-state-v1` 和 `rust_hoa_dynamic_domains_sq_drc_off_f64_fft_v2`。映射存储使用实际长度的有界集合；历史较大域的向量保留为拒绝测试和实验记录。
 
 ```sh
-APAC_TOOL_BINARY=/path/to/shared-target/debug/apac-tool python3 -B scripts/test_hoa_support_limits.py
+MAPAC_BINARY=/path/to/shared-target/debug/mapac python3 -B scripts/test_hoa_support_limits.py
 ```
 
 ### HOA 传输组合
@@ -659,10 +659,10 @@ CPE 两路各占一个连续载波，LFE 占一个，扩展元素占零个。所
 
 ```sh
 python3 -B scripts/generate_hoa_transports_manifest.py --check
-python3 -B scripts/validate_hoa_transports.py --binary target/debug/apac-tool --report reports/hoa-transports-math.json
-python3 -B scripts/validate_hoa_transports.py --binary target/release/apac-tool \
+python3 -B scripts/validate_hoa_transports.py --binary target/debug/mapac --report reports/hoa-transports-math.json
+python3 -B scripts/validate_hoa_transports.py --binary target/release/mapac \
   --reference-report reports/hoa-transports-math.json --report reports/hoa-transports-release.json
-APAC_TOOL_BINARY=target/debug/apac-tool PYTHONPATH=scripts python3 -B -m unittest test_hoa_transports
+MAPAC_BINARY=target/debug/mapac PYTHONPATH=scripts python3 -B -m unittest test_hoa_transports
 ```
 
 `validate_hoa_transports_native.py --captures CAPTURE_MANIFEST --binary BINARY --report REPORT` 复核命名捕获清单；清单的路径相对自身目录。`validate_hoa_transports_checks.py` 仅检查新增用例、受影响 HOA 代表及一份旧离散声道序列，旧元数据参考必须来自相同平台。

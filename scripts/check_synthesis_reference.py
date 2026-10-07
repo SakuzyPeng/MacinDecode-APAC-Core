@@ -36,7 +36,7 @@ def disjoint_intervals(a,b,atol=1e-6,rtol=1e-5):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--binary',type=Path,default=Path('target/debug/apac-tool'))
+    p.add_argument('--binary',type=Path,default=Path('target/debug/mapac'))
     p.add_argument('--reference-fft',type=Path,required=True)
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args()

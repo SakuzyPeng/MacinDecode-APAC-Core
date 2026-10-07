@@ -264,7 +264,7 @@ fn cli_exit_codes_are_platform_independent_and_errors_have_offsets() {
     let mut bytes = channel_config(2, 3, false, false);
     fs::write(&path, &bytes).unwrap();
     let run = || {
-        Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        Command::new(env!("CARGO_BIN_EXE_mapac"))
             .arg("parse-cookie")
             .arg(&path)
             .output()

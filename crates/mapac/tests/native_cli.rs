@@ -62,7 +62,7 @@ fn drc_cli_controls_preserve_requests_readback_and_cookie_presence() {
     .enumerate()
     {
         let out = t.0.join(format!("DRC 对照 {index}"));
-        let mut command = Command::new(env!("CARGO_BIN_EXE_apac-tool"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_mapac"));
         command.args([
             "fixture",
             "--signals",
@@ -115,7 +115,7 @@ fn drc_cli_controls_preserve_requests_readback_and_cookie_presence() {
         );
     }
     let out = t.0.join("invalid DRC");
-    let invalid = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+    let invalid = Command::new(env!("CARGO_BIN_EXE_mapac"))
         .args(["fixture", "--drc-configuration", "invalid", "--out"])
         .arg(&out)
         .output()
@@ -129,7 +129,7 @@ fn hoa_fixture_layouts_keep_acn_sn3d_and_parse_without_container_input() {
     let t = Temp::new();
     for (layout, order, channels) in [("hoa1", 1, 4), ("hoa2", 2, 9), ("hoa3", 3, 16)] {
         let out = t.0.join(layout);
-        let result = Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        let result = Command::new(env!("CARGO_BIN_EXE_mapac"))
             .args([
                 "fixture",
                 "--layout",
@@ -234,7 +234,7 @@ fn collect_rejects_incomplete_scan_without_creating_output() {
     fs::write(&marker, []).unwrap();
     let out = t.0.join("collected");
     let run = || {
-        Command::new(env!("CARGO_BIN_EXE_apac-tool"))
+        Command::new(env!("CARGO_BIN_EXE_mapac"))
             .arg("collect-configs")
             .arg(&manifest)
             .arg("--out")
@@ -331,7 +331,7 @@ fn corrupt_file_scan_errors_and_cli_exit_statuses() {
         .collect();
     assert_eq!(rows.len(), 2);
     let metadata = path.parent().unwrap().join("reference/pcm.json");
-    let exe = env!("CARGO_BIN_EXE_apac-tool");
+    let exe = env!("CARGO_BIN_EXE_mapac");
     let result = Command::new(exe)
         .args([
             "compare",

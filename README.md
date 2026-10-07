@@ -5,7 +5,7 @@
 [![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
 
 一个用来**解码 Apple Positional Audio Codec（APAC）空间音频、查看码流结构**的命令行工具和 Rust 库。
-命令行程序叫 `apac-tool`，自带独立解码器，在 Windows、Linux 和 macOS 上把音频导出为
+命令行程序叫 `mapac`，自带独立解码器，在 Windows、Linux 和 macOS 上把音频导出为
 **WAV／RF64 或 CAF 文件**，音频均为 Float32 PCM，并在标准输出返回 JSON 解码报告。
 
 支持含 APAC 音轨的 `.m4a`、`.mp4` 和 `.caf`，以及本工具导出的包目录。输出保留声道或 HOA 系数，
@@ -47,8 +47,8 @@
 | Linux，Intel / AMD 64 位电脑，glibc 2.35 或更新（如 Ubuntu 22.04） | 以 `x86_64-unknown-linux-gnu.tar.gz` 结尾的文件 |
 | Apple 芯片 Mac（M1 及更新机型；当前在 macOS 26 验证） | 以 `aarch64-apple-darwin.tar.gz` 结尾的文件 |
 
-解压后即可使用，无需安装 Rust 或其他解码器，也不需要管理员权限。Windows 程序为 `apac-tool.exe`，
-Linux 和 macOS 程序为 `apac-tool`；请在终端中运行。
+解压后即可使用，无需安装 Rust 或其他解码器，也不需要管理员权限。Windows 程序为 `mapac.exe`，
+Linux 和 macOS 程序为 `mapac`；请在终端中运行。
 
 同名 `.sha256` 附件用于核对下载是否完整，无需安装。包内已附使用文档、许可证和构建信息。
 校验方法见[下载校验](guide/development.md#ci-与构建产物)，首版内容见 [v0.1.0 发布说明](guide/releases/v0.1.0.md)。
@@ -56,22 +56,22 @@ Linux 和 macOS 程序为 `apac-tool`；请在终端中运行。
 
 ## 第一次解码
 
-1. 解压下载的压缩包，在终端中进入包含 `apac-tool` 的目录。
+1. 解压下载的压缩包，在终端中进入包含 `mapac` 的目录。
 2. 运行 `--version` 或 `--help`，确认程序可用。
 3. 把下面的 `input.m4a` 换成你的 APAC 文件路径，导出 WAV。
 
 **Windows PowerShell：**
 
 ```powershell
-.\apac-tool.exe --version
-.\apac-tool.exe decode-sq "input.m4a" -o output.wav
+.\mapac.exe --version
+.\mapac.exe decode-sq "input.m4a" -o output.wav
 ```
 
 **macOS / Linux：**
 
 ```sh
-./apac-tool --version
-./apac-tool decode-sq "input.m4a" -o output.wav
+./mapac --version
+./mapac decode-sq "input.m4a" -o output.wav
 ```
 
 成功后得到 `output.wav`，可交给支持浮点 WAV 的音频工具使用。目标文件必须尚不存在；
@@ -86,7 +86,7 @@ Linux 和 macOS 程序为 `apac-tool`；请在终端中运行。
 **9.1.6、22.2 或 HOA 音频使用 CAF：**
 
 ```sh
-./apac-tool decode-sq "spatial.m4a" -o output.caf
+./mapac decode-sq "spatial.m4a" -o output.caf
 ```
 
 输出 CAF 内是 PCM 音频。WAV 无法准确表达的布局会明确提示改用 CAF，不会静默改成匿名通道。
@@ -96,7 +96,7 @@ WAV 按标准声道顺序写入，7.1／7.1.4 的后环绕排在侧环绕之前�
 CAF 的布局标签有误时，可以显式指定应采用的布局：
 
 ```sh
-./apac-tool decode-sq "input.caf" -o output.caf --input-layout 9.1.6
+./mapac decode-sq "input.caf" -o output.caf --input-layout 9.1.6
 ```
 
 指定值必须与 APAC 配置一致，只纠正外部容器标签，并在报告中记录原始声明。CAF 缺少布局块时本来就会采用 APAC 配置；该参数不能重标输出、修改码流或用于 MP4／M4A。
@@ -105,23 +105,23 @@ CAF 的布局标签有误时，可以显式指定应采用的布局：
 只取一段时，`--start-frame` 和 `--frames` 使用音频帧数；以下在 48 kHz 音频中从第 10 秒起取 1 秒：
 
 ```sh
-./apac-tool decode-sq "input.caf" -o window.wav \
+./mapac decode-sq "input.caf" -o window.wav \
   --start-frame 480000 --frames 48000 --access fast
 ```
 
 研究或 PCM 对比仍可使用 `--out decoded`：生成 `pcm.f32le` 裸 PCM、`pcm.json` 和 `decode-sq.json`，
 默认限额保持 **128 MiB**。`--out` 与 `-o` 互斥；只有裸 PCM 需要按 JSON 手动填写采样率和声道数。
 
-后续示例使用 macOS / Linux 写法；Windows PowerShell 将 `./apac-tool` 换为 `.\apac-tool.exe`，并将多行命令写成一行。
+后续示例使用 macOS / Linux 写法；Windows PowerShell 将 `./mapac` 换为 `.\mapac.exe`，并将多行命令写成一行。
 
 ## 查看和比较
 
 已经有独立配置文件或导出的包目录时，可以进一步查看语法；`compare` 比较的是 `--out` 产生的裸 PCM 包：
 
 ```sh
-./apac-tool parse-cookie cookie.bin
-./apac-tool parse-packets packets/ --depth cac --output cac.jsonl
-./apac-tool compare reference/pcm.json decoded/pcm.json
+./mapac parse-cookie cookie.bin
+./mapac parse-packets packets/ --depth cac --output cac.jsonl
+./mapac compare reference/pcm.json decoded/pcm.json
 ```
 
 `parse-cookie` 接受独立的 magic cookie，`parse-packets` 接受包目录；直接解码 `.m4a`／`.mp4`／`.caf` 使用 `decode-sq`。
@@ -162,7 +162,7 @@ cargo +1.98.0 build --locked --release
 cargo +1.98.0 test --locked --workspace
 ```
 
-程序位于 `target/release/apac-tool`，Windows 为 `target/release/apac-tool.exe`。默认开启 CAC 逆混合，
+程序位于 `target/release/mapac`，Windows 为 `target/release/mapac.exe`。默认开启 CAC 逆混合，
 `--no-default-features` 构建会拒绝使用非零 CAC 增益的帧。
 workspace 结构、无 std 构建、发布流程和回归检查见[开发说明](guide/development.md)及[验收与回归](guide/validation.md)。
 

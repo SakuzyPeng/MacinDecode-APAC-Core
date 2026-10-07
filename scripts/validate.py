@@ -286,7 +286,7 @@ class Validator:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--binary", type=Path, default=Path("target/debug/apac-tool"))
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/mapac"))
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--report", type=Path, default=Path("reports/validation.json"))
     parser.add_argument("--fixtures", type=Path, default=Path("artifacts/fixtures/stereo"))

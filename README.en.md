@@ -5,7 +5,7 @@
 [![Build](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml/badge.svg)](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
 
 A command-line tool and Rust library for **decoding Apple Positional Audio Codec (APAC) spatial audio
-and inspecting its bitstream**. The CLI is called `apac-tool`. It brings its own decoder, runs on
+and inspecting its bitstream**. The CLI is called `mapac`. It brings its own decoder, runs on
 Windows, Linux and macOS, and exports **WAV/RF64 or CAF files** containing Float32 PCM, with a JSON decoding report on stdout.
 
 It accepts APAC `.m4a`, `.mp4` and `.caf` files, plus exported packet bundles. Output preserves the
@@ -49,7 +49,7 @@ and their release notes. Under **Assets** at the bottom of a version's page, cho
 | Apple silicon Mac (M1 or newer; currently tested on macOS 26) | The file ending in `aarch64-apple-darwin.tar.gz` |
 
 Extract the archive and run it from a terminal. No Rust installation, additional decoder or administrator
-rights are required. The executable is `apac-tool.exe` on Windows and `apac-tool` on Linux and macOS.
+rights are required. The executable is `mapac.exe` on Windows and `mapac` on Linux and macOS.
 
 The adjacent `.sha256` file verifies the download; it does not need to be installed. Documentation,
 licenses and build information are already inside the archive. See [checksum verification](guide/development.md#ci-与构建产物)
@@ -58,22 +58,22 @@ Development builds remain available under **Artifacts** in the [Build workflow](
 
 ## Your first decode
 
-1. Extract the download and open a terminal in the directory containing `apac-tool`.
+1. Extract the download and open a terminal in the directory containing `mapac`.
 2. Run `--version` or `--help` to check that the program starts.
 3. Replace `input.m4a` below with the path to your APAC file and export a WAV.
 
 **Windows PowerShell:**
 
 ```powershell
-.\apac-tool.exe --version
-.\apac-tool.exe decode-sq "input.m4a" -o output.wav
+.\mapac.exe --version
+.\mapac.exe decode-sq "input.m4a" -o output.wav
 ```
 
 **macOS / Linux:**
 
 ```sh
-./apac-tool --version
-./apac-tool decode-sq "input.m4a" -o output.wav
+./mapac --version
+./mapac decode-sq "input.m4a" -o output.wav
 ```
 
 A successful export creates `output.wav` for audio tools that support floating-point WAV. The destination
@@ -88,7 +88,7 @@ must not already exist. A JSON report goes to stdout; no additional JSON files a
 **Use CAF for 9.1.6, 22.2 or HOA audio:**
 
 ```sh
-./apac-tool decode-sq "spatial.m4a" -o output.caf
+./mapac decode-sq "spatial.m4a" -o output.caf
 ```
 
 The exported CAF contains PCM audio. Layouts that WAV cannot represent accurately fail with guidance to
@@ -99,7 +99,7 @@ downmixes or changes sample precision. Use `--format wav|rf64|caf` to select the
 For an incorrect CAF layout tag, explicitly supply the expected layout:
 
 ```sh
-./apac-tool decode-sq "input.caf" -o output.caf --input-layout 9.1.6
+./mapac decode-sq "input.caf" -o output.caf --input-layout 9.1.6
 ```
 
 The choice must match the APAC configuration. It only corrects container metadata and records the
@@ -111,7 +111,7 @@ when a size limit is wanted. `--start-frame` and `--frames` count audio frames; 
 second starting ten seconds into a 48 kHz file:
 
 ```sh
-./apac-tool decode-sq "input.caf" -o window.wav \
+./mapac decode-sq "input.caf" -o window.wav \
   --start-frame 480000 --frames 48000 --access fast
 ```
 
@@ -119,17 +119,17 @@ For research or PCM comparison, `--out decoded` still creates raw `pcm.f32le`, `
 `decode-sq.json`, with the existing **128 MiB** default limit. `--out` and `-o` are mutually exclusive.
 Only raw PCM needs its sample rate and channel count entered manually from the JSON metadata.
 
-Later examples use macOS / Linux syntax. In Windows PowerShell, replace `./apac-tool` with
-`.\apac-tool.exe` and write multiline commands on one line.
+Later examples use macOS / Linux syntax. In Windows PowerShell, replace `./mapac` with
+`.\mapac.exe` and write multiline commands on one line.
 
 ## Inspecting and comparing
 
 Inspect standalone configuration files and exported packet bundles. `compare` takes the raw PCM bundles produced by `--out`:
 
 ```sh
-./apac-tool parse-cookie cookie.bin
-./apac-tool parse-packets packets/ --depth cac --output cac.jsonl
-./apac-tool compare reference/pcm.json decoded/pcm.json
+./mapac parse-cookie cookie.bin
+./mapac parse-packets packets/ --depth cac --output cac.jsonl
+./mapac compare reference/pcm.json decoded/pcm.json
 ```
 
 `parse-cookie` takes a standalone magic cookie; `parse-packets` takes a packet directory.
@@ -174,7 +174,7 @@ cargo +1.98.0 build --locked --release
 cargo +1.98.0 test --locked --workspace
 ```
 
-The program is `target/release/apac-tool`, or `target/release/apac-tool.exe` on Windows. CAC inverse mixing
+The program is `target/release/mapac`, or `target/release/mapac.exe` on Windows. CAC inverse mixing
 is enabled by default; a `--no-default-features` build rejects frames with nonzero CAC gains.
 See [development](guide/development.md) and [validation](guide/validation.md) for workspace structure,
 `no_std` builds, release steps and regression checks.

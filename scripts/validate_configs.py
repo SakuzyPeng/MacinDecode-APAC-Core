@@ -201,7 +201,7 @@ def fixtures(binary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--collection", type=Path, default=Path("artifacts/configs-v1/index.json"))
-    parser.add_argument("--binary", type=Path, default=Path("target/debug/apac-tool"))
+    parser.add_argument("--binary", type=Path, default=Path("target/debug/mapac"))
     parser.add_argument("--output", type=Path, default=Path("reports/config-validation.json"))
     parser.add_argument("--expected-configs", type=int, default=64)
     parser.add_argument("--expected-targets", type=int, default=3)

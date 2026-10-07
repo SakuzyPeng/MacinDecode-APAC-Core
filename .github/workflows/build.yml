@@ -128,7 +128,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download and verify all three platform packages
+      - name: Verify packages and prepare release draft
         shell: bash
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --dir artifacts/release --pattern 'mapac-*'
@@ -141,11 +141,21 @@ jobs:
             (cd "$directory" && sha256sum --check "$archive.sha256")
             assets+=("$directory/$archive" "$directory/$archive.sha256")
           done
-          python3 -B scripts/verify_release_tag.py --tag "$RELEASE_TAG" --commit "$GITHUB_SHA"
+          tag_push=false
+          verify_args=()
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == "refs/tags/$RELEASE_TAG" ]]; then
+            tag_push=true
+            verify_args+=(--require-existing)
+          fi
+          python3 -B scripts/verify_release_tag.py --tag "$RELEASE_TAG" --commit "$GITHUB_SHA" "${verify_args[@]}"
           release_args=()
           if [[ "$RELEASE_TAG" == *-* ]]; then release_args+=(--prerelease); fi
           if draft=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft); then
             if [[ "$draft" != true ]]; then
+              if [[ "$tag_push" == true ]]; then
+                echo "::notice::$RELEASE_TAG is already published at $GITHUB_SHA; skipping draft preparation."
+                exit 0
+              fi
               echo '::error::Refusing to replace a published release.'
               exit 1
             fi

@@ -26,11 +26,16 @@ class ReleaseTagTests(unittest.TestCase):
     def git(self, *args):
         return subprocess.check_output(['git', *args], cwd=self.root, text=True).strip()
 
-    def verify(self, tag, commit):
-        return verify_release_tag(tag, commit, str(self.root))
+    def verify(self, tag, commit, **kwargs):
+        return verify_release_tag(tag, commit, str(self.root), **kwargs)
 
     def test_missing_tag_can_be_created_at_the_build_commit(self):
         self.assertIsNone(self.verify('v0.1.0', self.second))
+        self.assertEqual(self.git('tag', '--list'), '')
+
+    def test_tag_push_requires_an_existing_tag(self):
+        with self.assertRaisesRegex(ValueError, 'no longer exists'):
+            self.verify('v0.1.0', self.second, require_existing=True)
         self.assertEqual(self.git('tag', '--list'), '')
 
     def test_matching_lightweight_and_annotated_tags_are_accepted(self):
@@ -39,13 +44,15 @@ class ReleaseTagTests(unittest.TestCase):
         self.assertNotEqual(self.git('rev-parse', 'v0.2.0'), self.second)
         for tag in ('v0.1.0', 'v0.2.0'):
             self.assertEqual(self.verify(tag, self.second), self.second)
+            self.assertEqual(self.verify(tag, self.second, require_existing=True), self.second)
 
     def test_mismatched_lightweight_and_annotated_tags_are_rejected(self):
         self.git('tag', 'v0.1.0', self.first)
         self.git('tag', '-a', 'v0.2.0', self.first, '-m', 'annotated')
         for tag in ('v0.1.0', 'v0.2.0'):
-            with self.assertRaisesRegex(ValueError, 'refusing to modify release assets'):
-                self.verify(tag, self.second)
+            for require_existing in (False, True):
+                with self.assertRaisesRegex(ValueError, 'refusing to modify release assets'):
+                    self.verify(tag, self.second, require_existing=require_existing)
             self.assertEqual(self.git('rev-parse', tag + '^{}'), self.first)
 
     def test_remote_failure_is_not_treated_as_a_missing_tag(self):

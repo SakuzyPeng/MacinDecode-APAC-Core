@@ -124,6 +124,26 @@ python3 -B scripts/package_release.py --target aarch64-apple-darwin \
   --commit FULL_COMMIT_SHA --release-tag v0.1.0 --out artifacts/release
 ```
 
+### CI 耗时实测
+
+2026-10-12，在提交 `95e3f5623e349192fe57f1a9db14328dd938eb1c` 的同一个 PR 运行中，比较[首次运行](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335593814/attempts/1)与[同提交重跑](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335593814/attempts/2)。第一次三平台均未命中 Rust 缓存，第二次均命中；两次六构建一致性门禁都通过，数学验收重新执行。
+
+| 项目 | 缓存未命中 | 缓存命中 |
+| --- | --- | --- |
+| 工作流总等待时间（包含排队） | 8 分 9 秒 | 5 分 8 秒 |
+| Linux 平台任务 | 5 分 14 秒 | 4 分 51 秒 |
+| Windows 平台任务 | 6 分 25 秒 | 4 分 45 秒 |
+| macOS 平台任务 | 3 分 41 秒 | 4 分 45 秒 |
+| 全部已执行任务累计 runner 分钟 | 15.48 | 14.48 |
+
+同等覆盖下，总等待减少约 37%，最长平台任务减少约 24%。总等待也受排队影响，macOS 这次重跑耗时增加，不能将全部时长差异都归因于缓存。各平台任务时间包含编译、Rust 测试、快速验收及产物处理；单纯缓存恢复分别用了约 4–11 秒。
+
+对照此前提交 `b1ba6fa2fd82aaac7731f1a6cc74cc1ad24181b2` 的[原 CI](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/37659692448)：总等待 4 分 8 秒、累计 8.62 runner 分钟。新增 debug 黄金快照、双构建和 1,043 条代表记录的数学／跨平台摘要验收后，本次热缓存 PR 总等待增加 1 分钟。完整矩阵另在 main、版本标签与手动运行执行，其耗时独立统计。
+
+同一代码提交的[完整手动验收](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335659600)全部通过：39 个完整验证器、六个构建，连同快速集合共汇总 276 份验证器证据。完整流程总等待 **50 分 4 秒**，累计 **225.07 runner 分钟**；九片数学参考的最长任务为 19 分 15 秒，候选摘要采集的最长任务为 Windows debug 的 42 分 53 秒，两部分并行。这是完整门禁的实际成本，日常 PR 使用上表的快速路径。每次完整运行均重新执行数学与摘要验收。
+
+
+
 ## 仓库与数据边界
 
 代码与研究文档使用两个独立的 Git 仓库，分别同步至各自远端：

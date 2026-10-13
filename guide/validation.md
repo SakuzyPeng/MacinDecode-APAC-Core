@@ -169,6 +169,9 @@ python3 -B scripts/run_portable_suite.py --profile ci-fast \
 
 GitHub Actions 的数学计算分九片：SQ／spectra、CAC、TNS、BWE2、packet／DRC、CAF／MP4／access、channels／layouts／9.1.6，以及按名称排序交替分配的两组 HOA。报告只用于当前运行，重新运行仍执行验收。`ci-result` 记录汇总与套件耗时；构建耗时及 runner 总分钟从该运行的 job／step 时间统计。
 
+提交 `95e3f5623e349192fe57f1a9db14328dd938eb1c` 的[完整 CI 验收](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335659600)已通过，六构建全部逐位相同。完整清单每个构建包含 75,028 条分阶段记录，另有 132,352 个布局存在性组合；快速清单包含 1,043 条记录。用例记录可能属于同一输入的不同阶段，这些数量不等同于独立音频文件数。冷／热缓存与完整流程的实测时间见 [开发说明](development.md#ci-耗时实测)。
+
+
 
 ```sh
 cargo +1.98.0 test --offline -p apac-research --test golden_decode

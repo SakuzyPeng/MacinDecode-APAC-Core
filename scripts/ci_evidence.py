@@ -20,11 +20,12 @@ DIAGNOSTICS = {'metrics', 'pcm_metrics', 'spectral_metrics', 'spectral_summary',
                'max_absolute_error', 'max_relative_error', 'max_ulp', 'failed_samples', 'first_failure'}
 
 
-def clean(value):
+def clean(value, root=True):
     if isinstance(value, dict):
-        return {k: clean(v) for k, v in value.items() if k not in METADATA | DIAGNOSTICS}
+        excluded = DIAGNOSTICS | (METADATA if root else {'compiler', 'debug_assertions'})
+        return {k: clean(v, root=False) for k, v in value.items() if k not in excluded}
     if isinstance(value, list):
-        return [clean(v) for v in value]
+        return [clean(v, root=False) for v in value]
     return value
 
 
@@ -78,7 +79,7 @@ def probe(binary, target, build_profile):
     require(sha256_file(binary) == fingerprint, 'binary changed during probe')
     return dict(target=target, build_profile=build_profile, binary_sha256=fingerprint,
                 compiler=compiler, debug_assertions=impl['debug_assertions'],
-                implementation=clean(impl), code_commit=commit(), source_sha256=source_digest())
+                implementation=clean(impl, root=False), code_commit=commit(), source_sha256=source_digest())
 
 
 def envelope(report, profile, name, mode, build):

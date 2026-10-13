@@ -81,6 +81,8 @@ class GateTests(unittest.TestCase):
         self.damage(lambda d: d['payload'].update(new_numeric_path='/changed/semantic/value'))
         self.assertEqual(clean({'elapsed_new':123, 'new_path':'/input', 'compiler':'env'}),
                          {'elapsed_new':123, 'new_path':'/input'})
+        self.assertEqual(clean({'mode':'math', 'cases':[{'mode':'codec-mode','platform':'semantic'}]}),
+                         {'cases':[{'mode':'codec-mode','platform':'semantic'}]})
 
     def test_numeric_types_are_compared_exactly(self):
         self.damage(lambda d: d['payload']['cases'][0].update(frames=1024.0))

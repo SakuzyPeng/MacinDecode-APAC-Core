@@ -250,7 +250,7 @@ def native_artificial(binary, report):
                 checked=check_native(rows,trace_bundle(binary,root/'packets',root,True,cac=True))
                 require(len(checked)==len(batch),'native artificial CAC count differs')
                 for i,(case,record) in enumerate(zip(batch,checked)):
-                    record.update(rate=rate,index=case_index(stage, first+i),kind=case['kind'])
+                    record.update(rate=rate,index=first+i,kind=case['kind'])
                     if case['kind']=='matrix_basis':require(record['numeric_passed'],'native CAC unit basis differs')
                     report['native_artificial'].append(record)
             first+=len(batch)

@@ -244,7 +244,7 @@ def native_artificial(binary, report):
                     checked=check_native(rows,trace,diagnostic)
                     require(len(checked)==len(batch),'missing native artificial TNS')
                     for i,(case,record) in enumerate(zip(batch,checked)):
-                        record.update(rate=rate,index=case_index(stage, first+i),kind=case['kind'])
+                        record.update(rate=rate,index=first+i,kind=case['kind'])
                         record['native_trace_sha256']=sha256_file(root/'native-boundaries.json')
                         if case['kind']!='dense_stress':
                             require(record['numeric_passed'] and record['isolated_numeric_passed'],'bounded native TNS differs: '+json.dumps(record))

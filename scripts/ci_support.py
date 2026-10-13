@@ -11,8 +11,11 @@ CONTEXT = None
 
 
 def checked_reference(reference):
-    if reference is not None and (reference.get('mode') == 'fingerprint_collection'
-                                  or reference.get('ci_profile') == 'ci-fast'):
+    if reference is None:
+        return None
+    if not isinstance(reference, dict) or reference.get('passed') is not True:
+        raise ValueError('reference report must be an object with passed=true')
+    if reference.get('mode') == 'fingerprint_collection' or reference.get('ci_profile') == 'ci-fast':
         raise ValueError('collection/partial CI report is not a complete mathematical reference')
     return reference
 

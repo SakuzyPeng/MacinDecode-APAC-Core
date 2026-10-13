@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fixed-layout independent math, exhaustive syntax and exact portable access."""
+from ci_support import checked_reference
 import argparse,json,platform,subprocess
 from pathlib import Path
 from datetime import datetime,timezone
@@ -39,7 +40,7 @@ def main(default_layout='extended'):
            mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},sequences=[],cases=[],errors=[],presence=None,
            failure_directory=str(a.report.with_suffix('.failures')),metrics=None if a.reference_report else {stage:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for stage in ('raw','cac','tns','bwe2','pcm')},
            pcm_metrics=None if a.reference_report else dict(max_absolute_error=0.,max_ulp=0,failed_samples=0))
-    reference=json.loads(a.reference_report.read_text(encoding='utf-8')) if a.reference_report else None
+    reference=checked_reference(json.loads(a.reference_report.read_text(encoding='utf-8')) if a.reference_report else None)
     try:
         if reference:identity(reference,r,counts)
         require(json.loads((ROOT/f'data/{prefix}-presence-v1.json').read_text(encoding='utf-8'))==presence,'presence manifest differs')

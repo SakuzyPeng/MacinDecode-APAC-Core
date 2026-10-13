@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Portable DRC parser acceptance; this does not qualify media PCM support."""
+from ci_support import checked_reference
 import argparse
 from collections import defaultdict
 from contextlib import contextmanager
@@ -124,7 +125,7 @@ def main():
                 created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),
                 binary_sha256=fingerprint,failure_directory=str(args.report.with_suffix('.failures')),rules_version='apac-drc-payload-v1',vector_manifest_sha256=manifest()['sha256'],cases=[],errors=[])
-    reference=json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None
+    reference=checked_reference(json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None)
     try:
         if reference:
             require(not args.native and reference['passed'] and not reference['native'] and len(reference['cases'])==COUNT,'incomplete parser reference')

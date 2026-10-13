@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """CAC integer/boundary, independent mathematics, and exact portable acceptance."""
+from ci_support import mathematics, selected as ci_selected, case_index, case_counts
+from ci_support import checked_reference
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -26,6 +28,8 @@ from validate_spectra import coverage
 from validate_synthesis import batch_cases
 
 COUNTS = dict(spectra=2912, pcm=2984)
+FULL_COUNTS = COUNTS
+COUNTS = case_counts(COUNTS, "validate_cac")
 
 
 def digest(value):
@@ -109,7 +113,7 @@ def portable(binary, report, reference):
     for stage in COUNTS:
         for rate in (48000,44100):
             first = 0
-            items = cases() if stage=='spectra' else sequences()
+            items = ci_selected(stage, cases() if stage=='spectra' else sequences())
             for batch in batch_cases(items, 32):
                 try:
                     with tempfile.TemporaryDirectory(prefix='cac-math-') as tmp:
@@ -141,13 +145,13 @@ def portable(binary, report, reference):
                             identity = hashlib.sha256(cookie(rate))
                             for data,_ in generated[cursor:cursor+n]:
                                 identity.update(len(data).to_bytes(8,'little'));identity.update(data)
-                            record = dict(rate=rate,index=first+i,kind=kind,passed=True,input_sha256=identity.hexdigest(),
+                            record = dict(rate=rate,index=case_index(stage, first+i),kind=kind,passed=True,input_sha256=identity.hexdigest(),
                                           **fingerprints(selected))
                             if pcm is not None:
                                 raw = pcm[cursor*8192:(cursor+n)*8192]
                                 values = float32(struct.unpack('<'+str(len(raw)//4)+'f',raw))
                                 record.update(frames=n*1024,pcm_sha256=hashlib.sha256(raw).hexdigest())
-                                if reference is None:
+                                if mathematics(reference):
                                     oracle = Decoder()
                                     wanted = [v for _,truth in generated[cursor:cursor+n] for v in oracle.decode(truth)]
                                     record.update(compare_pcm(values,wanted))
@@ -246,7 +250,7 @@ def native_artificial(binary, report):
                 checked=check_native(rows,trace_bundle(binary,root/'packets',root,True,cac=True))
                 require(len(checked)==len(batch),'native artificial CAC count differs')
                 for i,(case,record) in enumerate(zip(batch,checked)):
-                    record.update(rate=rate,index=first+i,kind=case['kind'])
+                    record.update(rate=rate,index=case_index(stage, first+i),kind=case['kind'])
                     if case['kind']=='matrix_basis':require(record['numeric_passed'],'native CAC unit basis differs')
                     report['native_artificial'].append(record)
             first+=len(batch)
@@ -329,7 +333,7 @@ def main():
         if reference_path:
             require(reference_path.stat().st_size<=LIMIT,'reference exceeds 128 MiB')
             report['reference_report_sha256']=sha256_file(reference_path)
-            reference=json.loads(reference_path.read_text(encoding='utf-8'));validate_reference(reference,report,bool(args.regression_report))
+            reference=checked_reference(json.loads(reference_path.read_text(encoding='utf-8')));validate_reference(reference,report,bool(args.regression_report))
             report['reference_code_commit']=reference['code_commit']
         portable(binary,report,reference)
         if args.native:
@@ -341,7 +345,7 @@ def main():
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))
     report['counts']={stage:len(report[stage]) for stage in COUNTS}
     report['passed']=not report['errors'] and report['counts']==COUNTS and all(r['passed'] for stage in COUNTS for r in report[stage]) and all(r['passed'] for r in report['real'])
-    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if reference is None else None
+    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if mathematics(reference) else None
     report['native_float_failures']=sum(not r['numeric_passed'] for r in report['native_artificial'])
     report['native_float_comparison_passed']=all(r['numeric_passed'] for r in report['native_artificial']) if args.native else None
     report['native_float_policy']='Unit basis is required; all other native float differences remain separate diagnostics, without tolerance changes.'

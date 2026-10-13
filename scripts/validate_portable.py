@@ -8,6 +8,8 @@ and constants. Both execute the complete matrix and require identical input,
 integer, spectral, structural and PCM fingerprints from a successful math report.
 No native reference, optional test skip, gain adjustment or implicit flush.
 """
+from ci_support import mathematics, selected as ci_selected, case_index, case_counts
+from ci_support import checked_reference
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -31,6 +33,8 @@ from validate_synthesis import batch_cases, sequences
 
 ROOT = Path(__file__).resolve().parents[1]
 COUNTS = dict(spectra=17800, pcm=9948)
+FULL_COUNTS = COUNTS
+COUNTS = case_counts(COUNTS, "validate_portable")
 LIMIT = 128 * 1024 * 1024
 
 
@@ -123,7 +127,7 @@ def match_record(record, reference):
 def check_spectra(binary, report, reference=None):
     for rate in (48000, 44100):
         first = 0
-        for cases in batch_cases(itertools.chain(matrix_cases(), band_cases()), 96):
+        for cases in batch_cases(ci_selected("spectra", itertools.chain(matrix_cases(), band_cases())), 96):
             try:
                 with tempfile.TemporaryDirectory(prefix='sq-math-spectra-') as tmp:
                     root = Path(tmp)
@@ -139,7 +143,7 @@ def check_spectra(binary, report, reference=None):
                         require(bytes_of([v for c in actual['channels'] for v in c['scaled']], 'f')
                                 == bytes_of([v for c in expected for v in c['scaled']], 'f'),
                                 'spectrum differs from single-rounded mathematical value')
-                        record = dict(rate=rate, index=first+i, kind=case['kind'], passed=True,
+                        record = dict(rate=rate, index=case_index("spectra", first+i), kind=case['kind'], passed=True,
                                       input_sha256=hashlib.sha256(cookie(rate)+payload).hexdigest(),
                                       **spectra_fingerprints(actual['channels']))
                         if reference:
@@ -155,7 +159,7 @@ def check_spectra(binary, report, reference=None):
 def check_pcm(binary, report, reference=None):
     for rate in (48000, 44100):
         first = 0
-        for batch in batch_cases(sequences(), 48):
+        for batch in batch_cases(ci_selected("pcm", sequences()), 48):
             try:
                 with tempfile.TemporaryDirectory(prefix='sq-math-pcm-') as tmp:
                     root = Path(tmp)
@@ -194,12 +198,12 @@ def check_pcm(binary, report, reference=None):
                         for payload in payloads[cursor:cursor+length]:
                             identity.update(len(payload).to_bytes(8, 'little'))
                             identity.update(payload)
-                        record = dict(rate=rate, index=first+i, kind=kind, frames=length*1024, passed=True,
+                        record = dict(rate=rate, index=case_index("pcm", first+i), kind=kind, frames=length*1024, passed=True,
                                       input_sha256=identity.hexdigest(), pcm_sha256=hashlib.sha256(raw).hexdigest(),
                                       **spectra_fingerprints(channels))
                         if reference:
                             match_record(record, reference['pcm'][len(report['pcm'])])
-                        else:
+                        elif mathematics(reference):
                             decoder = Decoder()
                             expected = [v for _, truth in generated[cursor:cursor+length] for v in decoder.decode(truth)]
                             record.update(compare_pcm(actual, expected))
@@ -250,7 +254,7 @@ def main():
         if reference_path:
             require(reference_path.stat().st_size <= LIMIT, 'reference report exceeds 128 MiB')
             report['reference_report_sha256'] = sha256_file(reference_path)
-            reference = json.loads(reference_path.read_text(encoding="utf-8"))
+            reference = checked_reference(json.loads(reference_path.read_text(encoding="utf-8")))
             report['reference_code_commit']=reference['code_commit']
             validate_reference(reference, report, regression=bool(args.regression_report))
         check_spectra(binary, report, reference)

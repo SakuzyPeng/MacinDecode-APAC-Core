@@ -73,11 +73,26 @@ jobs:
           rustc --version --verbose
           cargo --version
 
+      - name: Restore Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: ${{ matrix.target }}-rust-1.98.0
+          cache-workspace-crates: false
+          cache-bin: false
+          save-if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+      - name: Test CI evidence and orchestration
+        run: python -B -m unittest discover -s scripts -p 'test_ci*.py' -v
+
+      - name: Check frozen CI coverage
+        if: runner.os == 'Linux'
+        run: python -B scripts/ci_catalog.py --check
+
       - name: Test release packaging and tag verification
         run: python -B -m unittest discover -s scripts -p 'test_*release*.py' -v
 
       - name: Build release executable
-        run: cargo build --locked --release --package mapac --target "$BUILD_TARGET"
+        run: cargo build --locked --release --package mapac --package apac-research --bin mapac --example layout_presence --target "$BUILD_TARGET"
 
       - name: Test PCM container exports
         run: |
@@ -88,8 +103,51 @@ jobs:
       - name: Test workspace
         run: cargo test --locked --release --workspace --target "$BUILD_TARGET" --no-fail-fast
 
+      - name: Build debug executables and test golden snapshots
+        run: |
+          cargo build --locked --package mapac --package apac-research --bin mapac --example layout_presence --target "$BUILD_TARGET"
+          cargo test --locked --package apac-research --test golden_decode --target "$BUILD_TARGET"
+
       - name: Clippy
         run: cargo clippy --locked --release --workspace --all-targets --target "$BUILD_TARGET" -- -D warnings
+
+      - name: Prepare reusable CI executables
+        run: python -B scripts/ci_tools.py prepare --target "$BUILD_TARGET" --root artifacts/ci-tools
+
+      - name: Upload CI executables
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-tools-${{ matrix.target }}
+          path: artifacts/ci-tools/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fast mathematical reference and six-build fingerprints
+        run: |
+          extension=''
+          if [[ "$RUNNER_OS" == Windows ]]; then extension=.exe; fi
+          for profile in release debug; do
+            options=(--collect-only)
+            if [[ "$BUILD_TARGET" == x86_64-unknown-linux-gnu && "$profile" == release ]]; then options=(); fi
+            python -B scripts/run_portable_suite.py --profile ci-fast \
+              --binary "target/$BUILD_TARGET/$profile/mapac$extension" \
+              --target "$BUILD_TARGET" --build-profile "$profile" --jobs 2 \
+              --out "reports/ci-fast/$BUILD_TARGET/$profile" "${options[@]}"
+          done
+
+      - name: Upload fast evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-fast-${{ matrix.target }}
+          path: |
+            reports/ci-fast/**/evidence.json
+            reports/ci-fast/**/report.json
+            reports/ci-fast/**/summary.json
+            reports/ci-fast/**/build.json
+            reports/ci-fast/**/*.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Package executable, documentation and licenses
         run: |
@@ -108,9 +166,137 @@ jobs:
           compression-level: 0
           retention-days: 14
 
+  full_math:
+    name: Full mathematics (${{ matrix.shard }})
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ci-tools-x86_64-unknown-linux-gnu
+          path: artifacts/ci-tools
+      - name: Verify and run the independent mathematical shard
+        run: |
+          python -B scripts/ci_tools.py verify --target x86_64-unknown-linux-gnu --root artifacts/ci-tools
+          python -B scripts/run_portable_suite.py --profile ci-full --shard ${{ matrix.shard }} \
+            --binary artifacts/ci-tools/release/mapac --presence-binary artifacts/ci-tools/release/layout_presence \
+            --target x86_64-unknown-linux-gnu --build-profile release --jobs 2 --out reports/full-math
+      - name: Upload mathematical evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-full-math-${{ matrix.shard }}
+          path: |
+            reports/full-math/**/evidence.json
+            reports/full-math/**/report.json
+            reports/full-math/**/summary.json
+            reports/full-math/**/build.json
+            reports/full-math/**/*.log
+          if-no-files-found: error
+          retention-days: 7
+
+  full_collect:
+    name: Full fingerprints (${{ matrix.target }}, ${{ matrix.profile }})
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-22.04, target: x86_64-unknown-linux-gnu, profile: debug}
+          - {runner: windows-2022, target: x86_64-pc-windows-msvc, profile: debug}
+          - {runner: windows-2022, target: x86_64-pc-windows-msvc, profile: release}
+          - {runner: macos-26, target: aarch64-apple-darwin, profile: debug}
+          - {runner: macos-26, target: aarch64-apple-darwin, profile: release}
+    defaults:
+      run:
+        shell: bash
+    env:
+      BUILD_TARGET: ${{ matrix.target }}
+      BUILD_PROFILE: ${{ matrix.profile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ci-tools-${{ matrix.target }}
+          path: artifacts/ci-tools
+      - name: Verify and collect all candidate fingerprints
+        run: |
+          python -B scripts/ci_tools.py verify --target "$BUILD_TARGET" --root artifacts/ci-tools
+          extension=''
+          if [[ "$RUNNER_OS" == Windows ]]; then extension=.exe; fi
+          python -B scripts/run_portable_suite.py --profile ci-full --collect-only \
+            --binary "artifacts/ci-tools/$BUILD_PROFILE/mapac$extension" \
+            --presence-binary "artifacts/ci-tools/$BUILD_PROFILE/layout_presence$extension" \
+            --target "$BUILD_TARGET" --build-profile "$BUILD_PROFILE" --jobs 2 --out reports/full-collect
+      - name: Upload candidate evidence and diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-full-${{ matrix.target }}-${{ matrix.profile }}
+          path: |
+            reports/full-collect/**/evidence.json
+            reports/full-collect/**/report.json
+            reports/full-collect/**/summary.json
+            reports/full-collect/**/build.json
+            reports/full-collect/**/*.log
+          if-no-files-found: error
+          retention-days: 7
+
+  consistency:
+    name: Cross-platform consistency
+    needs: [build, full_math, full_collect]
+    if: always()
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    env:
+      CI_NEEDS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: ci-*
+          path: artifacts/ci
+      - name: Require complete matching evidence
+        run: |
+          options=()
+          if [[ "$GITHUB_EVENT_NAME" != pull_request ]]; then options+=(--full); fi
+          python -B scripts/check_ci_consistency.py --reports artifacts/ci \
+            --commit "$GITHUB_SHA" --out reports/ci-result.json "${options[@]}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-result
+          path: reports/ci-result.json
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     name: Prepare CLI release draft
-    needs: build
+    needs: [build, consistency]
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release_tag != '')
     runs-on: ubuntu-22.04
     timeout-minutes: 10

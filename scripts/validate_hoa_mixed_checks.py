@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Affected-interface tests and one representative per legacy HOA path/layout class."""
+from ci_support import checked_reference
 import argparse, hashlib, json, os, re, struct, subprocess, sys
 from pathlib import Path
 from validate import require, write_json
@@ -57,7 +58,7 @@ def main():
                     (a.ambient_reference,ambient.sequences(),{'short_85'},ambient),
                     (a.salient_reference,salient.sequences(),{'mode_5'},salient)]
         for path,seqs,chosen,module in selections:
-            reference=json.loads(path.read_text()); require(reference['passed'] and not reference['errors'],'invalid legacy reference')
+            reference=checked_reference(json.loads(path.read_text())); require(reference['passed'] and not reference['errors'],'invalid legacy reference')
             found=0
             for index,(kind,options,cases) in enumerate(seqs):
                 if kind not in chosen: continue
@@ -70,7 +71,7 @@ def main():
                 r['legacy'].append(dict(kind=kind,passed=True,reference_sha256=sha256_file(path),**{k:current[k] for k in keys})); found+=1
             require(found==len(chosen),'missing legacy representative')
         from channel_vectors import excitation,packet,bundle,layout
-        reference=json.loads(a.channels_reference.read_text()); require(reference['passed'],'invalid channel reference')
+        reference=checked_reference(json.loads(a.channels_reference.read_text())); require(reference['passed'],'invalid channel reference')
         for n in (2,8):
             with workspace(r,'channels'+str(n)) as temporary:
                 cases=[excitation(n,n-1,(2,0x55)),dict(elements=[None]*len(layout(n)[2])),{}]

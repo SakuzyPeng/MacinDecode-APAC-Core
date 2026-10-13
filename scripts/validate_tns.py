@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent TNS LPC/IMDCT mathematics and exact portable stage acceptance."""
+from ci_support import mathematics, selected as ci_selected, case_index, case_counts
+from ci_support import checked_reference
 import argparse
 import copy
 from datetime import datetime, timezone
@@ -28,6 +30,8 @@ from validate_spectra import coverage
 from validate_synthesis import batch_cases
 
 COUNTS = dict(spectra=4326, pcm=4330)
+FULL_COUNTS = COUNTS
+COUNTS = case_counts(COUNTS, "validate_tns")
 
 
 def before_tns(report):
@@ -111,7 +115,7 @@ def portable(binary, report, reference):
     for stage in COUNTS:
         for rate in (48000,44100):
             first=0
-            for batch in batch_cases(cases() if stage=='spectra' else sequences(),16):
+            for batch in batch_cases(ci_selected(stage, cases() if stage=='spectra' else sequences()),16):
                 try:
                     with tempfile.TemporaryDirectory(prefix='tns-math-') as tmp:
                         root=Path(tmp)
@@ -120,7 +124,7 @@ def portable(binary, report, reference):
                         bundle(root/'packets',[p for p,_ in generated],rate)
                         summary,rows=inspect(binary,root/'packets',root,len(generated))
                         require(summary['tns_complete_packets']==len(generated),'missing complete TNS stages')
-                        metrics=[check_expected(row['report'],truth,reference is None) for row,(_,truth) in zip(rows,generated)]
+                        metrics=[check_expected(row['report'],truth,mathematics(reference)) for row,(_,truth) in zip(rows,generated)]
                         pcm=None
                         if stage=='pcm':
                             result=command(binary,'decode-sq',root/'packets','--out',root/'pcm')
@@ -141,14 +145,14 @@ def portable(binary, report, reference):
                             identity=hashlib.sha256(cookie(rate))
                             for data,_ in generated[cursor:cursor+n]:
                                 identity.update(len(data).to_bytes(8,'little'));identity.update(data)
-                            record=dict(rate=rate,index=first+i,kind=kind,passed=True,input_sha256=identity.hexdigest(),**fingerprints(selected))
-                            if reference is None:
+                            record=dict(rate=rate,index=case_index(stage, first+i),kind=kind,passed=True,input_sha256=identity.hexdigest(),**fingerprints(selected))
+                            if mathematics(reference):
                                 record['spectral_metrics']=metrics[cursor:cursor+n]
                             if pcm is not None:
                                 raw=pcm[cursor*8192:(cursor+n)*8192]
                                 values=float32(struct.unpack('<'+str(len(raw)//4)+'f',raw))
                                 record.update(frames=n*1024,pcm_sha256=hashlib.sha256(raw).hexdigest())
-                                if reference is None:
+                                if mathematics(reference):
                                     decoder=Decoder()
                                     wanted=[v for _,truth in generated[cursor:cursor+n] for v in decoder.decode(truth)]
                                     record.update(compare_pcm(values,wanted))
@@ -240,7 +244,7 @@ def native_artificial(binary, report):
                     checked=check_native(rows,trace,diagnostic)
                     require(len(checked)==len(batch),'missing native artificial TNS')
                     for i,(case,record) in enumerate(zip(batch,checked)):
-                        record.update(rate=rate,index=first+i,kind=case['kind'])
+                        record.update(rate=rate,index=case_index(stage, first+i),kind=case['kind'])
                         record['native_trace_sha256']=sha256_file(root/'native-boundaries.json')
                         if case['kind']!='dense_stress':
                             require(record['numeric_passed'] and record['isolated_numeric_passed'],'bounded native TNS differs: '+json.dumps(record))
@@ -289,7 +293,7 @@ def main():
         if reference_path:
             require(reference_path.stat().st_size<=LIMIT,'reference report exceeds budget')
             report['reference_report_sha256']=sha256_file(reference_path)
-            reference=json.loads(reference_path.read_text(encoding='utf-8'));validate_reference(reference,report,bool(args.regression_report))
+            reference=checked_reference(json.loads(reference_path.read_text(encoding='utf-8')));validate_reference(reference,report,bool(args.regression_report))
             report['reference_code_commit']=reference['code_commit']
         if not args.native_only:portable(binary,report,reference)
         if args.native or args.native_only:
@@ -302,7 +306,7 @@ def main():
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))
     report['counts']={stage:len(report[stage]) for stage in COUNTS}
     report['passed']=not report['errors'] and (args.native_only or report['counts']==COUNTS) and all(r['passed'] for stage in COUNTS for r in report[stage]) and all(r['passed'] for r in report['real'])
-    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if reference is None else None
+    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if mathematics(reference) else None
     report['native_float_failures']=sum(not r['numeric_passed'] for r in report['native_artificial'])
     report['native_float_policy']='All integer/boundary checks and bounded unit/boundary floats are required. Dense high-order stress remains a separate diagnostic.'
     report['finished_utc']=datetime.now(timezone.utc).isoformat()

@@ -74,13 +74,17 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 ## CI 与构建产物
 
-[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生构建，固定使用 Rust 1.98.0、`Cargo.lock` 和 release profile；默认开启 CAC。每个任务运行打包回归、PCM 容器导出的 CLI 回归、workspace Rust 测试及 Clippy（`-D warnings`），并执行产物的 `--version`／`--help` 后上传。
+[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生 debug／release 构建，固定使用 Rust 1.98.0 和 `Cargo.lock`，默认开启 CAC。release 运行打包回归、PCM 容器导出的 CLI 回归、workspace Rust 测试及 Clippy（`-D warnings`）；debug 另跑全部黄金快照。两种构建均执行固定的 `ci-fast` 用例。Linux release 计算独立数学参考，其余五个构建收集输出摘要；`Cross-platform consistency` 检查六份覆盖与逐位结果。
 
 | 平台 | Runner | Rust target | 压缩格式 |
 | --- | --- | --- | --- |
 | Linux x64 | Ubuntu 22.04 | `x86_64-unknown-linux-gnu` | `.tar.gz` |
 | Windows x64 | Windows Server 2022 | `x86_64-pc-windows-msvc` | `.zip` |
 | macOS arm64 | macOS 26 Apple Silicon | `aarch64-apple-darwin` | `.tar.gz` |
+
+PR 运行快速门禁；推送 `main`、版本标签和手动运行还执行 `ci-full`。完整数学验收分九片并行，其他五个构建同时收集完整摘要，各验收 runner 最多并发两个验证器。后续任务使用构建任务上传的程序，按提交、源码及文件 SHA-256 核验后运行，不再编译。最终汇总始终检查上游是否按触发类型成功完成；创建发布草稿必须同时通过构建与完整一致性门禁。此配置不改变 GitHub 分支保护或直接推送规则。
+
+Rust 缓存按目标平台、工具链、构建参数、Cargo manifests 和锁文件隔离，只保存依赖下载与编译产物。当前代码每次构建、所有要求的测试每次执行，不缓存数学参考报告。内部 CI 程序、验收 JSON 和日志与发行包分开上传，保留 7 天；不上传临时 PCM 或失败目录中的音频。完整覆盖、复现命令和报告含义见 [验收说明](validation.md#ci-跨平台门禁)。
 
 macOS 不构建 Intel 或 Universal 版本，任务会核验 runner 的实际架构。Windows 静态链接 CRT；Linux 在 glibc 2.35 环境构建，建议使用 Ubuntu 22.04 或更新的兼容系统。macOS 包包含 AudioToolbox 参考命令，Windows／Linux 提供纯 Rust 命令。
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Lightweight boundary/scatter truth plus representative independent HOA PCM sequences."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
@@ -99,7 +101,7 @@ def validate(binary,r,reference):
         index=identity['index']
         with workspace(r,kind) as root:
             generated,rows=parsed(binary,root,options,cases);record=dict(identity,passed=True,**fingerprints(rows,generated,options))
-            oracle=None if reference else AdditiveOracle(9,16) if options['path']=='add' else DynamicOracle()
+            oracle=None if not mathematics(reference) else AdditiveOracle(9,16) if options['path']=='add' else DynamicOracle()
             expected_pcm=[];cursor=0;cfg=cookie(**options)
             history=dict(origin='cookie',source=hashlib.sha256(cfg).hexdigest(),metadata_origin='cookie',metadata_source=hashlib.sha256(cfg).hexdigest(),history=False)
             for pi,(row,(_,truth)) in enumerate(zip(rows,generated)):
@@ -134,7 +136,7 @@ def main():
            vector_manifest_sha256=manifest()['sha256'],format_sha256=generate()['format_sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},boundary_cases=[],cases=[],
            metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('transport','descriptors','internal','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        reference=json.loads(a.reference_report.read_text()) if a.reference_report else None;validate(a.binary.resolve(),r,reference)
+        reference=checked_reference(json.loads(a.reference_report.read_text()) if a.reference_report else None);validate(a.binary.resolve(),r,reference)
         frozen=manifest();require(len(r['cases'])==len(frozen['cases']) and len(r['boundary_cases'])==42 and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases/source changed');r['passed']=True
     except Exception as error:r['errors'].append(str(error))
     r['stage_sha256']=digest(dict(boundary_cases=r['boundary_cases'],cases=r['cases']));a.report.parent.mkdir(parents=True,exist_ok=True)

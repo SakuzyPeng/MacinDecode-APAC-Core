@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent reduced-slot HOA recovery, exact scatter, and portable stage fingerprints."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
@@ -97,7 +99,7 @@ def validate(binary,r,reference):
             require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'incomplete parse')
             rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]; require(len(rows)==len(cases),'missing reports')
             hashes={k:hashlib.sha256() for k in ('quantized','transport','descriptors','internal','mapping','hoa')}; structures=[]; last=0; previous=None
-            oracle=None if reference else Decoder(); expected_pcm=[]; cursor=0
+            oracle=None if not mathematics(reference) else Decoder(); expected_pcm=[]; cursor=0
             history=dict(origin='cookie',source=hashlib.sha256(cfg).hexdigest(),metadata_origin='cookie',metadata_source=hashlib.sha256(cfg).hexdigest(),history=False)
             for packet_index,(row,(_,truth)) in enumerate(zip(rows,generated)):
                 last,previous=check(row,truth,last,previous,options)
@@ -144,7 +146,7 @@ def main():
            vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},cases=[],
            metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('transport','descriptors','internal','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        reference=json.loads(a.reference_report.read_text()) if a.reference_report else None; validate(a.binary.resolve(),r,reference)
+        reference=checked_reference(json.loads(a.reference_report.read_text()) if a.reference_report else None); validate(a.binary.resolve(),r,reference)
         require(len(r['cases'])==len(manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases or source/binary changed'); r['passed']=True
     except Exception as error: r['errors'].append(str(error))
     r['stage_sha256']=digest(r['cases']); a.report.parent.mkdir(parents=True,exist_ok=True)

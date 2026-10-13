@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent DRC-off PCM/state mathematics and exact portable acceptance."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse
 from collections import defaultdict
 from datetime import datetime,timezone
@@ -99,7 +101,7 @@ def validate(binary,report,reference):
                         if reference:
                             old=previous[rate,index]
                             for key,value in record.items():require(value==old[key],'cross-build DRC PCM stage differs: '+key)
-                        else:
+                        elif mathematics(reference):
                             decoder=Decoder();expected=[v for _,truth in parts for v in decoder.decode(oracle_truth(truth))]
                             metrics=compare_pcm(struct.unpack('<'+str(len(raw)//4)+'f',raw),expected)
                             record['pcm_metrics']=metrics
@@ -125,7 +127,7 @@ def main():
                 mode='bit_exact_replay' if args.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementation=None,
                 failure_directory=str(args.report.with_suffix('.failures')),sequences=[],errors=[],
                 pcm_metrics=None if args.reference_report else dict(max_absolute_error=0.,max_ulp=0,failed_samples=0))
-    reference=json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None
+    reference=checked_reference(json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None)
     try:
         if reference:
             require(reference['passed'] and reference['mode']=='independent_math' and len(reference['sequences'])==COUNT and not reference['errors'],'incomplete independent reference')

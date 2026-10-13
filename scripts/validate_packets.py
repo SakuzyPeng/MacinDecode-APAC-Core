@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent packet-state mathematics and exact cross-platform acceptance."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse
 from collections import defaultdict
 from datetime import datetime,timezone
@@ -116,7 +118,7 @@ def portable(binary,report,reference):
                         summary=command(binary,'parse-packets',root/'packets','--depth','packet','--packets',len(generated),'--output',path)
                         rows=[json.loads(line)['report'] for line in path.read_text(encoding='utf-8').splitlines()]
                         require(summary['packet_complete_packets']==len(generated)==len(rows) and summary['errors']==0,'incomplete packet parse')
-                        metrics=[check_expected(r,t,reference is None) for r,(_,t) in zip(rows,generated)]
+                        metrics=[check_expected(r,t,mathematics(reference)) for r,(_,t) in zip(rows,generated)]
                         decoded=command(binary,'decode-sq',root/'packets','--out',root/'pcm')
                         require(decoded['complete'] and decoded['experimental'] and not decoded['native_apis_used'],'wrong PCM qualification')
                         require(decoded['packet_state_profile']==PROFILE and decoded['saved_frames']==1024*len(rows),'PCM time accounting differs')
@@ -140,7 +142,7 @@ def portable(binary,report,reference):
                             values=float32(struct.unpack('<'+str(len(pcm)//4)+'f',pcm))
                             if reference:
                                 exact(record,old[rate,index])
-                            else:
+                            elif mathematics(reference):
                                 oracle=Decoder();expected=[v for _,t in parts for v in oracle.decode(t)]
                                 record.update(compare_pcm(values,expected))
                                 if record['first_failure']:
@@ -180,7 +182,7 @@ def main():
         if args.reference_report:
             require(args.reference_report.stat().st_size<=LIMIT,'reference exceeds 128 MiB')
             report['reference_report_sha256']=sha256_file(args.reference_report)
-            reference=json.loads(args.reference_report.read_text(encoding='utf-8'));validate_reference(reference,report)
+            reference=checked_reference(json.loads(args.reference_report.read_text(encoding='utf-8')));validate_reference(reference,report)
         portable(binary,report,reference)
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
         if args.reference_report:require(sha256_file(args.reference_report)==report['reference_report_sha256'],'reference changed during acceptance')
@@ -188,7 +190,7 @@ def main():
     report['counts']=dict(sequences=len(report['sequences']))
     report['passed']=report['counts']=={'sequences':COUNT} and not report['errors'] and all(r['passed'] for r in report['sequences'])
     report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0) for r in report['sequences']),default=0),
-        max_ulp=max((r.get('max_ulp',0) for r in report['sequences']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['sequences'])) if reference is None else None
+        max_ulp=max((r.get('max_ulp',0) for r in report['sequences']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['sequences'])) if mathematics(reference) else None
     report['finished_utc']=datetime.now(timezone.utc).isoformat()
     require(len(json.dumps(report).encode())<LIMIT,'report exceeds 128 MiB');write_json(args.output,report)
     print(json.dumps({k:report[k] for k in ('passed','counts','pcm_metrics','errors')}))

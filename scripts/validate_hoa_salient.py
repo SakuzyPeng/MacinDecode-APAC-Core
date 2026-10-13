@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Focused salient HOA Decimal mathematics and exact cross-build replay."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,hashlib,json,math,platform,struct,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
@@ -58,7 +60,7 @@ def validate(binary,report,reference):
             assert summary['errors']==0 and summary['hoa_packets_complete']==len(cases)
             rows=[json.loads(s)['report'] for s in (root/'parse.jsonl').read_text().splitlines()]
             hashes={k:hashlib.sha256() for k in ('quantized','transport','descriptors','hoa')};structures=[];last=0;last_sha=None
-            oracle=None if reference else Decoder();expected_pcm=[];record_cursor=0
+            oracle=None if not mathematics(reference) else Decoder();expected_pcm=[];record_cursor=0
             for i,(r,(_,truth)) in enumerate(zip(rows,generated)):
                 last,last_sha=check(r,truth,last,last_sha)
                 if oracle is not None:expected_pcm.extend(oracle.decode(truth))
@@ -99,7 +101,7 @@ def main():
     assert a.binary.is_file() and not a.report.exists()
     r=dict(passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementation=None,cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('descriptors','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        reference=json.loads(a.reference_report.read_text()) if a.reference_report else None
+        reference=checked_reference(json.loads(a.reference_report.read_text()) if a.reference_report else None)
         validate(a.binary.resolve(),r,reference);assert len(r['cases'])==len(manifest()['cases'])
         assert source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'];r['passed']=True
     except Exception as e:r['errors'].append(str(e))

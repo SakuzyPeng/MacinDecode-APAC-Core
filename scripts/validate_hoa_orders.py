@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent HOA order/rate mathematics and exact portable stage replay."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from pathlib import Path
 from datetime import datetime,timezone
@@ -40,7 +42,7 @@ def validate(binary,r,reference):
             assert not summary['errors'] and summary['hoa_packets_complete']==len(cases)
             rows=[json.loads(s)['report'] for s in (root/'parsed').read_text().splitlines()]
             hashes={k:hashlib.sha256() for k in ('quantized','transport','descriptors','hoa')};structures=[];last=0;last_sha=None
-            oracle=None if reference else SalientDecoder(n) if options['salient'] else AmbientDecoder(n);expected_pcm=[];cursor=0
+            oracle=None if not mathematics(reference) else SalientDecoder(n) if options['salient'] else AmbientDecoder(n);expected_pcm=[];cursor=0
             for packet_index,(row,(_,truth)) in enumerate(zip(rows,generated)):
                 if options['salient']:last,last_sha=check_salient(row,truth,last,last_sha,options['order'])
                 else:last=check_ambient(row,truth,last,options['order'])
@@ -85,7 +87,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--reference-report',type=Path);a=p.parse_args();assert a.binary.is_file() and not a.report.exists()
     r=dict(passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('descriptors','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        reference=json.loads(a.reference_report.read_text()) if a.reference_report else None;validate(a.binary.resolve(),r,reference)
+        reference=checked_reference(json.loads(a.reference_report.read_text()) if a.reference_report else None);validate(a.binary.resolve(),r,reference)
         assert len(r['cases'])==len(manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'];r['passed']=True
     except Exception as error:r['errors'].append(str(error))
     r['stage_sha256']=digest(r['cases']);a.report.parent.mkdir(parents=True,exist_ok=True)

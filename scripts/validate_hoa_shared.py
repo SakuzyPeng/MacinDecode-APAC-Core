@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Shared-rate and multi-ASC acceptance with independent Decimal PCM and ranges."""
-from ci_support import mathematics
+from ci_support import mathematics, rejection
 from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from pathlib import Path
@@ -72,6 +72,7 @@ def validate(binary,report,reference,only):
         if only and name not in only:continue
         with workspace(report,name) as root:
             generated=[vectors.packet(case,**opts) for case in cases];payloads=[raw for raw,t in generated];vectors.bundle(root/'bundle',payloads,**opts)
+            if rejection(binary, root/'bundle', root, report, identity):continue
             parsed=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed');require(parsed['errors']==0,'parse errors')
             rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()];require(len(rows)==len(cases),'missing rows')
             oracle=None if not mathematics(reference) else Decoder(opts);expected=[]

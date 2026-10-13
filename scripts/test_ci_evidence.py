@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
-from check_ci_consistency import check, upstream
+from check_ci_consistency import check, tool_builds, upstream
 from ci_catalog import CELLS, REFERENCE, digest, group, load, shards
 from ci_evidence import SCHEMA, clean, coverage
 import ci_support
@@ -16,7 +17,7 @@ from run_portable_suite import SUITE
 
 class GateTests(unittest.TestCase):
     def setUp(self):
-        self.rows = [dict(index=i, input_sha256=str(i)*64, pcm_sha256='a'*64, passed=True) for i in (1, 2)]
+        self.rows = [dict(index=i, input_sha256=str(i)*64, pcm_sha256='a'*64, frames=1024, passed=True) for i in (1, 2)]
         entry = dict(groups={'cases': group(self.rows, ['index', 'input_sha256'])}, rejections=[])
         self.catalog = dict(profiles={'ci-fast': {'validator': entry}})
         self.documents = []
@@ -81,6 +82,9 @@ class GateTests(unittest.TestCase):
         self.assertEqual(clean({'elapsed_new':123, 'new_path':'/input', 'compiler':'env'}),
                          {'elapsed_new':123, 'new_path':'/input'})
 
+    def test_numeric_types_are_compared_exactly(self):
+        self.damage(lambda d: d['payload']['cases'][0].update(frames=1024.0))
+
     def test_math_failures_cannot_be_hidden_by_normalization(self):
         entry=self.catalog['profiles']['ci-fast']['validator']
         for metric in ({'passed':False}, {'failed_samples':1}, {'first_failure':{'sample':0}}, {'error':float('nan')}):
@@ -105,6 +109,24 @@ class GateTests(unittest.TestCase):
 
 
 class CatalogAndWorkflowTests(unittest.TestCase):
+    def test_uploaded_tools_are_complete_and_match_their_byte_checksums(self):
+        from validate_replay import sha256_file
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            for target,profile in CELLS:
+                folder=root/target/profile;folder.mkdir(parents=True)
+                suffix='.exe' if 'windows' in target else ''
+                cli=folder/('mapac'+suffix);cli.write_bytes(b'candidate executable')
+                presence=folder/('layout_presence'+suffix);presence.write_bytes(b'presence executable')
+                build=dict(target=target,build_profile=profile,code_commit='commit',source_sha256='source',binary_sha256=sha256_file(cli))
+                (folder/'tools.json').write_text(json.dumps(dict(schema='apac-ci-tools-v1',build=build,presence_sha256=sha256_file(presence))))
+            self.assertEqual(len(tool_builds(root,'commit','source')),6)
+            cli.write_bytes(b'changed executable')
+            with self.assertRaises(AssertionError):tool_builds(root,'commit','source')
+            cli.write_bytes(b'candidate executable')
+            (folder/'tools.json').unlink()
+            with self.assertRaises(AssertionError):tool_builds(root,'commit','source')
+
     def test_full_catalog_and_nine_shards_cover_every_validator_once(self):
         catalog=load()
         self.assertEqual(set(catalog['profiles']['ci-full']),set(SUITE))

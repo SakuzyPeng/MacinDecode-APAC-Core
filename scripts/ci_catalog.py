@@ -23,6 +23,7 @@ REJECTIONS = {
     'validate_hoa_dynamic_domains': [1, 2, 6, 9, 11],
     'validate_hoa_remapping': [6, 7, 8, 9, 10, 11, 15],
     'validate_hoa_source_layouts': [26, 50],
+    'validate_hoa_shared': [53, 54],
 }
 FILES = {
     'validate_packets': 'packet', 'validate_access': 'access', 'validate_caf': 'caf',
@@ -147,6 +148,7 @@ def generate():
             fast[name] = dict(full[name])
             if name == 'validate_hoa_shared':
                 fast[name]['cases'] = list(SHARED)
+                fast[name]['rejections'] = []
                 fast[name]['groups'] = {'cases': group([r for r in frozen['cases'] if r['name'] in SHARED], ['index', 'name'])}
     for name, prefix in (('validate_layouts', 'layout'), ('validate_surround916', 'surround916')):
         groups = {key: group(read_vectors(file)[key], ['channels', 'rate', 'index'])

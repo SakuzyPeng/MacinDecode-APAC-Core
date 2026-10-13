@@ -76,6 +76,7 @@ jobs:
       - name: Restore Rust dependencies
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
+          prefix-key: apac-ci-v1
           shared-key: ${{ matrix.target }}-rust-1.98.0
           cache-workspace-crates: false
           cache-bin: false
@@ -121,6 +122,7 @@ jobs:
           path: artifacts/ci-tools/
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
       - name: Fast mathematical reference and six-build fingerprints
         run: |
@@ -148,6 +150,7 @@ jobs:
             reports/ci-fast/**/*.log
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
       - name: Package executable, documentation and licenses
         run: |
@@ -165,6 +168,7 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
+          overwrite: true
 
   full_math:
     name: Full mathematics (${{ matrix.shard }})
@@ -206,6 +210,7 @@ jobs:
             reports/full-math/**/*.log
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
   full_collect:
     name: Full fingerprints (${{ matrix.target }}, ${{ matrix.profile }})
@@ -261,6 +266,7 @@ jobs:
             reports/full-collect/**/*.log
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
   consistency:
     name: Cross-platform consistency
@@ -293,6 +299,7 @@ jobs:
           path: reports/ci-result.json
           if-no-files-found: error
           retention-days: 7
+          overwrite: true
 
   release:
     name: Prepare CLI release draft

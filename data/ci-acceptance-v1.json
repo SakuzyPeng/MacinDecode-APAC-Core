@@ -1151,7 +1151,10 @@
             "identities_sha256": "b1660de1f78a9277f3a21ab82b053c99313483b1fa66d532e9948f589e65e5c1"
           }
         },
-        "rejections": [],
+        "rejections": [
+          53,
+          54
+        ],
         "input_manifest_sha256": "693f4b1090430ae6ca003c6abcec1a5fd4aff452fdd661f0ad5eecbd43037529"
       },
       "validate_hoa_source_layouts": {

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Portable ASP semantic and error boundaries, with independent Decimal PCM."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from pathlib import Path
 import hoa_asp_vectors as vectors
@@ -35,7 +37,7 @@ def run(binary,report,reference):
                 for row,(_,truth) in zip(rows,generated):boundaries(row,truth)
                 decoded=command(binary,'decode-sq',root/'packets','--out',root/'pcm');raw=(root/'pcm/pcm.f32le').read_bytes()
                 require(decoded['saved_frames']==3072 and len(raw)==3072*identity['channels']*4,'ASP frame count differs')
-                if not reference:
+                if mathematics(reference):
                     oracle=(SharedDecoder if module is shared else HoaDecoder)(opts);expected=[]
                     for _,truth in generated:expected.extend(oracle.decode(truth))
                     result=compare(struct.unpack('<%df'%(len(raw)//4),raw),expected,dict(case=name,variant=variant));require(result['passed'],str(result['first_failure']));merge_metrics(report['metrics'],result)
@@ -57,7 +59,7 @@ def main():
     require(a.binary.exists() and not a.report.exists(),'binary missing or report exists')
     report=dict(passed=False,profile=vectors.PROFILE,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),platform=platform.platform(),vector_manifest_sha256=vectors.manifest()['sha256'],cases=[],rejections=[],errors=[],metrics=None if a.reference_report else dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None),failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        run(a.binary.resolve(),report,json.loads(a.reference_report.read_text()) if a.reference_report else None)
+        run(a.binary.resolve(),report,checked_reference(json.loads(a.reference_report.read_text())) if a.reference_report else None)
         require(source_digest()==report['source_sha256'] and sha256_file(a.binary)==report['binary_sha256'],'source/binary changed');report['passed']=True
     except Exception as e:report['errors'].append(str(e))
     report['stage_sha256']=digest(dict(cases=report['cases'],rejections=report['rejections']));write_json(a.report,report);print(json.dumps({k:report[k] for k in ('passed','errors','metrics','stage_sha256')}));return 0 if report['passed'] else 1

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """New effective-subband checks and five affected old HOA representatives."""
+from ci_support import checked_reference
 import argparse,hashlib,json,os,re,struct,subprocess,sys
 from pathlib import Path
 from validate import require,write_json
@@ -51,7 +52,7 @@ def main():
         import hoa_additive_vectors as additive
         import hoa_mixed_vectors as mixed
         for path,module,chosen in [(a.dynamic_reference,dynamic,{'salient-main','mixed-main'}),(a.additive_reference,additive,{'dynamic','fixed2'}),(a.mixed_reference,mixed,{'joint_tools_2'})]:
-            reference=json.loads(path.read_text());require(reference['passed'] and not reference['errors'],'invalid old reference');found=0
+            reference=checked_reference(json.loads(path.read_text()));require(reference['passed'] and not reference['errors'],'invalid old reference');found=0
             for index,(kind,opts,cases) in enumerate(module.sequences()):
                 if kind not in chosen:continue
                 with workspace(r,kind) as root:

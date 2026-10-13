@@ -74,13 +74,17 @@ CAC 的语法（增益索引与游程的 Huffman 码表）由 `apac-core` 读取
 
 ## CI 与构建产物
 
-[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生构建，固定使用 Rust 1.98.0、`Cargo.lock` 和 release profile；默认开启 CAC。每个任务运行打包回归、PCM 容器导出的 CLI 回归、workspace Rust 测试及 Clippy（`-D warnings`），并执行产物的 `--version`／`--help` 后上传。
+[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 在推送 `main`、推送 `v*` 标签、提交 PR 及手动运行时触发。三个平台独立执行原生 debug／release 构建，固定使用 Rust 1.98.0 和 `Cargo.lock`，默认开启 CAC。release 运行打包回归、PCM 容器导出的 CLI 回归、workspace Rust 测试及 Clippy（`-D warnings`）；debug 另跑全部黄金快照。两种构建均执行固定的 `ci-fast` 用例。Linux release 计算独立数学参考，其余五个构建收集输出摘要；`Cross-platform consistency` 检查六份覆盖与逐位结果。
 
 | 平台 | Runner | Rust target | 压缩格式 |
 | --- | --- | --- | --- |
 | Linux x64 | Ubuntu 22.04 | `x86_64-unknown-linux-gnu` | `.tar.gz` |
 | Windows x64 | Windows Server 2022 | `x86_64-pc-windows-msvc` | `.zip` |
 | macOS arm64 | macOS 26 Apple Silicon | `aarch64-apple-darwin` | `.tar.gz` |
+
+PR 运行快速门禁；推送 `main`、版本标签和手动运行还执行 `ci-full`。完整数学验收分九片并行，其他五个构建同时收集完整摘要，各验收 runner 最多并发两个验证器。后续任务使用构建任务上传的程序，按提交、源码及文件 SHA-256 核验后运行，不再编译。最终汇总始终检查上游是否按触发类型成功完成；创建发布草稿必须同时通过构建与完整一致性门禁。此配置不改变 GitHub 分支保护或直接推送规则。
+
+Rust 缓存按目标平台、工具链、构建参数、Cargo manifests 和锁文件隔离，只保存依赖下载与编译产物。当前代码每次构建、所有要求的测试每次执行，不缓存数学参考报告。内部 CI 程序、验收 JSON 和日志与发行包分开上传，保留 7 天；不上传临时 PCM 或失败目录中的音频。完整覆盖、复现命令和报告含义见 [验收说明](validation.md#ci-跨平台门禁)。
 
 macOS 不构建 Intel 或 Universal 版本，任务会核验 runner 的实际架构。Windows 静态链接 CRT；Linux 在 glibc 2.35 环境构建，建议使用 Ubuntu 22.04 或更新的兼容系统。macOS 包包含 AudioToolbox 参考命令，Windows／Linux 提供纯 Rust 命令。
 
@@ -119,6 +123,26 @@ python3 -B scripts/package_release.py --target aarch64-apple-darwin \
   --binary /path/to/shared-target/release/mapac \
   --commit FULL_COMMIT_SHA --release-tag v0.1.0 --out artifacts/release
 ```
+
+### CI 耗时实测
+
+2026-10-12，在提交 `95e3f5623e349192fe57f1a9db14328dd938eb1c` 的同一个 PR 运行中，比较[首次运行](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335593814/attempts/1)与[同提交重跑](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335593814/attempts/2)。第一次三平台均未命中 Rust 缓存，第二次均命中；两次六构建一致性门禁都通过，数学验收重新执行。
+
+| 项目 | 缓存未命中 | 缓存命中 |
+| --- | --- | --- |
+| 工作流总等待时间（包含排队） | 8 分 9 秒 | 5 分 8 秒 |
+| Linux 平台任务 | 5 分 14 秒 | 4 分 51 秒 |
+| Windows 平台任务 | 6 分 25 秒 | 4 分 45 秒 |
+| macOS 平台任务 | 3 分 41 秒 | 4 分 45 秒 |
+| 全部已执行任务累计 runner 分钟 | 15.48 | 14.48 |
+
+同等覆盖下，总等待减少约 37%，最长平台任务减少约 24%。总等待也受排队影响，macOS 这次重跑耗时增加，不能将全部时长差异都归因于缓存。各平台任务时间包含编译、Rust 测试、快速验收及产物处理；单纯缓存恢复分别用了约 4–11 秒。
+
+对照此前提交 `b1ba6fa2fd82aaac7731f1a6cc74cc1ad24181b2` 的[原 CI](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/37659692448)：总等待 4 分 8 秒、累计 8.62 runner 分钟。新增 debug 黄金快照、双构建和 1,043 条代表记录的数学／跨平台摘要验收后，本次热缓存 PR 总等待增加 1 分钟。完整矩阵另在 main、版本标签与手动运行执行，其耗时独立统计。
+
+同一代码提交的[完整手动验收](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335659600)全部通过：39 个完整验证器、六个构建，连同快速集合共汇总 276 份验证器证据。完整流程总等待 **50 分 4 秒**，累计 **225.07 runner 分钟**；九片数学参考的最长任务为 19 分 15 秒，候选摘要采集的最长任务为 Windows debug 的 42 分 53 秒，两部分并行。这是完整门禁的实际成本，日常 PR 使用上表的快速路径。每次完整运行均重新执行数学与摘要验收。
+
+
 
 ## 仓库与数据边界
 

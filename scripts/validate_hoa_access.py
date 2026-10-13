@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Exact HOA CAF/MP4 fast ranges, state, validation scope and Decimal PCM."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,json,platform,struct,subprocess
 from pathlib import Path
 import hoa_access_vectors as vectors
@@ -51,7 +53,7 @@ def validate(binary,report,reference,only):
                 if label=='all':full=outputs[0]
                 require(outputs[0]==full[start*n*4:(start+frames)*n*4],'range differs from sequential full slice')
                 rows.append(dict(name=label,start=start,frames=frames,pcm_sha256=sha(outputs[0]),access=fast_records[0]))
-            if not reference:
+            if mathematics(reference):
                 decoder=data['oracle'](data['options']);expected=[v for t in data['truths'] for v in decoder.decode(t)][data['priming']*n:(data['priming']+data['valid'])*n]
                 metric=compare(struct.unpack('<%df'%(len(full)//4),full),expected,dict(name=name));require(metric['passed'],str(metric['first_failure']));merge_metrics(report['metrics'],metric)
             # A late malformed prefix must retain the decoder's exact first error.
@@ -75,7 +77,7 @@ def main():
     require(a.binary.exists() and not a.report.exists(),'binary missing/report exists')
     report=dict(passed=False,profile=vectors.PROFILE,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),platform=platform.platform(),vector_manifest_sha256=vectors.manifest()['sha256'],cases=[],errors=[],metrics=None if a.reference_report else dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None),failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        validate(a.binary.resolve(),report,json.loads(a.reference_report.read_text()) if a.reference_report else None,a.case)
+        validate(a.binary.resolve(),report,checked_reference(json.loads(a.reference_report.read_text())) if a.reference_report else None,a.case)
         require(source_digest()==report['source_sha256'] and sha256_file(a.binary)==report['binary_sha256'],'source/binary changed');report['passed']=True
     except Exception as e:report['errors'].append(str(e))
     report['stage_sha256']=digest(report['cases']);write_json(a.report,report);print(json.dumps({k:report[k] for k in ('passed','metrics','errors','stage_sha256')}));return 0 if report['passed'] else 1

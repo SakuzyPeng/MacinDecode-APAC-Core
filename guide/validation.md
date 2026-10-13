@@ -144,6 +144,35 @@ python3 -B scripts/generate_sq_codebooks.py --check --source /path/to/vo-aacenc/
 
 重构回归可运行 `golden_decode`，比较冻结 fixture 的解析报告、错误和 PCM 摘要；当前快照为 `crates/apac-research/tests/golden/sq-math-v2.json`，v1 快照保留。快照记录当前实现行为，不替代独立数学验收。`run_portable_suite.py` 汇总可移植 CLI 验证，输出目录必须不存在；`--jobs` 控制并发，`--only` 选择验证器，`--fast` 选择较快子集，`--skip` 显式排除验证器。只要选中了 `validate_layouts`，就必须提供存在的 `--presence-binary`，否则在启动验证前退出 2；已执行的任一验证器失败时套件退出 1。
 
+### CI 跨平台门禁
+
+固定清单位于 `data/ci-acceptance-v1.json`。`ci-fast` 覆盖 SQ／CAC／TNS／BWE2 的确定性类别、窗口及采样率代表，另包含完整 HOA orders、ASP 和六组共享配置控制；黄金快照仍在全部六个构建运行。`ci-full` 覆盖便携套件的全部验证器。清单保存各组数量与输入／用例身份摘要；新增类别、修改输入或选择规则后，用 `python3 -B scripts/ci_catalog.py` 重新生成并审查差异，CI 的 `--check` 不修改清单。
+
+完整 CI 将历史 HOA 四至十阶、超出 16 系数域等输入列为明确的预期拒绝，校验解码器返回的支持边界错误；当前支持的输入仍必须完成解码和数学检查。原始向量、数值模型、研究报告及 standalone 验收入口保持原有含义。
+
+每个平台分别生成 debug／release 证据。Linux release 执行独立数学计算，其余构建使用 `--collect-only` 收集整数、频谱、状态和 PCM 等摘要。收集报告标为 `fingerprint_collection`，不能传作独立数学参考；`ci-fast` 报告也不能冒充完整参考。各用例的结构、帧数、输入完整性等检查仍执行。
+
+例如在原生 Linux x64 上复现快速数学验收：
+
+```sh
+TARGET=x86_64-unknown-linux-gnu
+cargo +1.98.0 build --locked --release -p mapac -p apac-research \
+  --bin mapac --example layout_presence --target "$TARGET"
+python3 -B scripts/run_portable_suite.py --profile ci-fast \
+  --binary "target/$TARGET/release/mapac" --target "$TARGET" \
+  --build-profile release --jobs 2 --out reports/ci-fast-local
+```
+
+其他主机将 target 换成本机目标；Windows 使用 `.exe`，并沿用 CI 的 `-C target-feature=+crt-static`。`--build-profile` 必须与实际程序相符，报告从程序读取编译器及 debug assertions 进行核验。完整验收使用 `--profile ci-full`，并提供同构建的 `--presence-binary`；数学任务可以指定 `--shard 0` 至 `--shard 8`。摘要收集加 `--collect-only`。CI 配置禁止 `--only`、`--skip`、旧的 `--fast` 和超过 2 的并发数；输出目录必须不存在。
+
+每个验证器保留原始 `report.json` 和通过覆盖检查后生成的 `evidence.json`，套件另写 `build.json`、`summary.json` 与日志。`check_ci_consistency.py` 要求同一提交、源码、清单及数值配置下的六个构建完整到齐；任何缺项、重复项、未通过的数学结果或逐位摘要差异都失败。浮点数学容差保持 `atol=1e-6, rtol=1e-5`，跨构建摘要使用精确相等。比较仅排除列明的环境、时间及数学误差诊断字段，未知字段默认参与比较。
+
+GitHub Actions 的数学计算分九片：SQ／spectra、CAC、TNS、BWE2、packet／DRC、CAF／MP4／access、channels／layouts／9.1.6，以及按名称排序交替分配的两组 HOA。报告只用于当前运行，重新运行仍执行验收。`ci-result` 记录汇总与套件耗时；构建耗时及 runner 总分钟从该运行的 job／step 时间统计。
+
+提交 `95e3f5623e349192fe57f1a9db14328dd938eb1c` 的[完整 CI 验收](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/runs/38335659600)已通过，六构建全部逐位相同。完整清单每个构建包含 75,028 条分阶段记录，另有 132,352 个布局存在性组合；快速清单包含 1,043 条记录。用例记录可能属于同一输入的不同阶段，这些数量不等同于独立音频文件数。冷／热缓存与完整流程的实测时间见 [开发说明](development.md#ci-耗时实测)。
+
+
+
 ```sh
 cargo +1.98.0 test --offline -p apac-research --test golden_decode
 cargo +1.98.0 build --offline --workspace --bins --examples

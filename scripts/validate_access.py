@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Fast/sequential exact PCM and metadata history, independently specified work."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,json,platform,struct,subprocess
 from pathlib import Path
 from datetime import datetime,timezone
@@ -73,7 +75,7 @@ def validate(binary,report,reference,*,layouts=LAYOUTS,manifest_fn=manifest,mani
                     record=dict(channels=n,rate=rate,index=index,ranges=ranges,passed=True)
                     if include_bundle:record['bundle_exact']=True
                     if reference:require(record==previous[n,rate,index],'cross-build access digest differs')
-                    else:
+                    elif mathematics(reference):
                         decoder=Decoder(n);wanted=[v for t in data['truths'] for v in decoder.decode(t)][prime*n:(prime+valid)*n]
                         metrics=compare_pcm(struct.unpack('<'+str(len(full)//4)+'f',full),wanted)
                         for key in ('max_absolute_error','max_ulp'):report['pcm_metrics'][key]=max(report['pcm_metrics'][key],metrics[key])
@@ -90,7 +92,7 @@ def main():
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),
                 vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if args.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,
                 failure_directory=str(args.report.with_suffix('.failures')),implementations={},cases=[],errors=[],pcm_metrics=None if args.reference_report else dict(max_absolute_error=0.,max_ulp=0,failed_samples=0))
-    reference=json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None
+    reference=checked_reference(json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None)
     try:
         if reference:
             require(reference['passed'] and reference['mode']=='independent_math' and len(reference['cases'])==COUNT and not reference['errors'],'incomplete mathematical reference')

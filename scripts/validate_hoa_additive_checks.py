@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Only additive/affected interface checks and selected existing output fingerprints."""
+from ci_support import checked_reference
 import argparse,hashlib,json,os,re,struct,subprocess,sys
 from pathlib import Path
 from validate import require,write_json
@@ -53,7 +54,7 @@ def main():
         import hoa_static_ambient_vectors as static
         import hoa_dynamic_vectors as dynamic
         for path,module,chosen in [(a.salient_reference,salient,{'mode_5'}),(a.mixed_reference,mixed,{'joint_tools_2','per_component_modes_groups'}),(a.static_reference,static,{'windows_drc_embedded_False','selection_only_3'}),(a.dynamic_reference,dynamic,{'mixed-main'})]:
-            reference=json.loads(path.read_text()); require(reference['passed'] and not reference['errors'],'invalid legacy reference'); found=0
+            reference=checked_reference(json.loads(path.read_text())); require(reference['passed'] and not reference['errors'],'invalid legacy reference'); found=0
             for index,(kind,options,cases) in enumerate(module.sequences()):
                 if kind not in chosen: continue
                 with workspace(r,kind) as root:
@@ -62,7 +63,7 @@ def main():
                 r['legacy'].append(dict(kind=kind,passed=True,reference_sha256=sha256_file(path),**current)); found+=1
             require(found==len(chosen),'missing legacy representative')
         from channel_vectors import excitation,packet,bundle,layout
-        reference=json.loads(a.channels_reference.read_text()); require(reference['passed'],'invalid channels reference')
+        reference=checked_reference(json.loads(a.channels_reference.read_text())); require(reference['passed'],'invalid channels reference')
         with workspace(r,'stereo') as root:
             cases=[excitation(2,1,(2,0x55)),dict(elements=[None]*len(layout(2)[2])),{}]; bundle(root/'bundle',[packet(c,2)[0] for c in cases],2)
             result=command(a.binary,'decode-sq',root/'bundle','--out',root/'pcm'); sha=sha256_file(root/'pcm/pcm.f32le'); expected=next(c for c in reference['cases'] if c['channels']==2)

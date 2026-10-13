@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Source-layout stages, independent Decimal PCM, and container range acceptance."""
+from ci_support import mathematics, rejection
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from pathlib import Path
 import hoa_source_layout_vectors as vectors
@@ -48,11 +50,12 @@ def validate(binary,report,reference):
         with workspace(report,name) as root:
             generated=[vectors.packet(case,**opts) for case in cases];payloads=[raw for raw,t in generated]
             vectors.bundle(root/'bundle',payloads,**opts)
+            if rejection(binary, root/'bundle', root, report, identity):continue
             parsed=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed')
             require(parsed['hoa_packets_complete']==len(cases) and parsed['errors']==0,'incomplete source layout')
             rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]
             require(len(rows)==len(cases),'missing parsed packet')
-            oracle=None if reference else Decoder(opts);expected_pcm=[];cursor=0
+            oracle=None if not mathematics(reference) else Decoder(opts);expected_pcm=[];cursor=0
             n=opts['output_coefficients'];m=opts.get('coefficient_count',(opts['order']+1)**2)
             for index,(row,(_,truth)) in enumerate(zip(rows,generated)):
                 if oracle:expected_pcm.extend(oracle.decode(truth))
@@ -92,7 +95,7 @@ def main():
     manifest=vectors.manifest()
     report=dict(passed=False,profile=vectors.PROFILE,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),platform=platform.platform(),vector_manifest_sha256=manifest['sha256'],format_sha256=manifest['format_sha256'],atol=1e-6,rtol=1e-5,cases=[],errors=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('internal','source','pcm')},failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        validate(a.binary.resolve(),report,json.loads(a.reference_report.read_text()) if a.reference_report else None)
+        validate(a.binary.resolve(),report,checked_reference(json.loads(a.reference_report.read_text())) if a.reference_report else None)
         require(source_digest()==report['source_sha256'] and sha256_file(a.binary)==report['binary_sha256'],'source/binary changed')
         report['passed']=True
     except Exception as error:report['errors'].append(str(error))

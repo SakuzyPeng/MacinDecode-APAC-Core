@@ -1,0 +1,1331 @@
+{
+  "schema": "apac-ci-acceptance-v1",
+  "profiles": {
+    "ci-fast": {
+      "validate_portable": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 58,
+            "identities_sha256": "62b89e36a890d096aa1d960db1c67335b4f0b5aa4612655a87c318b0aad8abb2"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 40,
+            "identities_sha256": "76a8bba0b960a9519abb0b2e2dcd4c642109ce35009ff331bc4954ff34b68728"
+          }
+        },
+        "selection": {
+          "spectra": [
+            0,
+            1,
+            2182,
+            4363,
+            4364,
+            4492,
+            4619,
+            4620,
+            4675,
+            4729,
+            4730,
+            5269,
+            5807,
+            5808,
+            6347,
+            6885,
+            6886,
+            7348,
+            7809,
+            7810,
+            8349,
+            8887,
+            8888,
+            8892,
+            8895,
+            8896,
+            8897,
+            8898,
+            8899
+          ],
+          "pcm": [
+            0,
+            1,
+            2182,
+            4363,
+            4364,
+            4492,
+            4619,
+            4620,
+            4675,
+            4729,
+            4730,
+            4842,
+            4953,
+            4954,
+            4955,
+            4956,
+            4957,
+            4958,
+            4966,
+            4973
+          ]
+        },
+        "rejections": []
+      },
+      "validate_cac": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 106,
+            "identities_sha256": "b1f83a457505121c2e149dd51fd421734539c87a9da1417db5a46884d0602119"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 82,
+            "identities_sha256": "a9fe8325b2ebb5da95ea0c9768a29ef1d52d17c4c634d64d0855e73e419091c7"
+          }
+        },
+        "selection": {
+          "spectra": [
+            0,
+            4,
+            8,
+            12,
+            410,
+            414,
+            418,
+            426,
+            819,
+            823,
+            827,
+            839,
+            840,
+            889,
+            937,
+            938,
+            987,
+            1035,
+            1036,
+            1085,
+            1133,
+            1134,
+            1176,
+            1217,
+            1218,
+            1239,
+            1260,
+            1261,
+            1262,
+            1263,
+            1264,
+            1265,
+            1266,
+            1267,
+            1268,
+            1269,
+            1270,
+            1271,
+            1272,
+            1273,
+            1274,
+            1275,
+            1276,
+            1346,
+            1415,
+            1416,
+            1427,
+            1437,
+            1438,
+            1446,
+            1453,
+            1454,
+            1455
+          ],
+          "pcm": [
+            0,
+            4,
+            410,
+            422,
+            819,
+            839,
+            840,
+            889,
+            937,
+            938,
+            1078,
+            1217,
+            1218,
+            1239,
+            1260,
+            1261,
+            1262,
+            1263,
+            1264,
+            1265,
+            1266,
+            1267,
+            1270,
+            1271,
+            1274,
+            1275,
+            1276,
+            1346,
+            1415,
+            1416,
+            1427,
+            1437,
+            1438,
+            1446,
+            1453,
+            1454,
+            1455,
+            1456,
+            1473,
+            1490,
+            1491
+          ]
+        },
+        "rejections": []
+      },
+      "validate_tns": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 168,
+            "identities_sha256": "830ce4b1d1aa94359186b978c3702d992b7c2c4aa83784aa8db6fae2ef89916f"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 98,
+            "identities_sha256": "dea2440054d88812af5fc3734ae9a27987fa7d33f119c6cfcb4e06213ca45f3d"
+          }
+        },
+        "selection": {
+          "spectra": [
+            0,
+            1,
+            2,
+            14,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            42,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            70,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            110,
+            111,
+            124,
+            136,
+            137,
+            161,
+            162,
+            234,
+            305,
+            306,
+            384,
+            461,
+            462,
+            511,
+            559,
+            560,
+            561,
+            569,
+            576,
+            577,
+            649,
+            720,
+            721,
+            799,
+            876,
+            877,
+            926,
+            974,
+            975,
+            976,
+            984,
+            991,
+            992,
+            1064,
+            1135,
+            1136,
+            1214,
+            1291,
+            1292,
+            1341,
+            1389,
+            1390,
+            1391,
+            1399,
+            1406,
+            1407,
+            1551,
+            1607,
+            1635,
+            1643,
+            1731,
+            1831,
+            1873,
+            1891,
+            1903,
+            2054,
+            2110,
+            2138,
+            2146,
+            2162
+          ],
+          "pcm": [
+            0,
+            1,
+            2,
+            14,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            54,
+            82,
+            83,
+            84,
+            85,
+            98,
+            136,
+            137,
+            161,
+            162,
+            234,
+            305,
+            306,
+            384,
+            461,
+            462,
+            511,
+            559,
+            560,
+            561,
+            569,
+            576,
+            577,
+            721,
+            877,
+            975,
+            976,
+            1220,
+            1334,
+            1479,
+            1651,
+            1890,
+            2054,
+            2110,
+            2138,
+            2146,
+            2162,
+            2163,
+            2164
+          ]
+        },
+        "rejections": []
+      },
+      "validate_bwe2": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 204,
+            "identities_sha256": "3fc630a6eccf8dbcfe3a8b1a765392985d75e4ede6eb5e6e092fa874d5d9df8b"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 128,
+            "identities_sha256": "5e805cf9c8dfef593a1b6cfc3790c5671836a3cb1d63bbf8731b8bfa3a2d851c"
+          }
+        },
+        "selection": {
+          "spectra": [
+            0,
+            6,
+            11,
+            12,
+            18,
+            23,
+            24,
+            30,
+            35,
+            36,
+            54,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            1102,
+            2125,
+            2126,
+            2190,
+            2253,
+            2254,
+            2318,
+            2381,
+            2382,
+            2446,
+            2509,
+            2510,
+            2702,
+            2893,
+            2894,
+            3278,
+            3661,
+            3662,
+            3710,
+            3757,
+            3758,
+            3761,
+            3763,
+            3764,
+            3788,
+            3812,
+            3813,
+            3817,
+            3821,
+            3822,
+            3823,
+            3824,
+            3827,
+            3829,
+            3830,
+            3854,
+            3878,
+            3879,
+            3883,
+            3887,
+            3888,
+            3889,
+            3890,
+            3893,
+            3895,
+            3896,
+            3920,
+            3944,
+            3945,
+            3949,
+            3953,
+            3954,
+            3955,
+            3956,
+            3962,
+            3976,
+            3985,
+            3990,
+            4000,
+            4011,
+            4017,
+            4023,
+            4037,
+            4046,
+            4048,
+            4049,
+            4050,
+            4051,
+            4052,
+            4053,
+            4054,
+            4055,
+            4056,
+            4057,
+            4058,
+            4059,
+            4060,
+            4061,
+            4069,
+            4081,
+            4089,
+            4100,
+            4108
+          ],
+          "pcm": [
+            0,
+            6,
+            11,
+            12,
+            42,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            1100,
+            2123,
+            2124,
+            2188,
+            2251,
+            2252,
+            2572,
+            2891,
+            2892,
+            3276,
+            3659,
+            3660,
+            3708,
+            3755,
+            3756,
+            3759,
+            3761,
+            3762,
+            3786,
+            3810,
+            3811,
+            3815,
+            3819,
+            3820,
+            3821,
+            3822,
+            3828,
+            3877,
+            3886,
+            3915,
+            3957,
+            3978,
+            3984,
+            4021,
+            4035,
+            4044,
+            4046,
+            4047,
+            4048,
+            4049,
+            4050,
+            4053,
+            4054,
+            4057,
+            4058,
+            4059,
+            4067,
+            4079,
+            4087,
+            4098,
+            4106,
+            4107,
+            4108
+          ]
+        },
+        "rejections": []
+      },
+      "validate_hoa_asp": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "name",
+              "variant"
+            ],
+            "count": 49,
+            "identities_sha256": "3fa7ce31144b1c05c9879b0cc63086eabc57434f09e1c645900cdc1560a755e3"
+          },
+          "rejections": {
+            "keys": [
+              "name",
+              "kind"
+            ],
+            "count": 77,
+            "identities_sha256": "59639cdb0723abe30f9986bc3cd1f6f67f115251505f40d587fb6a15bffff1c6"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "ff503d1d936a3750bc0f25a556abe1754452f9432d01a5c6131f7f541456b7e4"
+      },
+      "validate_hoa_orders": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 27,
+            "identities_sha256": "59e59a59e1603a552a025c2cb6de78133260c2842b48e4e0b8a3e7cb92f8237d"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "4d3b4004d60fc5af7217def8cdac0b11983e7e4fdfb28c55c7f969dc8e99644f"
+      },
+      "validate_hoa_shared": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index",
+              "name"
+            ],
+            "count": 6,
+            "identities_sha256": "b0a2faeb4ab9da9baa8f526c3032ce8a1ebedf76227e804eb32d3f2a26877ec9"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "693f4b1090430ae6ca003c6abcec1a5fd4aff452fdd661f0ad5eecbd43037529",
+        "cases": [
+          "rate-tools-48000",
+          "rate-tools-44100",
+          "rate-spatial-96000",
+          "rate-spatial-7350",
+          "stream-hoa-channel",
+          "additional-2"
+        ]
+      }
+    },
+    "ci-full": {
+      "validate_portable": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 17800,
+            "identities_sha256": "2f1d186ede95da79989cd0a3b649c13cb68e1480993566c3376a5d12f2065ad3"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 9948,
+            "identities_sha256": "b257067f51194debe4e10400f1a936c3bc526ffe5a76a1b1809cbd57c8a31f70"
+          }
+        },
+        "rejections": []
+      },
+      "validate_cac": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 2912,
+            "identities_sha256": "28947e0e8f5bd3f88154b06bcf0fa43160b0eef6f571bde9493f8554da3accb0"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 2984,
+            "identities_sha256": "dbf5a73e9ab4ba4f7d737947a3d03f0cabb60468ca1fc4ea5f3f72aae3d546d6"
+          }
+        },
+        "rejections": []
+      },
+      "validate_tns": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 4326,
+            "identities_sha256": "ad2853badd2a279f0f4f7e21da3065fc28a6106d65263ae46d80782132535798"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 4330,
+            "identities_sha256": "00351beb53a863260f8d1e0b4454d1906de0b591167fc108508183af3aba01e3"
+          }
+        },
+        "rejections": []
+      },
+      "validate_bwe2": {
+        "groups": {
+          "spectra": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 8218,
+            "identities_sha256": "82ab829e6811120247344e54e61ee463eafd9696ea5811415aa75b28babd8498"
+          },
+          "pcm": {
+            "keys": [
+              "rate",
+              "index",
+              "kind",
+              "input_sha256"
+            ],
+            "count": 8218,
+            "identities_sha256": "e8702794d0b7cc7f6fb8837ae7c370997e16d39a544366f80ddeafd5774910e3"
+          }
+        },
+        "rejections": []
+      },
+      "validate_packets": {
+        "groups": {
+          "sequences": {
+            "keys": [
+              "rate",
+              "index"
+            ],
+            "count": 2268,
+            "identities_sha256": "1e686a34406a3fb9da00126987c393f44a93e9e57e713cacac9aa312d64f3f6f"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "0b09ef40dc509c55aaf4a85a7432a9df583e309a1504728c70851f215ac58dc8"
+      },
+      "validate_access": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 852,
+            "identities_sha256": "f486d72292e57260e5a4c4235961420a65d0269e65f12342b0f111660fe8874a"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "9ee9d990b4e91c61de50d1e1e9b797b7991394cfce537d19a805f9c65c14a247"
+      },
+      "validate_caf": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "rate",
+              "index"
+            ],
+            "count": 280,
+            "identities_sha256": "af51069bdcfbcebcb8eb32e64be3b63981e8b0856371f74730f8e8b6b248e3ad"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "34a78ce75a1222eb541abafaf05a9e4a50c75df87258f1e626001f4b70523164"
+      },
+      "validate_mp4": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 852,
+            "identities_sha256": "f486d72292e57260e5a4c4235961420a65d0269e65f12342b0f111660fe8874a"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "7ad93c58b189eaf9c2d80336e905a22c65c237d6299c68f9a634fad0919fa558"
+      },
+      "validate_channels": {
+        "groups": {
+          "sequences": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 2742,
+            "identities_sha256": "f909c635d795ed8cf4b5eafde329054bf0d41970bbc3b9ab20f04c755ae50b09"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "334b4437308acbdec9defcad199e1bf61989c5fcc8ae48597795550949f233cd"
+      },
+      "validate_drc": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "rate",
+              "index"
+            ],
+            "count": 2516,
+            "identities_sha256": "23177a666f4c11dee1f214b9a3fe4040dcdf681f3647f67129a0bb9032f04d9a"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "f126aec42439f7b0bf7e610177e856b24bb72e99a7c1e6cbdc837e87fb719a1e"
+      },
+      "validate_drc_pcm": {
+        "groups": {
+          "sequences": {
+            "keys": [
+              "rate",
+              "index"
+            ],
+            "count": 2640,
+            "identities_sha256": "a8b177f05752a93c7c9bdd9f95ef6a8523afe07c8cef8145881c68b56224c458"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "0a427887baa0af17a3cc52127dcce202f438d312ccad19128316334fc47c26a0"
+      },
+      "validate_hoa": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 39,
+            "identities_sha256": "350d5457f88fc73cce459dbaf71921a69f4ff96a31e7af09ac088570f14e0c7d"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "7c0d9d1ad1581737c4adb97cb0e84d3bed8eeb4cf9361bcb37fba14ebb49298c"
+      },
+      "validate_hoa_access": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "name"
+            ],
+            "count": 31,
+            "identities_sha256": "71ac40f44ac2a72ec7758d5ec820c22619c9ea48e94a0422ca3a211ced377700"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "8593fc3960dfddf0d0155a088512defdcc5542c459308bc22f834b8ca3b39103"
+      },
+      "validate_hoa_asp": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "name",
+              "variant"
+            ],
+            "count": 49,
+            "identities_sha256": "3fa7ce31144b1c05c9879b0cc63086eabc57434f09e1c645900cdc1560a755e3"
+          },
+          "rejections": {
+            "keys": [
+              "name",
+              "kind"
+            ],
+            "count": 77,
+            "identities_sha256": "59639cdb0723abe30f9986bc3cd1f6f67f115251505f40d587fb6a15bffff1c6"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "ff503d1d936a3750bc0f25a556abe1754452f9432d01a5c6131f7f541456b7e4"
+      },
+      "validate_hoa_additive": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 13,
+            "identities_sha256": "ec804c8a30dc3f4dd69bf9e050540987875fb4bb09c49746d134b7b675e74346"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "6c9b95d6b240f2f37426b0a64788f3d05a5d905598ddd097c9393fe75650fcac"
+      },
+      "validate_hoa_ambient_counts": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 8,
+            "identities_sha256": "bae188fe9adadc4e3436e1122d5203f4af350852e020847add5adaddb568d1ff"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "76ae182f7d40f1bbd97e6b04a32ec4ea11fe0f390868f55c34eab93c4ad29f82"
+      },
+      "validate_hoa_component_orders": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 7,
+            "identities_sha256": "7f92ff3067c20ab0ecb5e8cdf13a89aecaf728324acd273047d21da223ebd455"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "2919d4e76a124ffa440f40f44a7c79e5b09134900357086fc4f5a06635928894"
+      },
+      "validate_hoa_controls": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 13,
+            "identities_sha256": "ec804c8a30dc3f4dd69bf9e050540987875fb4bb09c49746d134b7b675e74346"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "4ee1a14682245041c159cbc1d481a7dd2d5f499a38a401245c26db44b45a4579"
+      },
+      "validate_hoa_dynamic": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 18,
+            "identities_sha256": "b5db55fa18496ccab490c4965b298aa5de8674037c45ec5116838b3b065bbc68"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "364e9e5c162e74d9903c5e21aef8f241da071c8dcdd022bd329c3ded0b1ab6eb"
+      },
+      "validate_hoa_dynamic_domains": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 14,
+            "identities_sha256": "3630dfb5cb03256cb9c709578bc6907445050e5fc7118501735ab6a39741135d"
+          }
+        },
+        "rejections": [
+          1,
+          2,
+          6,
+          9,
+          11
+        ],
+        "input_manifest_sha256": "39b16f695d919f636127183828b4ef1336b1d45ab0ea1a8e78578e51ffa39570"
+      },
+      "validate_hoa_dynamic_subbands": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 9,
+            "identities_sha256": "ec3b8747e021a172397883d0faca700f2833a8528a83adc0c31f01d89382641b"
+          },
+          "boundary_cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 42,
+            "identities_sha256": "b2c627b13e2c3d24437537f1d3067f35e8279ff3dae6e5c9dc7c825f4112f8ec"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "4b4577fe1b1c95500ace6a14ffa25af29d54dbf0672cea034d1f6a48c200d205"
+      },
+      "validate_hoa_expanded_orders": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 6,
+            "identities_sha256": "4b209c7703d313f23e1fe42a7dbc25fc4e69c96a50502ff39c3cfec882b7d279"
+          }
+        },
+        "rejections": [
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "input_manifest_sha256": "8e487bf650199db21fe42cfc37b9a697534d4127466ffd9396084bb462628097"
+      },
+      "validate_hoa_mixed": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 14,
+            "identities_sha256": "3630dfb5cb03256cb9c709578bc6907445050e5fc7118501735ab6a39741135d"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "a99b2a9e23e689003e9a7fd7b83500c16445a8908b8531930f52975efd0b3ef9"
+      },
+      "validate_hoa_order1": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 7,
+            "identities_sha256": "7f92ff3067c20ab0ecb5e8cdf13a89aecaf728324acd273047d21da223ebd455"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "10c873ae43e0cbd21fdc47c9a5b3bdab2b5d7ec762a579a09364d3e32599c155"
+      },
+      "validate_hoa_orders": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 27,
+            "identities_sha256": "59e59a59e1603a552a025c2cb6de78133260c2842b48e4e0b8a3e7cb92f8237d"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "4d3b4004d60fc5af7217def8cdac0b11983e7e4fdfb28c55c7f969dc8e99644f"
+      },
+      "validate_hoa_partial": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 8,
+            "identities_sha256": "bae188fe9adadc4e3436e1122d5203f4af350852e020847add5adaddb568d1ff"
+          }
+        },
+        "rejections": [
+          3,
+          6
+        ],
+        "input_manifest_sha256": "458dcc6f403b8b99e5b4971fcbbd5387d8d72309489f183754873df34719cf3c"
+      },
+      "validate_hoa_quantization": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 6,
+            "identities_sha256": "4b209c7703d313f23e1fe42a7dbc25fc4e69c96a50502ff39c3cfec882b7d279"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "141e63caa99f4748fa3358aa922af8dad1bb1bf3eb3c4a93186f17492854d209"
+      },
+      "validate_hoa_remapping": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 22,
+            "identities_sha256": "bc9e1d1e7ced44feaf369939af8041bd4aa7dcca6a18c7cb0ed421f121b5e788"
+          }
+        },
+        "rejections": [
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          15
+        ],
+        "input_manifest_sha256": "cb9d8620a676dc8599723307ba6081af9c941d09fbc8f053612ee0bd08ed7d91"
+      },
+      "validate_hoa_salient": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 36,
+            "identities_sha256": "8ea8b6c3472b8c9ae39ae2451e7c97e48f7a69550c632bb8620942a3bb9a98ce"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "1ea833d95f3ba1d0a0c2d2d9168ddda5d1773cda91afb846ae378f8066811c94"
+      },
+      "validate_hoa_salient_counts": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 7,
+            "identities_sha256": "7f92ff3067c20ab0ecb5e8cdf13a89aecaf728324acd273047d21da223ebd455"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "547d1a56388069b43bdefb590cca725b8d989a68562cc77b18f0c91f849552bb"
+      },
+      "validate_hoa_salient_partition": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 6,
+            "identities_sha256": "4b209c7703d313f23e1fe42a7dbc25fc4e69c96a50502ff39c3cfec882b7d279"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "d9e663572df6f27fa5ddf168f05b42002e4b7c76ad833dc63315702ecc2cba9e"
+      },
+      "validate_hoa_salient_subbands": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 14,
+            "identities_sha256": "3630dfb5cb03256cb9c709578bc6907445050e5fc7118501735ab6a39741135d"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "3872136801832176486da494f643c69acfd876bf2bc9425464493554e9628aa6"
+      },
+      "validate_hoa_shared": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index",
+              "name"
+            ],
+            "count": 282,
+            "identities_sha256": "b1660de1f78a9277f3a21ab82b053c99313483b1fa66d532e9948f589e65e5c1"
+          }
+        },
+        "rejections": [
+          53,
+          54
+        ],
+        "input_manifest_sha256": "693f4b1090430ae6ca003c6abcec1a5fd4aff452fdd661f0ad5eecbd43037529"
+      },
+      "validate_hoa_source_layouts": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 53,
+            "identities_sha256": "9d8b16fbf835176bf4e5e27138befdc0162f27d3ab94eb109df550085bbe836d"
+          }
+        },
+        "rejections": [
+          26,
+          50
+        ],
+        "input_manifest_sha256": "a0015dd3b4a9e1e1ece4685efbcf57fcec1d167491000c431cd638df07a58a15"
+      },
+      "validate_hoa_static_ambient": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 16,
+            "identities_sha256": "172c5eca3de49ddf5b7b044a6d2fa73d1a0d00aaa6d91d24c06d4685f04f4c4c"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "4f7580328a62fa757c1a5731f9bfbca2f46d4de3fdf05e259ae63ca62e20014c"
+      },
+      "validate_hoa_transports": {
+        "groups": {
+          "cases": {
+            "keys": [
+              "index"
+            ],
+            "count": 16,
+            "identities_sha256": "172c5eca3de49ddf5b7b044a6d2fa73d1a0d00aaa6d91d24c06d4685f04f4c4c"
+          }
+        },
+        "rejections": [],
+        "input_manifest_sha256": "21a631bcdf9ef6218565b511477336465a3aa1e1ff695a50f1a08711da98f603"
+      },
+      "validate_layouts": {
+        "groups": {
+          "sequences": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 2076,
+            "identities_sha256": "98a93141e29eca7158937ece4c1cb682fc73c14d3c13245d7475b27bc1954585"
+          },
+          "cases": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 208,
+            "identities_sha256": "74e0a803b807c6166dacb046535ca8cc3b2419d4f3e306cb8f043b7bfa5da8ac"
+          }
+        },
+        "rejections": [],
+        "presence": {
+          "cases": 131328,
+          "sha256": "4d182e59f4ea7141eeade7bc733176b4748fbd7c0bd0e19813bf63dec3e819a5"
+        }
+      },
+      "validate_surround916": {
+        "groups": {
+          "sequences": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 740,
+            "identities_sha256": "975cd5d9a78462d190cfbc09ddf1dbeaff49c78058d1c4475261924e07fb2199"
+          },
+          "cases": {
+            "keys": [
+              "channels",
+              "rate",
+              "index"
+            ],
+            "count": 92,
+            "identities_sha256": "bf433e67ec3ea2ad1fd84b43e2b6f016622688d96e0c1fbd1e6a966b5934d653"
+          }
+        },
+        "rejections": [],
+        "presence": {
+          "cases": 1024,
+          "sha256": "4cc0f0c3897051488fe88992753dfb546166c34361d652aff7c687898577fd32"
+        }
+      },
+      "validate_spectra": {
+        "groups": {
+          "artificial": {
+            "keys": [
+              "rate",
+              "batch",
+              "cases"
+            ],
+            "count": 186,
+            "identities_sha256": "8d5b677a184c75b6ad2cc9d58be0a45f88145b59f0e196ede3e3a3a83bf1a250"
+          }
+        },
+        "rejections": []
+      }
+    }
+  },
+  "shards": [
+    [
+      "validate_portable",
+      "validate_spectra"
+    ],
+    [
+      "validate_cac"
+    ],
+    [
+      "validate_tns"
+    ],
+    [
+      "validate_bwe2"
+    ],
+    [
+      "validate_packets",
+      "validate_drc",
+      "validate_drc_pcm"
+    ],
+    [
+      "validate_access",
+      "validate_caf",
+      "validate_mp4"
+    ],
+    [
+      "validate_channels",
+      "validate_layouts",
+      "validate_surround916"
+    ],
+    [
+      "validate_hoa",
+      "validate_hoa_additive",
+      "validate_hoa_asp",
+      "validate_hoa_controls",
+      "validate_hoa_dynamic_domains",
+      "validate_hoa_expanded_orders",
+      "validate_hoa_order1",
+      "validate_hoa_partial",
+      "validate_hoa_remapping",
+      "validate_hoa_salient_counts",
+      "validate_hoa_salient_subbands",
+      "validate_hoa_source_layouts",
+      "validate_hoa_transports"
+    ],
+    [
+      "validate_hoa_access",
+      "validate_hoa_ambient_counts",
+      "validate_hoa_component_orders",
+      "validate_hoa_dynamic",
+      "validate_hoa_dynamic_subbands",
+      "validate_hoa_mixed",
+      "validate_hoa_orders",
+      "validate_hoa_quantization",
+      "validate_hoa_salient",
+      "validate_hoa_salient_partition",
+      "validate_hoa_shared",
+      "validate_hoa_static_ambient"
+    ]
+  ]
+}

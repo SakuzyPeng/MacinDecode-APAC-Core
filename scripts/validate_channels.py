@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent multi-element SQ mathematics and portable exact stage acceptance."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,copy,hashlib,json,math,platform,struct,subprocess,sys
 from collections import defaultdict
 from pathlib import Path
@@ -141,7 +143,7 @@ def validate(binary,report,reference,*,layouts=LAYOUTS,manifest_fn=manifest,mani
                                     state.append(parameters(actual))
                                     for a,b in zip(actual['elements'],expected['elements']):
                                         if not b['present']:continue
-                                        model=spectra(b) if not reference else None
+                                        model=spectra(b) if mathematics(reference) else None
                                         groups={'raw':a['channels'],'cac':a['channels_after_cac'],'tns':a['channels_after_tns'],'bwe2':a['channels_after_bwe2']}
                                         for local,c in enumerate(a['channels']):
                                             coord=struct.pack('<II',a['configuration']['element_index'],local)
@@ -154,7 +156,7 @@ def validate(binary,report,reference,*,layouts=LAYOUTS,manifest_fn=manifest,mani
                             first=cursor*1024*channels*4;raw=pcm[first:first+length*1024*channels*4]
                             record=dict(records[channels,rate,index],state_sha256=digest(state),pcm_sha256=sha(raw),passed=True,**{name+'_sha256':h.hexdigest() for name,h in hashes.items()})
                             if reference:require(record==previous[channels,rate,index],'cross-build channel stages differ')
-                            else:
+                            elif mathematics(reference):
                                 decoder=Decoder(channels);expected=[v for _,truth in parts for v in decoder.decode(truth)]
                                 metric=compare(struct.unpack('<'+str(len(raw)//4)+'f',raw),expected,dict(channels=channels,rate=rate,index=index,stage='pcm'))
                                 if metric['first_failure']:
@@ -175,7 +177,7 @@ def main():
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),
                 vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if args.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},
                 failure_directory=str(args.report.with_suffix('.failures')),sequences=[],errors=[],metrics={stage:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for stage in ('raw','cac','tns','bwe2','pcm')} if not args.reference_report else None)
-    reference=json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None
+    reference=checked_reference(json.loads(args.reference_report.read_text(encoding='utf-8')) if args.reference_report else None)
     try:
         if reference:
             require(reference['passed'] and reference['mode']=='independent_math' and len(reference['sequences'])==COUNT and not reference['errors'],'incomplete independent reference')

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Small independent ambient HOA matrix and exact cross-build stage replay."""
+from ci_support import mathematics
+from ci_support import checked_reference
 import argparse,json,platform,struct,subprocess,hashlib
 from pathlib import Path
 from datetime import datetime,timezone
@@ -59,7 +61,7 @@ def validate(binary,report,reference):
                     parsed.append({k:current[k] for k in ('fields','derived','status','stop_bit_offset','component_end_bit_offset','packet_tail','drc','drc_history_sufficient')})
                     for actual,wanted in zip(current['elements'],truth['elements']):
                         if not wanted['present']:continue
-                        native=None if reference else spectra(wanted);channel=actual['configuration']['element_index']
+                        native=None if not mathematics(reference) else spectra(wanted);channel=actual['configuration']['element_index']
                         hashes['quantized'].update(struct.pack('<1024i',*actual['channels'][0]['quantized']))
                         for stage,values in [('raw',actual['channels'][0]['scaled']),('tns',actual['channels_after_tns'][0]['scaled']),('bwe2',actual['channels_after_bwe2'][0]['scaled']),('hoa',current['hoa']['channels_after_hoa'][channel]['scaled'])]:
                             hashes[stage].update(float_bytes(values))
@@ -70,7 +72,7 @@ def validate(binary,report,reference):
             assert decoded['drc_processing']==decoded['loudness_normalization']=='off'
             if report['implementation'] is None:report['implementation']=impl
             assert impl==report['implementation']
-            if not reference:
+            if mathematics(reference):
                 decoder=Decoder(16);expected=[v for _,truth in generated for v in decoder.decode(truth)]
                 metric=compare(struct.unpack('<'+str(len(full)//4)+'f',full),expected,dict(case=index,stage='pcm'));merge_metrics(report['metrics']['pcm'],metric);assert metric['passed'],metric
             # One independent container pair per semantic sequence; small slices
@@ -93,7 +95,7 @@ def main():
     r=dict(passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=manifest()['sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,
            implementation=None,cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('raw','tns','bwe2','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
-        reference=json.loads(a.reference_report.read_text()) if a.reference_report else None
+        reference=checked_reference(json.loads(a.reference_report.read_text()) if a.reference_report else None)
         validate(a.binary.resolve(),r,reference);assert len(r['cases'])==39
         assert source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'source/binary changed';r['passed']=True
     except Exception as e:r['errors'].append(str(e))

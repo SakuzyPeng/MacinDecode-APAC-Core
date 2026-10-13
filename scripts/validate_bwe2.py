@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """BWE2 wire, independent Decimal mathematics, and exact portable acceptance."""
+from ci_support import mathematics, selected as ci_selected, case_index, case_counts
+from ci_support import checked_reference
 import argparse
 import copy
 from datetime import datetime,timezone
@@ -29,6 +31,8 @@ from validate_spectra import coverage
 from validate_synthesis import batch_cases
 
 COUNTS=dict(spectra=8218,pcm=8218)
+FULL_COUNTS = COUNTS
+COUNTS = case_counts(COUNTS, "validate_bwe2")
 MANIFEST=json.loads((ROOT/'data/bwe2-vectors-v2.json').read_text())
 HARD_NATIVE={'boundary','reuse_shape','right_only','left_only','gain_control','window_control','zero_source'}
 
@@ -103,7 +107,7 @@ def portable(binary, report, reference):
     for stage in COUNTS:
         for rate in (48000,44100):
             first=0
-            for batch in batch_cases(cases() if stage=='spectra' else sequences(),16):
+            for batch in batch_cases(ci_selected(stage, cases() if stage=='spectra' else sequences()),16):
                 try:
                     with tempfile.TemporaryDirectory(prefix='bwe2-math-') as tmp:
                         root=Path(tmp)
@@ -112,7 +116,7 @@ def portable(binary, report, reference):
                         bundle(root/'packets',[p for p,_ in generated],rate)
                         summary,rows=inspect(binary,root/'packets',root,len(generated))
                         require(summary['bwe2_complete_packets']==len(generated),'missing complete BWE2 stages')
-                        metrics=[check_expected(row['report'],truth,reference is None) for row,(_,truth) in zip(rows,generated)]
+                        metrics=[check_expected(row['report'],truth,mathematics(reference)) for row,(_,truth) in zip(rows,generated)]
                         pcm=None
                         if stage=='pcm':
                             result=command(binary,'decode-sq',root/'packets','--out',root/'pcm')
@@ -133,16 +137,16 @@ def portable(binary, report, reference):
                             identity=hashlib.sha256(cookie(rate))
                             for data,_ in generated[cursor:cursor+n]:
                                 identity.update(len(data).to_bytes(8,'little'));identity.update(data)
-                            record=dict(rate=rate,index=first+i,kind=kind,passed=True,input_sha256=identity.hexdigest(),**fingerprints(selected))
-                            frozen=MANIFEST[stage][len(report[stage])]
+                            record=dict(rate=rate,index=case_index(stage, first+i),kind=kind,passed=True,input_sha256=identity.hexdigest(),**fingerprints(selected))
+                            frozen=MANIFEST[stage][(0 if rate == 48000 else FULL_COUNTS[stage]//2) + record['index']]
                             require(frozen['packets']==n and all(record[k]==frozen[k] for k in ('rate','index','kind','input_sha256')),'frozen BWE2 input identity differs')
-                            if reference is None:
+                            if mathematics(reference):
                                 record['spectral_metrics']=metrics[cursor:cursor+n]
                             if pcm is not None:
                                 raw=pcm[cursor*8192:(cursor+n)*8192]
                                 values=float32(struct.unpack('<'+str(len(raw)//4)+'f',raw))
                                 record.update(frames=n*1024,pcm_sha256=hashlib.sha256(raw).hexdigest())
-                                if reference is None:
+                                if mathematics(reference):
                                     decoder=Decoder()
                                     wanted=[v for _,truth in generated[cursor:cursor+n] for v in decoder.decode(truth)]
                                     record.update(compare_pcm(values,wanted))
@@ -316,12 +320,12 @@ def main():
                 implementation=None,atol=1e-6,rtol=1e-5,spectra=[],pcm=[],errors=[],native_artificial=[],real=[],started_utc=datetime.now(timezone.utc).isoformat())
     reference=None
     try:
-        require(MANIFEST['counts']==COUNTS,'BWE2 frozen counts differ')
+        require(MANIFEST['counts']==FULL_COUNTS,'BWE2 frozen counts differ')
         require(json.loads(DESTINATION.read_text())==document(),'BWE2 constants do not match high-precision generation')
         if reference_path:
             require(reference_path.stat().st_size<=LIMIT,'reference exceeds output budget')
             report['reference_report_sha256']=sha256_file(reference_path)
-            reference=json.loads(reference_path.read_text(encoding='utf-8'));validate_reference(reference,report,bool(args.regression_report))
+            reference=checked_reference(json.loads(reference_path.read_text(encoding='utf-8')));validate_reference(reference,report,bool(args.regression_report))
         if not args.native_only:portable(binary,report,reference)
         if args.native or args.native_only:
             report['component_sha256']=COMPONENT_SHA256;native_artificial(binary,report)
@@ -332,7 +336,7 @@ def main():
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))
     report['counts']={stage:len(report[stage]) for stage in COUNTS}
     report['passed']=not report['errors'] and (args.native_only or report['counts']==COUNTS) and all(r['passed'] for stage in COUNTS for r in report[stage]) and all(r['passed'] for r in report['real'])
-    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if reference is None else None
+    report['pcm_metrics']=dict(max_absolute_error=max((r.get('max_absolute_error',0.) for r in report['pcm']),default=0),max_ulp=max((r.get('max_ulp',0) for r in report['pcm']),default=0),failed_samples=sum(r.get('failed_samples',0) for r in report['pcm'])) if mathematics(reference) else None
     report['native_float_failures']=sum(not r['numeric_passed'] for r in report['native_artificial'])
     report['native_float_policy']='User-approved layered gate: all integer/boundary checks and well-excited controls using identical captured LPC inputs are required at the original tolerance. Full native and input-isolated float differences remain separate; portable truth never consumes native values.'
     report['finished_utc']=datetime.now(timezone.utc).isoformat()

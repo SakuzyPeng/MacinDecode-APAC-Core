@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Independent per-component spatial-grid recovery and portable stage fingerprints."""
+from ci_support import mathematics, rejection
+from ci_support import checked_reference
 import argparse,hashlib,json,platform,struct,subprocess
 from datetime import datetime,timezone
 from pathlib import Path
@@ -181,8 +183,9 @@ def validate(binary,r,reference,*,vectors=None,format_generator=generate,frozen_
         index=identity['index'];m=opts.get('coefficient_count',(opts.get('order',3)+1)**2);n=shape(opts.get('order',3),opts.get('dynamic',False),opts.get('coefficient_count'),opts.get('output_coefficients'))
         with workspace(r,kind) as root:
             generated=[vectors.packet(c,**opts) for c in cases];payloads=[raw for raw,_ in generated];cfg=cookie(**opts);bundle(root/'bundle',payloads,**opts)
+            if rejection(binary, root/'bundle', root, r, identity):continue
             summary=command(binary,'parse-packets',root/'bundle','--depth','hoa','--output',root/'parsed');require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'incomplete parse');rows=[json.loads(line)['report'] for line in (root/'parsed').read_text().splitlines()]
-            record=dict(identity,passed=True,**fingerprints(rows,generated,opts));oracle=None if reference else Decoder(opts);expected_pcm=[];cursor=0
+            record=dict(identity,passed=True,**fingerprints(rows,generated,opts));oracle=None if not mathematics(reference) else Decoder(opts);expected_pcm=[];cursor=0
             history=dict(origin='cookie',source=hashlib.sha256(cfg).hexdigest(),metadata_origin='cookie',metadata_source=hashlib.sha256(cfg).hexdigest(),history=False)
             for pi,(row,(_,truth)) in enumerate(zip(rows,generated)):
                 if oracle:expected_pcm.extend(oracle.decode(truth))
@@ -215,7 +218,7 @@ def main(*,vectors=None,format_generator=generate,frozen_name='hoa-spatial-subba
     r=dict(passed=False,profile=profile,created_at=datetime.now(timezone.utc).isoformat(),platform=platform.platform(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),vector_manifest_sha256=vectors.manifest()['sha256'],format_sha256=format_generator()['format_sha256'],mode='bit_exact_replay' if a.reference_report else 'independent_math',atol=1e-6,rtol=1e-5,implementations={},cases=[],metrics=None if a.reference_report else {k:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None) for k in ('transport','descriptors','internal','hoa','pcm')},errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     if format_name is None:r['format_dependencies']=format_generator()['dependencies']
     try:
-        validate(a.binary.resolve(),r,json.loads(a.reference_report.read_text()) if a.reference_report else None,vectors=vectors,format_generator=format_generator,frozen_name=frozen_name,format_name=format_name,metadata_checker=metadata_checker,range_kinds=range_kinds);require(len(r['cases'])==len(vectors.manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases/source changed');r['passed']=True
+        validate(a.binary.resolve(),r,checked_reference(json.loads(a.reference_report.read_text())) if a.reference_report else None,vectors=vectors,format_generator=format_generator,frozen_name=frozen_name,format_name=format_name,metadata_checker=metadata_checker,range_kinds=range_kinds);require(len(r['cases'])==len(vectors.manifest()['cases']) and source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'],'missing cases/source changed');r['passed']=True
     except Exception as e:r['errors'].append(str(e))
     r['stage_sha256']=digest(r['cases']);a.report.parent.mkdir(parents=True,exist_ok=True)
     with a.report.open('x') as f:json.dump(r,f,indent=2);f.write('\n')

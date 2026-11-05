@@ -20,6 +20,7 @@ import tempfile
 from spectrum_vectors import bundle, frame, matrix_cases
 from validate import require, write_json
 from validate_replay import command, sha256_file
+from native_component import identity as component_identity, unchanged
 
 
 def sequences():
@@ -127,10 +128,8 @@ def main():
     if args.output.exists():parser.error('refusing to overwrite report')
     if sys.platform!='darwin':parser.error('Apple PCM reference validation requires macOS')
     binary=args.binary.resolve()
-    component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
-    component_sha=sha256_file(component)
     reference_fft=args.reference_fft.resolve() if args.reference_fft else None
-    report=dict(schema_version=1,component_sha256=component_sha,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
+    report=dict(schema_version=1,**component_identity(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
         tested_worktree_dirty=bool(subprocess.check_output(['git','status','--porcelain'],text=True).strip()),
         tool_sha256=sha256_file(binary),started_utc=datetime.now(timezone.utc).isoformat(),atol=1e-6,rtol=1e-5,
         reference=('AudioToolbox with diagnostic Float64 DIF DFT' if args.reference_mode=='f64' else 'AudioToolbox vDSP with '+args.reference_mode+' output buffers') if reference_fft else 'unmodified AudioToolbox replay',
@@ -144,6 +143,10 @@ def main():
             except Exception as error:report['errors'].append(dict(rate=rate,first_case=first,error=str(error)))
             first+=len(batch)
             if first%480==0:print('PCM cases',rate,first,file=sys.stderr,flush=True)
+    try:
+        unchanged(report)
+    except ValueError as error:
+        report['errors'].append(dict(error=str(error)))
     if sha256_file(binary)!=report['tool_sha256']:
         report['errors'].append({'error':'candidate executable changed during validation'})
     if reference_fft and sha256_file(reference_fft)!=report['reference_fft_sha256']:

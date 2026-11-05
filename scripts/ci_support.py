@@ -48,6 +48,13 @@ def rejection(binary, directory, root, report, identity):
     """Check an explicitly catalogued unsupported input, never infer from output."""
     if CONTEXT is None or identity['index'] not in CONTEXT['rejections']:
         return False
+    error = require_hoa_limit_rejection(binary, directory, root)
+    report['cases'].append(dict(identity, passed=True, expected='rejection', error=error))
+    return True
+
+
+def require_hoa_limit_rejection(binary, directory, root):
+    """Check the product support boundary for a caller-declared high-order input."""
     result = subprocess.run([str(binary), 'decode-sq', str(directory), '--out', str(root / 'rejected')],
                             capture_output=True, text=True, encoding='utf-8', timeout=120)
     if result.returncode != 1:
@@ -59,5 +66,4 @@ def rejection(binary, directory, root, report, identity):
     pcm = root / 'rejected' / 'pcm.f32le'
     if pcm.exists() and pcm.stat().st_size:
         raise AssertionError('unsupported HOA produced PCM')
-    report['cases'].append(dict(identity, passed=True, expected='rejection', error=error))
-    return True
+    return error

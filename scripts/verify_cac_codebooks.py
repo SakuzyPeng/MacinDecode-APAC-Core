@@ -9,16 +9,16 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+from native_component import profile, TABLE_ADDRESSES, sha256_file
 
-COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 DEFAULT_COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
 DEFAULT_TABLE = Path(__file__).resolve().parents[1] / 'data/cac-codebooks.json'
 
 
 def extract(path):
     raw = path.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != COMPONENT_SHA256:
-        raise ValueError('unverified AudioCodecs component; reverify CAC evidence')
+    component_sha = hashlib.sha256(raw).hexdigest()
+    selected = profile(component_sha, 'cac_tables')
     magic, count = struct.unpack_from('>II', raw)
     assert magic == 0xcafebabe
     for i in range(count):
@@ -44,10 +44,11 @@ def extract(path):
         raise ValueError('CAC table address outside verified file segments')
 
     result = dict(schema_version=1, source=dict(component='AudioCodecs 7.0',
-                  system='macOS 27.0 / 26A428', component_sha256=COMPONENT_SHA256,
+                  system=selected['system']+' / '+selected['build'], component_sha256=sha256_file(path),
                   architecture='x86_64', method='encoder and decoder wire-codeword agreement'))
-    for name, encoder, decoder, count in [('gain', 0x8a1200, 0x8a1444, 35),
-                                          ('repeat', 0x8a128c, 0x8a133c, 44)]:
+    gain_encoder, gain_decoder, repeat_encoder, repeat_decoder = TABLE_ADDRESSES[component_sha]['cac']
+    for name, encoder, decoder, count in [('gain', gain_encoder, gain_decoder, 35),
+                                          ('repeat', repeat_encoder, repeat_decoder, 44)]:
         encoded = [struct.unpack('<HH', read(encoder+4*i, 4)) for i in range(count)]
         decoded = []
         for i in range(count):
@@ -70,8 +71,10 @@ def main():
     if args.write:
         with args.table.open('xb') as output:
             output.write(data)
-    elif args.table.read_bytes() != data:
-        raise AssertionError('CAC wire constants differ from verified encoder/decoder tables')
+    else:
+        stored = json.loads(args.table.read_bytes())
+        if any(stored[key] != result[key] for key in ('schema_version', 'gain', 'repeat')):
+            raise AssertionError('CAC wire constants differ from verified encoder/decoder tables')
     print(json.dumps(dict(gain_entries=35, repeat_entries=44, sha256=hashlib.sha256(data).hexdigest())))
 
 

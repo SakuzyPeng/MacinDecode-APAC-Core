@@ -14,7 +14,8 @@ from pathlib import Path
 import struct
 import sys
 from native_drc_trace import trace_bundle
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity, unchanged
+from native_component import LEGACY_SHA256 as COMPONENT_SHA256, validate_capture
 from validate import require,write_json
 from validate_portable import source_digest
 from validate_replay import sha256_file,check_accounting
@@ -49,7 +50,7 @@ def identity(event,channels=2):
 
 
 def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
-    require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and
+    require(validate_capture(trace) and not trace['errors'] and
             not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete qualified native trace')
     check_accounting(replay,pcm)
     channels=pcm.get('channels',2)
@@ -90,7 +91,6 @@ def inspect(trace,replay,pcm,raw,policy,require_nonzero=True):
     first=replay['discarded_before_frames']*channels;count=pcm['frames']*channels
     expected=struct.pack('<'+str(count)+'f',*values[first:first+count])
     require(expected==raw,'DRC wrapper output does not match returned PCM at the reported timeline')
-    require(sha256_file(Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))==COMPONENT_SHA256,'component changed during proof')
     return dict(policy=policy,gate_profile=GATE_PROFILE,outer_float_role='diagnostic_only',nonzero_input_observed=nonzero,passed=empty and no_delay and not failed_gain and not resets and all(m['identity'] for m in kernel_metrics),
                 empty_selected_sets=empty,zero_added_delay=no_delay,returned_pcm_matches_timeline=True,
                 frame_count=len(wrappers),gain_payloads=len(gains),gain_parser_failures=len(failed_gain),gain_resets=len(resets),
@@ -111,7 +111,7 @@ def main():
     require(args.binary.is_file() and args.frames>0,'binary and positive frames required')
     original=sha256_file(args.binary)
     report=dict(schema_version=1,created_at=datetime.now(timezone.utc).isoformat(),passed=False,
-                source_sha256=source_digest(),binary_sha256=original,component_sha256=COMPONENT_SHA256,
+                source_sha256=source_digest(),binary_sha256=original,**component_identity(),
                 gate=GATE_PROFILE,cases=[],errors=[])
     import subprocess
     report['code_commit']=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()
@@ -125,6 +125,10 @@ def main():
             report['cases'].append(result)
         except Exception as error:report['errors'].append(dict(policy=policy,error=str(error)))
         print('DRC proof '+policy+' recorded',file=sys.stderr,flush=True)
+    try:
+        unchanged(report)
+    except ValueError as error:
+        report['errors'].append(dict(error=str(error)))
     if sha256_file(args.binary)!=original:report['errors'].append(dict(error='binary changed during proof'))
     explicit=[r for r in report['cases'] if r['policy']=='drc-off']
     report['passed']=not report['errors'] and len(explicit)==1 and explicit[0]['passed']

@@ -4,6 +4,39 @@
 
 返回 [README](../README.md)。
 
+## 系统版本与原生证据
+
+原生研究工具按 AudioCodecs 完整文件的 SHA-256 识别组件版本。`26A428` 和 `26B123` 分别使用自己的探针布局版本。运行时还核对实际加载的 Mach-O 切片 UUID、架构及断点位置。当前 `26B123` 内存布局适配对应 arm64e 切片。未知组件、未经核验的切片、缺失符号、成功回放却没有探针事件，以及采集中组件变化都会产生失败记录。
+
+CAF、MP4 和访问验证使用公开 API，并在运行前后核对组件身份。读取历史捕获时，根据捕获记录的组件哈希选择版本规则。一个验收报告只汇总同一组件版本的捕获。旧版捕获的既有字段继续用于校验，新捕获额外保存布局版本、加载切片和断点命中记录。
+
+下面的版本回归使用两个冻结的人工 HOA 输入，分别检查默认处理和关闭 DRC 的公开回放结果。它将输入 cookie、包数据及容器声明绑定到具体用例，核对成功结果或准确的错误阶段和状态。
+
+```sh
+python3 -B scripts/validate_native_versions.py --binary target/release/mapac \
+  --report reports/native-versions-new.json
+```
+
+两个输入均使用六阶 HOA 内核和 16 路输出。`26A428` 的历史结果为成功，`26B123` 在设置 cookie 时返回 `!dat`。现有配置解析支持编码器写入的 `content_origin.values[3]` 值 `0` 和 `2`，回归同时检查该字段以后的位边界。
+
+静态码表工具使用对应组件版本的表地址，比较码字、数值及维度。新观测的组件来源写入本次结果，已提交数据中的历史来源用于追溯原始证据。正弦窗检查同样分别记录历史表来源和本次捕获组件。
+
+共享配置的公开接口观察可以显式指定由当前 SDK 桥接源码构建的动态库，输出限制为 128 MiB。结果包含组件、桥接器和输入摘要，以及每次公开 API 调用的状态。
+
+```sh
+mkdir -p target/research
+xcrun clang -dynamiclib -O2 -g0 native/audio_toolbox.c \
+  -framework AudioToolbox -framework CoreFoundation -o target/research/apac-native.dylib
+python3 -B scripts/native_codec.py --bridge target/research/apac-native.dylib \
+  --bundle /path/to/packets --out artifacts/native-observation-new
+```
+
+`validate_hoa_shared_native.py` 验证旧的公开观察时，可用 `--reference-report` 提供原成功报告。旧观察缺少组件身份字段时，工具通过原报告记录的文件摘要绑定其版本。采集失败会留下 `.incomplete.json`，完整结果生成后移除该标记。
+
+源布局和重映射的只读采集入口分别为 `native_hoa_source_layouts_trace.trace_bundle` 和 `native_hoa_remapping_trace.trace_bundle`。采集完整源布局矩阵时，设置 `APAC_HOA_CAPTURE_MATRICES=1`，并通过 `APAC_HOA_MATRIX_CATALOG` 指定已有的 UTF-8 JSON 符号目录。目录是包含 `tag`、`matrix`、`labels` 的列表，分别记录布局标签、矩阵符号名称和声道标签。采集结果由源布局验证器与已提交矩阵逐项核对。
+
+真实窗口的 PCM 检查接受完整的独立解码结果，并校验摘要、声道及帧数。HOA 的非零起点停止同时要求明确的 HOA 布局和实际导出起点，错误阶段与信息也必须匹配。用于 MP4／访问逐位比较的通道参考报告应来自相同数值配置，例如当前 SQ v2。
+
 HOA salient 的公开接口测量、候选冻结和断点续跑见 [HOA 黑盒批处理](hoa-blackbox.md)。该工具输出本地候选与证据，不自动修改正式表。
 
 ## 基本检查与配置验收

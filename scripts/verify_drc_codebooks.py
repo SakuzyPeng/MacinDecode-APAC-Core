@@ -6,13 +6,14 @@ import json
 from pathlib import Path
 import re
 import struct
+from native_component import profile, TABLE_ADDRESSES, sha256_file
 from drc_vectors import GAIN_CODES
-from native_frame_trace import COMPONENT_SHA256
 
 
 def extract(path):
     raw=path.read_bytes()
-    if hashlib.sha256(raw).hexdigest()!=COMPONENT_SHA256:raise ValueError('unverified AudioCodecs component')
+    component_sha = hashlib.sha256(raw).hexdigest()
+    selected = profile(component_sha, 'drc_tables')
     magic,count=struct.unpack_from('>II',raw)
     if magic!=0xcafebabe:raise ValueError('unexpected Mach-O')
     for i in range(count):
@@ -30,9 +31,10 @@ def extract(path):
             if va<=address and address+count<=va+fs:return bytes(data[fo+address-va:fo+address-va+count])
         raise ValueError('table outside verified file segment')
     def unpack(word):return dict(value_eighth_db=(word&255)-16,bits=(word>>8)&255,code=word>>16)
-    encoder=[unpack(v) for v in struct.unpack('<25I',read(0x6527b4,100))]
+    addresses = TABLE_ADDRESSES[component_sha]['drc']
+    encoder=[unpack(v) for v in struct.unpack('<25I',read(addresses[0],100))]
     decoder=[]
-    for address,count in [(0x6529a0,2),(0x6529a8,13),(0x6529dc,1),(0x6529e0,8),(0x652a00,1)]:
+    for address,count in zip(addresses[1:], (2,13,1,8,1)):
         decoder.extend(unpack(v) for v in struct.unpack('<'+str(count)+'I',read(address,4*count)))
     own=[dict(value_eighth_db=v,bits=len(c),code=int(c,2)) for c,v in GAIN_CODES]
     key=lambda row:row['value_eighth_db']
@@ -54,7 +56,7 @@ def main():
         table=raw.decode().split('ia_drc_gain_tbls_prof_0_1[',1)[1].split('};',1)[0]
         rows=[dict(bits=int(n),code=int(c,16),value_eighth_db=int(float(v)*8)) for n,c,v in re.findall(r'\{(\d+),\s*(0x[0-9A-Fa-f]+),\s*([-\d.]+)f\}',table)]
         if sorted(rows,key=lambda r:r['value_eighth_db'])!=entries:raise AssertionError('public UniDRC gain table differs')
-    result=dict(component_sha256=COMPONENT_SHA256,architecture='arm64e',gain_entries=entries,
+    result=dict(component_sha256=sha256_file(args.component),architecture='arm64e',gain_entries=entries,
                 public_revision='libxaac 6c771f2ccdef83ebc6dbf7694b1a0ce9c0585d46',public_rom_sha256=public,passed=True)
     with args.output.open('x',encoding='utf-8') as out:json.dump(result,out,indent=2);out.write('\n')
     print(json.dumps(dict(passed=True,gain_entries=len(entries),sha256=hashlib.sha256(args.output.read_bytes()).hexdigest())))

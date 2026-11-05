@@ -5,7 +5,7 @@ from datetime import datetime,timezone
 import hashlib,json,struct,subprocess,sys
 from pathlib import Path
 from native_drc_trace import trace_bundle
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity, unchanged
 from validate_drc_off import inspect as off_proof, GATE_PROFILE
 from validate_drc import workspace
 from validate_portable import ROOT,LIMIT,source_digest,compare_pcm
@@ -153,11 +153,26 @@ def representatives(binary,report,baseline):
             manifest=json.loads((root/'packets/manifest.json').read_text());frames=max(1,(target['target_raw_end']-target['target_raw_start']))
             if spec['channels']==2:
                 item,_,_=inspect_bundle(binary,root/'packets',root,frames,require_nonzero=False)
-                item.update(channels=2,target_packet=target['requested_start_packet'],passed=True)
+                item.update(channels=2,target_packet=target['requested_start_packet'],passed=True,native_drc_state_checked=True)
             else:
-                decoded=command(binary,'decode-sq',root/'packets','--out',root/'unsupported',allowed=(1,))
-                require(decoded['error']['operation']=='SQ decoder' and 'unsupported configuration' in decoded['error']['message'],'unexplained representative stop')
-                item=dict(channels=spec['channels'],target_packet=target['requested_start_packet'],stop_reason=pcm_stop(decoded),error=decoded['error'],passed=True)
+                output = root/'rust-pcm'
+                decoded=command(binary,'decode-sq',root/'packets','--out',output,allowed=(0,1))
+                reason = None if decoded.get('complete') else pcm_stop(decoded, manifest)
+                item=dict(channels=spec['channels'],target_packet=target['requested_start_packet'],
+                          stop_reason=reason,result=decoded,passed=True,native_drc_state_checked=False)
+                if reason is None:
+                    pcm = json.loads((output/'pcm.json').read_text())
+                    require(not decoded['native_apis_used'] and pcm['complete'] and pcm['all_finite']
+                            and pcm['channels'] == spec['channels'] and pcm['frames'] == decoded['saved_frames']
+                            and pcm['frames'] > 0, 'invalid independent representative PCM')
+                    require(sha256_file(output/'pcm.f32le') == pcm['sha256'], 'representative PCM hash differs')
+                    item.update(independent_pcm_complete=True,pcm_sha256=pcm['sha256'],frames=pcm['frames'])
+                else:
+                    item['error'] = decoded['error']
+                    if output.exists():
+                        require((output/'.incomplete.json').exists() and not (output/'pcm.json').exists(),
+                                'failed representative PCM acquired a completion artifact')
+            item.update(stored_start_packet=manifest['start_packet'],input_layout=manifest['file']['layout'])
             report['representatives'].append(item)
         print('DRC representative',index,'passed',file=sys.stderr,flush=True)
 
@@ -168,12 +183,14 @@ def main():
     p.add_argument('--replay-baseline',type=Path,default=Path('reports/replay-validation-a76d2f4.json'))
     args=p.parse_args();require(sys.platform=='darwin' and args.binary.is_file() and not args.report.exists(),'requires macOS binary and fresh report')
     report=dict(schema_version=1,passed=False,mode='native_diagnostic',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
-                source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),component_sha256=COMPONENT_SHA256,
+                source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),**component_identity(),
                 native_bridge_sha256=sha256_file(ROOT/'native/audio_toolbox.c'),rules_version='apac-native-drc-off-v2',gate_profile=GATE_PROFILE,require_native_pcm=args.require_native_pcm,
                 started_at=datetime.now(timezone.utc).isoformat(),controls=[],representatives=[],errors=[],
                 failure_directory=str(args.report.with_suffix('.failures')))
     try:
         controls(args.binary.resolve(),report);state_controls(args.binary.resolve(),report);recovery(args.binary.resolve(),report);representatives(args.binary.resolve(),report,args.replay_baseline)
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(args.binary)==report['binary_sha256'],'source or binary changed during acceptance')
         require(len(report['representatives'])==15,'representative ranges missing');report['passed']=True
     except Exception as error:report['errors'].append(dict(error=str(error)))

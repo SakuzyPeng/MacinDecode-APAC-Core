@@ -18,7 +18,8 @@ from spectrum_vectors import band_cases, bundle, frame, matrix_cases
 from validate import require, write_json
 from validate_replay import command, sha256_file
 from validate_frames import control_specs
-from native_frame_trace import COMPONENT_SHA256, trace_bundle
+from native_frame_trace import trace_bundle
+from native_component import identity as component_identity, unchanged
 
 
 def ulp(a, b):
@@ -233,12 +234,17 @@ def main():
     for rate in [48000,44100]:
         artificial(binary,itertools.chain(matrix_cases(),band_cases()),rate,False,report['artificial'],metrics)
     if args.native:
-        report['component_sha256']=COMPONENT_SHA256
+        report.update(component_identity())
         report['system']=subprocess.check_output(['sw_vers'],text=True).strip()
         for rate in [48000,44100]:
             artificial(binary,native_cases(),rate,True,report['native_artificial'],metrics,native_metrics)
         real_cases(binary,args.replay_baseline,report['real'],native_metrics)
     report['failures']=[r for k in ['artificial','native_artificial','real'] for r in report[k] if not r['passed']]
+    if 'component_sha256' in report:
+        try:
+            unchanged(report)
+        except ValueError as error:
+            report['failures'].append(dict(stage='component_identity', error=str(error)))
     report.update(passed=not report['failures'],portable_metrics=metrics,native_metrics=native_metrics,
         artificial_cases=sum(r['cases'] for r in report['artificial']),
         native_artificial_cases=sum(r['cases'] for r in report['native_artificial']),

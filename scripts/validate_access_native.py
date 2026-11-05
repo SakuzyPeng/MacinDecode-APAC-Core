@@ -11,7 +11,7 @@ from validate import require,write_json
 from validate_drc import workspace
 from validate_portable import source_digest
 from validate_replay import command,sha256_file
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity
 from access_vectors import PROFILE
 from validate_access import state_identity
 
@@ -85,10 +85,10 @@ def main():
     p.add_argument('--collection',type=Path,required=True);p.add_argument('--mp4-reference',type=Path,required=True);p.add_argument('--trials',type=int,default=3)
     args=p.parse_args();require(args.binary.is_file() and not args.report.exists(),'binary missing or report exists');require(args.trials>=3,'insufficient performance trials')
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
-    report=dict(schema_version=1,passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),component_sha256=sha256_file(component),reference_sha256=sha256_file(args.mp4_reference),trials=args.trials,controls=[],media=[],errors=[],failure_directory=str(args.report.with_suffix('.failures')))
+    report=dict(schema_version=1,passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),**component_identity(),reference_sha256=sha256_file(args.mp4_reference),trials=args.trials,controls=[],media=[],errors=[],failure_directory=str(args.report.with_suffix('.failures')))
     try:
-        require(report['component_sha256']==COMPONENT_SHA256,'unqualified native component');controls(args.binary.resolve(),report);media(args.binary.resolve(),report,args.collection,args.mp4_reference,args.trials)
-        require(source_digest()==report['source_sha256'] and sha256_file(args.binary)==report['binary_sha256'] and sha256_file(component)==COMPONENT_SHA256,'validation identity changed');report['passed']=True
+        controls(args.binary.resolve(),report);media(args.binary.resolve(),report,args.collection,args.mp4_reference,args.trials)
+        require(source_digest()==report['source_sha256'] and sha256_file(args.binary)==report['binary_sha256'] and sha256_file(component)==report['component_sha256'],'validation identity changed');report['passed']=True
     except Exception as e:report['errors'].append(str(e))
     write_json(args.report,report);print(json.dumps(dict(passed=report['passed'],controls=len(report['controls']),media=len(report['media']),errors=report['errors'])));return 0 if report['passed'] else 1
 if __name__=='__main__':raise SystemExit(main())

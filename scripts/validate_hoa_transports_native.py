@@ -6,7 +6,7 @@ import json
 import subprocess
 from pathlib import Path
 import hoa_transport_vectors as vectors
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 from validate_hoa_mixed_native import frames
 from validate_hoa_salient_subbands_native import verify
 from validate_hoa_salient_subbands import check
@@ -65,14 +65,14 @@ def main():
     p.add_argument('--report',type=Path,required=True)
     a=p.parse_args();require(not a.report.exists(),'report exists')
     report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-        source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=COMPONENT_SHA256,
+        source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=None,
         captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         paths=json.loads(a.captures.read_text());controls={name:(opts,cases) for name,opts,cases in vectors.native_controls()}
         require(set(paths)==set(controls),'missing native transport control')
         for name,(opts,cases) in controls.items():
             root=a.captures.parent/paths[name];trace=json.loads((root/'native-hoa.json').read_text())
-            require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete capture')
+            require(bind_capture(report, trace) and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete capture')
             generated=[vectors.packet(c,**opts) for c in cases]
             require([p['packet_sha256'] for p in trace['packets']]==[hashlib.sha256(raw).hexdigest() for raw,_ in generated],'capture input differs')
             truth=[t for _,t in generated];nodes={(seq,role):t for seq,role,t in frames(truth)}

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from channel_vectors import WINDOWS, bundle, cookie, excitation, packet
 from layout_vectors import sequences
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity, unchanged
 from validate import require, write_json
 from validate_channels import check
 from validate_channels_native import inspect
@@ -109,12 +109,13 @@ def main():
                   created_at=datetime.now(timezone.utc).isoformat(),
                   code_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),
                   source_sha256=source_digest(), binary_sha256=sha256_file(binary),
-                  component_sha256=COMPONENT_SHA256, probes=[], controls=[], errors=[],
+                  **component_identity(), probes=[], controls=[], errors=[],
                   failure_directory=str(args.report.with_suffix('.failures')))
     try:
         report['layout'] = public_layout()
         artificial(binary, report)
         controls(binary, report)
+        unchanged(report)
         require(len(report['probes']) == 56 and len(report['controls']) == 8, 'missing native cases')
         require(source_digest() == report['source_sha256'] and sha256_file(binary) == report['binary_sha256'],
                 'source or binary changed during acceptance')

@@ -12,6 +12,7 @@ import sys
 import tempfile
 
 from validate import caf_pcm, require, write_json
+from native_component import identity as component_identity, unchanged
 
 
 def sha256_file(path):
@@ -164,13 +165,12 @@ def main():
     reps = baseline["representatives"]
     require(len(reps) == 5 and {r["channels"] for r in reps} == {2, 8, 12, 16, 24}, "requires the five representative groups")
     binary = args.binary.resolve()
-    component = Path("/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs")
-    component_sha = sha256_file(component)
+    component_info = component_identity()
     report = {"schema_version": 1, "started_utc": datetime.now(timezone.utc).isoformat(),
               "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True, encoding="utf-8").strip(),
               "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True, encoding="utf-8").strip()),
               "system": subprocess.check_output(["sw_vers"], text=True, encoding="utf-8").strip(), "architecture": platform.machine(),
-              "component_sha256": component_sha, "representative_baseline_sha256": hashlib.sha256(args.representatives.read_bytes()).hexdigest(),
+              **component_info, "representative_baseline_sha256": hashlib.sha256(args.representatives.read_bytes()).hexdigest(),
               "atol": 1e-6, "rtol": 1e-5, "input_batches": [1, 7, 64],
               "representatives": [], "short_vectors": [], "failures": []}
     for source in reps:
@@ -187,6 +187,10 @@ def main():
                 report["failures"].append({"stage": kind, "index": i, "error": result["error"]})
     if len(report["representatives"]) != 15 or len(report["short_vectors"]) != 42:
         report["failures"].append({"stage": "coverage", "error": "expected 15 representative windows and 42 short vectors"})
+    try:
+        unchanged(report)
+    except ValueError as error:
+        report["failures"].append({"stage": "component_identity", "error": str(error)})
     report["passed"] = not report["failures"]
     report["finished_utc"] = datetime.now(timezone.utc).isoformat()
     write_json(args.output, report)

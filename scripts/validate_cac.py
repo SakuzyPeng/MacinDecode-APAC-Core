@@ -16,7 +16,8 @@ import tempfile
 from cac_oracle import Decoder, coupled
 from cac_vectors import cases, packet, sequences
 from generate_cac_math import PROFILE
-from native_frame_trace import COMPONENT_SHA256, trace_bundle
+from native_frame_trace import trace_bundle
+from native_component import identity as component_identity, unchanged
 from spectrum_vectors import bundle, cookie
 from sq_oracle import scaled_channel
 from validate import require, write_json
@@ -203,10 +204,20 @@ def check_native(rows, trace):
     return records
 
 
-def pcm_stop(result):
+def pcm_stop(result, bundle_manifest=None):
     error=result.get('error',{})
-    require(error.get('operation')=='SQ decoder','unexpected PCM failure: '+json.dumps(error))
     message=error.get('message','')
+    if (error.get('operation') == 'SQ access'
+            and message == 'HOA input must include packet zero to establish sequential state'):
+        manifest = bundle_manifest or {}
+        layout = manifest.get('file', {}).get('layout', {})
+        order = (layout.get('value') or {}).get('ambisonic_order')
+        start = manifest.get('start_packet')
+        require(manifest.get('complete') is True and type(start) is int and start > 0
+                and layout.get('error') is None and type(order) is int and order >= 0,
+                'HOA origin stop lacks a verified nonzero HOA bundle')
+        return 'nonzero_origin'
+    require(error.get('operation')=='SQ decoder','unexpected PCM failure: '+json.dumps(error))
     if message.startswith('unsupported configuration: '):return 'configuration'
     exact_messages={
         'requires verified stereo configuration without ancillary data, extensions or remapping':'configuration',
@@ -281,6 +292,7 @@ def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_nat
                     for flag,key in [('--quality','cdqu'),('--bitrate','brat')]:
                         if flag in extra:require(settings['actual_encoder_settings'][key]['error'] is None and settings['actual_encoder_settings'][key]['value']==int(extra[extra.index(flag)+1]),'encoder control differs')
                     dumped=command(binary,'dump',generated/'encoded.caf','--out',root/'packets','--with-preroll')
+                record.update(stored_start_packet=dumped['start_packet'],input_layout=dumped['file']['layout'])
                 summary,rows=inspect_fn(binary,root/'packets',root,dumped['actual_packets']);record['summary']=summary
                 if summary['context']['channels']==2:
                     record['native_bwe2_checks' if bwe2 else 'native_tns_checks' if tns else 'native_cac_checks']=check_fn(rows,trace_bundle(binary,root/'packets',root,True,cac=True,tns=tns,bwe2=bwe2))
@@ -294,7 +306,7 @@ def native_real(binary, baseline, report, inspect_fn=inspect, check_fn=check_nat
                 record['pcm_result']=json.loads(result.stdout or result.stderr)
                 require(result.returncode in (0,1),'unexpected PCM exit code')
                 if result.returncode:
-                    record['pcm_stop_reason']=pcm_stop(record['pcm_result'])
+                    record['pcm_stop_reason']=pcm_stop(record['pcm_result'], dumped)
                     if (root/'pcm').exists():
                         require((root/'pcm/.incomplete.json').exists() and not (root/'pcm/pcm.json').exists(),
                                 'failed PCM export acquired a completion artifact')
@@ -337,9 +349,11 @@ def main():
             report['reference_code_commit']=reference['code_commit']
         portable(binary,report,reference)
         if args.native:
-            report['component_sha256']=COMPONENT_SHA256
+            report.update(component_identity())
             native_artificial(binary,report);native_real(binary,args.replay_baseline,report)
             require(len(report['native_artificial'])==COUNTS['spectra'] and len(report['real'])==30,'incomplete native CAC coverage')
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
         if reference_path:require(sha256_file(reference_path)==report['reference_report_sha256'],'reference report changed')
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))

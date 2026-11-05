@@ -22,6 +22,7 @@ def back(frame,e,**saved):
 def hit(frame,location,_dict):
     global DECODER
     try:
+        base.observe(frame, location)
         key=location.GetBreakpoint().GetID()
         if key in RETURNS:
             saved=RETURNS.pop(key);frame.GetThread().GetProcess().GetTarget().BreakpointDelete(key);e=saved['event'];e['status']=base.reg(frame,'w0')
@@ -47,14 +48,16 @@ def __lldb_init_module(debugger,_dict):
     channels.LAYOUT_TYPES[16]=[0]*16
     channels.__lldb_init_module(debugger,_dict)
     target=debugger.GetSelectedTarget()
+    base.begin_probe(target, 'hoa')
     for kind,pattern in [('hoa_deserialize',r'^APACHOADecoder::Deserialize\('),('hoa_decode',r'^APACHOADecoder::DecodeAPACFrame\('),('hoa_ics',r'^APACHOAICSInfo::Deserialize\('),('hoa_spatial',r'^HOASpatialDecoder::Deserialize\(')]:
-        bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')
+        bp=base.breakpoint(target, pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')
 
 def finish(debugger):
     import lldb
     process=debugger.GetSelectedTarget().GetProcess()
-    result=dict(component_sha256=base.COMPONENT_SHA256,trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),architecture='arm64',channels=16,
+    result=dict(component_sha256=base.component_sha256(),trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),architecture='arm64',channels=16,
                 packets=channels.PACKETS,events=channels.EVENTS,hoa_events=EVENTS,errors=channels.ERRORS+ERRORS,pending_returns=len(channels.RETURNS)+len(RETURNS),process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
+    base.finish_capture(result)
     raw=(json.dumps(result)+'\n').encode();assert len(raw)<=128*1024*1024
     with Path(os.environ['APAC_HOA_TRACE_OUTPUT']).open('xb') as f:f.write(raw)
 

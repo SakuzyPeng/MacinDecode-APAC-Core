@@ -41,6 +41,7 @@ def spatial(frame,pointer):
 
 def channel_hit(frame,location,data):
     try:
+        base.observe(frame, location)
         if channels.KINDS.get(location.GetBreakpoint().GetID())=='synthesis' and base.reg(frame,'w1')==0:
             if SPATIAL is None: raise RuntimeError('synthesis before spatial capture')
             hoa.EVENTS.append(dict(kind='hoa_history',sequence=channels.SEQUENCE,role=channels.ROLE,after=spatial(frame,SPATIAL)))
@@ -56,6 +57,7 @@ def __lldb_init_module(debugger,state):
     channels.LAYOUT_TYPES[COUNT]=[0]*COUNT; hoa.spatial=spatial; channels.hit=channel_hit
     hoa.__lldb_init_module(debugger,state)
     target=debugger.GetSelectedTarget()
+    base.begin_probe(target, 'hoa_dynamic_subbands')
     for key,kind in list(channels.KINDS.items()):
         if kind not in ('capacity','packet','core','element','reset','synthesis','ancillary'):
             target.BreakpointDelete(key); del channels.KINDS[key]
@@ -64,10 +66,11 @@ def __lldb_init_module(debugger,state):
 def finish(debugger):
     import lldb
     process=debugger.GetSelectedTarget().GetProcess()
-    result=dict(component_sha256=base.COMPONENT_SHA256,trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+    result=dict(component_sha256=base.component_sha256(),trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 architecture='arm64',channels=COUNT,packets=channels.PACKETS,events=channels.EVENTS,hoa_events=hoa.EVENTS,
                 errors=channels.ERRORS+hoa.ERRORS,pending_returns=len(channels.RETURNS)+len(hoa.RETURNS),
                 process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
+    base.finish_capture(result)
     raw=(json.dumps(result)+'\n').encode()
     if len(raw)>128*1024*1024: raise RuntimeError('trace exceeds output limit')
     with Path(os.environ['APAC_HOA_TRACE_OUTPUT']).open('xb') as f: f.write(raw)

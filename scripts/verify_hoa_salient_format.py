@@ -10,20 +10,20 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+from native_component import profile, TABLE_ADDRESSES, sha256_file
 from hoa_salient_format import format_name, shared_name, load_format, split_format, json_bytes
 from generate_hoa_salient_measured import MEASURED_FILES, load_measurements, measured_book, replace_book
 from generate_hoa_salient_measured_matrix import load_measurements as load_matrix_measurements, measured_matrix, replace_matrix
 from generate_hoa_salient_measured_groups import GROUP_USERS, load_measurements as load_group_measurements, replace_group
 from generate_hoa_salient_measured import measured_group
 
-COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def reader(path):
     raw = path.read_bytes()
-    if hashlib.sha256(raw).hexdigest() != COMPONENT_SHA256:
-        raise ValueError('unverified AudioCodecs component')
+    component_sha = hashlib.sha256(raw).hexdigest()
+    selected = profile(component_sha, 'hoa_tables')
     for i in range(struct.unpack_from('>I', raw, 4)[0]):
         cpu, _, offset, size, _ = struct.unpack_from('>IIIII', raw, 8 + 20*i)
         if cpu == 0x1000007:
@@ -60,7 +60,7 @@ def extract(path, order=3, quantization_bits=6):
         return [(pointer(p), pointer(p+8)) for p in range(begin, end, 16)]
     modes = []
     for mode in range(6):
-        address = pointer(0xaaa990+(order-1)*32+(quantization_bits-6)*8) + mode*56
+        address = pointer(TABLE_ADDRESSES[sha256_file(path)]['hoa']+(order-1)*32+(quantization_bits-6)*8) + mode*56
         groups = [list(struct.unpack('<'+'H'*((end-begin)//2), read(begin, end-begin)))
                   for begin, end in spans(address+16)]
         books = []
@@ -78,7 +78,7 @@ def extract(path, order=3, quantization_bits=6):
     values = dict(order=order, quantization_bits=quantization_bits, modes=modes)
     digest = hashlib.sha256(json.dumps(values, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
     result = dict(schema_version=1, format_profile=(f'apac-hoa-salient-order{order}-q{quantization_bits}-format-v1' if quantization_bits!=6 else f'apac-hoa-salient-order{order}-format-v1' if order!=3 else 'apac-hoa-salient-format-v1'),
-                source=dict(component='AudioCodecs 7.0', component_sha256=COMPONENT_SHA256,
+                source=dict(component='AudioCodecs 7.0', component_sha256=sha256_file(path),
                             architecture='x86_64', method='shared spatial encoder/decoder wire dictionaries'),
                 tables_sha256=digest, **values)
     if order in {key[0] for key in MEASURED_FILES}:
@@ -127,7 +127,9 @@ def main():
         with a.table.open('xb') as f:
             f.write(json_bytes(stored))
     else:
-        assert load_format(a.table) == result, 'HOA dictionaries differ'
+        stored = load_format(a.table)
+        keys = ('schema_version', 'format_profile', 'tables_sha256', 'order', 'quantization_bits', 'modes')
+        assert all(stored[key] == result[key] for key in keys), 'HOA dictionaries differ'
     print(json.dumps(dict(tables_sha256=result['tables_sha256'], modes=6, codebooks=8, transforms=4)))
 
 

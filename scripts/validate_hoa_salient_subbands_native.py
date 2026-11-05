@@ -13,10 +13,19 @@ from validate import require,write_json
 from validate_replay import command,sha256_file
 from validate_drc import workspace
 from validate_portable import source_digest
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
+from ci_support import require_hoa_limit_rejection
 
 
 def f32(v):return struct.unpack('<f',struct.pack('<f',v))[0]
+
+
+def candidate_rejection(binary, bundle, root, options):
+    coefficients = options.get('coefficient_count', (options['order'] + 1) ** 2)
+    outputs = options.get('output_coefficients', coefficients)
+    if options['order'] <= 3 and coefficients <= 16 and outputs <= 16:
+        return None
+    return require_hoa_limit_rejection(binary, bundle, root)
 
 
 def verify(truth,trace,opts,*,isolated_exact=True,layout_adapter=None):
@@ -101,18 +110,22 @@ def main(*,vectors=None):
     if vectors is None:
         import hoa_salient_subbands_vectors as vectors
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path);p.add_argument('--capture',type=Path,action='append',required=True);p.add_argument('--report',type=Path,required=True);a=p.parse_args();require(not a.report.exists() and (a.binary is None or a.binary.is_file()),'report exists/binary missing')
-    controls={name:(opts,cases) for name,opts,cases in vectors.native_controls()};r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary) if a.binary else None,component_sha256=COMPONENT_SHA256,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    controls={name:(opts,cases) for name,opts,cases in vectors.native_controls()};r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary) if a.binary else None,component_sha256=None,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         require(len(a.capture)==len(controls) and {p.name for p in a.capture}==set(controls),'missing native branch')
         for root in a.capture:
-            opts,cases=controls[root.name];generated=[packet(c,**opts) for c in cases];trace=json.loads((root/'native-hoa.json').read_text());require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete trace')
+            opts,cases=controls[root.name];generated=[packet(c,**opts) for c in cases];trace=json.loads((root/'native-hoa.json').read_text());require(bind_capture(r, trace) and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'incomplete trace')
             require([p['packet_sha256'] for p in trace['packets']]==[hashlib.sha256(raw).hexdigest() for raw,_ in generated],'packet identities differ');result=verify([t for _,t in generated],trace,opts)
             if a.binary:
                 from validate_hoa_salient_subbands import check
                 with workspace(r,root.name) as tmp:
-                    summary=command(a.binary,'parse-packets',root/'packets','--depth','hoa','--output',tmp/'parsed');require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'candidate incomplete')
-                    rows=[json.loads(line)['report'] for line in (tmp/'parsed').read_text().splitlines()];last=0;previous=None
-                    for row,(_,truth) in zip(rows,generated):last,previous=check(row,truth,last,previous,opts)
+                    rejection = candidate_rejection(a.binary, root/'packets', tmp, opts)
+                    if rejection:
+                        result['candidate_support_rejection'] = rejection
+                    else:
+                        summary=command(a.binary,'parse-packets',root/'packets','--depth','hoa','--output',tmp/'parsed');require(not summary['errors'] and summary['hoa_packets_complete']==len(cases),'candidate incomplete')
+                        rows=[json.loads(line)['report'] for line in (tmp/'parsed').read_text().splitlines()];last=0;previous=None
+                        for row,(_,truth) in zip(rows,generated):last,previous=check(row,truth,last,previous,opts)
             result.update(capture=str(root),trace_sha256=sha256_file(root/'native-hoa.json'),trace_script_sha256=trace['trace_script_sha256']);r['captures'].append(result)
         require(source_digest()==r['source_sha256'] and (a.binary is None or sha256_file(a.binary)==r['binary_sha256']),'source/binary changed');r['passed']=True
     except Exception as e:r['errors'].append(str(e))

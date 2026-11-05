@@ -7,7 +7,7 @@ from hoa_source_layout_oracle import Decoder as SourceDecoder
 from native_hoa_history_model import NativeHistoryDecoder,RULE as HISTORY_RULE
 from validate_hoa_mixed_native import frames
 from validate_hoa_transports_native import native_layout
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 from validate import require,write_json
 from validate_channels import compare,merge_metrics,float_bytes
 from validate_portable import source_digest
@@ -29,7 +29,7 @@ def verify(root,report):
     for name,opts,cases in vectors.sequences():
         if name not in NAMES:continue
         found.add(name);capture=root/(name+'-v2' if name=='source-matrix-transports' else name);trace=json.loads((capture/'native-hoa.json').read_text())
-        require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and trace['pending_returns']==0 and trace['process_exit_code']==0,'incomplete native capture: '+name)
+        require(bind_capture(report, trace) and not trace['errors'] and trace['pending_returns']==0 and trace['process_exit_code']==0,'incomplete native capture: '+name)
         require((capture/'packets/cookie.bin').read_bytes()==vectors.cookie(**opts),'native cookie differs')
         generated=[vectors.packet(c,**opts) for c in cases]
         require([r['packet_sha256'] for r in trace['packets']]==[hashlib.sha256(raw).hexdigest() for raw,t in generated],'native packets differ')
@@ -69,7 +69,7 @@ def verify_boundaries(root,report):
             else:raise RuntimeError('nonterminating graph accepted')
             report['boundaries'].append(dict(name=name,evidence='pseudocode and independent finite-state cycle proof',native_executed=False));continue
         trace=json.loads((path/'native-hoa.json').read_text())
-        require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and trace['pending_returns']==0,'boundary capture incomplete')
+        require(bind_capture(report, trace) and not trace['errors'] and trace['pending_returns']==0,'boundary capture incomplete')
         if name=='bad-core-index':
             require(trace['process_exit_code']==1 and not trace['remapping'],'out-of-core index reached remapping')
             require('Invalid mRemappingArray bitstream' in (path/'debugger.log').read_text(),'unexplained index rejection')
@@ -84,7 +84,7 @@ def verify_boundaries(root,report):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--captures',type=Path,required=True);p.add_argument('--boundaries',type=Path,required=True);p.add_argument('--report',type=Path,required=True);a=p.parse_args();require(not a.report.exists(),'report exists')
-    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),component_sha256=COMPONENT_SHA256,format_sha256=vectors.FORMAT_SHA256,captures=[],boundaries=[],diagnostics=[],errors=[],metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None))
+    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),component_sha256=None,format_sha256=vectors.FORMAT_SHA256,captures=[],boundaries=[],diagnostics=[],errors=[],metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None))
     try:verify(a.captures,report);verify_boundaries(a.boundaries,report);require(source_digest()==report['source_sha256'],'source changed');report['passed']=True
     except Exception as error:report['errors'].append(str(error))
     write_json(a.report,report);print(json.dumps(dict(passed=report['passed'],captures=len(report['captures']),diagnostics=len(report['diagnostics']),errors=report['errors'])));return 0 if report['passed'] else 1

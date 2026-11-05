@@ -65,6 +65,7 @@ def spatial(frame, pointer):
 
 def channel_hit(frame, location, data):
     try:
+        base.observe(frame, location)
         if channels.KINDS.get(location.GetBreakpoint().GetID()) == 'synthesis' and base.reg(frame, 'w1') == 0:
             if SPATIAL is None:
                 raise RuntimeError('synthesis before spatial capture')
@@ -76,6 +77,7 @@ def channel_hit(frame, location, data):
 
 
 def __lldb_init_module(debugger, state):
+    base.begin_probe(debugger.GetSelectedTarget(), 'hoa_salient')
     debugger.HandleCommand('script import native_hoa_trace')
     hoa.spatial = spatial
     channels.hit = channel_hit
@@ -90,13 +92,14 @@ def __lldb_init_module(debugger, state):
 def finish(debugger):
     import lldb
     process = debugger.GetSelectedTarget().GetProcess()
-    result = dict(component_sha256=base.COMPONENT_SHA256,
+    result = dict(component_sha256=base.component_sha256(),
                   trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                   architecture='arm64', channels=16, packets=channels.PACKETS,
                   events=channels.EVENTS, hoa_events=hoa.EVENTS,
                   errors=channels.ERRORS+hoa.ERRORS,
                   pending_returns=len(channels.RETURNS)+len(hoa.RETURNS),
                   process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
+    base.finish_capture(result)
     raw=(json.dumps(result)+'\n').encode()
     if len(raw)>128*1024*1024:
         raise RuntimeError('trace exceeds output budget')

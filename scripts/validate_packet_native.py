@@ -16,7 +16,7 @@ import sys
 import tempfile
 
 from native_packet_trace import trace_bundle
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity, unchanged
 from packet_vectors import sequences,packet,bundle,cookie,identity,window
 from validate import require,write_json
 from validate_packets import check_expected,coverage,PROFILE
@@ -212,14 +212,15 @@ def representatives(binary,report,baseline):
     for index,spec in enumerate(previous['representatives']):
         with workspace(report,f'representative-{index}') as root:
             target=spec['dump']['replay_window']
-            command(binary,'dump',spec['source'],'--out',root/'packets','--with-preroll',
+            dumped=command(binary,'dump',spec['source'],'--out',root/'packets','--with-preroll',
                     '--start-packet',target['requested_start_packet'],'--packets',target['requested_packets'])
             result=command(binary,'decode-sq',root/'packets','--out',root/'rust-pcm',allowed=(0,1))
-            reason=None if result.get('complete') else pcm_stop(result)
+            reason=None if result.get('complete') else pcm_stop(result, dumped)
             if spec['channels']==2 and reason=='configuration':
                 require('ancillary.loudness_drc_present=true' in result['error']['message'],'stereo representative stopped for an unexplained configuration')
             report['representatives'].append(dict(channels=spec['channels'],range=spec['range'],
-                target_packet=target['requested_start_packet'],pcm_stop_reason=reason,result=result,passed=True))
+                target_packet=target['requested_start_packet'],stored_start_packet=dumped['start_packet'],
+                input_layout=dumped['file']['layout'],pcm_stop_reason=reason,result=result,passed=True))
     require(len(report['representatives'])==15,'representative windows missing')
 
 
@@ -231,13 +232,15 @@ def main():
     if sys.platform!='darwin':parser.error('native packet validation requires macOS')
     if args.output.exists():parser.error('refusing to overwrite report')
     binary=args.binary.resolve(strict=True)
-    report=dict(schema_version=1,mode='native_state_diagnostic',state_profile=PROFILE,component_sha256=COMPONENT_SHA256,require_native_pcm=args.require_native_pcm,
+    report=dict(schema_version=1,mode='native_state_diagnostic',state_profile=PROFILE,**component_identity(),require_native_pcm=args.require_native_pcm,
         code_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True,encoding='utf-8').strip(),
         tested_worktree_dirty=bool(subprocess.check_output(['git','status','--porcelain'],cwd=ROOT,text=True,encoding='utf-8').strip()),
         source_sha256=source_digest(),tool_sha256=sha256_file(binary),artificial=[],controls=[],representatives=[],errors=[],
         failure_directory=args.output.with_suffix('.failures'),started_utc=datetime.now(timezone.utc).isoformat())
     try:
         artificial(binary,report);controls(binary,report);representatives(binary,report,args.replay_baseline)
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during native acceptance')
     except Exception as error:report['errors'].append(str(error))
     report['failure_directory']=str(report['failure_directory'])

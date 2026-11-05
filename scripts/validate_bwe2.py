@@ -20,7 +20,8 @@ from generate_bwe2_math import PROFILE, DESTINATION, document
 from bwe2_vectors import cases, packet, sequences
 from bwe2_oracle import Decoder, expanded, conditioned_transform, FORMAT
 from spectrum_vectors import bundle, cookie
-from native_frame_trace import COMPONENT_SHA256, trace_bundle
+from native_frame_trace import trace_bundle
+from native_component import identity as component_identity, unchanged
 from validate import require, write_json
 from validate_cac import digest, native_real
 from validate_tns import (check_expected as check_tns, fingerprints as tns_fingerprints,
@@ -328,9 +329,11 @@ def main():
             reference=checked_reference(json.loads(reference_path.read_text(encoding='utf-8')));validate_reference(reference,report,bool(args.regression_report))
         if not args.native_only:portable(binary,report,reference)
         if args.native or args.native_only:
-            report['component_sha256']=COMPONENT_SHA256;native_artificial(binary,report)
+            report.update(component_identity());native_artificial(binary,report)
             native_real(binary,args.replay_baseline,report,inspect_fn=inspect,check_fn=check_native,tns=True,bwe2=True)
             require(len(report['native_artificial'])==COUNTS['spectra'] and len(report['real'])==30,'incomplete native BWE2 matrix')
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
         if reference_path:require(sha256_file(reference_path)==report['reference_report_sha256'],'reference report changed')
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))

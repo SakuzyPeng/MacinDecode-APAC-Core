@@ -8,7 +8,7 @@ from native_channels_trace import trace_bundle
 from native_drc_trace import trace_bundle as drc_trace
 from validate_drc_off import inspect as off_proof
 from validate_drc_native import native_parameters
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity, unchanged
 from validate_channels import compare,merge_metrics,digest,check
 from validate_portable import source_digest
 from validate_replay import command,sha256_file
@@ -210,9 +210,11 @@ def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--collection',type=Path,default=Path('artifacts/configs-v1/index.json'))
     args=p.parse_args();require(args.binary.is_file() and not args.report.exists(),'binary missing or report exists')
     report=dict(schema_version=1,passed=False,created_at=datetime.now(timezone.utc).isoformat(),code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),
-                source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),component_sha256=COMPONENT_SHA256,errors=[],failure_directory=str(args.report.with_suffix('.failures')))
+                source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),**component_identity(),errors=[],failure_directory=str(args.report.with_suffix('.failures')))
     try:
         artificial(args.binary,report);controls(args.binary,report);media(args.binary,report,args.collection)
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(args.binary)==report['binary_sha256'],'source or binary changed during native acceptance')
         report['passed']=True
     except Exception as e:report['errors'].append(str(e))

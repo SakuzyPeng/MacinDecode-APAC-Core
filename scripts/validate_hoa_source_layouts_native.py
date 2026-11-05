@@ -4,17 +4,18 @@ import argparse,hashlib,json,struct,subprocess
 from pathlib import Path
 import hoa_source_layout_vectors as vectors
 from hoa_source_layout_oracle import Decoder
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 from validate import require,write_json
 from validate_drc import workspace
 from validate_replay import sha256_file
 from validate_portable import source_digest
 from validate_channels import compare,merge_metrics
+from validate_hoa_salient_subbands_native import candidate_rejection
 
 
 def verify(a,report):
     constants=json.loads(a.constants.read_text())
-    require(constants['component_sha256']==COMPONENT_SHA256 and not constants['errors'] and constants['pending_returns']==0 and constants['process_exit_code']==0,'constant capture incomplete')
+    require(bind_capture(report, constants) and not constants['errors'] and constants['pending_returns']==0 and constants['process_exit_code']==0,'constant capture incomplete')
     actual={hashlib.sha256(struct.pack('<'+str(len(words))+'I',*words)).hexdigest():words for words in constants['matrix_constants'].values()}
     require(actual==vectors.FORMAT['matrices'],'native matrix constants differ')
     report['constant_capture_sha256']=sha256_file(a.constants);report['matrix_tables']=len(constants['matrix_constants'])
@@ -23,7 +24,7 @@ def verify(a,report):
     rejected={'n3d','n3d-p2','bformat','n3d-profile0','bformat-profile0','matrix-8060934','matrix-12058632'}
     for name in matrix+other:
         root=a.captures/name;truth=json.loads((root/'truth.json').read_text());trace=json.loads((root/'native-hoa.json').read_text())
-        require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and trace['pending_returns']==0,'capture incomplete: '+name)
+        require(bind_capture(report, trace) and not trace['errors'] and trace['pending_returns']==0,'capture incomplete: '+name)
         cookie=(root/'packets/cookie.bin').read_bytes();wire=''.join(format(v,'08b') for v in cookie)
         opts=vectors.options(truth['m'],(truth['family']<<16)|truth['n'] if truth['labels'] is None else 0,truth['labels'],truth['parameter'],profile=int(wire[112:118],2),level=int(wire[118:122],2))
         require(vectors.cookie(**opts)==cookie,'native cookie identity differs: '+name)
@@ -39,7 +40,8 @@ def verify(a,report):
                 require('Wrong profile index' in log or 'mTYPE_ChannelToHoaConversion' in log,'unexplained native rejection')
                 report['rejections'].append(dict(name=name,stage='profile' if 'Wrong profile index' in log else 'source_initialization',trace_sha256=sha256_file(root/'native-hoa.json'),cookie_sha256=hashlib.sha256(cookie).hexdigest()))
                 continue
-            require(proc.returncode==0 and trace['process_exit_code']==0,'source replay failed: '+name)
+            rejection = candidate_rejection(a.binary, root/'packets', tmp, opts)
+            require(proc.returncode == (2 if rejection else 0) and trace['process_exit_code']==0,'source replay failed: '+name)
             require([p['packet_sha256'] for p in trace['packets']]==[hashlib.sha256(raw).hexdigest() for raw,t in generated],'native packet identities differ: '+name)
             rows=[json.loads(line)['report'] for line in (tmp/'parsed').read_text().splitlines()]
             oracle=Decoder(opts)
@@ -48,9 +50,10 @@ def verify(a,report):
             require(len(events)==len(generated) and len(rows)==len(generated),'native frame set differs')
             for index,(node,event,(_,t),expected) in enumerate(zip(rows,events,generated,oracle.records)):
                 require(event['status']==0 and (event['start']['relative_bit_offset'],event['end']['relative_bit_offset'])==(t['spatial']['start_bit_offset'],t['spatial']['end_bit_offset']),'native spatial boundary differs')
-                h=node['hoa'];source=h.get('source_layout');candidate=[c['scaled'] for c in (source['channels'] if source else h['channels_after_hoa'])]
-                measure=compare([v for c in candidate for v in c],[v for c in expected['scaled'] for v in c],dict(name=name,frame=index,stage='independent'))
-                require(measure['passed'],'candidate differs from independent source math');merge_metrics(report['candidate'],measure)
+                if not rejection:
+                    h=node['hoa'];source=h.get('source_layout');candidate=[c['scaled'] for c in (source['channels'] if source else h['channels_after_hoa'])]
+                    measure=compare([v for c in candidate for v in c],[v for c in expected['scaled'] for v in c],dict(name=name,frame=index,stage='independent'))
+                    require(measure['passed'],'candidate differs from independent source math');merge_metrics(report['candidate'],measure)
                 native_expected=expected['scaled']
                 if name=='matrix-8323080':
                     history=[e for e in trace['hoa_events'] if e['kind']=='hoa_history'][index]['after']
@@ -61,14 +64,14 @@ def verify(a,report):
                 require(len(synth)==truth['n'],'native source outputs missing')
                 measure=compare([v for c in synth for v in c],[v for c in native_expected for v in c],dict(name=name,frame=index,stage='native'))
                 require(measure['passed'],'unexplained native source difference');merge_metrics(report['native'],measure)
-            report['captures'].append(dict(name=name,frames=len(generated),trace_sha256=sha256_file(root/'native-hoa.json'),cookie_sha256=hashlib.sha256(cookie).hexdigest(),probe_sha256=trace.get('source_probe_sha256')))
+            report['captures'].append(dict(name=name,frames=len(generated),trace_sha256=sha256_file(root/'native-hoa.json'),cookie_sha256=hashlib.sha256(cookie).hexdigest(),probe_sha256=trace.get('source_probe_sha256'),candidate_support_rejection=rejection))
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--captures',type=Path,required=True);p.add_argument('--constants',type=Path,required=True);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);a=p.parse_args();a.binary=a.binary.resolve()
     require(not a.report.exists(),'report exists')
     metric=lambda:dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None)
-    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=COMPONENT_SHA256,format_sha256=vectors.FORMAT['format_sha256'],captures=[],rejections=[],diagnostics=[],candidate=metric(),native=metric(),errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=None,format_sha256=vectors.FORMAT['format_sha256'],captures=[],rejections=[],diagnostics=[],candidate=metric(),native=metric(),errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         verify(a,report);require(source_digest()==report['source_sha256'] and sha256_file(a.binary)==report['binary_sha256'],'source/binary changed');report['passed']=True
     except Exception as error:report['errors'].append(str(error))

@@ -19,6 +19,7 @@ ORIGINAL = channels.hit
 def hit(frame, location, data):
     key = location.GetBreakpoint().GetID()
     try:
+        base.observe(frame, location)
         if key not in channels.RETURNS and channels.KINDS.get(key) == 'core':
             reader = base.reg(frame, 'x1')
             position = channels.reader(frame, reader)
@@ -56,6 +57,7 @@ def hit(frame, location, data):
 
 
 def __lldb_init_module(debugger, state):
+    base.begin_probe(debugger.GetSelectedTarget(), 'hoa_transports')
     global TYPES
     TYPES = json.loads(os.environ['APAC_HOA_TCE_TYPES'])
     count = int(os.environ['APAC_CHANNEL_COUNT'])
@@ -72,7 +74,7 @@ def __lldb_init_module(debugger, state):
         if kind not in ('capacity', 'packet', 'core', 'element', 'reset', 'synthesis', 'ancillary', 'bwe2'):
             target.BreakpointDelete(key)
             del channels.KINDS[key]
-    bp = target.BreakpointCreateByRegex(r'^APACExtElement::Deserialize\(')
+    bp = base.breakpoint(target, r'^APACExtElement::Deserialize\(')
     channels.KINDS[bp.GetID()] = 'element'
     bp.SetScriptCallbackFunction(__name__ + '.hit')
 
@@ -81,7 +83,7 @@ def finish(debugger):
     import lldb
     process = debugger.GetSelectedTarget().GetProcess()
     modules = [Path(m.__file__) for m in (base, channels, hoa, spatial)]
-    result = dict(component_sha256=base.COMPONENT_SHA256,
+    result = dict(component_sha256=base.component_sha256(),
         trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         trace_dependencies={p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in modules},
         architecture='arm64', channels=channels.CHANNELS, tce_types=TYPES,
@@ -89,6 +91,7 @@ def finish(debugger):
         errors=channels.ERRORS + hoa.ERRORS,
         pending_returns=len(channels.RETURNS) + len(hoa.RETURNS),
         process_exit_code=process.GetExitStatus() if process.GetState() == lldb.eStateExited else None)
+    base.finish_capture(result)
     raw = (json.dumps(result) + '\n').encode()
     if len(raw) > 128 * 1024 * 1024:
         raise RuntimeError('native transport trace exceeds output budget')

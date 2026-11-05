@@ -14,7 +14,7 @@ from validate_portable import source_digest
 from validate_access_native import compare_window
 from mp4_native_reference import verify as mp4_verify,AudioFile,PacketTable,Format
 from mp4_vectors import encode as mp4_encode
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity
 
 CAPACITIES={12:24576,24:49152}
 LABELS={12:[1,2,3,4,5,6,33,34,13,15,52,54],24:[35,36,3,37,33,34,1,2,9,62,55,56,13,15,14,12,52,54,49,51,53,59,57,58]}
@@ -148,12 +148,12 @@ def media(binary,report,collection):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--collection',type=Path,required=True)
     a=p.parse_args();require(a.binary.is_file() and not a.report.exists(),'binary missing or report exists')
-    component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs');require(sha256_file(component)==COMPONENT_SHA256,'native component changed')
-    r=dict(schema_version=1,passed=False,profile=PROFILE,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=COMPONENT_SHA256,collection_sha256=sha256_file(a.collection),
+    component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
+    r=dict(schema_version=1,passed=False,profile=PROFILE,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),**component_identity(),collection_sha256=sha256_file(a.collection),
            created_at=datetime.now(timezone.utc).isoformat(),errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         r['public_layouts']=layout_labels();artificial(a.binary,r);controls(a.binary,r);media(a.binary,r,a.collection)
-        require(source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(component)==COMPONENT_SHA256 and sha256_file(a.collection)==r['collection_sha256'],'source/binary/component/collection changed during proof');r['passed']=True
+        require(source_digest()==r['source_sha256'] and sha256_file(a.binary)==r['binary_sha256'] and sha256_file(component)==r['component_sha256'] and sha256_file(a.collection)==r['collection_sha256'],'source/binary/component/collection changed during proof');r['passed']=True
     except Exception as e:r['errors'].append(str(e))
     write_json(a.report,r);print(json.dumps(dict(passed=r['passed'],errors=r['errors'])));return 0 if r['passed'] else 1
 if __name__=='__main__':raise SystemExit(main())

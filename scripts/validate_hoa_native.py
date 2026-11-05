@@ -8,7 +8,7 @@ from validate_channels import compare,merge_metrics
 from validate_replay import command,sha256_file
 from validate_portable import source_digest
 from validate_drc import workspace
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 from validate import require,write_json
 
 def check(rows,trace):
@@ -40,10 +40,10 @@ def check(rows,trace):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--capture',type=Path,action='append',required=True);a=p.parse_args()
     require(a.binary.is_file() and not a.report.exists(),'binary missing or report exists')
-    r=dict(passed=False,qualification='native_parameters_boundaries_and_identity_restore',floating_point_comparison='diagnostic_only',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=COMPONENT_SHA256,created_at=datetime.now(timezone.utc).isoformat(),captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    r=dict(passed=False,qualification='native_parameters_boundaries_and_identity_restore',floating_point_comparison='diagnostic_only',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=None,created_at=datetime.now(timezone.utc).isoformat(),captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         for source in a.capture:
-            trace_file=source/'native-hoa.json';trace=json.loads(trace_file.read_text());require(trace['component_sha256']==COMPONENT_SHA256 and trace['process_exit_code']==0 and not trace['errors'] and not trace['pending_returns'],'unqualified native capture')
+            trace_file=source/'native-hoa.json';trace=json.loads(trace_file.read_text());require(bind_capture(r, trace) and trace['process_exit_code']==0 and not trace['errors'] and not trace['pending_returns'],'unqualified native capture')
             with workspace(r,source.name) as root:
                 manifest=json.loads((source/'packets/manifest.json').read_text());count=manifest['actual_packets'];summary=command(a.binary,'parse-packets',source/'packets','--depth','hoa','--packets',count,'--output',root/'parsed')
                 require(summary['hoa_packets_complete']==count and summary['errors']==0,'incomplete candidate parse')

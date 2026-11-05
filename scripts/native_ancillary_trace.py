@@ -24,6 +24,7 @@ def configuration_reader(frame,pointer):
 def hit(frame,location,_dict):
     global CURRENT,SEQUENCE,ROLE
     try:
+        base.observe(frame, location)
         key=location.GetBreakpoint().GetID();target=frame.GetThread().GetProcess().GetTarget()
         if key in RETURNS:
             saved=RETURNS.pop(key);event=saved['event'];target.BreakpointDelete(key)
@@ -61,6 +62,6 @@ def __lldb_init_module(debugger,_dict):
     CHANNELS=int(os.environ['APAC_CHANNEL_COUNT']);target=debugger.GetSelectedTarget()
     if not target.GetTriple().startswith('arm64') or not 1<=CHANNELS<=255:raise RuntimeError('unverified target/channel bound')
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
-    if hashlib.sha256(component.read_bytes()).hexdigest()!=base.COMPONENT_SHA256:raise RuntimeError('component hash changed')
+    base.begin_probe(target, 'ancillary')
     for kind,pattern in [('packet',r'^APACASPDecoder::DecodeFrame\('),('configuration',r'^apac::AncillaryConfig::Deserialize\('),('ancillary',r'^apac::APACAncillaryFrameDecoder::DecodeFrame\('),('position',r'^sceneposition::Position::Deserialize\(')]:
-        bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')
+        bp=base.breakpoint(target, pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')

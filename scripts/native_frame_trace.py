@@ -11,8 +11,11 @@ from pathlib import Path
 import shlex
 import struct
 import subprocess
+from native_component import LEGACY_SHA256, COMPONENT_ENTRY_PATTERN, ProbeSession, identity, sha256_file
 
-COMPONENT_SHA256 = "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd"
+# Historical import retained for tools that explicitly validate 26A428 evidence.
+COMPONENT_SHA256 = LEGACY_SHA256
+PROBE = None
 KINDS = {}
 EVENTS = []
 ERRORS = []
@@ -37,6 +40,51 @@ CPE = None
 TRACE_BWE2 = False
 BWE2_READS = []
 BWE2_APPLY = []
+
+
+def begin_probe(target, family):
+    global PROBE
+    if PROBE is None:
+        target.GetDebugger().HandleCommand('script import native_frame_trace')
+        PROBE = ProbeSession(target, family)
+        entry = PROBE.breakpoint(COMPONENT_ENTRY_PATTERN)
+        entry.SetScriptCallbackFunction(__name__ + '.observe_component')
+    else:
+        PROBE.add_family(family)
+
+
+def component_sha256():
+    return PROBE.identity['component_sha256'] if PROBE else sha256_file()
+
+
+def breakpoint(target, pattern):
+    if PROBE is None or target != PROBE.target:
+        raise RuntimeError('native probe identity was not initialized')
+    return PROBE.breakpoint(pattern)
+
+
+def observe(frame, location):
+    if PROBE is None:
+        raise RuntimeError('native probe identity was not initialized')
+    PROBE.observe(frame, location)
+
+
+def observe_component(frame, location, _dict):
+    try:
+        observe(frame, location)
+        return False
+    except Exception as error:
+        PROBE.errors.append(str(error))
+        return True
+
+
+def finish_capture(report):
+    if PROBE is None:
+        report.update(identity(), probe_identity_verified=False)
+        report.setdefault('errors', []).append('native probe initialization failed')
+    else:
+        PROBE.finish(report)
+    return report
 
 
 def trace_bundle(binary, bundle, root, spectra=False, windows=False, cac=False, tns=False, allow_replay_failure=False, bwe2=False):
@@ -86,6 +134,8 @@ def reg(frame, name):
 
 def memory(frame, address, size):
     import lldb
+    if PROBE is None or PROBE.loaded is None:
+        raise RuntimeError('native memory read before loaded-component verification')
     error = lldb.SBError()
     data = frame.GetThread().GetProcess().ReadMemory(address, size, error)
     if not error.Success() or len(data) != size:
@@ -171,6 +221,7 @@ def bwe2_data(frame, pointer):
 def on_breakpoint(frame, location, _dict):
     global CURRENT, PENDING, CORE_READER, SEQUENCE, CHANNEL_COUNT, FRAME_READER, CPE
     try:
+        observe(frame, location)
         bp_id = location.GetBreakpoint().GetID()
         if bp_id in RETURNS:
             saved = RETURNS.pop(bp_id)
@@ -368,13 +419,7 @@ def __lldb_init_module(debugger, _dict):
     target = debugger.GetSelectedTarget()
     if not target.GetTriple().startswith("arm64"):
         raise RuntimeError("native boundary oracle is verified only for arm64 macOS")
-    component = Path("/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs")
-    digest = hashlib.sha256()
-    with component.open("rb") as source:
-        while chunk := source.read(1024 * 1024):
-            digest.update(chunk)
-    if digest.hexdigest() != COMPONENT_SHA256:
-        raise RuntimeError("reverify native oracle memory layouts for this AudioCodecs component")
+    begin_probe(target, 'frame')
     points = {
         "packet": r"^APACASPDecoder::DecodeFrame\(",
         "core": r"^APACCore(LBR)?Decoder::Deserialize\(TBitstreamReader",
@@ -394,7 +439,7 @@ def __lldb_init_module(debugger, _dict):
         points['bwe2_read']=r'^APACBWE2Decoder::Deserialize\('
         points['bwe2_apply']=r'^APACBWE2Decoder::DecodeFrame\('
     for kind, pattern in points.items():
-        bp = target.BreakpointCreateByRegex(pattern)
+        bp = breakpoint(target, pattern)
         KINDS[bp.GetID()] = kind
         bp.SetScriptCallbackFunction(__name__ + ".on_breakpoint")
 
@@ -403,7 +448,7 @@ def finish(debugger):
     import lldb
     process = debugger.GetSelectedTarget().GetProcess()
     exit_code = process.GetExitStatus() if process.GetState() == lldb.eStateExited else None
-    report = {"schema_version": 1, "component_sha256": COMPONENT_SHA256, "architecture": "arm64",
+    report = {"schema_version": 1, "component_sha256": component_sha256(), "architecture": "arm64",
               "method": "LLDB read-only bit-reader and ICS snapshots at native function entries",
               "process_exit_code": exit_code,
               "packet_calls": SEQUENCE + 1, "events": EVENTS, "errors": ERRORS}
@@ -424,5 +469,6 @@ def finish(debugger):
     if TRACE_BWE2:
         report['method'] += '; read-only BWE2 parameters, LPC and pre/post spectra'
         report.update(bwe2_reads=BWE2_READS,bwe2_apply=BWE2_APPLY)
+    finish_capture(report)
     with Path(os.environ["APAC_FRAME_TRACE_OUTPUT"]).open("x") as output:
         json.dump(report, output, indent=2)

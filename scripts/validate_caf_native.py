@@ -8,7 +8,7 @@ from validate import caf_chunks,caf_payload,caf_packet_sizes,require,write_json
 from validate_replay import command,sha256_file
 from validate_portable import source_digest
 from validate_drc import workspace
-from native_frame_trace import COMPONENT_SHA256
+from native_component import identity as component_identity
 
 def inspect(binary,source,root):
     source_hash=sha256_file(source);native=command(binary,'inspect',source)
@@ -59,9 +59,8 @@ def main():
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
     report=dict(schema_version=1,passed=False,profile=PROFILE,created_at=datetime.now(timezone.utc).isoformat(),
                 code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(args.binary),
-                component_sha256=sha256_file(component),controls=[],media=[],errors=[],failure_directory=str(args.report.with_suffix('.failures')))
+                **component_identity(),controls=[],media=[],errors=[],failure_directory=str(args.report.with_suffix('.failures')))
     try:
-        require(report['component_sha256']==COMPONENT_SHA256,'unqualified native component')
         for rate in (48000,44100):
             for profile in ('default','music','speech','movie','capture'):
                 for signal in ('noise','impulse'):
@@ -77,7 +76,7 @@ def main():
         for i,source in enumerate(args.caf):
             with workspace(report,'media-'+str(i)) as root:report['media'].append(inspect(args.binary,source,root))
         require(len(report['controls'])==20 and len(report['media'])==len(args.caf),'missing native case')
-        require(sha256_file(args.binary)==report['binary_sha256'] and source_digest()==report['source_sha256'] and sha256_file(component)==COMPONENT_SHA256,'proof input changed')
+        require(sha256_file(args.binary)==report['binary_sha256'] and source_digest()==report['source_sha256'] and sha256_file(component)==report['component_sha256'],'proof input changed')
         report['passed']=True
     except Exception as e:report['errors'].append(str(e))
     write_json(args.report,report);print(json.dumps(dict(passed=report['passed'],controls=len(report['controls']),media=len(report['media']),errors=report['errors'])))

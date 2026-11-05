@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 
 from validate import caf_payload, require, write_json
+from native_component import identity as component_identity, unchanged
 
 
 def command(binary, *args, allowed=(0,)):
@@ -267,9 +268,12 @@ def main():
             failures.append({"sha256": item["sha256"], "error": str(error)})
     require(targets == args.expected_targets, "unexpected first-milestone target count")
     controls = []
+    component_info = None
     if not args.skip_fixtures:
         try:
+            component_info = component_identity()
             controls = fixtures(binary)
+            unchanged(component_info)
             failures.extend({"stage": "controlled encoding", "name": c["name"], "error": c["error"]}
                             for c in controls if not c["passed"])
         except Exception as error:
@@ -293,6 +297,8 @@ def main():
               "hoa_target_count": len(hoa_targets),
               "failures": failures, "passed": not failures,
               "scope": "complete means implemented cookie syntax coverage; unnamed numeric fields are not assigned speculative operational meanings"}
+    if component_info is not None:
+        report.update(component_info)
     write_json(args.output, report)
     print(json.dumps({"passed": report["passed"], "status_counts": counts, "target_configurations": targets,
                       "controls": len(controls), "failures": failures}, ensure_ascii=False), flush=True)

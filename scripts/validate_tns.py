@@ -20,7 +20,8 @@ from generate_tns_math import PROFILE, DESTINATION, document
 from tns_vectors import cases, packet, sequences
 from tns_oracle import Decoder, filtered, reflection
 from spectrum_vectors import bundle, cookie
-from native_frame_trace import COMPONENT_SHA256, trace_bundle
+from native_frame_trace import trace_bundle
+from native_component import identity as component_identity, unchanged
 from validate import require, write_json
 from validate_cac import (check_expected as check_cac, fingerprints as cac_fingerprints,
                           exact as cac_exact, compare_spectra, digest, native_real)
@@ -297,10 +298,12 @@ def main():
             report['reference_code_commit']=reference['code_commit']
         if not args.native_only:portable(binary,report,reference)
         if args.native or args.native_only:
-            report['component_sha256']=COMPONENT_SHA256
+            report.update(component_identity())
             native_artificial(binary,report)
             native_real(binary,args.replay_baseline,report,inspect_fn=inspect,check_fn=check_native,tns=True)
             require(len(report['native_artificial'])==COUNTS['spectra'] and len(report['real'])==30,'incomplete native TNS coverage')
+        if 'component_sha256' in report:
+            unchanged(report)
         require(source_digest()==report['source_sha256'] and sha256_file(binary)==report['tool_sha256'],'sources or binary changed during acceptance')
         if reference_path:require(sha256_file(reference_path)==report['reference_report_sha256'],'reference report changed')
     except Exception as error:report['errors'].append(dict(stage='validation',error=str(error)))

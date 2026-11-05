@@ -7,7 +7,7 @@ from validate_channels import compare,merge_metrics
 from validate_replay import command,sha256_file
 from validate_portable import source_digest
 from validate_drc import workspace
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 
 
 def check(rows,trace):
@@ -59,10 +59,10 @@ def check(rows,trace):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--binary',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--capture',type=Path,action='append',required=True);a=p.parse_args()
     require(a.binary.is_file() and not a.report.exists(),'missing binary or report exists')
-    r=dict(passed=False,qualification='native_parameters_boundaries_mapping_and_state',floating_point_comparison='diagnostic_only',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=COMPONENT_SHA256,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+    r=dict(passed=False,qualification='native_parameters_boundaries_mapping_and_state',floating_point_comparison='diagnostic_only',code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary),component_sha256=None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         for source in a.capture:
-            path=source/'native-hoa.json';trace=json.loads(path.read_text());require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'unqualified capture')
+            path=source/'native-hoa.json';trace=json.loads(path.read_text());require(bind_capture(r, trace) and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'unqualified capture')
             directory=source/'packets'
             if not directory.is_dir():directory=source.parent/'packets'
             with workspace(r,source.parent.name+'-'+source.name) as root:

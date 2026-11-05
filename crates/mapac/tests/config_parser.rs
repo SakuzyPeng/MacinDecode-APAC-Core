@@ -199,6 +199,27 @@ fn extension_bounds_sentinel_and_padding_are_accounted_for() {
     assert!(parsed.is_complete());
     assert_eq!(parsed.derived["extensions[0].content_origin.values[0]"], -1);
     assert_eq!(parsed.derived["extensions[0].content_origin.values[2]"], 0);
+    let origin = field(&parsed, "extensions[0].content_origin.values[3].encoded");
+    for value in [0, 2] {
+        let mut updated = bytes.clone();
+        set(
+            &mut updated,
+            origin.bit_offset,
+            origin.bit_length,
+            value + 1,
+        );
+        let current = parse_cookie(&updated).unwrap();
+        assert!(current.is_complete());
+        assert_eq!(
+            current.derived["extensions[0].content_origin.values[3]"],
+            value
+        );
+        for previous in &parsed.fields {
+            if previous.name != origin.name {
+                assert_eq!(field(&current, &previous.name), previous);
+            }
+        }
+    }
     let mut short = bytes.clone();
     let f = field(&parsed, "extensions[0].bytes_minus_one");
     set(&mut short, f.bit_offset, f.bit_length, 0);

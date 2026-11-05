@@ -84,6 +84,7 @@ def element(frame, pointer):
 def hit(frame, location, _dict):
     global CURRENT, ROLE, SEQUENCE, RAW
     try:
+        base.observe(frame, location)
         bp_id=location.GetBreakpoint().GetID()
         if bp_id in RETURNS:
             saved=RETURNS.pop(bp_id)
@@ -155,7 +156,7 @@ def __lldb_init_module(debugger,_dict):
     target=debugger.GetSelectedTarget()
     if not target.GetTriple().startswith('arm64'):raise RuntimeError('requires arm64')
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
-    if hashlib.sha256(component.read_bytes()).hexdigest()!=base.COMPONENT_SHA256:raise RuntimeError('component hash changed')
+    base.begin_probe(target, 'packet')
     points={'packet':r'^APACASPDecoder::DecodeFrame\(', 'core':r'^APACCoreDecoder::DecodeAPACFrame\(',
             'core_tools':r'^APACCoreDecoder::DeserializeExtTools\(',
             'deserialize':r'^APACCoreLBRDecoder::Deserialize\(TBitstreamReader',
@@ -164,17 +165,18 @@ def __lldb_init_module(debugger,_dict):
             'synthesis':r'^APACSynthesisFilterBank::FrequencyToTimeInPlace\(',
             'scene':r'^SC_SceneController::ProcessAudio\(', 'scene_read':r'^SC_AudioScenes::Deserialize\('}
     for kind,pattern in points.items():
-        bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind
+        bp=base.breakpoint(target, pattern);KINDS[bp.GetID()]=kind
         bp.SetScriptCallbackFunction(__name__+'.hit')
 
 
 def finish(debugger):
     import lldb
     process=debugger.GetSelectedTarget().GetProcess()
-    result=dict(trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),component_sha256=base.COMPONENT_SHA256,architecture='arm64',packets=PACKETS,events=EVENTS,
+    result=dict(trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),component_sha256=base.component_sha256(),architecture='arm64',packets=PACKETS,events=EVENTS,
                 errors=ERRORS,pending_returns=len(RETURNS),
                 process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
     path=Path(os.environ['APAC_STATE_TRACE_OUTPUT'])
+    base.finish_capture(result)
     raw=(json.dumps(result,indent=2)+'\n').encode()
     if len(raw)>128*1024*1024:raise RuntimeError('native snapshot exceeds 128 MiB')
     with path.open('xb') as out:out.write(raw)

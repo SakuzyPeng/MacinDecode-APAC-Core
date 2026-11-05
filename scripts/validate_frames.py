@@ -10,6 +10,7 @@ import platform
 import subprocess
 import sys
 import tempfile
+from native_component import identity as component_identity, unchanged
 
 from validate import require, write_json
 from validate_replay import command, sha256_file
@@ -214,7 +215,7 @@ def main():
               "code_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
               "tested_worktree_dirty": bool(subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()),
               "system": subprocess.check_output(["sw_vers"], text=True).strip(), "architecture": platform.machine(),
-              "component_sha256": sha256_file(Path("/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs")),
+              **component_identity(),
               "replay_baseline_sha256": sha256_file(args.replay_baseline), "analysis_architecture": "x86_64",
               "representatives": [], "controls": [], "failures": [],
               "scope": "default-encoder stereo SQ prefixes; prefix_complete is distinct from whole-frame syntax completion and PCM decoding",
@@ -289,6 +290,10 @@ def main():
     for required in ["cpe_absent", "sq_left_channel_stream"]:
         if not stops[required]:
             report["failures"].append({"stage": "branch coverage", "error": required + " was not observed"})
+    try:
+        unchanged(report)
+    except ValueError as error:
+        report['failures'].append(dict(stage='component_identity', error=str(error)))
     report.update({"prefix_complete_packets": prefixes, "whole_frame_status_counts": dict(whole),
                    "stop_counts": dict(stops), "observed_block_type_counts": dict(blocks),
                    "passed": not report["failures"], "finished_utc": datetime.now(timezone.utc).isoformat()})

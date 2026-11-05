@@ -9,7 +9,7 @@ from validate import require,write_json
 from validate_channels import compare,merge_metrics
 from validate_portable import source_digest
 from validate_replay import sha256_file
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture, PROFILES
 
 
 class DiagnosticDecoder:
@@ -68,13 +68,24 @@ class DiagnosticDecoder:
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--captures',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--case',action='append');p.add_argument('--policy-evidence',type=Path);a=p.parse_args();require(not a.report.exists(),'report exists')
-    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),component_sha256=COMPONENT_SHA256,cases=[],errors=[],diagnostics=[],policy_only=[],metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--captures',type=Path,required=True);p.add_argument('--report',type=Path,required=True);p.add_argument('--case',action='append');p.add_argument('--policy-evidence',type=Path);p.add_argument('--reference-report',type=Path);a=p.parse_args();require(not a.report.exists(),'report exists')
+    report=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),component_sha256=None,cases=[],errors=[],diagnostics=[],policy_only=[],metrics=dict(max_absolute_error=0.,max_ulp=0,failed_samples=0,first_failure=None))
     try:
-        require(sha256_file(Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs'))==COMPONENT_SHA256,'native component changed')
+        reference = json.loads(a.reference_report.read_text()) if a.reference_report else None
         for name,opts,cases in vectors.sequences():
             if a.case and name not in a.case:continue
             root=a.captures/name;native=json.loads((root/'native/result.json').read_text())
+            digest = native.get('component_sha256')
+            if digest is None:
+                require(reference is not None and reference['passed'], 'legacy public capture requires its qualified reference report')
+                matched = [row for row in reference['cases'] if row['name'] == name]
+                require(len(matched) == 1 and matched[0]['native_result_sha256'] == sha256_file(root/'native/result.json'), 'legacy capture identity differs')
+                digest = reference['component_sha256']
+            else:
+                require(native.get('complete'), 'public capture is incomplete')
+            require(report['component_sha256'] in (None, digest), 'mixed native component versions')
+            report['component_sha256'] = digest
+            report['component_profile'] = PROFILES.get(digest, {}).get('layout')
             require((root/'packets/cookie.bin').read_bytes()==vectors.cookie(**opts),'cookie mismatch: '+name)
             generated=[vectors.packet(c,**opts) for c in cases];require((root/'packets/packets.bin').read_bytes()==b''.join(raw for raw,t in generated),'input mismatch: '+name)
             if name=='shared-drc-metadata-effect-512':
@@ -82,7 +93,7 @@ def main():
                 evidence=a.policy_evidence/'fade';trace=json.loads((evidence/'trace/native-drc.json').read_text())
                 cookie=vectors.cookie(**opts);parts={};vectors.cookie(**opts,_parts=parts)
                 require((evidence/'packets/cookie.bin').read_bytes()==cookie,'fade evidence cookie differs')
-                require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==1,'fade capture is incomplete')
+                require(bind_capture(report, trace) and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==1,'fade capture is incomplete')
                 headers=[e for e in trace['events'] if e['kind']=='header' and e['role']=='configuration']
                 require(len(headers)==1 and headers[0]['status']==0,'fade header syntax failed')
                 require(headers[0]['end']['buffer_sha256']==hashlib.sha256(cookie[12:]).hexdigest() and headers[0]['end']['relative_bit_offset']+96==parts['ancillary_end_bit_offset']-2,'fade header boundary differs')

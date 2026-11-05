@@ -30,7 +30,7 @@ class NumericalProfileTests(unittest.TestCase):
         altered['windows']['long'][256]=struct.unpack('<f',struct.pack('<I',word^1))[0]
         with self.assertRaises(AssertionError):check_windows(data,altered)
         altered=copy.deepcopy(trace);altered['component_sha256']='unverified'
-        with self.assertRaises(AssertionError):check_windows(data,altered)
+        with self.assertRaises(ValueError):check_windows(data,altered)
         altered=copy.deepcopy(trace);altered['windows']['short'].pop()
         with self.assertRaises(AssertionError):check_windows(data,altered)
 

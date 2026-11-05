@@ -50,6 +50,7 @@ def back(frame,kind,e,**saved):
 def hit(frame,location,_dict):
     global RAW,SEQUENCE,ROLE,CURRENT_ELEMENT,ELEMENTS,CURRENT
     try:
+        base.observe(frame, location)
         key=location.GetBreakpoint().GetID()
         if key in RETURNS:
             saved=RETURNS.pop(key);frame.GetThread().GetProcess().GetTarget().BreakpointDelete(key)
@@ -167,20 +168,21 @@ def __lldb_init_module(debugger,_dict):
     target=debugger.GetSelectedTarget();CHANNELS=int(os.environ['APAC_CHANNEL_COUNT'])
     if not target.GetTriple().startswith('arm64') or CHANNELS not in LAYOUT_TYPES:raise RuntimeError('unverified target/layout')
     component=Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
-    if hashlib.sha256(component.read_bytes()).hexdigest()!=base.COMPONENT_SHA256:raise RuntimeError('component hash changed')
+    base.begin_probe(target, 'channels')
     points=dict(capacity=r'^APACASPDecoder::Initialize\(',packet=r'^APACASPDecoder::DecodeFrame\(',core=r'^APACCore(LBR)?Decoder::Deserialize\(TBitstreamReader',
                 element=r'^APAC(SingleChannel|ChannelPair|LFE)Element::Deserialize\(',reset=r'^APAC(SingleChannel|ChannelPair|LFE)Element::Reset\(',
                 stream=r'^APACIndividualChannelStream::Deserialize\(',tns=r'^APACTNSData::ParseTNSData\(',tns_apply=r'^APACTNSData::Apply\(',
                 cac=r'^APACCACDecoder::ProcessCac\(',bwe2=r'^APACBWE2Decoder::Deserialize\(',synthesis=r'^APACSynthesisFilterBank::FrequencyToTimeInPlace\(',
                 core_tools=r'^APACCoreDecoder::DeserializeExtTools\(',ancillary=r'^apac::APACAncillaryFrameDecoder::DecodeFrame\(',scene=r'^SC_SceneController::ProcessAudio\(')
     for kind,pattern in points.items():
-        bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')
+        bp=base.breakpoint(target, pattern);KINDS[bp.GetID()]=kind;bp.SetScriptCallbackFunction(__name__+'.hit')
 
 def finish(debugger):
     import lldb
     process=debugger.GetSelectedTarget().GetProcess()
-    result=dict(component_sha256=base.COMPONENT_SHA256,trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),architecture='arm64',channels=CHANNELS,
+    result=dict(component_sha256=base.component_sha256(),trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),architecture='arm64',channels=CHANNELS,
                 packets=PACKETS,events=EVENTS,errors=ERRORS,pending_returns=len(RETURNS),process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
+    base.finish_capture(result)
     raw=(json.dumps(result,indent=2)+'\n').encode()
     if len(raw)>128*1024*1024:raise RuntimeError('trace exceeds 128 MiB')
     with Path(os.environ['APAC_CHANNEL_TRACE_OUTPUT']).open('xb') as out:out.write(raw)

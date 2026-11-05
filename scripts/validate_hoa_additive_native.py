@@ -12,7 +12,7 @@ from validate import require,write_json
 from validate_replay import command,sha256_file
 from validate_drc import workspace
 from validate_portable import source_digest
-from native_frame_trace import COMPONENT_SHA256
+from native_component import bind_capture
 
 
 def f32(v): return struct.unpack('<f',struct.pack('<f',v))[0]
@@ -85,12 +85,12 @@ def main():
     require(not a.report.exists() and (a.binary is None or a.binary.is_file()),'report exists or binary missing')
     controls={name:(opts,cases) for name,opts,cases in native_controls()}
     r=dict(passed=False,code_commit=subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),source_sha256=source_digest(),binary_sha256=sha256_file(a.binary) if a.binary else None,
-           component_sha256=COMPONENT_SHA256,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
+           component_sha256=None,candidate_verified=a.binary is not None,captures=[],errors=[],failure_directory=str(a.report.with_suffix('.failures')))
     try:
         require(len(a.capture)==len(controls) and {p.name for p in a.capture}==set(controls),'missing native branch')
         for root in a.capture:
             options,cases=controls[root.name]; generated=[packet(c,**options) for c in cases]; truth=[t for _,t in generated]; trace=json.loads((root/'native-hoa.json').read_text())
-            require(trace['component_sha256']==COMPONENT_SHA256 and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'unqualified trace')
+            require(bind_capture(r, trace) and not trace['errors'] and not trace['pending_returns'] and trace['process_exit_code']==0,'unqualified trace')
             require([p['packet_sha256'] for p in trace['packets']]==[hashlib.sha256(raw).hexdigest() for raw,_ in generated],'packet identities differ')
             result=verify(truth,trace,options)
             if a.binary:

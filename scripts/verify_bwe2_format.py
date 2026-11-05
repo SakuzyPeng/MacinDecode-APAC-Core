@@ -10,15 +10,15 @@ import hashlib
 import json
 from pathlib import Path
 import struct
+from native_component import profile, TABLE_ADDRESSES, sha256_file
 
-COMPONENT_SHA256 = '826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd'
 DESTINATION = Path(__file__).resolve().parents[1]/'data/bwe2-format-v1.json'
 
 
 def extract(path):
     raw=path.read_bytes()
-    if hashlib.sha256(raw).hexdigest()!=COMPONENT_SHA256:
-        raise ValueError('unverified AudioCodecs component; reverify BWE2 format constants')
+    component_sha = hashlib.sha256(raw).hexdigest()
+    selected = profile(component_sha, 'bwe2_tables')
     magic,count=struct.unpack_from('>II',raw)
     if magic!=0xcafebabe:raise ValueError('unexpected verified Mach-O container')
     for i in range(count):
@@ -38,18 +38,19 @@ def extract(path):
             if va<=address and address+size<=va+file_size:
                 return bytes(data[file_offset+address-va:file_offset+address-va+size])
         raise ValueError('BWE2 data outside verified file segments')
+    first, second, descriptors, gains = TABLE_ADDRESSES[component_sha]['bwe2']
     books=[]
-    for stage,address in enumerate((0x8a29a4,0x8aa9a4)):
-        descriptor=read(0xaad6e0+16*stage,16)
+    for stage,address in enumerate((first, second)):
+        descriptor=read(descriptors+16*stage,16)
         entries,dimension=struct.unpack_from('<HH',descriptor)
         pointer=struct.unpack_from('<Q',descriptor,8)[0]&0xffffffffff
         if (entries,dimension,pointer)!=(512,16,address):raise ValueError('unverified LSF stage descriptor')
         values=list(struct.unpack('<8192I',read(address,32768)))
         books.append([values[i*16:(i+1)*16] for i in range(512)])
-    values=dict(lsf_codebooks_f32=books,excitation_gains_f32=list(struct.unpack('<64I',read(0xa2f430,256))))
+    values=dict(lsf_codebooks_f32=books,excitation_gains_f32=list(struct.unpack('<64I',read(gains,256))))
     digest=hashlib.sha256(json.dumps(values,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     return dict(schema_version=1,format_profile='apac-bwe2-format-v1',
-                source=dict(component='AudioCodecs 7.0',system='macOS 27.0 / 26A428',component_sha256=COMPONENT_SHA256,
+                source=dict(component='AudioCodecs 7.0',system=selected['system']+' / '+selected['build'],component_sha256=sha256_file(path),
                             architecture='x86_64',method='shared encoder/decoder LSF and excitation-gain wire dictionaries'),
                 tables_sha256=digest,**values)
 

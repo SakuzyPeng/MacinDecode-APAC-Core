@@ -61,6 +61,7 @@ def back(frame, kind, event, **saved):
 
 def hit(frame, location, _dict):
     try:
+        base.observe(frame, location)
         bp_id=location.GetBreakpoint().GetID()
         if bp_id in RETURNS:
             saved=RETURNS.pop(bp_id)
@@ -141,6 +142,7 @@ def __lldb_init_module(debugger,_dict):
     except Exception as error:
         ERRORS.append('packet trace initialization: '+str(error));return
     target=debugger.GetSelectedTarget()
+    base.begin_probe(target, 'drc')
     points={'payload':r'^mpddrc::UniDrc::Deserialize\(', 'header':r'^mpddrc::UniDrcHeader::Deserialize\(',
             'gain_read':r'^mpddrc::UniDrcGain::Deserialize\(', 'gain_reset':r'^mpddrc::UniDrcGain::Reset\(',
             'selection':r'^mpddrc::UniDrcSelection::Process\(', 'process':r'^mpddrc::UniDrc::Process\(',
@@ -149,7 +151,7 @@ def __lldb_init_module(debugger,_dict):
     for kind,pattern in points.items():
         if os.environ.get('APAC_DRC_SYNTAX_ONLY')=='1' and kind in ('process','processor_process','wrapper_process'):
             continue
-        bp=target.BreakpointCreateByRegex(pattern);KINDS[bp.GetID()]=kind
+        bp=base.breakpoint(target, pattern);KINDS[bp.GetID()]=kind
         bp.SetScriptCallbackFunction(__name__+'.hit')
 
 
@@ -157,10 +159,11 @@ def finish(debugger):
     import lldb
     process=debugger.GetSelectedTarget().GetProcess()
     result=dict(trace_script_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
-                component_sha256=base.COMPONENT_SHA256,packets=packet.PACKETS,events=EVENTS,
+                component_sha256=base.component_sha256(),packets=packet.PACKETS,events=EVENTS,
                 packet_events=packet.EVENTS, errors=ERRORS+packet.ERRORS,
                 pending_returns=len(RETURNS)+len(packet.RETURNS),
                 process_exit_code=process.GetExitStatus() if process.GetState()==lldb.eStateExited else None)
+    base.finish_capture(result)
     raw=(json.dumps(result,indent=2)+'\n').encode()
     if len(raw)>128*1024*1024:raise RuntimeError('DRC trace exceeds output limit')
     with Path(os.environ['APAC_DRC_TRACE_OUTPUT']).open('xb') as out:out.write(raw)

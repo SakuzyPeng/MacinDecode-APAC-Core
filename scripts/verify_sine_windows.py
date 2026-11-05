@@ -11,6 +11,7 @@ import sys
 import tempfile
 
 from native_frame_trace import trace_bundle
+from native_component import bind_capture, validate_capture
 from spectrum_vectors import bundle, frame
 from validate import require, write_json
 from validate_replay import sha256_file
@@ -23,7 +24,7 @@ def float_bytes(values):
 
 def check_windows(expected, trace):
     require(not trace['errors'] and trace['process_exit_code'] == 0, 'native window trace failed')
-    require(trace['component_sha256'] == expected['reference_component_sha256'], 'reference component differs')
+    validate_capture(trace, 'frame')
     hashes = {}
     for name, count in [('long',1024),('short',128)]:
         actual=trace['windows'][name]
@@ -54,6 +55,7 @@ def main():
                 root=Path(tmp)
                 bundle(root/'packets',[frame({})[0]]*4,rate)
                 trace=trace_bundle(args.binary.resolve(),root/'packets',root,windows=True)
+                bind_capture(report, trace, 'frame')
                 record['coefficient_sha256']=check_windows(expected,trace)
                 record['coefficients']=1152;record['passed']=True
         except Exception as e:record['error']=str(e)

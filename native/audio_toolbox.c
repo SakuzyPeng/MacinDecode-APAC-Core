@@ -1,9 +1,11 @@
 // SDK types stay on this side of the bridge. Only fixed-width scalars cross the ABI.
 #include <AudioToolbox/AudioToolbox.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <mach-o/loader.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,6 +58,41 @@ typedef struct {
 static _Thread_local const char *last_operation = "AudioToolbox";
 const char *apac_last_operation(void) { return last_operation; }
 void apac_free(void *p) { free(p); }
+
+// Public loader APIs only; no codec function is called. NOLOAD holds an existing
+// image while reading its metadata, avoiding races with image-list iteration.
+// An identity failure only suppresses the optional error explanation.
+int32_t apac_loaded_codec_identity(uint8_t uuid[16], uint32_t cpu[2]) {
+    const char *path = "/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs";
+    void *handle = dlopen(path, RTLD_LAZY | RTLD_NOLOAD | RTLD_FIRST);
+    if (!handle) return 0;
+    int32_t found = 0;
+    Dl_info info = {0};
+    void *factory = dlsym(handle, "ACAPACDecoderFactory");
+    if (!factory || !dladdr(factory, &info) || !info.dli_fname || strcmp(info.dli_fname, path)) goto done;
+    const struct mach_header_64 *image = info.dli_fbase;
+    if (!image || image->magic != MH_MAGIC_64) goto done;
+    const uint8_t *cursor = (const uint8_t *)(image + 1);
+    uint32_t remaining = image->sizeofcmds;
+    for (uint32_t command = 0; command < image->ncmds; ++command) {
+        if (remaining < sizeof(struct load_command)) goto done;
+        const struct load_command *load = (const struct load_command *)cursor;
+        if (load->cmdsize < sizeof(*load) || load->cmdsize > remaining) goto done;
+        if (load->cmd == LC_UUID) {
+            if (load->cmdsize != sizeof(struct uuid_command)) goto done;
+            memcpy(uuid, ((const struct uuid_command *)load)->uuid, 16);
+            cpu[0] = (uint32_t)image->cputype;
+            cpu[1] = (uint32_t)image->cpusubtype;
+            found = 1;
+            break;
+        }
+        remaining -= load->cmdsize;
+        cursor += load->cmdsize;
+    }
+done:
+    dlclose(handle);
+    return found;
+}
 
 int32_t apac_packet_metadata(ApacFile *h, int64_t packet, ApacPacket *p) {
     if (packet < 0) return kAudio_ParamError;

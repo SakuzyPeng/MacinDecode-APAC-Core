@@ -437,7 +437,8 @@ impl NativeFile {
         checked(
             unsafe { apac_prepare_decode(self.raw(), start, &mut length) },
             "prepare reference decode",
-        )?;
+        )
+        .map_err(|error| self.explain_decode_error(error))?;
         u64::try_from(length).map_err(|_| Error::new("frame range", "negative file length"))
     }
     pub fn read_pcm(&mut self, frames: u32) -> Result<Vec<f32>> {
@@ -449,7 +450,8 @@ impl NativeFile {
         checked(
             unsafe { apac_read_pcm(self.raw(), samples.as_mut_ptr(), &mut actual) },
             "reference decode",
-        )?;
+        )
+        .map_err(|error| self.explain_decode_error(error))?;
         if actual > frames {
             return Err(Error::new(
                 "PCM buffer",
@@ -458,6 +460,15 @@ impl NativeFile {
         }
         samples.truncate(actual as usize * self.format.channels as usize);
         Ok(samples)
+    }
+    fn explain_decode_error(&self, error: Error) -> Error {
+        if error.os_status != Some(i32::from_be_bytes(*b"!dat")) {
+            return error;
+        }
+        match self.cookie() {
+            Ok(cookie) => crate::compatibility::explain_decode_error(error, &cookie),
+            Err(_) => error,
+        }
     }
     pub fn write_pcm(&mut self, samples: &[f32]) -> Result<()> {
         let channels = self.format.channels as usize;

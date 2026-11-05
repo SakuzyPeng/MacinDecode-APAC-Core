@@ -199,7 +199,8 @@ impl Converter {
                 )
             },
             "create packet decoder",
-        )?;
+        )
+        .map_err(|error| crate::compatibility::explain_decode_error(error, feed.bundle.cookie()))?;
         let handle = NonNull::new(raw).ok_or_else(|| Error::new("replay", "null converter"))?;
         Ok(Self {
             handle: Some(handle),
@@ -284,6 +285,7 @@ impl Converter {
                 unsafe { apac_replay_set_cookie(self.raw(), cookie.as_ptr(), cookie.len() as u32) },
                 "set cookie after processing policy",
             )
+            .map_err(|error| crate::compatibility::explain_decode_error(error, cookie))
             .err();
         }
         let initial_reset = if failure.is_none() {

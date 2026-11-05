@@ -19,6 +19,13 @@ python3 -B scripts/validate_native_versions.py --binary target/release/mapac \
 
 两个输入均使用六阶 HOA 内核和 16 路输出。`26A428` 的历史结果为成功，`26B123` 在设置 cookie 时返回 `!dat`。现有配置解析支持编码器写入的 `content_origin.values[3]` 值 `0` 和 `2`，回归同时检查该字段以后的位边界。
 
+36／37 内部系数边界及版本限定错误说明的短回归使用独立人工 cookie 和包序列，覆盖两种 `replay` 策略及 CAF `decode`，共 18 项。它只在已核验的 `26B123` 组件上运行；同时检查成功 PCM 的形状与摘要、拒绝状态与阶段、可读说明及未完成标记。测试向量不依赖本地媒体或研究报告。
+
+```sh
+python3 -B scripts/validate_native_hoa_boundary.py --binary target/release/mapac \
+  --report reports/native-hoa-boundary-new.json
+```
+
 静态码表工具使用对应组件版本的表地址，比较码字、数值及维度。新观测的组件来源写入本次结果，已提交数据中的历史来源用于追溯原始证据。正弦窗检查同样分别记录历史表来源和本次捕获组件。
 
 共享配置的公开接口观察可以显式指定由当前 SDK 桥接源码构建的动态库，输出限制为 128 MiB。结果包含组件、桥接器和输入摘要，以及每次公开 API 调用的状态。

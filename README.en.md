@@ -151,6 +151,8 @@ arguments are invalid. See the [full exit-code contract](guide/commands.md#概�
 CI builds and tests on Windows Server 2022, Ubuntu 22.04 and macOS 26. The first macOS release is
 Apple Silicon only. Use `decode-sq` for independent decoding; `decode` is the macOS AudioToolbox reference command.
 
+The macOS 27.2 reference backend limits some higher-order HOA dynamic-selection configurations. Qualified failures include an explanation; see [native reference limits](guide/support.md#macos-272-原生参考限制). Independent decoding retains its order 0–3 support.
+
 ## Before you start
 
 - **Input must contain APAC audio:** ordinary AAC `.m4a`, MP3, FLAC and encrypted/DRM files are unsupported. MP4/M4A is currently limited to unfragmented, single-audio-track files.

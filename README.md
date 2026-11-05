@@ -141,6 +141,8 @@ macOS 另有 `inspect`、`dump` 等参考工具，详细用法见[命令行参�
 CI 在 Windows Server 2022、Ubuntu 22.04 和 macOS 26 上构建并运行测试。macOS 首版只提供 Apple Silicon 产物。
 独立解码使用 `decode-sq`；`decode` 是 macOS 的 AudioToolbox 参考命令。
 
+macOS 27.2 的苹果参考后端对部分高阶 HOA 动态选择配置有限制，已提供版本限定的错误说明；详见[原生参考限制](guide/support.md#macos-272-原生参考限制)。当前独立解码的 0–3 阶支持范围保持不变。
+
 ## 使用前了解
 
 - **输入必须是 APAC 音频**：普通 AAC `.m4a`、MP3、FLAC，以及加密／DRM 文件不受支持。MP4／M4A 当前限非分片、单音轨文件。

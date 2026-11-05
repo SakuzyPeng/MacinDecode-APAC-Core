@@ -31,6 +31,7 @@ COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacO
 
 def source_paths():
     return [Path(__file__).resolve(), ROOT/'scripts/hoa_mean_blackbox_wire.py', ROOT/'data/sq-codebooks.json',
+            ROOT/'scripts/evidence_packs.py',
             *(ROOT/'scripts/hoa_blackbox_lib'/name for name in
               ('__init__.py', 'common.py', 'store.py', 'wire.py'))]
 

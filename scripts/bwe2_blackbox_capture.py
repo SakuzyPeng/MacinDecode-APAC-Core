@@ -13,6 +13,7 @@ import struct
 import subprocess
 import time
 
+from evidence_packs import object_exists, read_gzip_object
 from bwe2_blackbox_wire import ROOT, Writer, bundle, canonical, cookie, digest
 
 COMPONENT = Path('/System/Library/Components/AudioCodecs.component/Contents/MacOS/AudioCodecs')
@@ -165,8 +166,8 @@ class Capture:
         self.check()
         key=digest(raw)
         path=self.evidence/'objects'/(key+'.gz')
-        if path.exists():
-            if gzip.decompress(path.read_bytes())!=raw:
+        if object_exists(path):
+            if read_gzip_object(path)!=raw:
                 raise RuntimeError('content-addressed object is corrupt')
         else:
             used=self.charged_bytes()
@@ -182,7 +183,7 @@ class Capture:
 
     def read_blob(self, key):
         self.check()
-        raw=gzip.decompress((self.evidence/'objects'/(key+'.gz')).read_bytes())
+        raw=read_gzip_object(self.evidence/'objects'/(key+'.gz'))
         if digest(raw)!=key:
             raise RuntimeError('evidence hash mismatch')
         return raw

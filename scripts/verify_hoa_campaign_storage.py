@@ -5,7 +5,6 @@ The trusted volume pin is kept outside the removable disk. No decoder identity,
 candidate, evidence object, budget, or probe counter is changed.
 """
 import argparse
-import gzip
 import json
 import os
 from pathlib import Path
@@ -13,6 +12,7 @@ import plistlib
 import sqlite3
 import subprocess
 
+from evidence_packs import open_gzip_object
 from hoa_blackbox_lib.common import EvidenceError, IdentityError, canonical, digest, require
 from hoa_blackbox_lib.store import Store, atomic_file, writer_lock
 
@@ -68,7 +68,7 @@ def verify(root,pin,write=False):
                 kind=row['kind'] if 'kind' in row.keys() else 'gzip'
                 try:
                     if kind in ('gzip','external-gzip'):
-                        with gzip.open(path,'rb') as stream:raw=stream.read(size+1)
+                        with open_gzip_object(path) as stream:raw=stream.read(size+1)
                     else:
                         with path.open('rb') as stream:
                             stream.seek(row['offset']);raw=stream.read(size)

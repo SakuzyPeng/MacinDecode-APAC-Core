@@ -4,11 +4,12 @@ The campaign lock is held by the orchestrator. Native workers never touch this
 module. A shard boundary is not a resource-budget exception: only a completed
 128-attempt window may advance, with no outstanding native writes.
 """
-import gzip
 import json
 from pathlib import Path
 import shutil
 import sqlite3
+
+from evidence_packs import object_exists, open_gzip_object, read_gzip_object
 
 from .common import (BudgetStop, EvidenceError, IdentityError, ShardBoundary,
                      canonical, digest, now, require)
@@ -174,6 +175,9 @@ class CampaignStorage:
                 if path.is_file(): control += path.stat().st_size
             except FileNotFoundError:
                 pass
+        index = self.root / 'objects' / '.packs' / 'index.sqlite3'
+        if index.is_file():
+            control += index.stat().st_size
         return stored + self.other_metadata + self.store.disk_bytes() + control + 1024**2
 
     def reference(self,row):
@@ -184,7 +188,7 @@ class CampaignStorage:
     def read_reference(self,identity,ref):
         try:
             if ref['kind'] in ('gzip','external-gzip'):
-                with gzip.open(ref['path'],'rb') as stream:raw=stream.read(ref['size']+1)
+                with open_gzip_object(ref['path']) as stream:raw=stream.read(ref['size']+1)
             else:
                 with Path(ref['path']).open('rb') as stream:
                     stream.seek(ref['offset']);raw=stream.read(ref['size'])
@@ -215,7 +219,7 @@ class CampaignStorage:
             return ref
         self.reserve(len(encoded))
         path=self.root/'objects'/(identity+'.gz')
-        if path.exists():require(gzip.decompress(path.read_bytes())==raw,'orphan object differs',EvidenceError)
+        if object_exists(path):require(read_gzip_object(path)==raw,'orphan object differs',EvidenceError)
         else:atomic_file(path,encoded)
         shard=self.current()['id']
         with self.db:

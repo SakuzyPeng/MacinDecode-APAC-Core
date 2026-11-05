@@ -2,7 +2,6 @@
 """Read-only PCM reanalysis and a bounded public-encoder observability pilot."""
 import argparse
 import fcntl
-import gzip
 import json
 import os
 from pathlib import Path
@@ -17,6 +16,7 @@ os.environ.setdefault('VECLIB_MAXIMUM_THREADS','1')
 # Installs the same target-dictionary access guard as the original discovery.
 import bwe2_blackbox
 import numpy as np
+from evidence_packs import read_gzip_object
 from bwe2_blackbox_capture import Capture,atomic,native_identity,volume_identity
 from bwe2_blackbox_math import pcm,spectrum,fit_envelope,envelope
 from bwe2_blackbox_wire import ROOT,Writer,canonical,digest,source
@@ -59,7 +59,7 @@ class Experiment:
         if old['native_identity']!=self.identity or old['volume']!=self.config['volume']:raise RuntimeError('old observations belong to a different native environment or volume')
         self.pool=Path(old['evidence'])/'objects'
         self.source_db=sqlite3.connect(f'file:{self.source_root/"state.sqlite3"}?mode=ro',uri=True)
-        paths=[ROOT/'scripts'/name for name in ('bwe2_lsf_probe.py','bwe2_lsf_refine.py','bwe2_encoder_settings.py','bwe2_blackbox.py','bwe2_blackbox_math.py','bwe2_blackbox_wire.py','bwe2_blackbox_capture.py')]
+        paths=[ROOT/'scripts'/name for name in ('bwe2_lsf_probe.py','bwe2_lsf_refine.py','bwe2_encoder_settings.py','bwe2_blackbox.py','bwe2_blackbox_math.py','bwe2_blackbox_wire.py','bwe2_blackbox_capture.py','evidence_packs.py')]
         self.producer={p.name:digest(p.read_bytes()) for p in paths}
         snapshots=self.out/'producers'/digest(canonical(self.producer));snapshots.mkdir(parents=True,exist_ok=True)
         for p in paths:
@@ -78,7 +78,7 @@ class Experiment:
         row=self.source_db.execute('SELECT receipt FROM observations WHERE key=?',(key,)).fetchone()
         if row is None:raise RuntimeError('missing original observation')
         receipt=json.loads(row[0]);h=receipt['artifacts']['native/pcm.f32le']
-        raw=gzip.decompress((self.pool/(h+'.gz')).read_bytes())
+        raw=read_gzip_object(self.pool/(h+'.gz'))
         if digest(raw)!=h or receipt['native_identity']!=self.identity:raise RuntimeError('original evidence differs')
         spec=json.loads(self.source_db.execute('SELECT spec FROM uses WHERE key=? LIMIT 1',(key,)).fetchone()[0])
         return raw,spec,h

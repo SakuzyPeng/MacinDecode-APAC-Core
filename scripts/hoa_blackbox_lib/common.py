@@ -99,6 +99,7 @@ def tool_fingerprint():
 
 def producer_paths():
     return [ROOT / 'scripts/hoa_blackbox.py', ROOT / 'data/sq-codebooks.json',
+            ROOT / 'scripts/evidence_packs.py',
             *sorted(Path(__file__).parent.glob('*.py'))]
 
 

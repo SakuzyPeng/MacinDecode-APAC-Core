@@ -170,6 +170,18 @@ class Evidence(unittest.TestCase):
             self.cap.probe('second',dict(source='silence'))
         self.assertEqual(self.cap.status()['attempts'],dict(success=1))
 
+    def test_packed_evidence_reuses_cache_without_new_capture(self):
+        from pack_evidence import pack_directory
+        spec=dict(source='silence')
+        key,raw=self.cap.probe('first',spec)
+        self.assertGreater(pack_directory(self.pool/'objects')['objects'],0)
+        self.assertEqual(self.cap.probe('packed-cache',spec),(key,raw))
+        self.assertEqual(self.cap.status()['attempts'],dict(success=1))
+        receipt=json.loads(self.cap.db.execute('SELECT receipt FROM observations WHERE key=?',(key,)).fetchone()[0])
+        sha=receipt['artifacts']['native/pcm.f32le']
+        self.assertEqual(self.cap.blob(raw),sha)
+        self.assertFalse((self.pool/'objects'/(sha+'.gz')).exists())
+
     def test_budget_and_writer_exclusion(self):
         self.cap.config['max_native_calls']=1
         self.cap.probe('first',dict(source='silence'))

@@ -41,6 +41,7 @@ from bwe2_blackbox_results import freeze_gains,lsf_identifiability
 
 def producer():
     paths=sorted((ROOT/'scripts').glob('bwe2_blackbox*.py'))
+    paths.append(ROOT/'scripts/evidence_packs.py')
     entries={p.name:digest(p.read_bytes()) for p in paths}
     return dict(files=entries,sha256=digest(canonical(entries)),numpy=np.__version__,python=sys.version)
 

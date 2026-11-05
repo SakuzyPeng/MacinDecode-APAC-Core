@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Observe BWE2 rounding profiles with simultaneous in-frame null candidates."""
 import argparse
-import gzip
 import itertools
 import json
 import os
@@ -14,6 +13,7 @@ os.environ.setdefault('OPENBLAS_NUM_THREADS','1')
 os.environ.setdefault('VECLIB_MAXIMUM_THREADS','1')
 import bwe2_blackbox
 import numpy as np
+from evidence_packs import read_gzip_object
 from bwe2_blackbox_capture import Capture,atomic
 from bwe2_blackbox_math import spectrum
 from bwe2_blackbox_wire import ROOT,canonical,digest
@@ -49,7 +49,7 @@ class Observer:
             raise RuntimeError('original observation index changed')
         self.pilot=json.loads(raw);self.pilot_sha=digest(raw)
         self.producer={name:digest((ROOT/'scripts'/name).read_bytes()) for name in
-            ('bwe2_parallel_spectrum.py','bwe2_spectral_null_wire.py','bwe2_blackbox_capture.py','bwe2_blackbox_wire.py','bwe2_blackbox_math.py','bwe2_blackbox.py')}
+            ('bwe2_parallel_spectrum.py','bwe2_spectral_null_wire.py','bwe2_blackbox_capture.py','bwe2_blackbox_wire.py','bwe2_blackbox_math.py','bwe2_blackbox.py','evidence_packs.py')}
         snapshot=capture.out/'producers'/digest(canonical(self.producer));snapshot.mkdir(parents=True,exist_ok=True)
         for name in self.producer:
             if not (snapshot/name).exists():atomic(snapshot/name,(ROOT/'scripts'/name).read_bytes())
@@ -57,7 +57,7 @@ class Observer:
     def seed(self,pair):
         entry=next(r for r in self.pilot['estimates'] if r['pair']==list(pair))
         receipt=json.loads(self.db.execute('SELECT receipt FROM observations WHERE key=?',(entry['key'],)).fetchone()[0])
-        sha=receipt['artifacts']['native/pcm.f32le'];raw=gzip.decompress((self.pool/(sha+'.gz')).read_bytes())
+        sha=receipt['artifacts']['native/pcm.f32le'];raw=read_gzip_object(self.pool/(sha+'.gz'))
         if digest(raw)!=sha:raise RuntimeError('seed PCM corrupted')
         return abs(spectrum(raw,self.pilot['calibration']['scale']))
 

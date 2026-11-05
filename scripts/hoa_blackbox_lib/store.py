@@ -8,6 +8,8 @@ import shutil
 import sqlite3
 import uuid
 
+from evidence_packs import object_exists, open_gzip_object, read_gzip_object
+
 from .common import (BudgetStop, EvidenceError, ExperimentError, canonical, capture_reservation,
                      digest, geometry, now, pcm_byte_count, pcm_samples, require, target_parts)
 
@@ -150,8 +152,8 @@ class Store:
         else:
             self.reserve(len(encoded))
             path = self.out / 'objects' / (identity + '.gz')
-            if path.exists():
-                require(gzip.decompress(path.read_bytes()) == raw, 'orphan object is corrupt', EvidenceError)
+            if object_exists(path):
+                require(read_gzip_object(path) == raw, 'orphan object is corrupt', EvidenceError)
             else:
                 atomic_file(path, encoded)
                 self.base_bytes += len(encoded)
@@ -168,7 +170,7 @@ class Store:
         path = Path(path).resolve()
         maximum = max(2*1024**2, pcm_byte_count(self.config.get('order', 3), 4096) + 256*1024)
         if compressed:
-            with gzip.open(path, 'rb') as stream:
+            with open_gzip_object(path) as stream:
                 raw = stream.read(maximum + 1)
         else:
             with path.open('rb') as stream:
@@ -191,7 +193,7 @@ class Store:
         require(row is not None, 'missing evidence object: ' + identity, EvidenceError)
         try:
             if row['kind'] in ('gzip', 'external-gzip'):
-                with gzip.open(row['path'], 'rb') as stream:
+                with open_gzip_object(row['path']) as stream:
                     raw = stream.read(row['size'] + 1)
             else:
                 with Path(row['path']).open('rb') as stream:

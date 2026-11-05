@@ -39,6 +39,37 @@ python3 -B scripts/native_codec.py --bridge target/research/apac-native.dylib \
 
 HOA salient 的公开接口测量、候选冻结和断点续跑见 [HOA 黑盒批处理](hoa-blackbox.md)。该工具输出本地候选与证据，不自动修改正式表。
 
+### macOS 27.2 定向诊断
+
+`diagnose_macos27_apac.py` 将实验绑定到已核验的 `26B123` 组件和指定可执行文件。输出目录必须不存在；中断时保留 `.incomplete.json`。PCM 按摘要保存，用硬链接保留各次回放的原路径。退出 `0` 表示采集完整，具体接受、拒绝和数值差异仍在报告中，不表示所有输入解码成功或所有 PCM 对照通过。
+
+```sh
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite hoa --out reports/update-hoa-new
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite hoa-boundary --out reports/update-hoa-boundary-new
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite origin --out reports/update-origin-new
+
+mkdir -p target/research
+xcrun clang -dynamiclib -O2 -g0 -Wno-deprecated-declarations scripts/trace_native_dft.c \
+  -framework Accelerate -o target/research/apac-update-dft-trace.dylib
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite numeric --dft-library target/research/apac-update-dft-trace.dylib \
+  --out reports/update-numeric-new
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite origin-controlled --origin-source reports/update-origin-new \
+  --dft-library target/research/apac-update-dft-trace.dylib \
+  --out reports/update-origin-controlled-new
+python3 -B scripts/diagnose_macos27_apac.py --binary target/release/mapac \
+  --suite origin-history --legacy-configs /path/to/legacy-configs.json \
+  --current-configs /path/to/current-configs.json --out reports/update-origin-history-new
+```
+
+`hoa` 固定两个旧向量，只改变 profile／level，并记录默认及关闭 DRC 的回放结果和只读配置调用轨迹。`hoa-boundary` 检查动态选择的内部系数边界及关闭动态选择的控制，每项策略独立启动三次。`origin` 对三组短编码输入互换 ContentOrigin 字段，并追踪系统版本字符串到序列化对象的赋值；`origin-history` 使用两份各含 23 个编码控制的历史报告，检查单字段还原后整个 cookie 的摘要。
+
+`numeric` 固定 SQ v2 与两个原始 48 用例批次，分别运行未注入、只观察 DFT、固定输出对齐 64 字节、偏移 16 字节四种条件，各六次。诊断库只在指定子进程中启用；观察路径仍有包装调用，报告与未注入路径分开保存。`origin-controlled` 在两种固定对齐下复核来源字段对照。两种工具均保留原始 `atol=1e-6`、`rtol=1e-5`，不修改生产数值规则。
+
 ## 基本检查与配置验收
 
 ```sh

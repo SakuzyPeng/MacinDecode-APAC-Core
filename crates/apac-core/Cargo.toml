@@ -1,0 +1,41 @@
+[package]
+name = "apac-core"
+version.workspace = true
+edition.workspace = true
+license = "MIT AND Apache-2.0"
+build = "build/main.rs"
+description = "Independent APAC configuration, frame parsing and SQ/HOA synthesis"
+
+[features]
+# Serialize the report and state types; serde_json only reproduces the
+# key-sorted rendering of structured syntax values.
+serde = ["dep:serde", "dep:serde_json"]
+# CAC inverse mixing from the separate `apac-cac` crate. Without it, frames that use a
+# nonzero CAC gain index are rejected; the CAC syntax is still read and reported.
+cac = ["dep:apac-cac"]
+# BWE2 LSF codebooks and spectral restoration. Syntax remains in the core;
+# without this feature, active BWE2 channels are rejected before numerical work.
+bwe2 = ["dep:apac-bwe2"]
+
+[dependencies]
+apac-cac = { workspace = true, optional = true }
+apac-bwe2 = { workspace = true, optional = true, features = ["external-lsf"] }
+serde = { version = "1.0", default-features = false, features = ["alloc", "derive"], optional = true }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
+# Correctly rounded square root without the platform libm.
+libm = "0.2"
+sha2 = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+# Unit tests compare against serialized reports and decode CAC fixtures; BWE2 tests require an explicit feature.
+apac-core = { path = ".", features = ["serde", "cac"] }
+serde.workspace = true
+serde_json.workspace = true
+
+[build-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2 = { version = "0.10", default-features = false }
+
+[lints]
+workspace = true

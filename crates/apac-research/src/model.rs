@@ -1,0 +1,209 @@
+use crate::error::{Error, Result};
+use serde::{Deserialize, Serialize};
+use std::{collections::BTreeMap, path::PathBuf};
+
+pub use apac_core::model::{ChannelDescription, ChannelLayout, SCHEMA_VERSION, sha256};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[serde(rename_all = "lowercase")]
+pub enum DrcConfiguration {
+    None,
+    Music,
+    Speech,
+    Movie,
+    Capture,
+}
+
+/// Explicit policy for the optional native reference replay. The portable
+/// decoder's supported policy is independent of a host's implicit defaults.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
+#[serde(rename_all = "kebab-case")]
+pub enum NativeProcessingPolicy {
+    #[default]
+    Default,
+    DrcOff,
+}
+impl DrcConfiguration {
+    /// Bridge selector, translated to SDK constants by the C bridge.
+    pub fn selector(self) -> u32 {
+        match self {
+            Self::None => 0,
+            Self::Music => 1,
+            Self::Speech => 2,
+            Self::Movie => 3,
+            Self::Capture => 4,
+        }
+    }
+}
+pub fn fourcc(value: u32) -> String {
+    String::from_utf8_lossy(&value.to_be_bytes()).into_owned()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Property<T> {
+    pub value: Option<T>,
+    pub error: Option<ErrorRecord>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ErrorRecord {
+    pub operation: String,
+    pub os_status: Option<i32>,
+    pub message: String,
+}
+impl<T> Property<T> {
+    pub fn known(value: T) -> Self {
+        Self {
+            value: Some(value),
+            error: None,
+        }
+    }
+    pub fn from_result(result: Result<T>) -> Self {
+        match result {
+            Ok(v) => Self::known(v),
+            Err(e) => Self {
+                value: None,
+                error: Some(ErrorRecord {
+                    operation: e.operation,
+                    os_status: e.os_status,
+                    message: e.message,
+                }),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Environment {
+    pub tool_version: String,
+    pub os: String,
+    pub architecture: String,
+    pub system_version: String,
+}
+impl Environment {
+    pub fn current() -> Self {
+        let version = if cfg!(target_os = "macos") {
+            std::process::Command::new("/usr/bin/sw_vers")
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        } else {
+            None
+        };
+        Self {
+            tool_version: env!("CARGO_PKG_VERSION").into(),
+            os: std::env::consts::OS.into(),
+            architecture: std::env::consts::ARCH.into(),
+            system_version: version.unwrap_or_else(|| "unavailable".into()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AudioFormat {
+    pub sample_rate: f64,
+    pub format_id: u32,
+    pub format_fourcc: String,
+    pub flags: u32,
+    pub bytes_per_packet: u32,
+    pub frames_per_packet: u32,
+    pub bytes_per_frame: u32,
+    pub channels: u32,
+    pub bits_per_channel: u32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PacketTable {
+    pub valid_frames: i64,
+    pub priming_frames: i32,
+    pub remainder_frames: i32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CookieInfo {
+    pub bytes: usize,
+    pub sha256: String,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub schema_version: u32,
+    pub source: PathBuf,
+    pub file_bytes: u64,
+    pub modified_unix_seconds: Option<u64>,
+    pub environment: Environment,
+    pub container: Property<String>,
+    pub format: AudioFormat,
+    pub layout: Property<ChannelLayout>,
+    pub packet_count: Property<u64>,
+    pub max_packet_bytes: Property<u32>,
+    pub packet_table: Property<PacketTable>,
+    pub cookie: Property<CookieInfo>,
+    pub restricts_random_access: Property<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PcmInfo {
+    pub schema_version: u32,
+    pub complete: bool,
+    pub pcm_file: String,
+    pub encoding: String,
+    pub interleaved: bool,
+    pub sample_rate: f64,
+    pub channels: u32,
+    pub layout: Property<ChannelLayout>,
+    pub start_frame: u64,
+    pub requested_frames: u64,
+    pub frames: u64,
+    pub bytes: u64,
+    pub sha256: String,
+    pub source: Option<PathBuf>,
+    pub source_cookie_sha256: Option<String>,
+    pub source_packet_table: Option<PacketTable>,
+    pub environment: Environment,
+    pub decoder_settings: BTreeMap<String, Property<serde_json::Value>>,
+    pub all_finite: bool,
+}
+impl PcmInfo {
+    pub fn validate(&self) -> Result<()> {
+        if self.schema_version != SCHEMA_VERSION
+            || !self.complete
+            || self.encoding != "f32le"
+            || !self.interleaved
+        {
+            return Err(Error::new(
+                "PCM metadata",
+                "requires a complete schema v1 interleaved f32le bundle",
+            ));
+        }
+        if !self.sample_rate.is_finite()
+            || self.sample_rate <= 0.0
+            || self.channels == 0
+            || self.channels > 1024
+        {
+            return Err(Error::new(
+                "PCM metadata",
+                "invalid sample rate or channel count",
+            ));
+        }
+        let bytes = self
+            .frames
+            .checked_mul(u64::from(self.channels))
+            .and_then(|v| v.checked_mul(4));
+        if bytes != Some(self.bytes) {
+            return Err(Error::new(
+                "PCM metadata",
+                "frame count and byte count disagree",
+            ));
+        }
+        if self.sha256.len() != 64 || !self.sha256.bytes().all(|b| b.is_ascii_hexdigit()) {
+            return Err(Error::new("PCM metadata", "invalid SHA-256"));
+        }
+        if !self.all_finite {
+            return Err(Error::new(
+                "PCM metadata",
+                "bundle reports non-finite samples",
+            ));
+        }
+        Ok(())
+    }
+}

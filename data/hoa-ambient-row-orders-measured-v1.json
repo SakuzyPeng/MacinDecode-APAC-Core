@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "profile": "apac-hoa-ambient-row-orders-measured-v1",
+  "row_orders": [
+    [
+      0,
+      3,
+      2,
+      1
+    ],
+    [
+      0,
+      2,
+      3,
+      1
+    ],
+    [
+      0,
+      1,
+      2,
+      3
+    ]
+  ],
+  "source": {
+    "method": "public AudioConverter PCM reconstruction against identity carriers and formula-defined Sylvester-Hadamard matrices",
+    "native_identity": {
+      "architecture": "arm64",
+      "binary_sha256": "fc075f82b802ee5528ea69e3dbdd83ffb0b1c5a86c2b80523870351ab52f837c",
+      "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+      "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123"
+    },
+    "candidate_sha256": "a9d9c87c93cb50f65a9d73e7b57e15f8bf12e5445d6b93d313718de7585b3765",
+    "validation_sha256": "c4e76b8fb3e93539b73bc292c81967faca6e780785fa2625c2b82b81c1a079f7",
+    "comparison_sha256": "5fa6fc90a31aadde5ad342daac84249c1e6d506b45c5a2ee420cf8486abbbba4",
+    "discovery_producer_sha256": "fdd0b3ab7c23a9ab950f5ea9f3c74c35278173dbccff07ecdc54315931770dd3",
+    "validation_producer_sha256": "c5e7aaba4de00d5016451c37c8a46987d9646109ba05aaddca8fd1fdf54faf66",
+    "old_dictionary_consulted_during_discovery": false,
+    "candidate_frozen_before_heldout": true,
+    "heldout_passed_before_comparison": true,
+    "qualification": {
+      "passed": true,
+      "basis_checks": 48,
+      "heldout_checks": 36,
+      "nonzero_pcm_words_bit_identical": true,
+      "zero_equivalence": {
+        "argument": "Every recorded differing word pair is signed zero. The ambient restoration and final PCM emission canonicalize zero. All nonzero Float32 sample words agree.",
+        "consumers_sha256": {
+          "src/frame/hoa_ambient.rs": "ae49156044dd50f976c2e941a40a113825f8994d6a517577089fe4dec0f9033b",
+          "src/synthesis/mod.rs": "1e9f76d0b8064f5ede45e30db977a8ccf0cc827f513e0e260ddc2384fb3a9876"
+        },
+        "original_matrix_zero_entries": 0,
+        "profile": "apac-ambient-pcm-zero-equivalence-v1"
+      },
+      "signed_zero_coordinate_masks_sha256": "f3204d4bf814fd72ae0e9b09f0e7afaa6acddd4348b86e30553ad4b86f99c082"
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "format_profile": "apac-hoa-salient-shared-v1",
+  "order": 1,
+  "modes": [
+    {
+      "mode": 0,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 1,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 2,
+      "signs": false,
+      "group_indices": [
+        1,
+        2
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 3,
+      "signs": true,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 4,
+      "signs": false,
+      "group_indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "matrix_indices": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "mode": 5,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    }
+  ],
+  "groups": [
+    [
+      0,
+      1,
+      2,
+      3
+    ],
+    [
+      2
+    ],
+    [
+      0,
+      1,
+      3
+    ]
+  ],
+  "matrices_f32": [
+    "00f7c00d0f5e836a01765f70b50248c802e4c3539c83186fce8b8067280e0b81ad1003149e0407aedd97",
+    "f9e05420a74132c0058db854c680059fdb67f36ada841f73cf930041cf06f358181fc1d5c86da6fedc5c",
+    "098a57c99620f21d14abaf7fa3c3d5c403ab72a47f143478572485d25feb38182b5542f199df0fa2d682",
+    "e7327006308010518265cc120c02110c08288ce48b02a963c74b64148705af101acb881f25e3d3f03f87"
+  ],
+  "matrix_encoding": "micro21-msb-hex-v1"
+}

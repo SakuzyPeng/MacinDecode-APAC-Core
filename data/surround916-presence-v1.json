@@ -1,0 +1,256 @@
+{
+  "schema_version": 1,
+  "profile": "apac-channel-layout-v3",
+  "cases": 1024,
+  "layouts": [
+    {
+      "channels": 16,
+      "rate": 48000,
+      "cookie": "0000001d646170610000000008007d0180200420009219249201820000",
+      "templates": [
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 0,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "wire": "10000000001010000000",
+          "body_bits": 19,
+          "configuration": {
+            "element_index": 1,
+            "kind": "sce",
+            "tce_type": 0,
+            "output_channels": [
+              2
+            ]
+          }
+        },
+        {
+          "wire": "100000000010100000",
+          "body_bits": 18,
+          "configuration": {
+            "element_index": 2,
+            "kind": "lfe",
+            "tce_type": 3,
+            "output_channels": [
+              3
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 3,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              4,
+              5
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 4,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              6,
+              7
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 5,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              8,
+              9
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 6,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 7,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              12,
+              13
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 8,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              14,
+              15
+            ]
+          }
+        }
+      ],
+      "cases": 512,
+      "stage_sha256": "4de2bdada901dd514ce3580957712c5a04f8c4e610eb0395da34f2a02c81989c"
+    },
+    {
+      "channels": 16,
+      "rate": 44100,
+      "cookie": "0000001d646170610000000008007d0200200420009219249201820000",
+      "templates": [
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 0,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "wire": "10000000001010000000",
+          "body_bits": 19,
+          "configuration": {
+            "element_index": 1,
+            "kind": "sce",
+            "tce_type": 0,
+            "output_channels": [
+              2
+            ]
+          }
+        },
+        {
+          "wire": "100000000010100000",
+          "body_bits": 18,
+          "configuration": {
+            "element_index": 2,
+            "kind": "lfe",
+            "tce_type": 3,
+            "output_channels": [
+              3
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 3,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              4,
+              5
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 4,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              6,
+              7
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 5,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              8,
+              9
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 6,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              10,
+              11
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 7,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              12,
+              13
+            ]
+          }
+        },
+        {
+          "wire": "1000000000101000001101000000000",
+          "body_bits": 29,
+          "configuration": {
+            "element_index": 8,
+            "kind": "cpe",
+            "tce_type": 1,
+            "output_channels": [
+              14,
+              15
+            ]
+          }
+        }
+      ],
+      "cases": 512,
+      "stage_sha256": "ca00df99a0cd5311f7acb725cfe9379543d05ea50dd6fa1541d06dee7befad41"
+    }
+  ],
+  "sha256": "4cc0f0c3897051488fe88992753dfb546166c34361d652aff7c687898577fd32"
+}

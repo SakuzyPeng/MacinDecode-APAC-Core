@@ -1,0 +1,97 @@
+{
+  "schema_version": 2,
+  "format_profile": "apac-hoa-salient-shared-v1",
+  "order": 2,
+  "modes": [
+    {
+      "mode": 0,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 1,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 2,
+      "signs": false,
+      "group_indices": [
+        1,
+        2
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 3,
+      "signs": true,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    },
+    {
+      "mode": 4,
+      "signs": false,
+      "group_indices": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "matrix_indices": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "mode": 5,
+      "signs": false,
+      "group_indices": [
+        0
+      ],
+      "matrix_indices": []
+    }
+  ],
+  "groups": [
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    [
+      2,
+      5,
+      7
+    ],
+    [
+      0,
+      1,
+      3,
+      4,
+      6,
+      8
+    ]
+  ],
+  "matrices_f32": [
+    "8024fc6423a215870373378be400b22811eb60d26185471eaf21016bf31d44d04b44414ad53798518d162003c0099e64ae341bae000fe10d92ba072af427a7a3f0a8742c3a3b9c8137d8524e074a3e1e42c017d954f04cdbee687879486f1a261da4f94468b7012d6c0e76641b35c07a87a9bec07005d415d378c0c271ac82dfdc2bf9e21be3024d2bda044597661424e053e98d41b58ee3410fbd294c4e832741d104777f0170088c07d08ce8da34f808e990155455414c135b24cc1e86c0880d969c57012d2a505e0bc06d960cfb84bccb032fa8",
+    "0012b401e2602e8a000de801fcbd07940051602e4a800c88389320027d94f4f001064004d2065ae1ab735f83ec006babd27c006002040440546e00ae9006fae31459540580414b28737802fd6d933e0375b00a29003ed5785dafbfa102349d08b2c8d32e05b9e980a614831c0027493fc900c7a970e96016746ac0103636afd56c86c00006183dea980d11a86cd018c0775ca8803054b409d8c1980002182e03c013d4830df06c4be5b4780122a19c4583c3d8041700e3a8003581957b275fe8405a2016dc9e8df871470002224b4530123b513810",
+    "99471008e441a2f904d1981cc140293715cc4c19f903a3b9ebfe608b83566090ab25019878192cc865784399cc0de7f897350259d99efb4a4560037700e36d398bd08d91a55399053bc1109901295e08bc506206f821d853678173f60669a810b5c05a85b365802a5c0198483c9d8b69ea311f11161c4a9986065400108d773320086a20917802e5580f6a4799ea4a91905d389583585cf481f7780576806735415d45d662d001671c3e0c0d9e809f39ec51c0786e021770018bc0f49f00083bab98e03b020345b1d29407f1f801a9f00b4d003bc0",
+    "800ac0023e00053c002988173fbd0206019d80695480552c041120103b02bbb00de5c210da0d6b5069cc79dc9c1791a0b24207a1c000f740af972a421024a9cf82fc3032ad987206f3f0401f80f5d006747c0bfb80d2f1f05be0246a5324403c62402c18055a814c8b00a7a4003f9100db0139ee4bfc81513dd1ee8423450df6a02dd6a00ff301b4200b6e8084ea3cada10d6e15e317b2cc00079a0008f07c60808a9e1d16420493a2f10b94ee0414bc000e38009fc1c9fc0469603047f7df1c198bc35fb223c4d80e8c4005181145b00c5e0074c8"
+  ],
+  "matrix_encoding": "micro21-msb-hex-v1"
+}

@@ -1,0 +1,12 @@
+/target
+/reports
+/artifacts
+/docs/
+*.xcworkspace/
+**/xcuserdata/
+.DS_Store
+__pycache__/
+.env
+.env.*
+!.env.example
+/data/bwe2-format-v1.json

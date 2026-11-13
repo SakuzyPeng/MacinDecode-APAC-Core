@@ -1,0 +1,461 @@
+{
+  "format_profile": "apac-hoa-shared-drc-syntax-v1",
+  "normal": [
+    {
+      "code": 3,
+      "value": -1,
+      "width": 2
+    },
+    {
+      "code": 2,
+      "value": 1,
+      "width": 2
+    },
+    {
+      "code": 1,
+      "value": -2,
+      "width": 3
+    },
+    {
+      "code": 2,
+      "value": 0,
+      "width": 3
+    },
+    {
+      "code": 0,
+      "value": -16,
+      "width": 4
+    },
+    {
+      "code": 2,
+      "value": -4,
+      "width": 5
+    },
+    {
+      "code": 15,
+      "value": -3,
+      "width": 5
+    },
+    {
+      "code": 14,
+      "value": 8,
+      "width": 5
+    },
+    {
+      "code": 25,
+      "value": -5,
+      "width": 6
+    },
+    {
+      "code": 24,
+      "value": 2,
+      "width": 6
+    },
+    {
+      "code": 6,
+      "value": 3,
+      "width": 6
+    },
+    {
+      "code": 15,
+      "value": -8,
+      "width": 7
+    },
+    {
+      "code": 52,
+      "value": -7,
+      "width": 7
+    },
+    {
+      "code": 54,
+      "value": -6,
+      "width": 7
+    },
+    {
+      "code": 55,
+      "value": 4,
+      "width": 7
+    },
+    {
+      "code": 29,
+      "value": 5,
+      "width": 8
+    },
+    {
+      "code": 57,
+      "value": -15,
+      "width": 9
+    },
+    {
+      "code": 213,
+      "value": -9,
+      "width": 9
+    },
+    {
+      "code": 215,
+      "value": 6,
+      "width": 9
+    },
+    {
+      "code": 212,
+      "value": 7,
+      "width": 9
+    },
+    {
+      "code": 112,
+      "value": -12,
+      "width": 10
+    },
+    {
+      "code": 428,
+      "value": -11,
+      "width": 10
+    },
+    {
+      "code": 429,
+      "value": -10,
+      "width": 10
+    },
+    {
+      "code": 226,
+      "value": -14,
+      "width": 11
+    },
+    {
+      "code": 227,
+      "value": -13,
+      "width": 11
+    }
+  ],
+  "clipping": [
+    {
+      "code": 7,
+      "value": -1,
+      "width": 3
+    },
+    {
+      "code": 12,
+      "value": -5,
+      "width": 4
+    },
+    {
+      "code": 9,
+      "value": -4,
+      "width": 4
+    },
+    {
+      "code": 5,
+      "value": -3,
+      "width": 4
+    },
+    {
+      "code": 3,
+      "value": -2,
+      "width": 4
+    },
+    {
+      "code": 1,
+      "value": 0,
+      "width": 4
+    },
+    {
+      "code": 11,
+      "value": 1,
+      "width": 4
+    },
+    {
+      "code": 17,
+      "value": -7,
+      "width": 5
+    },
+    {
+      "code": 14,
+      "value": -6,
+      "width": 5
+    },
+    {
+      "code": 5,
+      "value": 2,
+      "width": 5
+    },
+    {
+      "code": 4,
+      "value": 3,
+      "width": 5
+    },
+    {
+      "code": 8,
+      "value": 4,
+      "width": 5
+    },
+    {
+      "code": 0,
+      "value": 5,
+      "width": 5
+    },
+    {
+      "code": 13,
+      "value": 6,
+      "width": 5
+    },
+    {
+      "code": 15,
+      "value": 7,
+      "width": 5
+    },
+    {
+      "code": 16,
+      "value": 8,
+      "width": 5
+    },
+    {
+      "code": 27,
+      "value": 9,
+      "width": 5
+    },
+    {
+      "code": 43,
+      "value": -10,
+      "width": 6
+    },
+    {
+      "code": 40,
+      "value": -9,
+      "width": 6
+    },
+    {
+      "code": 2,
+      "value": -8,
+      "width": 6
+    },
+    {
+      "code": 18,
+      "value": 10,
+      "width": 6
+    },
+    {
+      "code": 24,
+      "value": 11,
+      "width": 6
+    },
+    {
+      "code": 41,
+      "value": 12,
+      "width": 6
+    },
+    {
+      "code": 106,
+      "value": -32,
+      "width": 7
+    },
+    {
+      "code": 84,
+      "value": -14,
+      "width": 7
+    },
+    {
+      "code": 104,
+      "value": -13,
+      "width": 7
+    },
+    {
+      "code": 38,
+      "value": -12,
+      "width": 7
+    },
+    {
+      "code": 6,
+      "value": -11,
+      "width": 7
+    },
+    {
+      "code": 50,
+      "value": 13,
+      "width": 7
+    },
+    {
+      "code": 210,
+      "value": -18,
+      "width": 8
+    },
+    {
+      "code": 171,
+      "value": -17,
+      "width": 8
+    },
+    {
+      "code": 170,
+      "value": -16,
+      "width": 8
+    },
+    {
+      "code": 79,
+      "value": -15,
+      "width": 8
+    },
+    {
+      "code": 78,
+      "value": 14,
+      "width": 8
+    },
+    {
+      "code": 215,
+      "value": 15,
+      "width": 8
+    },
+    {
+      "code": 14,
+      "value": 16,
+      "width": 8
+    },
+    {
+      "code": 429,
+      "value": -29,
+      "width": 9
+    },
+    {
+      "code": 428,
+      "value": -27,
+      "width": 9
+    },
+    {
+      "code": 422,
+      "value": -26,
+      "width": 9
+    },
+    {
+      "code": 205,
+      "value": -25,
+      "width": 9
+    },
+    {
+      "code": 206,
+      "value": -22,
+      "width": 9
+    },
+    {
+      "code": 423,
+      "value": -21,
+      "width": 9
+    },
+    {
+      "code": 31,
+      "value": -20,
+      "width": 9
+    },
+    {
+      "code": 204,
+      "value": -19,
+      "width": 9
+    },
+    {
+      "code": 60,
+      "value": -28,
+      "width": 10
+    },
+    {
+      "code": 414,
+      "value": -24,
+      "width": 10
+    },
+    {
+      "code": 415,
+      "value": -23,
+      "width": 10
+    },
+    {
+      "code": 122,
+      "value": -31,
+      "width": 11
+    },
+    {
+      "code": 123,
+      "value": -30,
+      "width": 11
+    }
+  ],
+  "slopes": [
+    {
+      "code": 1,
+      "value": 7,
+      "width": 1
+    },
+    {
+      "code": 0,
+      "value": 6,
+      "width": 2
+    },
+    {
+      "code": 7,
+      "value": 8,
+      "width": 4
+    },
+    {
+      "code": 10,
+      "value": 3,
+      "width": 5
+    },
+    {
+      "code": 9,
+      "value": 4,
+      "width": 5
+    },
+    {
+      "code": 13,
+      "value": 5,
+      "width": 5
+    },
+    {
+      "code": 11,
+      "value": 9,
+      "width": 5
+    },
+    {
+      "code": 24,
+      "value": 0,
+      "width": 6
+    },
+    {
+      "code": 17,
+      "value": 10,
+      "width": 6
+    },
+    {
+      "code": 50,
+      "value": 2,
+      "width": 7
+    },
+    {
+      "code": 32,
+      "value": 13,
+      "width": 7
+    },
+    {
+      "code": 51,
+      "value": 14,
+      "width": 7
+    },
+    {
+      "code": 66,
+      "value": 1,
+      "width": 8
+    },
+    {
+      "code": 135,
+      "value": 11,
+      "width": 9
+    },
+    {
+      "code": 134,
+      "value": 12,
+      "width": 9
+    }
+  ],
+  "source": {
+    "method": "qualified public AudioConverter PCM and Apache-2.0 UniDRC prior",
+    "measurement_file": "hoa-shared-drc-codebooks-measured-v1.json",
+    "measurement_sha256": "45ed74d9fd1cf330e40c2d12f0b834889def4cabdd717a8ee955a9a7353edbfe",
+    "license": "Apache-2.0"
+  },
+  "format_sha256": "eaa5e2eda04da4badaf2cf9fd0a26851fdb1aba85491227863dedd9eda6bc052"
+}

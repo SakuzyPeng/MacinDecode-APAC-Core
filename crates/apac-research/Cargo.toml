@@ -1,0 +1,30 @@
+[package]
+name = "apac-research"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+build = "build.rs"
+description = "APAC research reports, packet bundles, containers and CLI drivers"
+
+[features]
+clap = ["dep:clap"]
+# CAC inverse mixing (see apac-core's `cac` feature).
+cac = ["apac-core/cac"]
+# BWE2 LSF codebooks and spectral restoration.
+bwe2 = ["apac-core/bwe2"]
+
+[dependencies]
+apac-container.workspace = true
+apac-core = { workspace = true, features = ["serde"] }
+clap = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+
+[dev-dependencies]
+# Tests and examples decode CAC fixtures; BWE2 tests require an explicit feature.
+apac-core = { workspace = true, features = ["serde", "cac"] }
+
+[lints]
+workspace = true

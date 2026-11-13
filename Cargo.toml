@@ -1,0 +1,39 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/mapac"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.lints.rust]
+# Every crate except the macOS-only apac-native (AudioToolbox FFI) opts in with `[lints] workspace = true`.
+unsafe_code = "forbid"
+
+[workspace.dependencies]
+apac-cac = { path = "crates/apac-cac" }
+apac-bwe2 = { path = "crates/apac-bwe2" }
+apac-core = { path = "crates/apac-core" }
+apac-container = { path = "crates/apac-container" }
+apac-research = { path = "crates/apac-research" }
+apac-native = { path = "crates/apac-native" }
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+tempfile = "3"
+cc = "1.2"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.test]
+debug = 0
+incremental = false
+
+[profile.release]
+debug = 0
+strip = "debuginfo"

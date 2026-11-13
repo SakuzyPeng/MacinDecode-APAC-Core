@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "profile": "apac-shared-channel-profile-levels-measured-v1",
+  "component_type": 0,
+  "profiles": [
+    {
+      "maximum_output_channels_by_level": [
+        64
+      ],
+      "profile_id": 0
+    },
+    {
+      "maximum_output_channels_by_level": [
+        12,
+        24,
+        64
+      ],
+      "profile_id": 5
+    }
+  ],
+  "source": {
+    "method": "independent public AudioCodec cookie properties and AudioConverter SQ PCM",
+    "experiment": "shared-config-profile-bounds-2026-11-09-v1",
+    "code_base_commit": "7212ce534d7d3a633aafaeadf4ee510bfa1a8c7e",
+    "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+    "candidate_sha256": "81db5716871f0fff55f2b4e718890b3183d886aa5e0cbc877e639f47d58e1df8",
+    "property_validation_sha256": "ed060482b64f92b89c9160848e44cacbd13f8f89aa97f1b5416550aa17a70b76",
+    "native_validation_sha256": "4e701f1bacc55d99fc12b156e1603bd6e7cde2149aaa7b7ef20d7f1de158a265",
+    "isolated_comparison_sha256": "b260c0b4d0d96e3b6b492a3f9847200dccbbf74e7a327d215dc96b6c5842b02a",
+    "old_dictionary_consulted_during_discovery": false,
+    "candidate_frozen_before_heldout": true,
+    "heldout_passed_before_comparison": true,
+    "qualification": {
+      "passed": true,
+      "enumerated_profile_levels": 1024,
+      "cardinality_observations": 1020,
+      "heldout_property_checks": 1020,
+      "heldout_native_decodes": 12,
+      "all_observation_digests_verified": true,
+      "loaded_component_checked_per_property_observation": true,
+      "discovery_finished_at": 1794286144.849115,
+      "candidate_frozen_at": 1794286217.758506,
+      "heldout_started_at": 1794286303.9724932,
+      "independent_validation_finished_at": 1794286567.879489,
+      "isolated_comparison_at": 1794286599.8484402,
+      "discovery_layout_family": 147,
+      "heldout_layout_family": 190,
+      "discovery_transport": "single-channel elements",
+      "heldout_transport": "paired elements with optional trailing single-channel element",
+      "native_selected_channel": "last",
+      "native_overlap_verified": true
+    },
+    "scope": {
+      "profile_ids": [
+        0,
+        5
+      ],
+      "profile_31_qualified": false,
+      "type_1_qualified": false,
+      "layout_lists_qualified": false
+    },
+    "producer_sha256": {
+      "bwe2_blackbox_capture.py": "12a8baa9650753d3e887b676c439d25552b40f9de5a39e3eb7baedc4ca10cb04",
+      "bwe2_blackbox_wire.py": "788a8998dc2d814a07b5a385080a537ae8893222a77624a137c92aa765aec86b",
+      "source_migration_capture.py": "2a92fc8391ad7f9197f05d86b910ae7ac1a3594806e864cf19d23cc4ac2b8c9c",
+      "source_migration_shared_config.py": "93839629b29e02e2cb3518d8a755c038f7614ad499ca90e5866a18e0b486c1d8",
+      "source_migration_shared_decode.py": "64841b0d4e80bd68c6013e4736378e5ac96f2c74da5aa8c20946ad18f5c5c4ea"
+    }
+  }
+}

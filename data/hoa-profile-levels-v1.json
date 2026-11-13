@@ -1,0 +1,25 @@
+{
+  "format_profile": "apac-hoa-profile-levels-v1",
+  "component_type": 2,
+  "profiles": [
+    {
+      "maximum_output_channels_by_level": [
+        121
+      ],
+      "profile_id": 0
+    },
+    {
+      "maximum_output_channels_by_level": [
+        16,
+        36,
+        49
+      ],
+      "profile_id": 5
+    }
+  ],
+  "source": {
+    "method": "qualified public AudioConverter measurements",
+    "measurement_file": "hoa-profile-levels-measured-v1.json",
+    "measurement_sha256": "d7f2e55b68648f778167877f86bf5eb8fb5821292eb712fdc75c989c2ad30073"
+  }
+}

@@ -1,0 +1,2147 @@
+{
+  "fixtures": [
+    {
+      "name": "matrix-6553601",
+      "options": {
+        "order": 0,
+        "output_coefficients": 1,
+        "source_layout": {
+          "tag": 6553601
+        },
+        "counts": [],
+        "ambient_count": 1,
+        "path": "replace",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0
+        ]
+      },
+      "cookie": "0000001f646170610000000008001401800204200b30000080032000080000",
+      "first": "4816410a0000",
+      "good": "880070686ab20909090942108421080000e05904280000",
+      "bad": "880070686ab20909090942108421080000e05904280080"
+    },
+    {
+      "name": "matrix-6619138",
+      "options": {
+        "order": 1,
+        "output_coefficients": 2,
+        "source_layout": {
+          "tag": 6619138
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0
+        ]
+      },
+      "cookie": "00000020646170610000000008001401800404200b300220420000ca00040000",
+      "first": "4816410a002882080000",
+      "good": "880080686ab209090909421084210801feda00e0590428023f8a00",
+      "bad": "880080686ab209090909421084210801feda00e0590428023f8a80"
+    },
+    {
+      "name": "matrix-7077892",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7077892
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b300220440000036000200000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108007fb68000e0590428008fe28000",
+      "bad": "880088686ab2090909094210842108007fb68000e0590428008fe28080"
+    },
+    {
+      "name": "matrix-7405571",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 7405571
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000020646170610000000008001401800604200b3002204300001c4000c000",
+      "first": "4816410a001441040000",
+      "good": "880080686ab209090909421084210800ff6d00e0590428011fc50000",
+      "bad": "880080686ab209090909421084210800ff6d00e0590428011fc50080"
+    },
+    {
+      "name": "matrix-7471107",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 7471107
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000020646170610000000008001401800604200b3002204300001c8000c000",
+      "first": "4816410a001441040000",
+      "good": "880080686ab209090909421084210800ff6d00e0590428011fc50000",
+      "bad": "880080686ab209090909421084210800ff6d00e0590428011fc50080"
+    },
+    {
+      "name": "matrix-7536644",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7536644
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b300220440000039800200000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108007fb68000e0590428008fe28000",
+      "bad": "880088686ab2090909094210842108007fb68000e0590428008fe28080"
+    },
+    {
+      "name": "matrix-7602180",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 7602180
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b30022044000003a000200000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108007fb68000e0590428008fe28000",
+      "bad": "880088686ab2090909094210842108007fb68000e0590428008fe28080"
+    },
+    {
+      "name": "matrix-7667717",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 7667717
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800a04200b30042010a000000ea000a000",
+      "first": "4816410a00051041041041040000",
+      "good": "880090686ab2090909094210842108002bffff8000e0590428004036db3c00",
+      "bad": "880090686ab2090909094210842108002bffff8000e0590428004036db3c80"
+    },
+    {
+      "name": "matrix-7864325",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 7864325
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800a04200b30042010a000000f0000a000",
+      "first": "4816410a00051041041041040000",
+      "good": "880090686ab2090909094210842108002bffff8000e0590428004036db3c00",
+      "bad": "880090686ab2090909094210842108002bffff8000e0590428004036db3c80"
+    },
+    {
+      "name": "matrix-7929862",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b30042010c0000001e400180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e00",
+      "bad": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e80"
+    },
+    {
+      "name": "matrix-8126470",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 8126470
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b30042010c0000001f000180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e00",
+      "bad": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e80"
+    },
+    {
+      "name": "matrix-8192007",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 8192007
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800e04200b30042010e00000003e80038000",
+      "first": "4816410a00014410410410410000",
+      "good": "880090686ab2090909094210842108000affffe000e059042800100db6cf00",
+      "bad": "880090686ab2090909094210842108000affffe000e059042800100db6cf80"
+    },
+    {
+      "name": "matrix-8323080",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8323080
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b300420110000000007f000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-8388616",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8388616
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b3004201100000000080000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-8585219",
+      "options": {
+        "order": 1,
+        "output_coefficients": 3,
+        "source_layout": {
+          "tag": 8585219
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000020646170610000000008001401800604200b30022043000020c000c000",
+      "first": "4816410a001441040000",
+      "good": "880080686ab209090909421084210800ff6d00e0590428011fc50000",
+      "bad": "880080686ab209090909421084210800ff6d00e0590428011fc50080"
+    },
+    {
+      "name": "matrix-8650756",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 8650756
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b300220440000042000200000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108007fb68000e0590428008fe28000",
+      "bad": "880088686ab2090909094210842108007fb68000e0590428008fe28080"
+    },
+    {
+      "name": "matrix-9240582",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 9240582
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b30042010c00000023400180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e00",
+      "bad": "880090686ab20909090942108421080015ffffc000e059042800201b6d9e80"
+    },
+    {
+      "name": "matrix-9306119",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 9306119
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800e04200b30042010e00000004700038000",
+      "first": "4816410a00014410410410410000",
+      "good": "880090686ab2090909094210842108000affffe000e059042800100db6cf00",
+      "bad": "880090686ab2090909094210842108000affffe000e059042800100db6cf80"
+    },
+    {
+      "name": "matrix-9371655",
+      "options": {
+        "order": 2,
+        "output_coefficients": 7,
+        "source_layout": {
+          "tag": 9371655
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800e04200b30042010e00000004780038000",
+      "first": "4816410a00014410410410410000",
+      "good": "880090686ab2090909094210842108000affffe000e059042800100db6cf00",
+      "bad": "880090686ab2090909094210842108000affffe000e059042800100db6cf80"
+    },
+    {
+      "name": "matrix-9437192",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 9437192
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b3004201100000000090000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-11993096",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 11993096
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b30042011000000000b7000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-12582924",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 12582924
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000024646170610000000008001401801804200b30062019800000000000c0000c0000",
+      "first": "4816410a00000a20820820820820820820820000",
+      "good": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248400",
+      "bad": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248480"
+    },
+    {
+      "name": "matrix-12648464",
+      "options": {
+        "order": 3,
+        "output_coefficients": 16,
+        "source_layout": {
+          "tag": 12648464
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000026646170610000000008001401802004200b3006201a000000000000000c1001000000",
+      "first": "4816410a000000a2082082082082082082082000",
+      "good": "8800a8686ab2090909094210842108000004cfffffffc000e059042800000800092492484000",
+      "bad": "8800a8686ab2090909094210842108000004cfffffffc000e059042800000800092492484080"
+    },
+    {
+      "name": "matrix-12713992",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 12713992
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b30042011000000000c2000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-12779530",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 12779530
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801404200b30042011400000000030c0028000",
+      "first": "4816410a00002882082082082000",
+      "good": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e000",
+      "bad": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e080"
+    },
+    {
+      "name": "matrix-12845066",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 12845066
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801404200b3004201140000000003100028000",
+      "first": "4816410a00002882082082082000",
+      "good": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e000",
+      "bad": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e080"
+    },
+    {
+      "name": "matrix-13369368",
+      "options": {
+        "order": 4,
+        "output_coefficients": 24,
+        "source_layout": {
+          "tag": 13369368
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 1,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000029646170610000000008001441803004200b30082008c0000000000000000000033000600000",
+      "first": "4816410a00000000a208208208208208208208208208208208208000",
+      "good": "8800c0686ab2090909094210842108000000065555555555555000e05904280000000bfffffffff24000",
+      "bad": "8800c0686ab2090909094210842108000000065555555555555000e05904280000000bfffffffff24080"
+    },
+    {
+      "name": "matrix-13434888",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 13434888
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b30042011000000000cd000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab209090909421084210800057ffff000e0590428000806db678000",
+      "bad": "880090686ab209090909421084210800057ffff000e0590428000806db678080"
+    },
+    {
+      "name": "matrix-13500428",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13500428
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000024646170610000000008001401801804200b30062019800000000000ce000c0000",
+      "first": "4816410a00000a20820820820820820820820000",
+      "good": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248400",
+      "bad": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248480"
+    },
+    {
+      "name": "matrix-13565962",
+      "options": {
+        "order": 2,
+        "output_coefficients": 10,
+        "source_layout": {
+          "tag": 13565962
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801404200b30042011400000000033c0028000",
+      "first": "4816410a00002882082082082000",
+      "good": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e000",
+      "bad": "880090686ab209090909421084210800015ffffc00e0590428000201b6d9e080"
+    },
+    {
+      "name": "matrix-13631500",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13631500
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000024646170610000000008001401801804200b30062019800000000000d0000c0000",
+      "first": "4816410a00000a20820820820820820820820000",
+      "good": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248400",
+      "bad": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248480"
+    },
+    {
+      "name": "matrix-13697038",
+      "options": {
+        "order": 3,
+        "output_coefficients": 14,
+        "source_layout": {
+          "tag": 13697038
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000025646170610000000008001401801c04200b30062019c00000000000034400380000",
+      "first": "4816410a00000288208208208208208208208000",
+      "good": "8800a0686ab20909090942108421080000133fffffff00e059042800002000249249210000",
+      "bad": "8800a0686ab20909090942108421080000133fffffff00e059042800002000249249210080"
+    },
+    {
+      "name": "matrix-13762572",
+      "options": {
+        "order": 3,
+        "output_coefficients": 12,
+        "source_layout": {
+          "tag": 13762572
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000024646170610000000008001401801804200b30062019800000000000d2000c0000",
+      "first": "4816410a00000a20820820820820820820820000",
+      "good": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248400",
+      "bad": "8800a0686ab209090909421084210800004cfffffffc00e0590428000080009249248480"
+    },
+    {
+      "name": "matrix-13828110",
+      "options": {
+        "order": 3,
+        "output_coefficients": 14,
+        "source_layout": {
+          "tag": 13828110
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000025646170610000000008001401801c04200b30062019c00000000000034c00380000",
+      "first": "4816410a00000288208208208208208208208000",
+      "good": "8800a0686ab20909090942108421080000133fffffff00e059042800002000249249210000",
+      "bad": "8800a0686ab20909090942108421080000133fffffff00e059042800002000249249210080"
+    },
+    {
+      "name": "n3d-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "0000002f646170610000000008001401800804200b3402204400080018001800000018000800180010001800180000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108006dbf8000e05904280088afc000",
+      "bad": "880088686ab2090909094210842108006dbf8000e05904280088afc080"
+    },
+    {
+      "name": "sn3d-labels",
+      "options": {
+        "order": 2,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            131072,
+            131073,
+            131074,
+            131075,
+            131076
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "coefficient_count": 5
+      },
+      "cookie": "00000033646170610000000008001402000a04200932010400a000200080004000000040002000400040004000600040008000",
+      "first": "4816410a00051041040000",
+      "good": "880088686ab2090909094210842108003feb8000e05904280041edb000",
+      "bad": "880088686ab2090909094210842108003feb8000e05904280041edb080"
+    },
+    {
+      "name": "reordered-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            131075,
+            131072,
+            131074,
+            131073
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "0000002f646170610000000008001401800804200b3402204400080018001000180010000000100010001000080000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108006dbf8000e05904280088afc000",
+      "bad": "880088686ab2090909094210842108006dbf8000e05904280088afc080"
+    },
+    {
+      "name": "speaker-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            1,
+            2,
+            5,
+            6
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "0000002f646170610000000008001401800804200b3202204400080018000000080000001000000028000000300000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108006dbf8000e05904280088afc000",
+      "bad": "880088686ab2090909094210842108006dbf8000e05904280088afc080"
+    },
+    {
+      "name": "discrete",
+      "options": {
+        "order": 2,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 9633801
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001402001204200b3204201120000000012600120000",
+      "first": "4816410a00005104104104104000",
+      "good": "880090686ab20909090942108421080003fffeb800e0590428000401edb6c000",
+      "bad": "880090686ab20909090942108421080003fffeb800e0590428000401edb6c080"
+    },
+    {
+      "name": "source-crop",
+      "options": {
+        "order": 2,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 12451844
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b32042010800000be00040000",
+      "first": "4816410a000a2082082082080000",
+      "good": "880088686ab2090909094210842108007fffd700e059042800803db6d800",
+      "bad": "880088686ab2090909094210842108007fffd700e059042800803db6d880"
+    },
+    {
+      "name": "source-expand",
+      "options": {
+        "order": 1,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 12451849
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001402001204200b34022049000000000be000900000",
+      "first": "4816410a00005104100000",
+      "good": "880088686ab209090909421084210800036dfc00e05904280004457e00",
+      "bad": "880088686ab209090909421084210800036dfc00e05904280004457e80"
+    },
+    {
+      "name": "matrix-partial",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "coefficient_count": 5
+      },
+      "cookie": "00000022646170610000000008001401800c04200930010400c0000001e400180000",
+      "first": "4816410a00028820820000",
+      "good": "880088686ab2090909094210842108001ff5c000e05904280020f6d800",
+      "bad": "880088686ab2090909094210842108001ff5c000e05904280020f6d880"
+    },
+    {
+      "name": "matrix-reduced",
+      "options": {
+        "order": 1,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800c04200b300220460000000f2000c000",
+      "first": "4816410a000288208000",
+      "good": "880088686ab2090909094210842108001b6fe000e059042800222bf000",
+      "bad": "880088686ab2090909094210842108001b6fe000e059042800222bf080"
+    },
+    {
+      "name": "matrix-single",
+      "options": {
+        "order": 0,
+        "output_coefficients": 2,
+        "source_layout": {
+          "tag": 6619138
+        },
+        "counts": [],
+        "ambient_count": 1,
+        "path": "replace",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0
+        ]
+      },
+      "cookie": "0000001f646170610000000008001401800404200b30000100006500020000",
+      "first": "4816410a0000",
+      "good": "880070686ab20909090942108421080000e05904280000",
+      "bad": "880070686ab20909090942108421080000e05904280080"
+    },
+    {
+      "name": "lfe-position",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b32042010c0000001e400180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab2090909094210842108001ffff5c000e059042800200f6db600",
+      "bad": "880090686ab2090909094210842108001ffff5c000e059042800200f6db680"
+    },
+    {
+      "name": "lfe-retained",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b34042010c0000001e400180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab2090909094210842108001ffff5c000e059042800200f6db600",
+      "bad": "880090686ab2090909094210842108001ffff5c000e059042800200f6db680"
+    },
+    {
+      "name": "lfe-tag-order",
+      "options": {
+        "order": 2,
+        "output_coefficients": 8,
+        "source_layout": {
+          "tag": 8323080
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000023646170610000000008001401801004200b320420110000000007f000800000",
+      "first": "4816410a0000a208208208208000",
+      "good": "880090686ab20909090942108421080007fffd7000e0590428000803db6d8000",
+      "bad": "880090686ab20909090942108421080007fffd7000e0590428000803db6d8080"
+    },
+    {
+      "name": "matrix-unavailable-position",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 8060934
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000022646170610000000008001401800c04200b32042010c0000001ec00180000",
+      "first": "4816410a00028820820820820000",
+      "good": "880090686ab2090909094210842108001ffff5c000e059042800200f6db600",
+      "bad": "880090686ab2090909094210842108001ffff5c000e059042800200f6db680"
+    },
+    {
+      "name": "private-variable",
+      "options": {
+        "order": 1,
+        "output_coefficients": 4,
+        "source_layout": {
+          "tag": 4026597380
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001401800804200b320220440007800800200000",
+      "first": "4816410a000a20820000",
+      "good": "880088686ab2090909094210842108006dbf8000e05904280088afc000",
+      "bad": "880088686ab2090909094210842108006dbf8000e05904280088afc080"
+    },
+    {
+      "name": "private-fixed",
+      "options": {
+        "order": 1,
+        "output_coefficients": 5,
+        "source_layout": {
+          "tag": 4028628997
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 1
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "00000021646170610000000008001402000a04200b320220450000f02000050000",
+      "first": "4816410a000510410000",
+      "good": "880088686ab20909090942108421080036dfc000e0590428004457e000",
+      "bad": "880088686ab20909090942108421080036dfc000e0590428004457e080"
+    },
+    {
+      "name": "n3d-last-coefficient",
+      "options": {
+        "order": 10,
+        "output_coefficients": 121,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611,
+            196612,
+            196613,
+            196614,
+            196615,
+            196616,
+            196617,
+            196618,
+            196619,
+            196620,
+            196621,
+            196622,
+            196623,
+            196624,
+            196625,
+            196626,
+            196627,
+            196628,
+            196629,
+            196630,
+            196631,
+            196632,
+            196633,
+            196634,
+            196635,
+            196636,
+            196637,
+            196638,
+            196639,
+            196640,
+            196641,
+            196642,
+            196643,
+            196644,
+            196645,
+            196646,
+            196647,
+            196648,
+            196649,
+            196650,
+            196651,
+            196652,
+            196653,
+            196654,
+            196655,
+            196656,
+            196657,
+            196658,
+            196659,
+            196660,
+            196661,
+            196662,
+            196663,
+            196664,
+            196665,
+            196666,
+            196667,
+            196668,
+            196669,
+            196670,
+            196671,
+            196672,
+            196673,
+            196674,
+            196675,
+            196676,
+            196677,
+            196678,
+            196679,
+            196680,
+            196681,
+            196682,
+            196683,
+            196684,
+            196685,
+            196686,
+            196687,
+            196688,
+            196689,
+            196690,
+            196691,
+            196692,
+            196693,
+            196694,
+            196695,
+            196696,
+            196697,
+            196698,
+            196699,
+            196700,
+            196701,
+            196702,
+            196703,
+            196704,
+            196705,
+            196706,
+            196707,
+            196708,
+            196709,
+            196710,
+            196711,
+            196712,
+            196713,
+            196714,
+            196715,
+            196716,
+            196717,
+            196718,
+            196719,
+            196720,
+            196721,
+            196722,
+            196723,
+            196724,
+            196725,
+            196726,
+            196727,
+            196728
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 44100,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 0,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cookie": "0000023164617061000000000800000200f204200b341420029f168000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000401e0000c0000000c0004000c0008000c000c000c0010000c0014000c0018000c001c000c0020000c0024000c0028000c002c000c0030000c0034000c0038000c003c000c0040000c0044000c0048000c004c000c0050000c0054000c0058000c005c000c0060000c0064000c0068000c006c000c0070000c0074000c0078000c007c000c0080000c0084000c0088000c008c000c0090000c0094000c0098000c009c000c00a0000c00a4000c00a8000c00ac000c00b0000c00b4000c00b8000c00bc000c00c0000c00c4000c00c8000c00cc000c00d0000c00d4000c00d8000c00dc000c00e0000c00e4000c00e8000c00ec000c00f0000c00f4000c00f8000c00fc000c0100000c0104000c0108000c010c000c0110000c0114000c0118000c011c000c0120000c0124000c0128000c012c000c0130000c0134000c0138000c013c000c0140000c0144000c0148000c014c000c0150000c0154000c0158000c015c000c0160000c0164000c0168000c016c000c0170000c0174000c0178000c017c000c0180000c0184000c0188000c018c000c0190000c0194000c0198000c019c000c01a0000c01a4000c01a8000c01ac000c01b0000c01b4000c01b8000c01bc000c01c0000c01c4000c01c8000c01cc000c01d0000c01d4000c01d8000c01dc000c01e00000",
+      "first": "4816410a000000000000000000000000000000005104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104104000",
+      "good": "880168686ab209090909421084210800000000000000000000000000000003fffffffffffffffffffffffffffffe6a00e059042800000000000000000000000000000004000000000000005aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa00",
+      "bad": "880168686ab209090909421084210800000000000000000000000000000003fffffffffffffffffffffffffffffe6a00e059042800000000000000000000000000000004000000000000005aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa80"
+    },
+    {
+      "name": "dynamic-source-labels",
+      "options": {
+        "order": 1,
+        "output_coefficients": 9,
+        "source_layout": {
+          "tag": 0,
+          "labels": [
+            196608,
+            196609,
+            196610,
+            196611,
+            196612,
+            196613,
+            196614,
+            196615,
+            196616
+          ]
+        },
+        "counts": [
+          1
+        ],
+        "ambient_count": 0,
+        "path": "salient",
+        "scene": false,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 2
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "dynamic": true
+      },
+      "cookie": "00000045646170610000000008001401801204200b3cf008812400000040020000c0000000c0004000c0008000c000c000c0010000c0014000c0018000c001c000c0020000",
+      "first": "4816410a00005104104048c048c048c048c048c048c048c048c000",
+      "good": "686ab209090909421084210800072425269349a4d269349a4800",
+      "bad": "686ab209090909421084210800072425269349a4d269349a4880"
+    },
+    {
+      "name": "matrix-controls-transports-drc",
+      "options": {
+        "order": 2,
+        "output_coefficients": 6,
+        "source_layout": {
+          "tag": 7929862
+        },
+        "counts": [
+          2,
+          1
+        ],
+        "ambient_count": 3,
+        "path": "replace",
+        "scene": true,
+        "rate": 48000,
+        "controls": {
+          "parameter_0": 0,
+          "flag_b": true,
+          "flag_c": true,
+          "flag_f": false
+        },
+        "profile": 5,
+        "level": 0,
+        "tce_types": [
+          6,
+          1,
+          3,
+          0,
+          0,
+          0
+        ],
+        "drc": true,
+        "rich": true
+      },
+      "cookie": "0000005a646170610000000008001401800c04200bd002231820d8b00001e40018030060400022081015010000200202a00c22000e00f2de600308a248c9124648da0104907e2e20080101000100191189110000402000cd2800",
+      "first": "48181d5c0b2085002c821402059042840b20850205904280918c1020820820a04104104160820820820072de600308a248c9124648da0104907e2e20080101000100191189110000402000cd288180",
+      "good": "88026068181d5c355904848484a1084210840355904848484a108421084021aac82424242508421084210d56412121212842108421021aac8242424250842108420246304349240db6ddb6db6c0000e06075702c82142c821410040b20850816410a040b208501231821036cf40dba9036d80000",
+      "bad": "88026068181d5c355904848484a1084210840355904848484a108421084021aac82424242508421084210d56412121212842108421021aac8242424250842108420246304349240db6ddb6db6c0000e06075702c82142c821410040b20850816410a040b208501231821036cf40dba9036d80004"
+    }
+  ]
+}

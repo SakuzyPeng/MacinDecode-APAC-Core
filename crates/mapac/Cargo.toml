@@ -1,0 +1,33 @@
+[package]
+name = "mapac"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Portable Apple Positional Audio Codec decoder and inspection CLI"
+
+[features]
+# BWE2 is disabled by default and requires an explicit external research input.
+default = ["cac"]
+cac = ["apac-core/cac", "apac-research/cac"]
+bwe2 = ["apac-core/bwe2", "apac-research/bwe2"]
+
+[[bin]]
+name = "mapac"
+path = "src/main.rs"
+
+[dependencies]
+apac-core.workspace = true
+apac-research = { workspace = true, features = ["clap"] }
+clap.workspace = true
+serde_json.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+apac-native.workspace = true
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

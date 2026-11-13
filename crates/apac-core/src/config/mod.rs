@@ -1,0 +1,164 @@
+//! Independent APAC cookie syntax inspection. No Apple APIs are used here.
+use crate::prelude::*;
+pub(crate) mod bits;
+mod drc;
+mod drc_metadata;
+mod hoa;
+#[cfg(test)]
+mod legacy_tests;
+mod model;
+#[cfg(test)]
+pub(crate) mod model_tests;
+mod parser;
+pub(crate) mod passive;
+mod passive_compression;
+mod passive_metadata;
+mod passive_renderer;
+mod scenes;
+
+use alloc::collections::BTreeMap;
+use core::fmt;
+
+/// Largest cookie accepted by the parser.
+pub const MAX_COOKIE_BYTES: usize = 8 * 1024 * 1024;
+// Bit positions are `usize`: on 32-bit targets every input bit must stay
+// addressable, which also bounds the parsers' unchecked `len() * 8`.
+const _: () = assert!(MAX_COOKIE_BYTES <= u32::MAX as usize / 8);
+
+/// Whether `hz` is one of the sample rates the configuration syntax can
+/// describe (its sample-rate index table).
+pub fn is_supported_sample_rate(hz: u64) -> bool {
+    crate::frame::sfb::index(hz).is_some()
+}
+
+pub use crate::record::{ConfigField, DigestUnit, FieldValue};
+pub(crate) use model::*;
+pub use model::{Config, Field, Located};
+#[cfg(test)]
+use parser::InBand;
+pub(crate) use parser::{parse_drc_header_at, parse_scene_at};
+pub use passive::PositionSyntax;
+
+/// How far the cookie syntax was parsed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+pub enum ParseStatus {
+    /// Every field was parsed.
+    Complete,
+    /// The syntax stopped early (truncation or an unparsed branch); see the
+    /// recorded unknown ranges.
+    Partial,
+    /// The cookie is not a standalone `dapa` configuration this parser reads.
+    Unsupported,
+}
+
+/// A span of cookie bits left unparsed, with its raw bytes and the reason.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
+pub struct UnknownRange {
+    pub bit_offset: usize,
+    pub bit_length: usize,
+    /// raw_hex starts at floor(bit_offset / 8); skip these high bits in its first byte.
+    pub first_byte_skip_bits: usize,
+    pub raw_hex: String,
+    pub reason: String,
+}
+
+/// A non-fatal remark recorded at a bit offset.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+#[allow(missing_docs)]
+pub struct Diagnostic {
+    pub bit_offset: usize,
+    pub message: String,
+}
+
+/// The recorded syntax of one parse: field events in stream order, derived
+/// values, unparsed ranges and diagnostics. Decoding never reads it.
+#[derive(Debug, Clone, Default)]
+pub struct Recording {
+    /// Field events in stream order.
+    pub fields: Vec<ConfigField>,
+    /// Values derived from fields (rates, counts, layout tags), by name.
+    pub derived: BTreeMap<String, FieldValue>,
+    /// Spans left unparsed.
+    pub unknown_ranges: Vec<UnknownRange>,
+    /// Non-fatal remarks.
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// A syntax error in a cookie or packet: where it was found, its class and a
+/// stable message.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
+pub struct ParseError {
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    /// The channel element being parsed, for multichannel packets.
+    pub element_index: Option<usize>,
+    /// Bit offset from the start of the cookie or packet.
+    pub bit_offset: usize,
+    /// A fixed error class such as "truncated" or "max-sfb".
+    pub kind: &'static str,
+    /// The error text, stable across releases.
+    pub message: Cow<'static, str>,
+}
+impl ParseError {
+    /// An error at `bit_offset` without element index.
+    pub fn new(
+        bit_offset: usize,
+        kind: &'static str,
+        message: impl Into<Cow<'static, str>>,
+    ) -> Self {
+        Self {
+            element_index: None,
+            bit_offset,
+            kind,
+            message: message.into(),
+        }
+    }
+}
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} at bit {}: {}",
+            self.kind, self.bit_offset, self.message
+        )
+    }
+}
+impl core::error::Error for ParseError {}
+
+/// The typed configuration and the recorded syntax from a single parse.
+pub fn parse_recorded(data: &[u8]) -> Result<(Config, Recording), ParseError> {
+    let (config, recording) = parse_with(data, true)?;
+    Ok((config, recording.expect("recording requested")))
+}
+
+fn parse_with(data: &[u8], record: bool) -> Result<(Config, Option<Recording>), ParseError> {
+    if data.len() > MAX_COOKIE_BYTES {
+        return Err(ParseError::new(0, "input-limit", "cookie exceeds 8 MiB"));
+    }
+    parser::parse(data, record)
+}
+
+#[cfg(test)]
+mod sample_rate_tests {
+    #[test]
+    fn supported_sample_rates_are_the_index_table() {
+        let rates = [
+            96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000, 7350,
+        ];
+        for hz in 0..=200_000 {
+            assert_eq!(
+                super::is_supported_sample_rate(hz),
+                rates.contains(&hz),
+                "{hz}"
+            );
+        }
+    }
+}

@@ -1,0 +1,18 @@
+[package]
+name = "apac-container"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "APAC CAF/MP4 input and streaming Float32 WAV/RF64/CAF output"
+
+[dependencies]
+apac-core.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+# Reader tests decode CAC fixtures; BWE2 tests require an explicit feature.
+apac-core = { workspace = true, features = ["cac"] }
+serde_json.workspace = true
+
+[lints]
+workspace = true

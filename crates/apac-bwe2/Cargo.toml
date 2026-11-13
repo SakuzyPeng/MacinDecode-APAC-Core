@@ -1,0 +1,24 @@
+[package]
+name = "apac-bwe2"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Optional BWE2 LSF codebooks and spectral restoration for apac-core"
+
+[features]
+external-lsf = []
+
+[dependencies]
+libm = "0.2"
+
+[build-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+sha2 = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

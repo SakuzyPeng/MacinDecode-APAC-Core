@@ -1,0 +1,3105 @@
+{
+  "schema_version": 1,
+  "profile": "apac-core-distribution-sources-v1",
+  "numerical_source_review": {
+    "research_commit": "ba0e212139752d6e44ee6d279dd74fbec58c4386",
+    "checks_passed": 53,
+    "lsf_excluded": true,
+    "method": "frozen measurement qualification, complete file identities, regenerated copies and formula checks"
+  },
+  "test_input_scope": "Artificial wire inputs and implementation regression fixtures; not independent mathematical truth.",
+  "numerical_consumers": {
+    "crates/apac-core/src/frame/hoa_salient.rs": "b49dea70a3c601f5ee4bace7b100c8fa2ce8e74d232ddc549a4120e6390ba723",
+    "crates/apac-core/src/frame/hoa_source.rs": "10e78a696c55302bc43b1db9dcc8cd51c83ce5cbf1a32b62b00df347d92b0415",
+    "crates/apac-core/src/frame/hoa_additive.rs": "dda8e597c27b3b4966da8c826dbfe0b0afeffb91e5c1a755e2ec19a971de77b9",
+    "crates/apac-core/src/synthesis/channels.rs": "8c73396f40a1d1df3baa20a61f1b62b15cfdcc37fbc7e7b7b57010c486885cfa",
+    "crates/apac-core/src/frame/hoa_ambient.rs": "ae49156044dd50f976c2e941a40a113825f8994d6a517577089fe4dec0f9033b",
+    "crates/apac-core/src/synthesis/mod.rs": "1e9f76d0b8064f5ede45e30db977a8ccf0cc827f513e0e260ddc2384fb3a9876"
+  },
+  "files": [
+    {
+      "path": "data/aac-sfb-tns-v1.json",
+      "sha256": "3eae5c6d757f04b5d5a46e8b8338d8778dae486729053764913d348fd05de3db",
+      "role": "runtime-numeric",
+      "classification": "public-licensed"
+    },
+    {
+      "path": "data/access-vectors-v1.json",
+      "sha256": "d37fa0fa0547bb4c1c6fee29f7edebbe273bd2863b7b0c992539f715a83a89a7",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/bwe2-gains-measured-v1.json",
+      "sha256": "f2ee23ee8d2080482dc6317caac83047d0da9de6b73d775941578ede7983e865",
+      "role": "optional-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/bwe2-math-v2.json",
+      "sha256": "2b3f142f4eccb77c957c02c289e55ea8f3983987fe1a354c5a6f4bc90bc6f69b",
+      "role": "optional-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/bwe2-vectors-v2.json",
+      "sha256": "1d9b672c59122e03e9e5f9bf99027af49d4060f8f49a68d995d7360e939e422d",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/cac-codebooks-measured-v1.json",
+      "sha256": "87f8b01726741470ed7eddfeacf92fc86d7297dbe5604cfcac4a9cdf994786e6",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/cac-codebooks.json",
+      "sha256": "f3406483455369e8cad0d766a2d94795df5443489f8dcf84a3526b767fc243d9",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/cac-math-v1.json",
+      "sha256": "bdc1fe98c21a59f1fb93f949539bd0863f64863c09db7da9ed625984199e0a47",
+      "role": "runtime-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/caf-vectors-v1.json",
+      "sha256": "197b325e4144ca12e02558d85589941e034b0a0b3c2e43acca8db8093dc2f50b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/channel-native-vectors-v1.json",
+      "sha256": "11459e7f30ac74eb83fa8aaafc7e11d6f14608709179d862aa636bd7679c7ab1",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/channel-state-fixtures-v1.json",
+      "sha256": "11560c8769ea62eb3853a965d804d3a402a33e8332d8eb17a65abdeea555f676",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/channel-vectors-v1.json",
+      "sha256": "baf8c2d13628e6a1fa48957100c66d95507123775f81cd8557f9274d9308c7fa",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/ci-acceptance-v1.json",
+      "sha256": "3da235a62acd5333ebfc5830e05ac2b430f75646959eae76b917f293fac9e9f8",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/drc-pcm-vectors-v1.json",
+      "sha256": "726f0843c6b85b905d53ef1b278521106f6f4675c6b59b42f273168516d13d2d",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/drc-vectors-v1.json",
+      "sha256": "c86add8d2e0b4f1bba1359f17b82f647d4fe347a2f26a7b0330b1a5f27363262",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-access-vectors-v1.json",
+      "sha256": "19cdd5317fe6ee03759f4be31a933d8454e05993578b6bb60d36c1cbfce3925a",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-additive-state-v1.json",
+      "sha256": "643dd1104e1b672c6facd4b648deb1e87f318a0973f0766421ccf5bfa49626c7",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-additive-vectors-v1.json",
+      "sha256": "1a57ac6099e59b20a360d54758cf59c1ce572d4193b602bbdbb8939cee292fdf",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-ambient-counts-state-v1.json",
+      "sha256": "025bd09ba4e3ad1528a182f686b7de68d7aa1efdbca309f1b9d44097e08b084c",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-ambient-counts-vectors-v1.json",
+      "sha256": "478ce7d49d7a258f95deb7b52ba532d1ae14175004841dffa3aac7989e9e92a6",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-ambient-row-orders-measured-v1.json",
+      "sha256": "3e5ebc921acbb41c71e2411e262ab85bf511125ff4b16439701e17411372fa48",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-ambient-state-v1.json",
+      "sha256": "7348d57b939abd053dd910d5c7f3e3209e466e8ae5269e9fba47246cb2ce2a86",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-ambient-vectors-v1.json",
+      "sha256": "7bacfdf6e8a775712e5b603fc3c642989b08360845859280bedd92926609fffb",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-asp-vectors-v1.json",
+      "sha256": "93a248039498487b9450cb2f4db7e7ca273605ae2e60b12c8e8938599a571ffd",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-component-orders-state-v1.json",
+      "sha256": "97b4f0964b49e1407a7791c90ad73d89ecba68ad31aaddfdc469a926a0548332",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-component-orders-vectors-v1.json",
+      "sha256": "e9d2cbe21662981c622d0fac52aa723deb216ebd9b209759cbcff83c5618847b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-controls-state-v1.json",
+      "sha256": "eb1e7b9bccaaeedeebcabfde9e11bc96d2f070ec9b5db1b76baa2305de0ee0f5",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-controls-state-v2.json",
+      "sha256": "5c09167dedcbdf0b3d54d465ac99fcb62c734688106298f1e98d17111487b741",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-controls-vectors-v1.json",
+      "sha256": "af4fbf0762b51185460284b4eca6af502309d62d8e52d5465eb700ab7121d922",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-controls-vectors-v2.json",
+      "sha256": "df8a33706fdcd64d3b49161f14bd5f6b811af4435e5630b9a57a7c4a8f0dbb48",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-dynamic-domains-state-v1.json",
+      "sha256": "e4218c8503d49884480a1791eafb903a36c381791f9d148a28e9523ef2495b76",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-dynamic-domains-vectors-v1.json",
+      "sha256": "9e243d258f74e09642c7763b68964c7ffa2c3feeae2df54047fc66803cab9b1b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-dynamic-format-v1.json",
+      "sha256": "b27b33d970df2f89066bed264418c44b90106f1b098ffef940aaa7996d2971ae",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-dynamic-format-v2.json",
+      "sha256": "6930417d557f5b51c4f2a1595c4e0e76753b09f50c1c6f2fada4913367af498e",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-dynamic-state-v1.json",
+      "sha256": "ec253a653b58bca33f343346aa4d1df019dac5cd8d096d5ccc51fa6ed9c993f1",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-dynamic-vectors-v1.json",
+      "sha256": "fb48af59ee02aee55a4fb2a19372215a996ba28c02cfb0494967aef26ef68a25",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-expanded-orders-math-v1.json",
+      "sha256": "3de324756176995d8d08269ebe7f8d6ad19c065ff43925014868776beb79272c",
+      "role": "runtime-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/hoa-expanded-orders-state-v1.json",
+      "sha256": "2d580ca87404fb0c5a9f1ec2dd1028cf396a194a2ce6fbf0f8e490c3d7f9595d",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-expanded-orders-vectors-v1.json",
+      "sha256": "964a2a81ba64023a94bd35c7906bbea2b8a2dc95c153da2a00cf4ca659a3b81c",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-mixed-state-v1.json",
+      "sha256": "2729208441e89cfa0e27b44af3de2bd105c5a2fb72c3e81459fd891cdcebe2e1",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-mixed-vectors-v1.json",
+      "sha256": "94f832e30ad4093948764454d172099e2df0cbb86386cb61f4c370ec15e3e640",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-order1-state-v1.json",
+      "sha256": "a9800d36710c81402ce869809181f4324ffb1d90c15cdfd4982b4e52b98731b6",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-order1-vectors-v1.json",
+      "sha256": "d5e0d39500ca252f361fa62c523fa60fa1e8bf283cd60c84d402fba62fe395fe",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-orders-state-v1.json",
+      "sha256": "eadaa68898e7623a6024d1d2b8c63b4953543c2b36e600ddd10dba1fc1fedc4e",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-orders-vectors-v1.json",
+      "sha256": "7d40832d19ee421b9e9aa493dd2132850d3a1afe271d6b1b17b36e0c51da5729",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-partial-state-v1.json",
+      "sha256": "0514d11e5397ddce86f251382cf366878f66d0b187d006e97dd8224c6a93d6f0",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-partial-vectors-v1.json",
+      "sha256": "318606a86b7a3f476e7735d028569d2a8c870b9725a123fd64ed59e6d0ad74cc",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-partition-state-v1.json",
+      "sha256": "81e8fc8ef8e8dfb3eb5ea971058e5c9e08beadfab5ea998baee764929574f42f",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-partition-vectors-v1.json",
+      "sha256": "cd904d33fc183c68bce2e9711eb8d5fb0bdb3bb1347b804c19bd2effd1dbbfb6",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-profile-levels-measured-v1.json",
+      "sha256": "d7f2e55b68648f778167877f86bf5eb8fb5821292eb712fdc75c989c2ad30073",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-profile-levels-v1.json",
+      "sha256": "b95bc3a688ab368e5bb6d196219093203097bcf6f3a13ea1e6fdbb1bdb9793cf",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-quantization-state-v1.json",
+      "sha256": "c5e89660ce3a41650b73ec368d750164c963716c62eabb0dd477e453d082635b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-quantization-vectors-v1.json",
+      "sha256": "6650c9cbc44b2ef6f3fc0a02324f40f7ee70312890769af96894674f315b9234",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-remapping-state-v1.json",
+      "sha256": "e8a5276799dc3aa75c8c4e30c50d78c5193f06f216eb4b7168ac8269e3103214",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-remapping-vectors-v1.json",
+      "sha256": "ce7b97ab1e89e8184104b1079f17d22ee83cce6a2c65d1036b84915394e3394b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-salient-counts-state-v1.json",
+      "sha256": "f5aaac05a09a7ac33a0134b3510c43f13a4bfdf5562afd9c7dfbde481938d952",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-salient-counts-vectors-v1.json",
+      "sha256": "731ee19052deeeff0bfd12ee809d2af72fcafa2a89641842c45042115aaf66bf",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-salient-format-v1.json",
+      "sha256": "9b51fd43a61f038067aa04aa8efae09885a3b5f65295aab2f4c8cbd2fa8af872",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-math-v1.json",
+      "sha256": "a30f2922e1baf45e354a605197a92872c4f08e38154794afd19fae4cea99a9a1",
+      "role": "runtime-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/hoa-salient-order1-format-v1.json",
+      "sha256": "93d41f4032a28f92651081b2f5ebc599c88293b721e06bd36635bb5bfb20f110",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order1-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "95cf3408e436c7b30ac636ce9a63634870b6ce07558ab1f47ab197c1b22f6c10",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "174124ebd559f410a85e631207e17c6e859b09f5b180a2c277fdcd10f2814798",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "fd29191aec0763fd0a148fd719b8bd0f0032c0c7b044632385c74b8dfc6c0154",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "0f0bd417e4127e48fc876a890a66c2216717af1166b05a089c49ccdd885d56ae",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode1-measured-v1.json",
+      "sha256": "103f4f5452b5f2ca9bfa47dc6c48f0bbb536af41ad9c65c7aceafd0f5464f3c2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode2-book0-measured-v1.json",
+      "sha256": "389dd51eaa4ed88e4c5aa2ba2acb4a219a8d694d77a41a62beecf7dabea73a4b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode2-book1-measured-v1.json",
+      "sha256": "5bdd8e8135359605409d3eaf8bfe8382f6c62dd12a65cb8f3f5d811c8f6e6961",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode3-measured-v1.json",
+      "sha256": "a1baaab670e1af69ac8e2b6fa82cf9603d1bcded16f0eff9e1cd5d67b373b26e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "577669af673cc0b2913e7950c31fccfa9b3e2158c9f0f2245988363f9813e80c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "81b9652f51ca0f085ac60a09891423851434dedf4b34ef236e8721b74bd354ba",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "27728b076628757da86f55a49a3ba413ed848912097dd5fe8b7a8c7299dfde46",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "b5f22bd4749b425ba0db03bd7fe6c629fff03cbefc75dd4a187bf6b6755a1b7f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-format-v1.json",
+      "sha256": "b53728414e3a3e6219534a097f6eaf354bbdbae8a614758f8e7bfdfcc05685d1",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode1-measured-v1.json",
+      "sha256": "5a30bb6bfe195466844e89ae4ecc95ea17b397687ae2d4147dd998fede1080ff",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode2-book0-measured-v1.json",
+      "sha256": "3e53e23f34aefe1e9fd72ea70576c88e7d6d6f07cee65bde0fd827db117dde4a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode2-book1-measured-v1.json",
+      "sha256": "8c43fbb278acb3bf9543e33a772570d54418fe7977914876983c066c10b97b09",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode3-measured-v1.json",
+      "sha256": "dc8b304f81f81cd56eda7da1a9a803feb762673b1eb935db48109f704a309340",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "f3201998ee41b7f579706e022dc43164ef6f3b5ae110ce25a9f832eef6b19f47",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "331e1dfcef7efd180d05c42f1503104b271930bdaab26d6b512a7bb714622030",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "153ea6882eaeeb7eaf0bc8ad53c805e898b18288dd5aa2ba265052de75ffcb70",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "9dba6514f377a7fc587c11d0920db9d7b1c5043390ac690575900450ea933300",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-format-v1.json",
+      "sha256": "2793814524f697e89495123edb416c01fc4376b47654d4533e102e62b9ad9ce2",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode1-measured-v1.json",
+      "sha256": "51463f1de7228d2d3e09f0c334ac6e0d5da77faf316c8956d9fea445cf2b8ac0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode2-book0-measured-v1.json",
+      "sha256": "18aa9f6cb235fce3860522c4cf82d6602c4e3664c73bd26923c9045c61b2313d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode2-book1-measured-v1.json",
+      "sha256": "3ce888c77a9433ec1a855d4d093c839fc96c194d19ca1e70d781605f9da16cf1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode3-measured-v1.json",
+      "sha256": "289e6bae1683a808cf415716c6020254f285d1afab637317f4b94952a6acf367",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "b420bb01ad4d3d2d8cc188476812b5c34101cf24348f03e34b6588327da795bb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "a63acabdb0ce87b86481fb380c1e070357927217422eb4ece332ebcb1afdfd6c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "98a5517b746573e74b61d89d6ff7331f7aceac5efed3439911024c1ef4fd0a35",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "eacda057fc67a68683e5e595f12218f115e6124b99aaea034a03e6a83af604a1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-format-v1.json",
+      "sha256": "64584484e946b7fdde4b893c7adcd2a9a6ee533214a1351b8f32e544492a4f72",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode1-measured-v1.json",
+      "sha256": "1fb74db65e3d2293e8aa99b61bdd85875aa0541b07f4da9a129d3ea2677b4672",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode2-book0-measured-v1.json",
+      "sha256": "ed470cd3b83205eecf7e7c2e3b617abdb74240ab9c88aaaf5bc3dd4c6e4f1aec",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode2-book1-measured-v1.json",
+      "sha256": "5ba5dd1c0a00cf71c37b31cd7a4cdc03b7fb876d92c8e1c2f796ebc3220e38e0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode3-measured-v1.json",
+      "sha256": "ef2dcdc263eaf8b5637898ec860bbcee7a3506baa397bebc55b770ab2502960d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "ad1312e7729b13bc145555be35a679cb9eb8122842bcdb891cb1af53edb6ca5d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "4f49115b0b74636167fe9a925ce93654f4a254d3b7476ab533c40a66de058b13",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "aab038cce12538531b60d3d6d14a45b51ff2ff381989b45df06bc2e37ed771c8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "81138c48425bc7e878dce69151d42268c060a98222e6394f937d29d5f406fde2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order1-shared-v1.json",
+      "sha256": "54c5937ed5a56fcacc77f1470edc4bff6a906dc8c269b6313fb0ff85f676045b",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order10-format-v1.json",
+      "sha256": "e23e01cd75df6011fd64f77c766aae3d25f0586ef70eb29e003640b08cbb5971",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order10-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "02648e736b08e38998c488ed58f3a08f0a5968efc3573ac9576a0face7220edc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "473ca602524b1322390eabb60fd92617cfca01c67bebbabe0463b80a3194467f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "294830d98670f7d1e1c6b8c83b300ca3f52d46301ae35cadbbbdbbdf1ef0a8fb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "6b70c7681be671d390e83a56febdc27e3388750b1912cb2f1b80b85cb4d88d00",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode1-measured-v1.json",
+      "sha256": "80660158291c35ab98340dc22c8d710738dcaa07ee91dd7ba8790fc9c21a1712",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode2-book0-measured-v1.json",
+      "sha256": "1a5d80f1c06456f84175391acf2ed48124d1699d0880822e23c30944254ccf3b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode2-book1-measured-v1.json",
+      "sha256": "8454b5d36e676dbe4d8652511b64f69ea216ca6fbe14a8dc4be8aa60d600ea74",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode3-measured-v1.json",
+      "sha256": "c03eb5fc6a09012fc86c6d8673622c4ca6be52fbe7836d03b2c9849eb941b397",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "0c542ff6bb64bd7942464d31ddf9d11d7afb5204b5a2b3ad27d836eaf1d528bf",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "df245ae53e38e026fa7f1432ef470253cce1b94bee19ccd1dbf85c6da9f81afc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "f020f5d91cec8d2139764ef72efc5caa66fd3e0a592180b377ec683f7c0d8d91",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "c055c6fcda75f47161a8bbc3c063a6d8248eb115f906308bdaa3720f4626b3a8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-format-v1.json",
+      "sha256": "d4641e0232dfa8ca790c9f87c3a4e40a74d7dde10f2e25fbb2a9cb49098986c6",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode1-measured-v1.json",
+      "sha256": "c03ef6d1e75ce5a52cd37cce1587c8e18ecf80829e5d9845959fef352e37e72c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode2-book0-measured-v1.json",
+      "sha256": "b90b06aeed9d24f5a54bcb663287b2a48262175b45b759231f2c3183d71feaa9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode2-book1-measured-v1.json",
+      "sha256": "13bbc9a36263f7ff4a7eab02b9f2e957457d9480551bd02f3f7576f40c2426c5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode3-measured-v1.json",
+      "sha256": "a503280526a3885839decf05a32f02b27ce864cffe1cbf0dbb686c462b702745",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "2c3d5533ee4ce73ad47dca96b803aa36f1ae3b8051c41ea22f1f678cefcc8517",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "bd147a6fce0d8dafb9b47a2faea80a9ac02bbda47ef7f8bc0a333e1a30c7a51d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "62636b6a01f46dc2701bbeb34ec7e6a3c57af3e429791c421cabec0e26b907ed",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "c048b5b31d63f254d28f71f2bc483af8ec5c29a4c3191a1025138109ffa86bb2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-format-v1.json",
+      "sha256": "983fbf69034403ae801a31e0159dbe5d83ebb358ed304e0d08b4e014648b213b",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode1-measured-v1.json",
+      "sha256": "20fb276f9058d610b36413140fc17bee39054cfe81998d0976fd314dac769bcd",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode2-book0-measured-v1.json",
+      "sha256": "f5ab23942ac23cd41cf42e35491f67ec0763a01455e16972968dfdb3038ecfc7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode2-book1-measured-v1.json",
+      "sha256": "cdeb36442aa8baf11c11e377d8df9226a580fcf6fd1bc9a2084dc8231f164b08",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode3-measured-v1.json",
+      "sha256": "ebc8624107e92d6c1cbb766ef08d804d1169916fc15ea7ed1c657d05245d0206",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "95da17a996e16dbfcb54a3a6cfd7b79782dbfafd3a2671f2b18f67003577687a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "0925dfb21db221a6e9f2e62b0d6429f69d25e118b3d587190b4438b2fcdf2488",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "87ec6f9f852227af96367ade26bd1eaf1ff73f2a6bc8311e236872284c649935",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "9551bbf8fa0f59d6aace7bc89fdc4be5e8778f18d91f5a3c3ad90505ab95f017",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-format-v1.json",
+      "sha256": "d57fa1af26e7d6f01d94ec7beb86efb7c9c11d782149980dad727da2a5cea13b",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode1-measured-v1.json",
+      "sha256": "004055c173b38d919bc4385030891876add7c6f3562b0494e50a4292d50ea34a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode2-book0-measured-v1.json",
+      "sha256": "000243e0a5e394ec964f53051b4dd7e3b5359de7cec3838c7f4948ba8518f263",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode2-book1-measured-v1.json",
+      "sha256": "e4f861fddf28c3063ee157e2ef017c93d8ea5d4c51d8dabd0bd1b8982311a897",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode3-measured-v1.json",
+      "sha256": "181c9455147a1ad9ad121b4d4be274f9ebeab1c9d892fd28e8168cf15bd64087",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "c71c04c6b6ad7ba1e2cc058752743f97356466db80e7ba604275ebf7ae8b2af7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "077cefbcaa31f1fd8f8bbec3e0a8cfef89d8349c4c024b8597bf83b0709c919b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "3aaeceff4452846098b4c15df0f8ee2fe14ef85ab7c46cfe98fb60f09d2d087f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "7d02096baac56a85152dbb7b77e5479ee25068df11b2a0f6692696c7cd4c96ed",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order10-shared-v1.json",
+      "sha256": "da7f8e5729fd573349f5f180b77483e37d09aeb9937706930131c47f531f79db",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order2-format-v1.json",
+      "sha256": "733e1e0fc056d835ec1277dc2781a6a43a2a9703b03526714460600c5b52eccd",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order2-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "7ec6936faf16f854598f8c3e6a1ead935e06a0433ecd739ab6d870e647441f92",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "39414822d0501d383f40416fd0e2e48edbe28b6da6ffee516848f817535cb540",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "dc2d8a3fa08883ecc6f7d50b62cf0030b3bf39573f79dec54dfb6414c2c65a46",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "650e90744129bc7d322e2475661861dbc68f36611b88ecf38c067c47af3bc4aa",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode1-measured-v1.json",
+      "sha256": "dc4e65e38e8c4a4589eacbb016a40b0946341f63678f96788bedc67592ce96f2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode2-book0-measured-v1.json",
+      "sha256": "e23916b1369fcb4ce54a10e759a52533792043ad80138d912ad6c1b682b5203d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode2-book1-measured-v1.json",
+      "sha256": "00fc4e7958c3acece29c8358e7fffaf848b1a27856ad5c786be415a9610fa8d3",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode3-measured-v1.json",
+      "sha256": "13b1694168773c83c860ad9f1e2413b88d4850bede94306e93020ea983607c6d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "2c3d6efffc980b8637fadd0cf1e8338ffd9dd1739b59cd7fc60f9b382a6ba937",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "029286126dc9e769d180a055dd9895e3eb86b970da3c904169cd6fe0e8909349",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "56cd7ca56299bdff9ca118d34d77518004ac4c42e1c2553d44e871a2358f378d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "437c31b8b0e779c639eeb81c0e5a1649cb3efec3575ebec1ed6625f7cd8712a1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-format-v1.json",
+      "sha256": "fdfa21157819e5cba67c0dfd6b569fcade79adfd9a6c1eecd267403fb00c9a4e",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode1-measured-v1.json",
+      "sha256": "b64a0f3e285a954cfbad20515f1cbef47ca6f9f3eb0519d0a33ede8beb26fef0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode2-book0-measured-v1.json",
+      "sha256": "5758e27163d7382303bca46b366f1301dc0dfbba102ada2f9ef04c0b4a46f728",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode2-book1-measured-v1.json",
+      "sha256": "2d0abc11e8a10e8f3f9b7c2bd6381eb68f517d9f3a5d103264413b50251f1a84",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode3-measured-v1.json",
+      "sha256": "b53115186b01b5485dbf5011122ce343b3c596497c37761146f275b2df7013e0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "31cdaf75ec8ea73bd0e3d22da388b19b088b72089ff00e50c39e9cb2b4a75e82",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "9498ec39879a5dee7ec123fec97a50f00b6854e3170818d3689393f5dca1068c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "31d3318e5283bf57a34d48c323075286940e39e10fdfa92509a44ce05f1d4b3a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "2d4fc735ffe408e6d56f5368adfce1122177aeb29e3c9d187038190453401270",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-format-v1.json",
+      "sha256": "e525920b6341d3ef0470f518ee2f97edc5271cb56a65c1e1f7cbe85d9b8ab2d6",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode1-measured-v1.json",
+      "sha256": "51ccb646f4b556894ec8a3fdd39bba693d60a19aa33b40cbafa0b3de4c7ca4bd",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode2-book0-measured-v1.json",
+      "sha256": "f0d68e08b6e12e91a03cb9b2e922edb18458bdaed0d28f12534e29e1ca8d1709",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode2-book1-measured-v1.json",
+      "sha256": "26a058d8f5c41a538da04b5dfe784c5db31224ddc79aef4cdd5ba50f72cc0370",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode3-measured-v1.json",
+      "sha256": "2261f8bf1926dad5ddeaeadba5db13f3af75dc55d722585e282a1e2a0b719269",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "b930e2bee75452cb6dac9f842922b970a57d611131c83c974d9095bc57974277",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "965e749cbc6593b75cadfce8714c89f6f3045de79ad437c26155aaa4674bb47b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "35149c61c6b9ae02562522d624f9b938f8f32341ce3b49c0c6dd963313e192a8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "bd77557a6e1a17c955d491c37216e77e1c6065f5e44d74a6ae726b5f05f09514",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-format-v1.json",
+      "sha256": "36870e85ce807414934c4d62318b91476ab0216f8d799a6f3fe09650cfcd18f4",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode1-measured-v1.json",
+      "sha256": "b79aa5ea20d0e470ccc8eb4500135a33494c303db434f11aea43e991da80a4f0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode2-book0-measured-v1.json",
+      "sha256": "e65d45be4c203d163eb8764d7bf617cf3aea3a6cfec4958b380d038afccfd072",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode2-book1-measured-v1.json",
+      "sha256": "06906ea2f8bbad8175ed75996547b2431695ee9052737794f4b9ad2e86d857ee",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode3-measured-v1.json",
+      "sha256": "681df5b42c2e98c246633b19d47d2ebdcc1a4e9830c42ac20d7dd5b957797ecc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "9f5e68b0d3efdad234025235130d38ca2f0737bd290ab11700aeb745aa908821",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "c431f57c2c2adf83bed5a548c8bdef3a0ae9ec2b30976ee35d2b20dad33c853a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "918f0a49e0b157a1ee00069cd20d6df9ed3ea557ebd7111130df7269c4ca4304",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "32714193e8b26ac332f498f9de46f43675defea049876f8fc74b4d48ea92754e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order2-shared-v1.json",
+      "sha256": "12d3b4cf0761b94da39c9f7e7ed1768c6403ff7733d4dcd2414ba04dfa0c8c11",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order3-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "410345a9b07544104bfae974c778b14f8a1f61cf8d6b87f09a6e690a88ccc462",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "9df080e3717a4c4060ed19495a5d0dfa35f06aa0018e51fe12319e34f851b5f6",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "1b0b394772acdea3038fb436378f27cff4407b232a56f40b15b327cf58c01814",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "58e551546c7afe705368610dd68119e5dcd11aa5e2d8c498faacb1ee7643b8c9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode1-measured-v1.json",
+      "sha256": "fbf918e045c9fcfeab316de37f4b67da201f4775729d76b0f1d74df7c4dc7a1c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode2-book0-measured-v1.json",
+      "sha256": "78f0f21314fc565bdaf8d482fc0b5861667cf146626fab843c2e2d59e00d9c61",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode2-book1-measured-v1.json",
+      "sha256": "7095b2eacf59c31cede556e6d812ba85b71315a6b0936c18724c7348a7bae804",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode3-measured-v1.json",
+      "sha256": "e67feb38d9b8b4284075fc0e55d33f71fda26ea91e54ca6633f690765b283599",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "1855ccfaa5e0ef1e080a5c29fa3565bd3b3162fb18e2875f9f0be75e4798d772",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "0f37fff5e25f13c444860f0224af973e3fa91f87c1fdc0175eef487eec3fa0b7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "e235a15f27d688219b606c32633441515c54e895f4426b9592075c716de05b71",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "7b03128b88ab4e628bd69e60d47d389343c3c2a6cd761acd80ad19691f53811c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-format-v1.json",
+      "sha256": "e1cb2aeee8eae1166bf44509985739bc3e5f3f2c2d60200958c17590aa3dfb6d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode1-measured-v1.json",
+      "sha256": "47e8485af010000be06fd08475c4c774479df688b248b5668e54024d8644c017",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode2-book0-measured-v1.json",
+      "sha256": "165b3b0a16df9d8c4f07fc504f285cf5bed0bab8d212978c069b7204365e1638",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode2-book1-measured-v1.json",
+      "sha256": "6d9af46b75114755a2e8304ea7f0548671a7ed5dfa2209b9e0f6741b1ee8b724",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode3-measured-v1.json",
+      "sha256": "58bfb08f0e1b954c5d01903ee6561718a4d2e8dd74b15eedb30aa73ae1046a55",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "4d9a2f246f81c07a7ab8360d27a83429aad0337005848c158b84b1707cd51476",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "6bfc4e705f2fb05161648cee528939440ac6c18ce8ac3c1a4448e03d81c57def",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "529e1627d1623d5232de1eadc873207d3fc175296b6424e487a22e259fe4c8c3",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "c9b84c8ea42daf73da63600411b212032037df0953e00dfeda039be5ceda02e5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-format-v1.json",
+      "sha256": "5edb837e464f3436a866c44b614f1b2b8eaf95628760714d2d3d200b2a14d277",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode1-measured-v1.json",
+      "sha256": "59fa735a3dd5fa0f701e2a235cda338e2d9205e2ef9b6cc889c9f99bb5166ad5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode2-book0-measured-v1.json",
+      "sha256": "375911da7d4e657d17c2802bcf07a54e4910fceaa6cb2115cde08b7a42e85c55",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode2-book1-measured-v1.json",
+      "sha256": "e795f7f6d2c50c2e22cc31f411240df0bf4f3a68f3dac65642ff5cc32b368c30",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode3-measured-v1.json",
+      "sha256": "71ba7ed9c3d42ca6ba2c6e6c1f47c93a5a462f6ad5fb8f0674a35899b431abc3",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "b67c1d9ece8699d7a6e7a37ebfa31bf85293dd48833128e70f720c2738818c6a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "7d8dd6661ccd3382265a25cb4bd02c0afe12f3ca41b219ada231cccc35e581ba",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "f84454f5dab1090d1d5a2401344edb371d65e935f409f0e90ecdd7fdb0601978",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "df07bbd92c6a8de2aac55e14d7ebde35d6ea1bc155bcc05fe5c6d078517418b1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-format-v1.json",
+      "sha256": "5de5d94ce69601525a7f09f37c579e1b881ccf97ab1109ebeb785dfcfb7690fc",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode1-measured-v1.json",
+      "sha256": "0d2d92ba21284d68aa381da7985385a47d1a0a1c599b7ab2d2cf9a9f7ddc0212",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode2-book0-measured-v1.json",
+      "sha256": "29efc314973f1d5a269184f31e99606ea09b77c92ab6a0065bccdd25a355df2f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode2-book1-measured-v1.json",
+      "sha256": "0f9bfb9912897bcb61ec848c2a6697d821ee56b14b1afe2a69a1fc144e1d6208",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode3-measured-v1.json",
+      "sha256": "d0dd005ec65bfe3998a0d5405fd1aea261dc1128b7ef946772e698727475ddec",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "e4b6c8c156282e5330cc46c8cfa709ec703ad98f5c6ddf06c9b05a6035045261",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "85a0706ecdf0b74820c1e2ea9f7cfce99419fc4ef8eb4964130f254037c8ada4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "54f121e84cb2a1d22bf835559176535f07cc55ada2a8e36e5e0754d151774317",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "37fd85ef0d09c58f1d324ee6f11900214ea4277c8f0962885a923dea2f8b9e51",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order3-shared-v1.json",
+      "sha256": "0f8430db9e0b308ca769ccad85660062d331f9e2ec173e67c95bb1cbb05d465d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order4-format-v1.json",
+      "sha256": "9f63dc372383c38d7bbcde21b805becd027a6cd7fa44ac7dfda30fab3d04e1d3",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order4-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "1a70c18404bc54592f0d8ceb012ef103013000299c234803b9c1f42df5a3ccd1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "4e789f947fc86e8512d43612727cdb79f22820e3f35e204c3e46c1fabe5dcd36",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "799dc943b498b07e5e58efe6c836ab5bf25ad901125cafe0f50736e9c3da34dc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "43a9a85fd9799b7bbf81db6580e9e6e4028fba279d3ada690b6f5c0f3c0e0339",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode1-measured-v1.json",
+      "sha256": "6a25f4651f8e1d6391cc468faa499a79079aa74309a3993aec85d15117837a16",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode2-book0-measured-v1.json",
+      "sha256": "87a19f31783b2fc80393c3d9f59c7362f83fbd49c3c65ec2443cb80e4e8b2d88",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode2-book1-measured-v1.json",
+      "sha256": "58f062968e7f6289e61ed2d7405fdc23a6569f79b2012d0b5a80b509e8228701",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode3-measured-v1.json",
+      "sha256": "0d34526cb94736321482a93e7776797cf9e3bc8a94f567b96f47f6baa9c87120",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "3645eaa16f6b98797cb729c5ac88b57a1c1b995bbec60c941d3a84aea4b9986f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "adf29d49c307cfca6343e373878be3719ac7da39c58f9884165df46c2625e74d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "0cc6f79c7c1adc72b80e69c74d11a30faf1754ed6e66c8dd01bfaf760baac28c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "5c8dbbc9157dda1ace8c06dab7e070373a5af0c254754ebd8f4550e3d7d781f2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-format-v1.json",
+      "sha256": "50ca0c24afe7c49dc192afb8a13efb47d80f61eaca6de3f5e3a8d265f853005d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode1-measured-v1.json",
+      "sha256": "b4530e308385f92d708e17f18f4b3bf2754b14ef8fbdf94e57692bf1414ecfda",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode2-book0-measured-v1.json",
+      "sha256": "5900dc531ae32ef18dbfa5c49166b6f3cb1603be3b39c7ce9a1c3a66d0476d8b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode2-book1-measured-v1.json",
+      "sha256": "abfb508c165252b1c818605b0ec6118c02db0f4a6e7a665ef76200878fb71519",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode3-measured-v1.json",
+      "sha256": "df718ceac73139ae0970f4deb6b2478f88e17b6d3d98153509ec69b17dc8a4c2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "0c5dc575f874b8bb9f1161de7174a0e6cda83c0849fda360c17766953782a6f4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "d0d74832396ffc019cefb429775b4251789e52315af94f237f607037a1dfbecf",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "847152d09718a8e6d7443902694743663cf9d46827352eb16a2ee2a9d7aa7a7c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "10e960fc9af8c5eb2ab6665808f9bbb022c7b517b4203001ffca2e3bc5f9b443",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-format-v1.json",
+      "sha256": "4df3c6a6464ab7d77242cc448a63f24b5346a026126be75572a7be8ff4c25274",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode1-measured-v1.json",
+      "sha256": "60421d646145dacee5bd0bba09de54abca4de726aeae54f3c69d016d0788306f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode2-book0-measured-v1.json",
+      "sha256": "b4f255e328371ce7b20b7c96779a21f744dcd584f60bc9eabfae4756dd827261",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode2-book1-measured-v1.json",
+      "sha256": "3201c6c2b59f2a0586961a50efb599662583d3f6c5a1b8d69558793688bbe68d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode3-measured-v1.json",
+      "sha256": "3158b974ac1251b6e034392908c7e2b89eac2cff4d0dc8d597f83859162ec846",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "d9f17efda7a05012203c56ef4f65f1664f14ff23268d6af779a1c505f1694efd",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "e2c436e6fb1300b30195084a26dc29a3492a638bef9f7277523d6d2846ecaea9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "0803f7d6031ece937ffbf898a82f5cb97c62d8c34b1068c1405e104174e45200",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "cf8e5e5d266ee807658548e746f3e01a72455604f9d6eec6ad73fe6af78f7d5d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-format-v1.json",
+      "sha256": "0cfdfc5e430139498a41e633c376c3796698b6e30076c8818e0f4c393d7dd0ff",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode1-measured-v1.json",
+      "sha256": "5373edeeb83415142daec48c7057369bbf6865b4a9461ab0be9ac620666f5ea4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode2-book0-measured-v1.json",
+      "sha256": "71b76ae878dc5905d3e8fa9aa9c106dbebba2508427ce58e4f6f2cfa970b22b1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode2-book1-measured-v1.json",
+      "sha256": "ed86ce40923d1dab77c16a64f899817d9b07cd89e7c6194a5ec98a733e5d3b90",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode3-measured-v1.json",
+      "sha256": "3f85e71e75cac8a19d7dcd426aea9ce8375a033fa07d94c39b968ac7800d0725",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "2072fb11c2d6c026ed354ed168c8d75ecb0190caaa599c1a88cd7d48568a1189",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "74c193e347c38f7c8f21a4d8a2962a2991c0bd6f5e0400aaed8d06186e098f4d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "3439aceb448db483615605ee78bca4c689fb5ea893b164c2c9ce2c5a854ab91a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "1b6e340cc73b3d52606573cc39112e0971bad83fdf09982c04fbb308341b9085",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order4-shared-v1.json",
+      "sha256": "25fc526af136da9c0648cb25fa55aa78e6085af687a093ed258cefa0377c5bd7",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order5-format-v1.json",
+      "sha256": "0071c4f09066c7592048308568a2995bdd19e59c26a0e916ba2c57da3fb6e68f",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order5-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "b9964aba6462a12e8bbaea5d98acd05c904d5ecd1a7e908f5a442f4869644f0c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "1cc18ee64c11ba068bbafcb85fa147424e37a21f782a58a144c9e3494a7e584d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "ebc92a1e38ca6db3054f9d520eaa9ac4b8778b38a430c1a17bdac71d425a2418",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "601445e74ec56287f714270ff40fc403bf9c468edd6d21b18f3430826bfdd978",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode1-measured-v1.json",
+      "sha256": "fb08d7d37100f2666af134086ba506777ccc307666e11a369b9a0b37b8c71296",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode2-book0-measured-v1.json",
+      "sha256": "bec6f8c57873085dbfea73b07bd8d6133190290576a8a7afcbd276538cb43937",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode2-book1-measured-v1.json",
+      "sha256": "2906d19fda49e5814643a4202ea760864074b3b0fa3d5df7b4cd080de86d0128",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode3-measured-v1.json",
+      "sha256": "3d3ece091322eff86827ba06dce107e7f7ce9e1140a9af704ebc63006bfbd492",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "a2990267328c22c1101bac6df691feba04e0e2dc1d5fa95ce885d7ec53cb41c8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "d9778cee2d2f74765cb2f9586cd321ffb9307b26828a58ffd95eb63c74aa655d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "8634325ac5718ae8f38bcf14bb68077a509f57534f0bef1c49324a08c1380a4a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "af12898a6a64c19672747f39ed8e41f56d572ee150c4c50632c00eda4c7308c7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-format-v1.json",
+      "sha256": "d15c0a0188725ba422c56dcd6607abc9d1f3031b00b706540678c96c2e805407",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode1-measured-v1.json",
+      "sha256": "7a49c9d370633d846529c83fb0603901b21d63406a652b9038031ff27231dda0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode2-book0-measured-v1.json",
+      "sha256": "327dba690bd95e8b52e9b748b2a96d647e486d27312801afe74cdcebe8cecb6b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode2-book1-measured-v1.json",
+      "sha256": "5e31e330ea2ee6d28d4d895f70037cba4b6b2d06876fc67cbc6ac2d4430d3bac",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode3-measured-v1.json",
+      "sha256": "f3789433ab2a26c751e80d1037cf6b755fd832ef527aebad320435f189920dd5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "bd4c585bda4964b33635e5ff4ae4626aac2560f6d3cb38c820d13245dcc06647",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "6900fe1672718c21d8363b2f951b25b55b6d9430dd1d5ecce573c66df7fcd79a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "703278dfc0f9fa5492eee2acf3cc8062242922d6cba6c93dcae0e0d21cca13e8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "e1b2362add32a71a55d24334e6c5aaea94fd2fcbcdd43ba0e392e50ecdce27b0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-format-v1.json",
+      "sha256": "b2f50e462139b28f3a476b9ce048947c237f58a28110eaf953c2d8889a7155b4",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode1-measured-v1.json",
+      "sha256": "f7557dc9081e01df3b66da2b417b8ef15518daa7a20ae42f08cdf1ec119a0b1b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode2-book0-measured-v1.json",
+      "sha256": "73385023ede7894bfd43c85b455991a0c63c5f44b9a4da756787282d5f2c4352",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode2-book1-measured-v1.json",
+      "sha256": "1aa6fee6e38fdb482b9eff92f8b69e1dd308fce529f7ecd8314b5d56dea534b9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode3-measured-v1.json",
+      "sha256": "d70527e9777186a6c65ca6886322dfbba597ddb96e5a2e5dbe51cd9368c06af7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "00e436e3cb0713e3d5ce1116cbcf818985077d3949d12e3519fdd8f44356f93f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "a751bbc94cb0fb780f48ee65dc268f4d95ed44a9a685f2abfee6bfdb87f30716",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "ad494901da34150bf0d093eb7ce024c03a13ee007f9fbdbfd54fc883e87da8cc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "de6b043d9a4f26cd6bd9c421e640deb95e88729c02bf46ea0dd26abed85951a4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-format-v1.json",
+      "sha256": "9a0b77a9fa05ea0c2d685c2aafde526c022c6e71f30afe18918c3b6b179b4610",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode1-measured-v1.json",
+      "sha256": "2690a063cc37e3b7b67aa7997862582699f3d909d7b6609fd710e2786da88d8c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode2-book0-measured-v1.json",
+      "sha256": "45864d38fbcb2fd049265e166c205fb92eedf27cb3b83fbc47ffe16a5a70dea0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode2-book1-measured-v1.json",
+      "sha256": "37f2bfdc52968b83e56d935717d8b040683906102107959b128ea47f35c1e182",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode3-measured-v1.json",
+      "sha256": "5d0f3b44e630f72fdbed7bba2dc1484561ae0cc1fa29764195e765f362ab4ffa",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "21a5e75d2abfa306952e1dc806ca1a0f55d602449e79aca73370f234779a7d41",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "efcadf58b4df5dd8732bbcd50d128840bcdd551b1be776ecde1cd00a9b49bcc4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "4909829bf81f5193768a5ca395a9d8bf16be15c7b808bf641f7efb83cd3f6c74",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "2c3a298888302f5e2c8814893698b7ad4fd1cb6f61a35b92b9bd5758541351a9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order5-shared-v1.json",
+      "sha256": "cbdc1a3aeb94edd3d5fb9d9a95bf11eb303d870421e86dd15c7bec68dbf9d8f8",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order6-format-v1.json",
+      "sha256": "28d5feb1d1750aa0a20756422c4eaf52eb630df5a933766beab0995749a3a78b",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order6-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "2a853b044cd42055c7e9cc867b04ec9b5e0d6984d2500b5d54d429946cd63cf4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "1e781e6219350370a467c9ae807f84da3f7636cfe91e2555bdbfba89f59a59dd",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "20220a3d68256732b25b43b7b3d0209f21da93a0cea68d14a1ac1ef470382f06",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "85e97f11e5abca9dc1e26be3ab4c3af809c4eb160862bca632d1449a5371fe0c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode1-measured-v1.json",
+      "sha256": "a3aa936f7b848b802cfca9b868a84ac0fab5d0210f7eb9f0fc05fa86aac36ca1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode2-book0-measured-v1.json",
+      "sha256": "8272f5e9e096169391d0b5aadaad05477f2bae9e91bd8951eb7a187c792ba6f2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode2-book1-measured-v1.json",
+      "sha256": "26a0d9bd65d56e413f038ac1c00de2566ddb83ed6ec6494f553855d1149ece69",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode3-measured-v1.json",
+      "sha256": "071b63515bd358c6d43e05b01739ee33491746c5dc52b4d067d83c6028080685",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "f8e8046880ee6e3ca76a793a242c33ec94d1eec8ca557675f246c6cbbe0f1fce",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "020cccbdffa87a13b108a5d17a2132f6981eff665618157482de20c913340a20",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "13d085153f6f62cb1012e847736925fc2c06edb9893c24c9fd38186058a50131",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "d34e2834912b03722efe0f2fbff041838fbb5359b40a6360ad0d494cffce0e79",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-format-v1.json",
+      "sha256": "80b2e998fb0bcc789c550dda4ee230a6b90fce928883d10904d0d8e2f61ab8e6",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode1-measured-v1.json",
+      "sha256": "7baddd729be83bfa05d44d375f3beb3548ec3ec3502f9aad96986b6e9d492d31",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode2-book0-measured-v1.json",
+      "sha256": "39944d0a28603e2828fddb48f8190a3d36c116975f39fa603525501e2363952e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode2-book1-measured-v1.json",
+      "sha256": "0c8d18c9183a72482eb5a62d6eea5b85ef6193f5ed53dd13fcf41e228794c71d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode3-measured-v1.json",
+      "sha256": "7c3b77458840f045c31bb9a0697343d24f38c94eca926076c57064bd869b1509",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "ad38abf234928309de86e66343f772b3a35a2eab7e7a3d3fc6f1eae9337bca97",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "baec6fd6f551ab1fb86bcd84b8f3162f9aea91dd48d4d233497ce34ecb1ebea8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "af8ec4f5f71e9ec1d35c873e92c44c239323573e3da854150dcaf2cba4192f02",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "7400274230276aa5e5c0cb18765aa9624ec38b42fa11c6cccfe35322da481dd8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-format-v1.json",
+      "sha256": "cf01ca4d7adb068b0d98ba84a36ae8155b1d5b79bee99a7982f0f84b9671cd65",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode1-measured-v1.json",
+      "sha256": "74d1c12631bc1116d4eb3677103b07e02e9317e1b9cac65845558c7451bb0927",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode2-book0-measured-v1.json",
+      "sha256": "a905e851e704d562e958f866f36b64a8904f2685247815d97810e868ca35342b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode2-book1-measured-v1.json",
+      "sha256": "07b607740623da470a6490d38a25ed861f78a3f00b3c94b54e020bd71b642503",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode3-measured-v1.json",
+      "sha256": "ae002329f82f83147685e072d870cee0a9942c2dcb91168a64949831b441ed36",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "e3b8888f7d55784dfc5ec679e4000a14825d43e3e60bcb2b87092b31c6f1d53f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "6f1aa883500804fef4e9e38441bc7b2a6b5903ac7f9baa671cfbbd123b1a3b7d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "b8c085bc99eaec2d3b5a5bf30ed9988be4edd3611902a6d14e4fccb1a10adb51",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "c430e9cdb08f3b7768850c8881bf113f67be3946806ee4a0f0e50efc0eb5a976",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-format-v1.json",
+      "sha256": "28d5b11b31063bfa5b557e2b59567d37abefd676d45bb7ad92a8c66de96c5792",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode1-measured-v1.json",
+      "sha256": "388426fff9831572fde0a859281ec656041acde1be613efa53f031817d47af99",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode2-book0-measured-v1.json",
+      "sha256": "27320ef405d54b4cdf25248ce5f2a2f47b6b5b0cd2dc4fc9069f92e4d3bf2c3b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode2-book1-measured-v1.json",
+      "sha256": "c6b2fd7903c868e9b161c02259e41449d5bdb3a9d8e6c4269f60bea60c85b21a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode3-measured-v1.json",
+      "sha256": "a24a05b09078a70ff8f2a16bf36866c1d5d66897b4fc08c7dc13de470ae4e8c2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "dcd1b12d7f383fa55a4e00022057a0e620e5e7306eb285444e1ec526edb25865",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "0645bd6a337697fdb1d56812c7196e797b9c2da88aa4fedf3de5dc175891571b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "25e71f6b458d5b1266c4adbb8d94da6baa639e81a8a90ad1801664b65cf381dc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "2b42c6d5196c9264487f9cb19ef381da40765d93dec38dfb3dc8703ec0426bca",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order6-shared-v1.json",
+      "sha256": "d76c6d733df170e326697176be7a53f28dd518c88084f82bd3a9c60db97d5123",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order7-format-v1.json",
+      "sha256": "53a2e4887d6ac2f56c4821f3821ca1307c6d3ee621660c414d730060b4d97666",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order7-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "885b2e2af7a654e2b65b65352cb33ea73c2ba1b78fcc5f64f077512f2690aa29",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "1f74f24c908cad1b5645feec5ece023a782d5a6c74f4bcd52608f8e99b01a8e5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "8f876b5fed8ddef86e39d892ec8564832161bab5f353d6970164aaa7f3cc8548",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "1fe1958a4e45aa6ffe7e505acb55ec635f0d5cdbcb93367d1db1252ccad4b179",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode1-measured-v1.json",
+      "sha256": "bff96007d025b1bea4427fafff554fc42ff616530917bc08e027fccd178691d9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode2-book0-measured-v1.json",
+      "sha256": "921079ea8269a66757cf4113ca1979e095a3c55c1c25a7d0c2a9c6653e1669eb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode2-book1-measured-v1.json",
+      "sha256": "29ac6862bd1299257bdf7ca85965ae9aedf11954ca92bd687c17d6aeab581c19",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode3-measured-v1.json",
+      "sha256": "c53c9107720027e18b977f2bad502b2e1609095f74c0f04c52783dd93609e5f8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "b75a10fceff29311557fefd40a3b68aca58f54a8cabdc195c2afa68ac5552b75",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "f4006ad4d04e61a6f793a8ed374e0d597cd1ad0c9bb53e509a25cacb321ad70f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "9da310ea862c9a8c2173f51ceb95cb846176c76034462b5e9088379eb14809d8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "eabdcd59a4126e0f9462d64de7cc562d8e112aff7364577b0758905d51bca05c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-format-v1.json",
+      "sha256": "5b9f31c4fb13caff9c2823aecf59fc6a70338932e6430adb6bb68e7f06a9c0d4",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode1-measured-v1.json",
+      "sha256": "902699b48d0da92fc1bce875ac46c5e56cb58d4b5fb3ababe875899f0e3fa9cb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode2-book0-measured-v1.json",
+      "sha256": "a2021ad66e69bee6710b068a05aa3112c8f7a61ac45999f274aae8cd4a224a6d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode2-book1-measured-v1.json",
+      "sha256": "9d806a2d10c18c3bf8e3a47d4b597c78dc01e7bce5e22577681e56cf9ccf07b4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode3-measured-v1.json",
+      "sha256": "7caa58b1a5172a25c7986fbf32f8324ee9308deabd364a718af2882a3cc9522e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "a971294b3aa75e09127f486e120f7d462018cbd4d9aa2a903750dfcc2abc742d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "16c6691143744bfd874ada6528e6d5db22aba836620b0d4a9679a6ffb30d81fd",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "8ab0d1c13f520a488d420cb8c7333b6ae14733f311dd9b50dc88321726922a64",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "9640652df5b27c7c3c4fa20d868132c3e7e1eb5399386287d4bcbac350366cd9",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-format-v1.json",
+      "sha256": "1e28b1d0f41ed6218af117032b21c86fe5f2c2352d47b4e466066841a11be248",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode1-measured-v1.json",
+      "sha256": "2ea036357d1f6687cb68e8b65cfedf2c8d63ef7ab8995b4129acae23f8a92a67",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode2-book0-measured-v1.json",
+      "sha256": "79a5c195cce965cda44bc2f781aa94782c315db2a7b23ad57ccd168b72cd09de",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode2-book1-measured-v1.json",
+      "sha256": "74d2a3eb307bf1937184cda6e413f6fcbdcd9e5753f3bfa81186a5022439b3b6",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode3-measured-v1.json",
+      "sha256": "ecd3ba3423490a4a85e2011f796af0b799297f800423561c1800b3943ce86ec3",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "3e085406d36c5290b74797d9391de8d4c24bbd4a8004b093f9edac76bff01706",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "1f27762ecdea340a98747a3f7e826d119cc8a7e38077f177f16c06f72445a615",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "d04327e169368a35034bb2ccea50dea1de9bcfe42e4820546165163815f939ad",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "b0430ce552dc6345775edb5aac09309014600a66ac4eddd755c64dd52baab32e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-format-v1.json",
+      "sha256": "4c167efefa02a14d4dce47221523c10ee55611dfee9dfc1495aee8af55b8286c",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode1-measured-v1.json",
+      "sha256": "8149c186a9d55c1d473c7d312d3efdd011e8828795798d8e8e4a5480fbaff539",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode2-book0-measured-v1.json",
+      "sha256": "40f111ee0d7ee760c44e3953cb516d7f88c7338513342fdfc911fc5cea7ef9cf",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode2-book1-measured-v1.json",
+      "sha256": "e3eec062a39caa33170b0749e88ca6509b733e195961cf38e376e6c7a0890deb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode3-measured-v1.json",
+      "sha256": "67318d617712f20149b925c7fbde4f4f6e8ab0f978e7696b815eede870dd6472",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "88809ede7b0d047af49b8ddfb55e0a2d483d97a1b602bc15047b98f03dccfa0f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "1dac04c3dda0cf56413ad668b16ee961f061f3cc904d5d965330cdad45e3b17b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "f5e8af7a6bda100cb33120c6d897f3aaa900145b48ee70591e608b4351788336",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "5bcd4fde0229453943ab6feb99a80e12e462759324af7c418fd9314c5a7357e0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order7-shared-v1.json",
+      "sha256": "83a55ffac793ec9d895a421b031fbf1945519de62780bdc1a7e26383ae2ef0e6",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order8-format-v1.json",
+      "sha256": "099d9e82ae281a846b94671d88454b9fb575432063b269c0d9b340a96a458387",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order8-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "99dbc4c239bedb52789dde011811990d5329a8bbefbc49eb569b2bc3e4da8925",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "fb743286f64df68fc3b00c55a73e5d107f630a0f2d71b36c9f435dd60f596c99",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "6561e3eaa479813e823ffb68f648ca79cbef755202e097cfebcbe29c1807e462",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "cdd496426d28395a16d8dd1f75055fec16baeb4b2e1bc112a18b1d7775c7542d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode1-measured-v1.json",
+      "sha256": "94f3e9e92f35b8ac6e0a3582f99a78f8837c1be02f226d7bfa816664fcc2f6c4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode2-book0-measured-v1.json",
+      "sha256": "7a6cb9806bafac6754e9d19f3861c1d9e0f7497dac35a4353c9cb78ffc264d40",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode2-book1-measured-v1.json",
+      "sha256": "54b26d6d5231a36ded7159df2cef7d728bca89af84e137998580b22ee120aac2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode3-measured-v1.json",
+      "sha256": "61b6a7ffbbca52743861a68ddf5735d554267a2886ab597c9e358eab5f73e659",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "2cf24f22f7b3d3300d13e49ba8b2ec0786fb443bcad79cf35e1ec21aff5d9844",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "48c590660c43caf1df66d1b08dae987dc54f12f0b636bb46fa6a66995309fde5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "30de118a1f6a68ea3fdbc982ab5510164266b059056bd97892063bb5b3d04688",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "4dcd39352df149f621c15938d281e081e379f9c5cb7b1334d14f68e5f792e5bf",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-format-v1.json",
+      "sha256": "4d59271c821124d51f45dbb8df3c488e44e31c583723a420a824c0c66b28bc37",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode1-measured-v1.json",
+      "sha256": "e819aaf9799294f746cb708d1a405160e9c17ead69219c1fa69e82b3f152f001",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode2-book0-measured-v1.json",
+      "sha256": "737b8941579f3c60b0ad8bd11205c380c0d07b9b6ad1effacc0c628846fb3ff5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode2-book1-measured-v1.json",
+      "sha256": "dece69fd37c974bab725aa7c39dd80694726d51a763fd92d9587bda06caed4ce",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode3-measured-v1.json",
+      "sha256": "60cd42656e43ab225f3b368f3b939e6c6ed166e43f4e91a2b24c64972a13ee61",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "db4f6dc96ba1d22549d93f8fd0bb1a9a725d14dae977393a4014d1eb0ca50074",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "6d4dfbfe0f4ee280a525c28ff516cc3d1aa79ddadfba96d7bf550860a85c017f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "2f2b56191f8a1a3e4d2977e6b642a904bc6abf520cda7209beead0c56c4c7ae2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "12e402e640a2d64e36fe5501fa1e42b1e91cb9db82558834b160a85d9c29ede5",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-format-v1.json",
+      "sha256": "79c3c9bbd85a27214cb3e2968ac4eda011a2450adc2996e5bb56346576d6559d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode1-measured-v1.json",
+      "sha256": "2c242cc3549f449a8fc44aca9b94580bf6786ccf15307cfd11330df50679aa3a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode2-book0-measured-v1.json",
+      "sha256": "a2a9b39180725b693bd2cfa830156969688da3e2b95e5d45305ce50c2ca046f7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode2-book1-measured-v1.json",
+      "sha256": "ba91a27eabdc8864cb681305956dabc215c13952960c94e7dc137d3b65f08f3e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode3-measured-v1.json",
+      "sha256": "6d9533f2b075758b7f0e41860f6dc6f60e8f6e757496e925853b18f716b4c803",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "43575a7fed03def327f9dd1cd4028d21cb250a73d60ef943f7cfd3b3bbc801c6",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "528efdea8cb7043e9ffca2b2ff02b1619703e7182b0cb7574ff810fd5931df7b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "4fba721d1e224a6f4b4020c76785c0aa5c61c81fbb98ab3bbf1cc8cc1a2394cb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "d81c5124f4d3494a3714abd52d8c93ba6db28202794a2df70089d6dbaa0f6267",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-format-v1.json",
+      "sha256": "887265e89eab14e814f7b9fdbef6944df43142548f9e5cf09465c2c69d177616",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode1-measured-v1.json",
+      "sha256": "218ff6233a5208d0ea86b12405d914db1ecaf9cfa8141e46159bd2fd1f8f477a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode2-book0-measured-v1.json",
+      "sha256": "8a514c607c656bcbcc6a310f1145d0e4348a59b0dc8548177ec5ae0a0dd329eb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode2-book1-measured-v1.json",
+      "sha256": "b30dc0626c2dd4f861eb5d1c9e21f19303497ffcd4753fd9d0b0be2d7deb9a0a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode3-measured-v1.json",
+      "sha256": "aa4baff251b13ccb0a391aa886cb5ac28801cf00b16a852aaa83548acee4597b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "c77005e18d9724a5e23dcdcd7553e3dbceb4b3557007a316d276dc1cff32e17f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "91aeba7a80c9c607010a8e35677dd3773881b92c6121109a14b296484b156743",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "3668463f88a647b1f6a274c1882a2968ab9f1d0ecc1c4c36e86bcfb3f8e89c6f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "b6a04ab2b49ccc72235cabe4873c7f815fc313bdcd97409362f2ca8da5343924",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order8-shared-v1.json",
+      "sha256": "85c694fc9179edb6812fccccf7b9661eaea7cf4a4a3a96c93d4ba60d9de4044d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order9-format-v1.json",
+      "sha256": "9d1e85a8d10075d13ffb3dab770dad7b0cdb331b34980b301fef88c0f394a06c",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order9-mode4-cluster0-matrix-measured-v1.json",
+      "sha256": "4b09741870e6aa12b3ac0df95cbe794f3a999ee8af1a54fca87fc950dcf906ff",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-mode4-cluster1-matrix-measured-v1.json",
+      "sha256": "27fb86082fa6f13355a7d2c49845b36aa119573d8688810746a279717d0d1508",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-mode4-cluster2-matrix-measured-v1.json",
+      "sha256": "1a9d87db7038f584c9bef891e56d5ad0438c65ebfaae49ff72c31e5fa3b5e724",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-mode4-cluster3-matrix-measured-v1.json",
+      "sha256": "4e3d9696a2e67690d03b4f83eb37c693ec20b3eb06ef67354a789adda869089c",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode1-measured-v1.json",
+      "sha256": "06c56e18cb57b868bfc18188d397841a49323f7edafdf3c3a51edc4baf0071f1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode2-book0-measured-v1.json",
+      "sha256": "8e43f6a35598e8e2b4a398ad0a1ed899f8bf7bc970269c458bc77738cfaef653",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode2-book1-measured-v1.json",
+      "sha256": "5f7f791cc58eb9f4ee2b71dcdd7f24839284f3da443aeb1fabf35744918a93d8",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode3-measured-v1.json",
+      "sha256": "3926ee9a97c35e5e3cd5620bc3c4c2afddb8ac9a40eaaa68a605e7ebc447c9d1",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode4-cluster0-measured-v1.json",
+      "sha256": "1fbd4361b3b62883ba5496ed8a92a873da70a19027f9f277fe0734d6659e08eb",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode4-cluster1-measured-v1.json",
+      "sha256": "50b9a8f3d4832622467fc2756ee167ea3276894b56b61e419ec88a6c910bd78e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode4-cluster2-measured-v1.json",
+      "sha256": "cd8a73fe95762ad548d31d59472a545f981451bbcf828bdca03ef9a13f6acbfc",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q6-mode4-cluster3-measured-v1.json",
+      "sha256": "25b97208e0fb3e89934e329e1d2b37919745d6accaf83b04b30612e986a017b2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-format-v1.json",
+      "sha256": "b384a4922469afb5ca37cecc61f60594e77ce552fa7021db9e212ffb05995a64",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode1-measured-v1.json",
+      "sha256": "46f1aa0a2e5e168c0d0e7ae504082b7c0bde2cb99b26f38e5bd59cb61f5c879a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode2-book0-measured-v1.json",
+      "sha256": "0e9b38554c10baaa6f0cb437f35e6babfe06fc243c94a4fd9e95272bb23122ec",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode2-book1-measured-v1.json",
+      "sha256": "89f9c02f56f400dcd60ded5da31dc9fd78bcb62ad3f90c1e7660acb8b5bb5b26",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode3-measured-v1.json",
+      "sha256": "a6a54c67fb6ecaebb38476d28f6bd3026f852136d330ab0cdfd3d017be5c69e2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode4-cluster0-measured-v1.json",
+      "sha256": "2c89ec245c1086e36956e4ffed6e8ceedda40b102738089b23623096d17eb708",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode4-cluster1-measured-v1.json",
+      "sha256": "3d5ad74abbf44c092e09f88462279cd089b32d590f42a3d85405b7a5cef326ab",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode4-cluster2-measured-v1.json",
+      "sha256": "7d2c5e006353a71786cb358a42656a995651c0297afd9ffbf14b41c4bc3cd416",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q7-mode4-cluster3-measured-v1.json",
+      "sha256": "6ab27f99e46f967209a21afa2779ff0e11df74f1232a4ec469da428730c77656",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-format-v1.json",
+      "sha256": "db88d7044b3d181e5e1e4d5b978bb1023ae0c2b4f1c43befc05426ec61f341af",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode1-measured-v1.json",
+      "sha256": "16d8e0db4e2b7634eb14b7e2fae42889dea4912455e130e746ad346c87a30ade",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode2-book0-measured-v1.json",
+      "sha256": "52e3b9ce5131fdb5e2245fc84ca2ee9527c7603fe803df88434c13099061e34f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode2-book1-measured-v1.json",
+      "sha256": "f6a8b47c8b9be30a7a984777273e3f621ebf14d721722ff217fda74bdf79b919",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode3-measured-v1.json",
+      "sha256": "53d700a8863cafdbd650aef306c4e3799817afb2bb5240f0c1f6c0500af87061",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode4-cluster0-measured-v1.json",
+      "sha256": "f4bda9558dbf685e4210868cfee79c661fe2377db532a8513c3312bda55ab39f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode4-cluster1-measured-v1.json",
+      "sha256": "b462a05cbf11c530aa6570bbf958aa14a64be3f6b71bb65dad79874ea19a5f2a",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode4-cluster2-measured-v1.json",
+      "sha256": "edc25dd2d5e35cc44c246d340ed362612782195fb91058da2b12874011efea4b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q8-mode4-cluster3-measured-v1.json",
+      "sha256": "a9361028052b51b88d0c55b63fa0d861c0f4d32fa0533b341c043ed8435505b0",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-format-v1.json",
+      "sha256": "bb8253aa6d50a5c2902ff593beb8a6955f3862c215654440e0c592332ebfefa1",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode1-measured-v1.json",
+      "sha256": "00e1e83c56eda17438a2e666e8bdc00e41d6bbbed09635d72237889d3eb2326d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode2-book0-measured-v1.json",
+      "sha256": "500858db2db25e8eb21acb38c972e5d9c2fb2f4597f46af7af4a957c155a103d",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode2-book1-measured-v1.json",
+      "sha256": "3399fc8ebd1a6758f86ded9d11f209cc75572a3db828795239ce6a5240459e97",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode3-measured-v1.json",
+      "sha256": "91759ce33adb8fc2e109e4f95a0a4dc76354c797cf669fd8dd0cfc8bc12c6683",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode4-cluster0-measured-v1.json",
+      "sha256": "4f9f57d248478ae32166e9c71ce4790377464809c23fc8ca4df2c7a0a93f8fc7",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode4-cluster1-measured-v1.json",
+      "sha256": "237cfbd38b83a68f5e23313b4f67e5d95c47bc33b44e26cd5dfa80a752111c0e",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode4-cluster2-measured-v1.json",
+      "sha256": "ef2dcc6559510b988eb40f4bd80ff0413ca0c6d0017db9a809337554c27c72cf",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-q9-mode4-cluster3-measured-v1.json",
+      "sha256": "6e642bcd1daa0ea339acaa85097d50fef6b155e693bf919c2d797191e980d836",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-salient-order9-shared-v1.json",
+      "sha256": "aba7ded6eddd4ce81c919a2fb82ebca0feaf74f898f3f56eb6aa85f9b74f26cf",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-state-v1.json",
+      "sha256": "28dffdd1e3d4bd7395da6f0098a6610294ce1876bed782edb998dc18cd74f237",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-salient-subbands-format-v1.json",
+      "sha256": "1a058940d0d3364eed741ee1431077ee6aec4bd0c54ff9c732152478d6f4a88c",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-subbands-format-v2.json",
+      "sha256": "3ce3eba4575302c3529aa556ec07f9bc5bb9baf0614f37868d247b757cc369a2",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-salient-vectors-v1.json",
+      "sha256": "10b6e195dc45e73b3dd9a3f1919fc98551f0471c5b775717de211a36a2cd7050",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-shared-config-format-v2.json",
+      "sha256": "57a892784b33d99072047f44b46853ce6d6e455c6b4cb5aa13e7e58440ed0ed7",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-shared-drc-codebooks-measured-v1.json",
+      "sha256": "45ed74d9fd1cf330e40c2d12f0b834889def4cabdd717a8ee955a9a7353edbfe",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-shared-drc-format-v1.json",
+      "sha256": "6ff7862a688ed8e0c39c75a5a12c834caf03dd4f54753575ed1a05e38b0eb656",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-shared-state-v1.json",
+      "sha256": "451957807d9d039cf641b57db3c530eac7220fa9be82650d9b3c53be1bbb1e88",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-shared-vectors-v1.json",
+      "sha256": "abb30cec288d3d9081fb410f3458588d8f80d665660920486c5564a3fc065ace",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-source-layout-acceptance-measured-v1.json",
+      "sha256": "00ddf991ce11e8a1c3607f700a1d2850a81b804e82f7217084d77069db3271d2",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-source-layout-format-v1.json",
+      "sha256": "29030aa0f8a5130c862577112735964049ec6cedc044e5f2f71e2651c23a007d",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-source-layout-state-v1.json",
+      "sha256": "54102f55751d5f0edebffa70fe6b3f42ed668f60b25e5299c7c0666c98ab374b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-source-layout-vectors-v1.json",
+      "sha256": "4072e60f8a1405bb5a7e371d1bf3e2bcad48c795216c16dbe9950da0352ce2c4",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-source-matrices-measured-v1.json",
+      "sha256": "2b238cba8cb1d5ad002641852523a58f2dd52c1afb78fd8d30a776be8ce880c4",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-spatial-controls-format-v1.json",
+      "sha256": "4391a2e027946db9dc2215bc504b9b761a5cb945f1ef5861d31e4888629795c7",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-spatial-means-measured-v1.json",
+      "sha256": "e5fb483ca3eb0e109155e2f7282b4bd3a51371489e5bfa55a9f8e6ea7e938483",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-spatial-partitions-measured-v1.json",
+      "sha256": "ca3fd1e94754c50c5dac00a0271da2432748d658bc82274161dddd545de58063",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/hoa-spatial-subbands-state-v1.json",
+      "sha256": "70dcedc87a24c2eae5e4119592b428dde6133f81ecd2688692cead43c537b2dd",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-spatial-subbands-vectors-v1.json",
+      "sha256": "853b6adcad905c7e3ca4248501b95b39bf3d76c1281a645cd06f34fb7d8a971a",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-static-ambient-state-v1.json",
+      "sha256": "1d04bb94513b67b492461cec8de0ec05ffa077fdc73c95ae6054edf5f77fe79a",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-static-ambient-tables-v1.json",
+      "sha256": "f62c7d51f92371cf6682a11536e58ecb76c2fdd1da8da8f69bd26617aba9dccd",
+      "role": "runtime-numeric",
+      "classification": "qualified-derived"
+    },
+    {
+      "path": "data/hoa-static-ambient-vectors-v1.json",
+      "sha256": "9f109ec066b1564bb1b3b30e10add11bc87a17b7ff410f32a2a6ad7882d42262",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-subbands-state-v1.json",
+      "sha256": "abe2e8b78a9766c0716a3b2a2f478a0aa820c4f0369e7eba706fb28df807f776",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-subbands-vectors-v1.json",
+      "sha256": "11311c8a04938ae499bacb015b5edcee37ca1873337f1c39352af66252478e01",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-transports-state-v1.json",
+      "sha256": "b72048d873f22300524eb1386ace7f15e19eadbd9766c1a95b949ab938f3f891",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/hoa-transports-vectors-v1.json",
+      "sha256": "4ce1251e3928f850fd2e1da2deb8e08b8f2b326b17a101fef90ef4d8679614e8",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/layout-access-vectors-v1.json",
+      "sha256": "53b6d3a29f9e1e67a3f1a0f52b0639bc6a5c95086db0a2cb7125505178ef839b",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/layout-native-vectors-v1.json",
+      "sha256": "0773134ba72c587a0d6aa3b6688ad60fcb5cef717e540991e70dd2b9e13d222c",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/layout-presence-v1.json",
+      "sha256": "d4713385ca298db2a714a56e2fb5e082eaf73b49f8ce34330677dfa78d3d401f",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/layout-state-fixtures-v1.json",
+      "sha256": "4aa9470bbfdcc496e9e2ab94c539d81d8f7f70d08fd67b659fba4425313ccebe",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/layout-vectors-v1.json",
+      "sha256": "3b023b7cce8d5007166e3820a9cb15a5baaf59f9d8e78ef8e5ee51851cd225ee",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/mp4-reader-fixture.json",
+      "sha256": "cc6d876e7a219fc4e7649dc2159c5571a364c2a4267aa1cecf5dbbc68b063321",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/mp4-vectors-v1.json",
+      "sha256": "17c8083d7c4d09df90be7f266b11e4a5363ae64eeee2b3fc31ce6b4e44b7f022",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/packet-vectors-v1.json",
+      "sha256": "da8e863f9f53113e88055c66ef46beb2cb2a399ff046d37c9b37acebcf3ca23c",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/shared-channel-profile-levels-measured-v1.json",
+      "sha256": "a0326d1d2143c818fbeff3ddf20a4ca6b8ecd042a947c96a848f02ae59dd995f",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/shared-layout-tags-measured-v1.json",
+      "sha256": "d42b4af3db095f0fad23e1fd09238e76e332ae67704739815d21d73de9bc9056",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/shared-profile31-layout-levels-measured-v1.json",
+      "sha256": "0337be3c58f64b696917aa4fb8eeda8b40d42faaf9334003d8996c6396a25b8b",
+      "role": "runtime-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/shared-type1-profile-levels-measured-v1.json",
+      "sha256": "6bac2e2ee1ae8c4ae06b0675ad81d3eea5fca79b41b02f94f877cab2ce9901a3",
+      "role": "reference-numeric",
+      "classification": "qualified-measurement"
+    },
+    {
+      "path": "data/sq-codebooks.json",
+      "sha256": "8933068fd40ff12501f0ac9c927570cc5d3dc032d4d13560380d5d5bbf3eb205",
+      "role": "runtime-numeric",
+      "classification": "public-licensed"
+    },
+    {
+      "path": "data/sq-math-v1.json",
+      "sha256": "49c279b1764a344ddae2a5038f2d6358e3959551be4354c436720a7b8d2204fc",
+      "role": "reference-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/sq-math-v2.json",
+      "sha256": "5d482a7db927c0641aeb53a84c557af6615c4dbbe91bf135142d82c62d8e435f",
+      "role": "runtime-numeric",
+      "classification": "formula"
+    },
+    {
+      "path": "data/surround916-access-vectors-v1.json",
+      "sha256": "2eadb1245c3c095d0703f8ba9a1495e6dcc0c31455c02ddf718ddd803bf4ad0a",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/surround916-presence-v1.json",
+      "sha256": "8c6782813334c2afc1c8d21b0e509e24f624881e9787ff3ed04b08b9ed11d83f",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/surround916-state-fixtures-v1.json",
+      "sha256": "79a1fffb853f5b9257aef71b0da3f13c97106aaa7c6350cd31c39643ea1df9bf",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/surround916-vectors-v1.json",
+      "sha256": "b82e36d612e4afc42d3e13d0313f4bba9387d307342f8a9f64bbd1915c95629a",
+      "role": "test-input",
+      "classification": "synthetic-regression-input"
+    },
+    {
+      "path": "data/tns-math-v1.json",
+      "sha256": "4ab670dfd9cc8ad666884ce14e0ebeeb6f870e01fecb344aa415f4c7acc740e1",
+      "role": "runtime-numeric",
+      "classification": "formula"
+    }
+  ]
+}

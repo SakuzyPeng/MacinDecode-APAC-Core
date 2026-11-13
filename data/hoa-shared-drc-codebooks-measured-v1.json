@@ -1,0 +1,540 @@
+{
+  "schema_version": 1,
+  "profile": "apac-hoa-shared-drc-codebooks-measured-v1",
+  "normal": [
+    {
+      "code": 3,
+      "value": -1,
+      "width": 2
+    },
+    {
+      "code": 2,
+      "value": 1,
+      "width": 2
+    },
+    {
+      "code": 1,
+      "value": -2,
+      "width": 3
+    },
+    {
+      "code": 2,
+      "value": 0,
+      "width": 3
+    },
+    {
+      "code": 0,
+      "value": -16,
+      "width": 4
+    },
+    {
+      "code": 2,
+      "value": -4,
+      "width": 5
+    },
+    {
+      "code": 15,
+      "value": -3,
+      "width": 5
+    },
+    {
+      "code": 14,
+      "value": 8,
+      "width": 5
+    },
+    {
+      "code": 25,
+      "value": -5,
+      "width": 6
+    },
+    {
+      "code": 24,
+      "value": 2,
+      "width": 6
+    },
+    {
+      "code": 6,
+      "value": 3,
+      "width": 6
+    },
+    {
+      "code": 15,
+      "value": -8,
+      "width": 7
+    },
+    {
+      "code": 52,
+      "value": -7,
+      "width": 7
+    },
+    {
+      "code": 54,
+      "value": -6,
+      "width": 7
+    },
+    {
+      "code": 55,
+      "value": 4,
+      "width": 7
+    },
+    {
+      "code": 29,
+      "value": 5,
+      "width": 8
+    },
+    {
+      "code": 57,
+      "value": -15,
+      "width": 9
+    },
+    {
+      "code": 213,
+      "value": -9,
+      "width": 9
+    },
+    {
+      "code": 215,
+      "value": 6,
+      "width": 9
+    },
+    {
+      "code": 212,
+      "value": 7,
+      "width": 9
+    },
+    {
+      "code": 112,
+      "value": -12,
+      "width": 10
+    },
+    {
+      "code": 428,
+      "value": -11,
+      "width": 10
+    },
+    {
+      "code": 429,
+      "value": -10,
+      "width": 10
+    },
+    {
+      "code": 226,
+      "value": -14,
+      "width": 11
+    },
+    {
+      "code": 227,
+      "value": -13,
+      "width": 11
+    }
+  ],
+  "clipping": [
+    {
+      "code": 7,
+      "value": -1,
+      "width": 3
+    },
+    {
+      "code": 12,
+      "value": -5,
+      "width": 4
+    },
+    {
+      "code": 9,
+      "value": -4,
+      "width": 4
+    },
+    {
+      "code": 5,
+      "value": -3,
+      "width": 4
+    },
+    {
+      "code": 3,
+      "value": -2,
+      "width": 4
+    },
+    {
+      "code": 1,
+      "value": 0,
+      "width": 4
+    },
+    {
+      "code": 11,
+      "value": 1,
+      "width": 4
+    },
+    {
+      "code": 17,
+      "value": -7,
+      "width": 5
+    },
+    {
+      "code": 14,
+      "value": -6,
+      "width": 5
+    },
+    {
+      "code": 5,
+      "value": 2,
+      "width": 5
+    },
+    {
+      "code": 4,
+      "value": 3,
+      "width": 5
+    },
+    {
+      "code": 8,
+      "value": 4,
+      "width": 5
+    },
+    {
+      "code": 0,
+      "value": 5,
+      "width": 5
+    },
+    {
+      "code": 13,
+      "value": 6,
+      "width": 5
+    },
+    {
+      "code": 15,
+      "value": 7,
+      "width": 5
+    },
+    {
+      "code": 16,
+      "value": 8,
+      "width": 5
+    },
+    {
+      "code": 27,
+      "value": 9,
+      "width": 5
+    },
+    {
+      "code": 43,
+      "value": -10,
+      "width": 6
+    },
+    {
+      "code": 40,
+      "value": -9,
+      "width": 6
+    },
+    {
+      "code": 2,
+      "value": -8,
+      "width": 6
+    },
+    {
+      "code": 18,
+      "value": 10,
+      "width": 6
+    },
+    {
+      "code": 24,
+      "value": 11,
+      "width": 6
+    },
+    {
+      "code": 41,
+      "value": 12,
+      "width": 6
+    },
+    {
+      "code": 106,
+      "value": -32,
+      "width": 7
+    },
+    {
+      "code": 84,
+      "value": -14,
+      "width": 7
+    },
+    {
+      "code": 104,
+      "value": -13,
+      "width": 7
+    },
+    {
+      "code": 38,
+      "value": -12,
+      "width": 7
+    },
+    {
+      "code": 6,
+      "value": -11,
+      "width": 7
+    },
+    {
+      "code": 50,
+      "value": 13,
+      "width": 7
+    },
+    {
+      "code": 210,
+      "value": -18,
+      "width": 8
+    },
+    {
+      "code": 171,
+      "value": -17,
+      "width": 8
+    },
+    {
+      "code": 170,
+      "value": -16,
+      "width": 8
+    },
+    {
+      "code": 79,
+      "value": -15,
+      "width": 8
+    },
+    {
+      "code": 78,
+      "value": 14,
+      "width": 8
+    },
+    {
+      "code": 215,
+      "value": 15,
+      "width": 8
+    },
+    {
+      "code": 14,
+      "value": 16,
+      "width": 8
+    },
+    {
+      "code": 429,
+      "value": -29,
+      "width": 9
+    },
+    {
+      "code": 428,
+      "value": -27,
+      "width": 9
+    },
+    {
+      "code": 422,
+      "value": -26,
+      "width": 9
+    },
+    {
+      "code": 205,
+      "value": -25,
+      "width": 9
+    },
+    {
+      "code": 206,
+      "value": -22,
+      "width": 9
+    },
+    {
+      "code": 423,
+      "value": -21,
+      "width": 9
+    },
+    {
+      "code": 31,
+      "value": -20,
+      "width": 9
+    },
+    {
+      "code": 204,
+      "value": -19,
+      "width": 9
+    },
+    {
+      "code": 60,
+      "value": -28,
+      "width": 10
+    },
+    {
+      "code": 414,
+      "value": -24,
+      "width": 10
+    },
+    {
+      "code": 415,
+      "value": -23,
+      "width": 10
+    },
+    {
+      "code": 122,
+      "value": -31,
+      "width": 11
+    },
+    {
+      "code": 123,
+      "value": -30,
+      "width": 11
+    }
+  ],
+  "slopes": [
+    {
+      "code": 1,
+      "value": 7,
+      "width": 1
+    },
+    {
+      "code": 0,
+      "value": 6,
+      "width": 2
+    },
+    {
+      "code": 7,
+      "value": 8,
+      "width": 4
+    },
+    {
+      "code": 10,
+      "value": 3,
+      "width": 5
+    },
+    {
+      "code": 9,
+      "value": 4,
+      "width": 5
+    },
+    {
+      "code": 13,
+      "value": 5,
+      "width": 5
+    },
+    {
+      "code": 11,
+      "value": 9,
+      "width": 5
+    },
+    {
+      "code": 24,
+      "value": 0,
+      "width": 6
+    },
+    {
+      "code": 17,
+      "value": 10,
+      "width": 6
+    },
+    {
+      "code": 50,
+      "value": 2,
+      "width": 7
+    },
+    {
+      "code": 32,
+      "value": 13,
+      "width": 7
+    },
+    {
+      "code": 51,
+      "value": 14,
+      "width": 7
+    },
+    {
+      "code": 66,
+      "value": 1,
+      "width": 8
+    },
+    {
+      "code": 135,
+      "value": 11,
+      "width": 9
+    },
+    {
+      "code": 134,
+      "value": 12,
+      "width": 9
+    }
+  ],
+  "tables_sha256": "b53edaa7ed0af3aef7be4d8f3883492447da2fc5bf58241cc633f15c2c49c44c",
+  "source": {
+    "method": "controlled public AudioConverter gain observations with an Apache-2.0 UniDRC prior",
+    "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+    "loaded_component_uuid": "61c44b37-3b5d-3376-90ac-8e1706ff3b20",
+    "architecture": "arm64",
+    "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+    "public_properties": {
+      "mdrc": 1,
+      "compression_profile": 2,
+      "target_level_constant": 0
+    },
+    "old_dictionary_consulted_during_discovery": false,
+    "candidate_frozen_before_heldout": true,
+    "heldout_passed_before_comparison": true,
+    "licensed_prior": {
+      "commit": "2fbadd57bca46693b7a077bcf1513131106d960c",
+      "files": {
+        "LICENSE": {
+          "bytes": 10782,
+          "sha256": "e9bfdabc6c9e85a9bdae4c7194d5228ee10cc39603c57aa12cb03c36463d16ad"
+        },
+        "decoder/drc_src/impd_drc_rom.c": {
+          "bytes": 63287,
+          "sha256": "b722fe150284274c415f8b13c55207b514ad34852a398e34c231a6bdf47378e5"
+        },
+        "decoder/drc_src/impd_drc_uni_tables.h": {
+          "bytes": 2482,
+          "sha256": "1ee19cfe4d4d0a7f615491aceb6ce5042ea27dea6788340b256b46da8d2bd41b"
+        },
+        "encoder/drc_src/impd_drc_tables.c": {
+          "bytes": 12670,
+          "sha256": "eb9781cf94fdcdeda76cc0f1dd9cb0280395012f0edb2356392769281dd71178"
+        }
+      },
+      "repository": "ittiam-systems/libxaac"
+    },
+    "producer_files": {
+      "drc_force_properties_bridge.c": "6d5175369840fd99e3b2a4ce2aaa5943d61664adbd61a78c3f55f8e0a7b1efa6",
+      "drc_force_properties_worker_v2.py": "db8638ec4f3a9e4cb7e15995cda41656d623a9027814d1c8e1eefaf9350e7240",
+      "drc_measurement_capture_v3.py": "0e7b2dc43c233bfcc148463d356c68806efa5157fade267242634f6870700b5a",
+      "drc_wire.py": "d64bd266391878580b406232d1657df76b02ac69f8f62cafc3a68e05d861d28a",
+      "hoa_shared_drc_vectors.py": "a8172fb75260c4ae0b89f6235a28d5638bb8cd695234e4fc2e8bdaa6deca84c2",
+      "source_migration_budget.py": "e7504278955fe33c398b706b2a0019a23c6b2f64c2ddaa94a2f7f5585bf55eb1",
+      "source_migration_layouts.py": "ed713bfbc5bea32a55f08d50500a934042674b66b997d5300746ffe7c5954178",
+      "spectrum_vectors.py": "e36b67eeb67e3f80c37651e3dbb11aaa9258d00ac27ec37bcbd54b4e5835d99d"
+    },
+    "native_bridge_sha256": "29ded5c8865979c4ce7aa28911b8c6a33c52eacdfa54e579feb891d6c3b72ed8",
+    "python_version": "3.13.2",
+    "numpy_version": "2.3.2",
+    "clang_version": "Homebrew clang version 21.1.8",
+    "qualification": {
+      "passed": true,
+      "scope": "exact integer wire mappings; slope indices use licensed ordered derivative semantics",
+      "discovery_observations": 94,
+      "heldout_observations": 134,
+      "heldout_mapping_checks": 129,
+      "boundary_observations": 91,
+      "boundary_mapping_checks": 89,
+      "all_referenced_pcm_digests_verified": true,
+      "loaded_component_checked_per_observation": true,
+      "unique_integer_gain_tolerance": 0.001,
+      "unique_slope_index_centre_tolerance": 0.001,
+      "maximum_integer_gain_error": 9.346565263967932e-06,
+      "maximum_boundary_integer_error": 7.896584563127362e-06,
+      "native_gain_exponent_denominator": 48,
+      "native_gain_delay_samples": 1024,
+      "discovery_finished_at": 1794251142.947881,
+      "candidate_frozen_at": 1794251210.3913841,
+      "heldout_started_at": 1794251387.05422,
+      "independent_validation_finished_at": 1794252111.524462,
+      "isolated_comparison_at": 1794252132.365684
+    },
+    "evidence": {
+      "drc-measured-frozen-candidate.json": "8ccb835be30b9d89835ab34c02bf472b35e527691804ac121d028ab0a4c4a6a9",
+      "drc-formal-discovery-freeze.json": "9c39353fbcc705c07c6a3b7c17dbef4cd17d8654f9a6a3eb741490384fc9566e",
+      "drc-formal-discovery-observations.json": "84648ffe4bf68bc53c8e8fc26a1296c0cdc8c6df7269b55c65e4095883922cdc",
+      "drc-independent-heldout-observations.json": "385d7b852f8e71594aff2bcb26bb4bd5e5077dee75abd178fe5e86143b4a78d8",
+      "drc-independent-heldout-validation.json": "d79318dd8c4b3c83882fc95d41257fcc8b0eda593dd0188eb088b6ae955a76de",
+      "drc-frame-boundary-observations.json": "fd46b8ab145d053a02ceed7b857c31ee14698ea96935f97e6dbbf00e5f66b378",
+      "drc-frame-boundary-validation.json": "c8571d95a6a3e1dee5747e12604c08ff4942576da5178ba522b9e2a4e25e5e23",
+      "drc-isolated-comparison.json": "e24e2c784a8f068e8b851c5a0631219823c08c504faa0afc2b916dffd0f7bc1d"
+    },
+    "license": "Apache-2.0"
+  }
+}

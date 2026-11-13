@@ -1,0 +1,194 @@
+{
+  "profile": "apac-hoa-ambient-counts-v1",
+  "formats": {
+    "format_sha256": "478902299ddbfcef876a2aa2076fb77d5df088fc4bd1d706247aa747b5dcefdf",
+    "dependencies": {
+      "descriptor_math": "6972441c15ff64159805c60f1d7801eaaa153a2c595a14f795412cf2106c619b",
+      "ambient_transform": "8021cbae0c204ad1dca32a064de2ad8a2ef00c4db71bfa00e3717d5694f59076",
+      "order2": "ad74fa3390864ba15c57b8a6563105e252a838f6a394cb46efb9380e4bbdb55b",
+      "order3": "94edab0eb49ed6bbe52b495b6b478975e4a296412ad1a5fc568068c240fb6f15",
+      "spatial_method0": "a15cd3cb8f1dbd27ce5d51dbf29ccad7afd023a75d7b7d0e4a4e5c6090a8fcb8",
+      "spatial_methods12": "f95f89c366ed5e847330f3486685f608644413f06921597b409641d8f4de54f9",
+      "lower": "3313392dcc2bdc725d418c04c4c19974039235cf6458f43482a4c7670dfffb8c",
+      "lower_counts": "7e77b3018124d334e2d06e5f47d5257a834a9963c5e868a2c4a4bdc3a46d5548",
+      "order1": "9aeb3a109bc40c89bf1b4e9068737bd7f5ddf369348264ec58f7a3b5bc1c7f88"
+    }
+  },
+  "cases": [
+    {
+      "index": 0,
+      "kind": "one",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 1,
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false,
+        "transform": 0
+      },
+      "packets": 4,
+      "input_sha256": "d19535eefc2f1389858863fa455cd9930c0abe276c4a9b43e61c3a63305d95c9",
+      "truth_sha256": "c112cf766a4bcc6092bf53f36f7edc4a921a51e60eeea38ab8f3f6d1a83f88bb"
+    },
+    {
+      "index": 1,
+      "kind": "three",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 3,
+        "counts": [
+          1,
+          1
+        ],
+        "scene": false,
+        "transform": 0
+      },
+      "packets": 4,
+      "input_sha256": "d2ef39903448541b11661a13f05c2c6becb714c3fd4e032ed91d77f19ac96738",
+      "truth_sha256": "26009e75350b1c045c7ff6428dbcc480a2f9ca6107bc777a22e80c85f154a62a"
+    },
+    {
+      "index": 2,
+      "kind": "five",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 5,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false,
+        "transform": 4
+      },
+      "packets": 4,
+      "input_sha256": "a655b4f4849587fc61857a81e1ce805a0f4c4beaa86d0af6557bd183f87013e4",
+      "truth_sha256": "9d9e0cdcba7188a47c26ff010abb565852583410db53dab3b80c3f21ec573b8c"
+    },
+    {
+      "index": 3,
+      "kind": "twelve",
+      "configuration": {
+        "order": 3,
+        "path": "add",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 12,
+        "counts": [
+          1,
+          1,
+          1
+        ],
+        "scene": false,
+        "transform": 4
+      },
+      "packets": 4,
+      "input_sha256": "ecd71b19211150c475c9fdc8556292ddf36c4d7e047be66b18f3cfd0bd8e88b6",
+      "truth_sha256": "8d2015e1b8aeafaf28042e1ea7fb9adb6c75d1a26e022c2110186a760af09d9e"
+    },
+    {
+      "index": 4,
+      "kind": "pure-second",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 9,
+        "counts": [],
+        "scene": false,
+        "selection": null,
+        "transform": 0
+      },
+      "packets": 3,
+      "input_sha256": "53588ba10f4ca650b0df9789fa153d1174d9d00eab03392282c2055c7e9ed8c4",
+      "truth_sha256": "eee2ff109cdc6f4b0031dfc2ee02e16254df96fa9dc254891cd391a548adeece"
+    },
+    {
+      "index": 5,
+      "kind": "pure-selected",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 5,
+        "counts": [],
+        "scene": false,
+        "selection": [
+          1,
+          3,
+          7,
+          10,
+          15
+        ],
+        "transform": 4
+      },
+      "packets": 3,
+      "input_sha256": "a81e7e4f8eff36e80e8d5e478e203126f1b75dff2fbffa40c452467d02e9d372",
+      "truth_sha256": "b77f4a8dfeffd94176446ac806bdfe975b61b6a13640476cb95fbfd407bca6a6"
+    },
+    {
+      "index": 6,
+      "kind": "pure-unused-carriers",
+      "configuration": {
+        "order": 3,
+        "path": "replace",
+        "dynamic": false,
+        "rate": 48000,
+        "ambient_count": 5,
+        "counts": [],
+        "scene": false,
+        "selection": [
+          1,
+          3,
+          7,
+          10,
+          15
+        ],
+        "transform": 4
+      },
+      "packets": 2,
+      "input_sha256": "bf904550e629d496685c54d358ed96a8eee5c5d22d7e5efd78b67d3ddedddafd",
+      "truth_sha256": "a5ba907b0d14e8cc9ec5204108b65482710b97166c97e17ef23c1d81287031a5"
+    },
+    {
+      "index": 7,
+      "kind": "dynamic-three",
+      "configuration": {
+        "order": 2,
+        "path": "replace",
+        "dynamic": true,
+        "rate": 44100,
+        "ambient_count": 3,
+        "counts": [
+          1,
+          3
+        ],
+        "scene": true,
+        "selection": [
+          1,
+          4,
+          8
+        ],
+        "transform": 0,
+        "subbands": 3
+      },
+      "packets": 3,
+      "input_sha256": "f0dfb64226a07d4e89ef9f102a67963d46cb16c196c4ee530cf4174a8e8956d1",
+      "truth_sha256": "d9a0ee906289e799d7d7c5ef7bb7ce220ee5ebfa800fe5dcb5db42015d7d2ede"
+    }
+  ],
+  "sha256": "40103543681637f722061decc64c9847ebd7a6a7adbe501128c391ff18f30f27"
+}

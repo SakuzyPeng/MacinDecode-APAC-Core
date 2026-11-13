@@ -1,0 +1,2591 @@
+{
+  "schema_version": 1,
+  "profile": "apac-hoa-salient-measured-v1",
+  "order": 9,
+  "quantization_bits": 9,
+  "mode": 1,
+  "book": 0,
+  "source": {
+    "architecture": "arm64",
+    "binary_sha256": "8878d0c03c0889a70c7d352ce4a084e0f495478239f6c40c58cb3663ee302500",
+    "candidate_frozen_before_comparison": true,
+    "candidate_sha256": "280e53ae19c87a69d55af463ec1754227409bb6c140798b5fda18b0b91b278b7",
+    "code_commit": "8de23429ad2d45a07814b09805623ddec5c887dc",
+    "comparison_sha256": "e4c0993e92f91e66f292bdee520e3f7072b8016bed271289165ae96a1591cd15",
+    "component": "AudioCodecs 7.0",
+    "component_sha256": "826948774145d657788f3101cf36ad1103c230e9bb3712cb65bc56763fd297dd",
+    "experiment": "hoa-blackbox-orders4-10-v1",
+    "group_reused": false,
+    "matrix_reused": false,
+    "method": "public AudioConverter PCM black-box reconstruction",
+    "policy_sha256": "613b445155084639b16b69502cff3c6f6d211ee538309e1b53262b7ad1c776dc",
+    "system_version": "macOS 27.0 / 26A428",
+    "tool_fingerprint": "30209667c3f449742e88d22d15526c98b61ee6bcd64a7f89d2308eff13bd7acf",
+    "validation_sha256": "157c193eaa26f736acee1c7f774e405279df06307295e9b722489851b55b49b7",
+    "qualification_receipt_sha256": "6b98e023ece488b5a53bc3c5f0b28a871cee4e80a5d4141445e34238800ca2e4",
+    "validation_scope": "Huffman codewords, lengths and independent held-out carriers"
+  },
+  "book_sha256": "13248d9cbd740150f5accdf6e8cec3de954b7901b2a9420e59ff1e727737fe35",
+  "entries": [
+    {
+      "symbol": 0,
+      "codeword": "00111101000",
+      "bit_length": 11
+    },
+    {
+      "symbol": 1,
+      "codeword": "01110110011101011111000111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 2,
+      "codeword": "00011101010011111101100000001",
+      "bit_length": 29
+    },
+    {
+      "symbol": 3,
+      "codeword": "01000100000111001111101111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 4,
+      "codeword": "01110110011101011111000110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 5,
+      "codeword": "01110110011101011111000001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 6,
+      "codeword": "0101010101111011011110001",
+      "bit_length": 25
+    },
+    {
+      "symbol": 7,
+      "codeword": "01000100000111001111101110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 8,
+      "codeword": "00001001100000001010110001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 9,
+      "codeword": "01110110011101011111000000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 10,
+      "codeword": "01110110011101011111000011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 11,
+      "codeword": "010001000001110011111011001",
+      "bit_length": 27
+    },
+    {
+      "symbol": 12,
+      "codeword": "01000100000111001111101001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 13,
+      "codeword": "01110110011101011111000010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 14,
+      "codeword": "0101010101111011011110000",
+      "bit_length": 25
+    },
+    {
+      "symbol": 15,
+      "codeword": "01110110011101011111001101",
+      "bit_length": 26
+    },
+    {
+      "symbol": 16,
+      "codeword": "01000100000111001111101000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 17,
+      "codeword": "010001000001110011111011000",
+      "bit_length": 27
+    },
+    {
+      "symbol": 18,
+      "codeword": "01110110011101011111001100",
+      "bit_length": 26
+    },
+    {
+      "symbol": 19,
+      "codeword": "01000100000111001111101011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 20,
+      "codeword": "01000100000111001111101010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 21,
+      "codeword": "010001000001110011111011011",
+      "bit_length": 27
+    },
+    {
+      "symbol": 22,
+      "codeword": "01110110011101011111001111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 23,
+      "codeword": "00001001100000001010110000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 24,
+      "codeword": "0101010101111011011110011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 25,
+      "codeword": "00001001100000001010110011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 26,
+      "codeword": "01110110011101011111001110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 27,
+      "codeword": "00011101010011111101110101",
+      "bit_length": 26
+    },
+    {
+      "symbol": 28,
+      "codeword": "0111011001110101111100010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 29,
+      "codeword": "0111011001110101111101101",
+      "bit_length": 25
+    },
+    {
+      "symbol": 30,
+      "codeword": "01110110011101011111001001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 31,
+      "codeword": "00001001100000001010110010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 32,
+      "codeword": "010001000001110011111011010",
+      "bit_length": 27
+    },
+    {
+      "symbol": 33,
+      "codeword": "0111011001110101111101100",
+      "bit_length": 25
+    },
+    {
+      "symbol": 34,
+      "codeword": "00011101010011111101110100",
+      "bit_length": 26
+    },
+    {
+      "symbol": 35,
+      "codeword": "0100010000011100111110000",
+      "bit_length": 25
+    },
+    {
+      "symbol": 36,
+      "codeword": "0000100110111111001100111",
+      "bit_length": 25
+    },
+    {
+      "symbol": 37,
+      "codeword": "010001000001110011111000101",
+      "bit_length": 27
+    },
+    {
+      "symbol": 38,
+      "codeword": "0101010101111011011110010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 39,
+      "codeword": "0000100110000000101010011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 40,
+      "codeword": "0100010000011100111110011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 41,
+      "codeword": "0111011001110101111101111",
+      "bit_length": 25
+    },
+    {
+      "symbol": 42,
+      "codeword": "0111011001110101111101110",
+      "bit_length": 25
+    },
+    {
+      "symbol": 43,
+      "codeword": "0111011001110101111101001",
+      "bit_length": 25
+    },
+    {
+      "symbol": 44,
+      "codeword": "00001001100000001010111101",
+      "bit_length": 26
+    },
+    {
+      "symbol": 45,
+      "codeword": "00011101010011111101110111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 46,
+      "codeword": "0101010101111011011111101",
+      "bit_length": 25
+    },
+    {
+      "symbol": 47,
+      "codeword": "0101010101111011011111100",
+      "bit_length": 25
+    },
+    {
+      "symbol": 48,
+      "codeword": "0101010101111011011111111",
+      "bit_length": 25
+    },
+    {
+      "symbol": 49,
+      "codeword": "011101100111010111111100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 50,
+      "codeword": "0100010000011100111110010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 51,
+      "codeword": "0111011001110101111101000",
+      "bit_length": 25
+    },
+    {
+      "symbol": 52,
+      "codeword": "011000100001111110111100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 53,
+      "codeword": "000111010100111111001101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 54,
+      "codeword": "011101100111010111111111",
+      "bit_length": 24
+    },
+    {
+      "symbol": 55,
+      "codeword": "000010011000000010111001",
+      "bit_length": 24
+    },
+    {
+      "symbol": 56,
+      "codeword": "000010011000000010111000",
+      "bit_length": 24
+    },
+    {
+      "symbol": 57,
+      "codeword": "01100010000111111011001",
+      "bit_length": 23
+    },
+    {
+      "symbol": 58,
+      "codeword": "1100001010000111110010",
+      "bit_length": 22
+    },
+    {
+      "symbol": 59,
+      "codeword": "1100001010000111110011",
+      "bit_length": 22
+    },
+    {
+      "symbol": 60,
+      "codeword": "0111011001110101111110",
+      "bit_length": 22
+    },
+    {
+      "symbol": 61,
+      "codeword": "0000100110111111001101",
+      "bit_length": 22
+    },
+    {
+      "symbol": 62,
+      "codeword": "0000100110000000101111",
+      "bit_length": 22
+    },
+    {
+      "symbol": 63,
+      "codeword": "010101010111101101101",
+      "bit_length": 21
+    },
+    {
+      "symbol": 64,
+      "codeword": "000111010100111111010",
+      "bit_length": 21
+    },
+    {
+      "symbol": 65,
+      "codeword": "11000010100001111101",
+      "bit_length": 20
+    },
+    {
+      "symbol": 66,
+      "codeword": "01110110011101011100",
+      "bit_length": 20
+    },
+    {
+      "symbol": 67,
+      "codeword": "01100010000111111010",
+      "bit_length": 20
+    },
+    {
+      "symbol": 68,
+      "codeword": "01000100000111001101",
+      "bit_length": 20
+    },
+    {
+      "symbol": 69,
+      "codeword": "00001001101111110010",
+      "bit_length": 20
+    },
+    {
+      "symbol": 70,
+      "codeword": "1100001010000111111",
+      "bit_length": 19
+    },
+    {
+      "symbol": 71,
+      "codeword": "0111011001110101100",
+      "bit_length": 19
+    },
+    {
+      "symbol": 72,
+      "codeword": "0101010101111011001",
+      "bit_length": 19
+    },
+    {
+      "symbol": 73,
+      "codeword": "0100010000011100100",
+      "bit_length": 19
+    },
+    {
+      "symbol": 74,
+      "codeword": "0001110101001110001",
+      "bit_length": 19
+    },
+    {
+      "symbol": 75,
+      "codeword": "111010001001101010",
+      "bit_length": 18
+    },
+    {
+      "symbol": 76,
+      "codeword": "011101100111011111",
+      "bit_length": 18
+    },
+    {
+      "symbol": 77,
+      "codeword": "010001000011111001",
+      "bit_length": 18
+    },
+    {
+      "symbol": 78,
+      "codeword": "000010011011111101",
+      "bit_length": 18
+    },
+    {
+      "symbol": 79,
+      "codeword": "01110110011101010",
+      "bit_length": 17
+    },
+    {
+      "symbol": 80,
+      "codeword": "11000010100001110",
+      "bit_length": 17
+    },
+    {
+      "symbol": 81,
+      "codeword": "000010011000000011",
+      "bit_length": 18
+    },
+    {
+      "symbol": 82,
+      "codeword": "11101000100110100",
+      "bit_length": 17
+    },
+    {
+      "symbol": 83,
+      "codeword": "01010101011110111",
+      "bit_length": 17
+    },
+    {
+      "symbol": 84,
+      "codeword": "00011101010010000",
+      "bit_length": 17
+    },
+    {
+      "symbol": 85,
+      "codeword": "01000100001111101",
+      "bit_length": 17
+    },
+    {
+      "symbol": 86,
+      "codeword": "01000100000111000",
+      "bit_length": 17
+    },
+    {
+      "symbol": 87,
+      "codeword": "1111111011000010",
+      "bit_length": 16
+    },
+    {
+      "symbol": 88,
+      "codeword": "111111101100010",
+      "bit_length": 15
+    },
+    {
+      "symbol": 89,
+      "codeword": "0110011010110111",
+      "bit_length": 16
+    },
+    {
+      "symbol": 90,
+      "codeword": "00011101010011101",
+      "bit_length": 17
+    },
+    {
+      "symbol": 91,
+      "codeword": "00001001101111111",
+      "bit_length": 17
+    },
+    {
+      "symbol": 92,
+      "codeword": "00001001100010011",
+      "bit_length": 17
+    },
+    {
+      "symbol": 93,
+      "codeword": "0111011001110100",
+      "bit_length": 16
+    },
+    {
+      "symbol": 94,
+      "codeword": "011000100001011",
+      "bit_length": 15
+    },
+    {
+      "symbol": 95,
+      "codeword": "111010001001001",
+      "bit_length": 15
+    },
+    {
+      "symbol": 96,
+      "codeword": "0100010000111111",
+      "bit_length": 16
+    },
+    {
+      "symbol": 97,
+      "codeword": "0101010101111010",
+      "bit_length": 16
+    },
+    {
+      "symbol": 98,
+      "codeword": "0110001000011110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 99,
+      "codeword": "0110001000010000",
+      "bit_length": 16
+    },
+    {
+      "symbol": 100,
+      "codeword": "0011000010011101",
+      "bit_length": 16
+    },
+    {
+      "symbol": 101,
+      "codeword": "0001110101001001",
+      "bit_length": 16
+    },
+    {
+      "symbol": 102,
+      "codeword": "0000110011010100",
+      "bit_length": 16
+    },
+    {
+      "symbol": 103,
+      "codeword": "0000100110111010",
+      "bit_length": 16
+    },
+    {
+      "symbol": 104,
+      "codeword": "110000101000010",
+      "bit_length": 15
+    },
+    {
+      "symbol": 105,
+      "codeword": "010001000011110",
+      "bit_length": 15
+    },
+    {
+      "symbol": 106,
+      "codeword": "011000100001010",
+      "bit_length": 15
+    },
+    {
+      "symbol": 107,
+      "codeword": "0000100110001000",
+      "bit_length": 16
+    },
+    {
+      "symbol": 108,
+      "codeword": "0000110011010101",
+      "bit_length": 16
+    },
+    {
+      "symbol": 109,
+      "codeword": "0000110011010111",
+      "bit_length": 16
+    },
+    {
+      "symbol": 110,
+      "codeword": "0000100110111110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 111,
+      "codeword": "0000110011010110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 112,
+      "codeword": "0000100110111011",
+      "bit_length": 16
+    },
+    {
+      "symbol": 113,
+      "codeword": "0000100110001011",
+      "bit_length": 16
+    },
+    {
+      "symbol": 114,
+      "codeword": "0000100110000001",
+      "bit_length": 16
+    },
+    {
+      "symbol": 115,
+      "codeword": "111111101100011",
+      "bit_length": 15
+    },
+    {
+      "symbol": 116,
+      "codeword": "111010001001100",
+      "bit_length": 15
+    },
+    {
+      "symbol": 117,
+      "codeword": "111010001001000",
+      "bit_length": 15
+    },
+    {
+      "symbol": 118,
+      "codeword": "110000101000000",
+      "bit_length": 15
+    },
+    {
+      "symbol": 119,
+      "codeword": "110000101000001",
+      "bit_length": 15
+    },
+    {
+      "symbol": 120,
+      "codeword": "011001101011010",
+      "bit_length": 15
+    },
+    {
+      "symbol": 121,
+      "codeword": "011000100001001",
+      "bit_length": 15
+    },
+    {
+      "symbol": 122,
+      "codeword": "010101010111100",
+      "bit_length": 15
+    },
+    {
+      "symbol": 123,
+      "codeword": "010001000000111",
+      "bit_length": 15
+    },
+    {
+      "symbol": 124,
+      "codeword": "010001000000110",
+      "bit_length": 15
+    },
+    {
+      "symbol": 125,
+      "codeword": "000111010100110",
+      "bit_length": 15
+    },
+    {
+      "symbol": 126,
+      "codeword": "000010011011100",
+      "bit_length": 15
+    },
+    {
+      "symbol": 127,
+      "codeword": "11111110110010",
+      "bit_length": 14
+    },
+    {
+      "symbol": 128,
+      "codeword": "11101000100111",
+      "bit_length": 14
+    },
+    {
+      "symbol": 129,
+      "codeword": "11000010100011",
+      "bit_length": 14
+    },
+    {
+      "symbol": 130,
+      "codeword": "01110110011110",
+      "bit_length": 14
+    },
+    {
+      "symbol": 131,
+      "codeword": "01010111101010",
+      "bit_length": 14
+    },
+    {
+      "symbol": 132,
+      "codeword": "01010101011111",
+      "bit_length": 14
+    },
+    {
+      "symbol": 133,
+      "codeword": "01100110101100",
+      "bit_length": 14
+    },
+    {
+      "symbol": 134,
+      "codeword": "01100110100000",
+      "bit_length": 14
+    },
+    {
+      "symbol": 135,
+      "codeword": "01010111101011",
+      "bit_length": 14
+    },
+    {
+      "symbol": 136,
+      "codeword": "01010101010001",
+      "bit_length": 14
+    },
+    {
+      "symbol": 137,
+      "codeword": "01010101010000",
+      "bit_length": 14
+    },
+    {
+      "symbol": 138,
+      "codeword": "01000100000110",
+      "bit_length": 14
+    },
+    {
+      "symbol": 139,
+      "codeword": "00010001010001",
+      "bit_length": 14
+    },
+    {
+      "symbol": 140,
+      "codeword": "00001100110100",
+      "bit_length": 14
+    },
+    {
+      "symbol": 141,
+      "codeword": "00001001100011",
+      "bit_length": 14
+    },
+    {
+      "symbol": 142,
+      "codeword": "1110100011111",
+      "bit_length": 13
+    },
+    {
+      "symbol": 143,
+      "codeword": "1110100010001",
+      "bit_length": 13
+    },
+    {
+      "symbol": 144,
+      "codeword": "0111110111011",
+      "bit_length": 13
+    },
+    {
+      "symbol": 145,
+      "codeword": "0111011000011",
+      "bit_length": 13
+    },
+    {
+      "symbol": 146,
+      "codeword": "0110011010001",
+      "bit_length": 13
+    },
+    {
+      "symbol": 147,
+      "codeword": "0110011010111",
+      "bit_length": 13
+    },
+    {
+      "symbol": 148,
+      "codeword": "0110001010011",
+      "bit_length": 13
+    },
+    {
+      "symbol": 149,
+      "codeword": "0110001010010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 150,
+      "codeword": "0110001000001",
+      "bit_length": 13
+    },
+    {
+      "symbol": 151,
+      "codeword": "0101011110100",
+      "bit_length": 13
+    },
+    {
+      "symbol": 152,
+      "codeword": "0101010101001",
+      "bit_length": 13
+    },
+    {
+      "symbol": 153,
+      "codeword": "0100010000000",
+      "bit_length": 13
+    },
+    {
+      "symbol": 154,
+      "codeword": "0001110101000",
+      "bit_length": 13
+    },
+    {
+      "symbol": 155,
+      "codeword": "110100011001",
+      "bit_length": 12
+    },
+    {
+      "symbol": 156,
+      "codeword": "0000100110010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 157,
+      "codeword": "0000110011011",
+      "bit_length": 13
+    },
+    {
+      "symbol": 158,
+      "codeword": "0000100110110",
+      "bit_length": 13
+    },
+    {
+      "symbol": 159,
+      "codeword": "111111101101",
+      "bit_length": 12
+    },
+    {
+      "symbol": 160,
+      "codeword": "111111100010",
+      "bit_length": 12
+    },
+    {
+      "symbol": 161,
+      "codeword": "110100011000",
+      "bit_length": 12
+    },
+    {
+      "symbol": 162,
+      "codeword": "011111011100",
+      "bit_length": 12
+    },
+    {
+      "symbol": 163,
+      "codeword": "011101100000",
+      "bit_length": 12
+    },
+    {
+      "symbol": 164,
+      "codeword": "011101100101",
+      "bit_length": 12
+    },
+    {
+      "symbol": 165,
+      "codeword": "011101100100",
+      "bit_length": 12
+    },
+    {
+      "symbol": 166,
+      "codeword": "011001101001",
+      "bit_length": 12
+    },
+    {
+      "symbol": 167,
+      "codeword": "011000101000",
+      "bit_length": 12
+    },
+    {
+      "symbol": 168,
+      "codeword": "010101111011",
+      "bit_length": 12
+    },
+    {
+      "symbol": 169,
+      "codeword": "010101010101",
+      "bit_length": 12
+    },
+    {
+      "symbol": 170,
+      "codeword": "010001000010",
+      "bit_length": 12
+    },
+    {
+      "symbol": 171,
+      "codeword": "001110000001",
+      "bit_length": 12
+    },
+    {
+      "symbol": 172,
+      "codeword": "000100010101",
+      "bit_length": 12
+    },
+    {
+      "symbol": 173,
+      "codeword": "000010011010",
+      "bit_length": 12
+    },
+    {
+      "symbol": 174,
+      "codeword": "11111110000",
+      "bit_length": 11
+    },
+    {
+      "symbol": 175,
+      "codeword": "01111101001",
+      "bit_length": 11
+    },
+    {
+      "symbol": 176,
+      "codeword": "11101000101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 177,
+      "codeword": "11010001101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 178,
+      "codeword": "01100110111",
+      "bit_length": 11
+    },
+    {
+      "symbol": 179,
+      "codeword": "01110110001",
+      "bit_length": 11
+    },
+    {
+      "symbol": 180,
+      "codeword": "01100110110",
+      "bit_length": 11
+    },
+    {
+      "symbol": 181,
+      "codeword": "01100010001",
+      "bit_length": 11
+    },
+    {
+      "symbol": 182,
+      "codeword": "01011011100",
+      "bit_length": 11
+    },
+    {
+      "symbol": 183,
+      "codeword": "01000100101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 184,
+      "codeword": "00111101001",
+      "bit_length": 11
+    },
+    {
+      "symbol": 185,
+      "codeword": "00110000101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 186,
+      "codeword": "00010001011",
+      "bit_length": 11
+    },
+    {
+      "symbol": 187,
+      "codeword": "00001100111",
+      "bit_length": 11
+    },
+    {
+      "symbol": 188,
+      "codeword": "00001100100",
+      "bit_length": 11
+    },
+    {
+      "symbol": 189,
+      "codeword": "00000100100",
+      "bit_length": 11
+    },
+    {
+      "symbol": 190,
+      "codeword": "1111111010",
+      "bit_length": 10
+    },
+    {
+      "symbol": 191,
+      "codeword": "1101000111",
+      "bit_length": 10
+    },
+    {
+      "symbol": 192,
+      "codeword": "0111110110",
+      "bit_length": 10
+    },
+    {
+      "symbol": 193,
+      "codeword": "0111110101",
+      "bit_length": 10
+    },
+    {
+      "symbol": 194,
+      "codeword": "0110111011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 195,
+      "codeword": "0101101111",
+      "bit_length": 10
+    },
+    {
+      "symbol": 196,
+      "codeword": "0100010011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 197,
+      "codeword": "0100010001",
+      "bit_length": 10
+    },
+    {
+      "symbol": 198,
+      "codeword": "0011100001",
+      "bit_length": 10
+    },
+    {
+      "symbol": 199,
+      "codeword": "0001110100",
+      "bit_length": 10
+    },
+    {
+      "symbol": 200,
+      "codeword": "0000100111",
+      "bit_length": 10
+    },
+    {
+      "symbol": 201,
+      "codeword": "111111111",
+      "bit_length": 9
+    },
+    {
+      "symbol": 202,
+      "codeword": "111100110",
+      "bit_length": 9
+    },
+    {
+      "symbol": 203,
+      "codeword": "111010000",
+      "bit_length": 9
+    },
+    {
+      "symbol": 204,
+      "codeword": "110000100",
+      "bit_length": 9
+    },
+    {
+      "symbol": 205,
+      "codeword": "011110100",
+      "bit_length": 9
+    },
+    {
+      "symbol": 206,
+      "codeword": "011011100",
+      "bit_length": 9
+    },
+    {
+      "symbol": 207,
+      "codeword": "010110110",
+      "bit_length": 9
+    },
+    {
+      "symbol": 208,
+      "codeword": "010101110",
+      "bit_length": 9
+    },
+    {
+      "symbol": 209,
+      "codeword": "010011000",
+      "bit_length": 9
+    },
+    {
+      "symbol": 210,
+      "codeword": "001111011",
+      "bit_length": 9
+    },
+    {
+      "symbol": 211,
+      "codeword": "001110110",
+      "bit_length": 9
+    },
+    {
+      "symbol": 212,
+      "codeword": "000111011",
+      "bit_length": 9
+    },
+    {
+      "symbol": 213,
+      "codeword": "000100011",
+      "bit_length": 9
+    },
+    {
+      "symbol": 214,
+      "codeword": "000010010",
+      "bit_length": 9
+    },
+    {
+      "symbol": 215,
+      "codeword": "11111000",
+      "bit_length": 8
+    },
+    {
+      "symbol": 216,
+      "codeword": "11101001",
+      "bit_length": 8
+    },
+    {
+      "symbol": 217,
+      "codeword": "11010101",
+      "bit_length": 8
+    },
+    {
+      "symbol": 218,
+      "codeword": "11010000",
+      "bit_length": 8
+    },
+    {
+      "symbol": 219,
+      "codeword": "01111011",
+      "bit_length": 8
+    },
+    {
+      "symbol": 220,
+      "codeword": "01110111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 221,
+      "codeword": "01100111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 222,
+      "codeword": "01011111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 223,
+      "codeword": "01011010",
+      "bit_length": 8
+    },
+    {
+      "symbol": 224,
+      "codeword": "01001101",
+      "bit_length": 8
+    },
+    {
+      "symbol": 225,
+      "codeword": "01000101",
+      "bit_length": 8
+    },
+    {
+      "symbol": 226,
+      "codeword": "00111100",
+      "bit_length": 8
+    },
+    {
+      "symbol": 227,
+      "codeword": "00111001",
+      "bit_length": 8
+    },
+    {
+      "symbol": 228,
+      "codeword": "00110110",
+      "bit_length": 8
+    },
+    {
+      "symbol": 229,
+      "codeword": "00110001",
+      "bit_length": 8
+    },
+    {
+      "symbol": 230,
+      "codeword": "00011110",
+      "bit_length": 8
+    },
+    {
+      "symbol": 231,
+      "codeword": "00001101",
+      "bit_length": 8
+    },
+    {
+      "symbol": 232,
+      "codeword": "00001011",
+      "bit_length": 8
+    },
+    {
+      "symbol": 233,
+      "codeword": "00000101",
+      "bit_length": 8
+    },
+    {
+      "symbol": 234,
+      "codeword": "00000000",
+      "bit_length": 8
+    },
+    {
+      "symbol": 235,
+      "codeword": "1111110",
+      "bit_length": 7
+    },
+    {
+      "symbol": 236,
+      "codeword": "1111000",
+      "bit_length": 7
+    },
+    {
+      "symbol": 237,
+      "codeword": "1101011",
+      "bit_length": 7
+    },
+    {
+      "symbol": 238,
+      "codeword": "1100111",
+      "bit_length": 7
+    },
+    {
+      "symbol": 239,
+      "codeword": "1100000",
+      "bit_length": 7
+    },
+    {
+      "symbol": 240,
+      "codeword": "0111100",
+      "bit_length": 7
+    },
+    {
+      "symbol": 241,
+      "codeword": "0110110",
+      "bit_length": 7
+    },
+    {
+      "symbol": 242,
+      "codeword": "0110000",
+      "bit_length": 7
+    },
+    {
+      "symbol": 243,
+      "codeword": "0101100",
+      "bit_length": 7
+    },
+    {
+      "symbol": 244,
+      "codeword": "0100011",
+      "bit_length": 7
+    },
+    {
+      "symbol": 245,
+      "codeword": "0011111",
+      "bit_length": 7
+    },
+    {
+      "symbol": 246,
+      "codeword": "0011001",
+      "bit_length": 7
+    },
+    {
+      "symbol": 247,
+      "codeword": "0000111",
+      "bit_length": 7
+    },
+    {
+      "symbol": 248,
+      "codeword": "0000001",
+      "bit_length": 7
+    },
+    {
+      "symbol": 249,
+      "codeword": "111011",
+      "bit_length": 6
+    },
+    {
+      "symbol": 250,
+      "codeword": "110001",
+      "bit_length": 6
+    },
+    {
+      "symbol": 251,
+      "codeword": "011010",
+      "bit_length": 6
+    },
+    {
+      "symbol": 252,
+      "codeword": "010010",
+      "bit_length": 6
+    },
+    {
+      "symbol": 253,
+      "codeword": "000110",
+      "bit_length": 6
+    },
+    {
+      "symbol": 254,
+      "codeword": "11100",
+      "bit_length": 5
+    },
+    {
+      "symbol": 255,
+      "codeword": "00101",
+      "bit_length": 5
+    },
+    {
+      "symbol": 256,
+      "codeword": "10",
+      "bit_length": 2
+    },
+    {
+      "symbol": 257,
+      "codeword": "00100",
+      "bit_length": 5
+    },
+    {
+      "symbol": 258,
+      "codeword": "11011",
+      "bit_length": 5
+    },
+    {
+      "symbol": 259,
+      "codeword": "000101",
+      "bit_length": 6
+    },
+    {
+      "symbol": 260,
+      "codeword": "010100",
+      "bit_length": 6
+    },
+    {
+      "symbol": 261,
+      "codeword": "011100",
+      "bit_length": 6
+    },
+    {
+      "symbol": 262,
+      "codeword": "110010",
+      "bit_length": 6
+    },
+    {
+      "symbol": 263,
+      "codeword": "111101",
+      "bit_length": 6
+    },
+    {
+      "symbol": 264,
+      "codeword": "0000011",
+      "bit_length": 7
+    },
+    {
+      "symbol": 265,
+      "codeword": "0001001",
+      "bit_length": 7
+    },
+    {
+      "symbol": 266,
+      "codeword": "0011010",
+      "bit_length": 7
+    },
+    {
+      "symbol": 267,
+      "codeword": "0100000",
+      "bit_length": 7
+    },
+    {
+      "symbol": 268,
+      "codeword": "0100111",
+      "bit_length": 7
+    },
+    {
+      "symbol": 269,
+      "codeword": "0101110",
+      "bit_length": 7
+    },
+    {
+      "symbol": 270,
+      "codeword": "0110010",
+      "bit_length": 7
+    },
+    {
+      "symbol": 271,
+      "codeword": "0111010",
+      "bit_length": 7
+    },
+    {
+      "symbol": 272,
+      "codeword": "0111111",
+      "bit_length": 7
+    },
+    {
+      "symbol": 273,
+      "codeword": "1100110",
+      "bit_length": 7
+    },
+    {
+      "symbol": 274,
+      "codeword": "1101001",
+      "bit_length": 7
+    },
+    {
+      "symbol": 275,
+      "codeword": "1110101",
+      "bit_length": 7
+    },
+    {
+      "symbol": 276,
+      "codeword": "1111101",
+      "bit_length": 7
+    },
+    {
+      "symbol": 277,
+      "codeword": "00000001",
+      "bit_length": 8
+    },
+    {
+      "symbol": 278,
+      "codeword": "00001000",
+      "bit_length": 8
+    },
+    {
+      "symbol": 279,
+      "codeword": "00001010",
+      "bit_length": 8
+    },
+    {
+      "symbol": 280,
+      "codeword": "00010000",
+      "bit_length": 8
+    },
+    {
+      "symbol": 281,
+      "codeword": "00011100",
+      "bit_length": 8
+    },
+    {
+      "symbol": 282,
+      "codeword": "00011111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 283,
+      "codeword": "00110111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 284,
+      "codeword": "00111010",
+      "bit_length": 8
+    },
+    {
+      "symbol": 285,
+      "codeword": "01000010",
+      "bit_length": 8
+    },
+    {
+      "symbol": 286,
+      "codeword": "01000011",
+      "bit_length": 8
+    },
+    {
+      "symbol": 287,
+      "codeword": "01010100",
+      "bit_length": 8
+    },
+    {
+      "symbol": 288,
+      "codeword": "01010110",
+      "bit_length": 8
+    },
+    {
+      "symbol": 289,
+      "codeword": "01011110",
+      "bit_length": 8
+    },
+    {
+      "symbol": 290,
+      "codeword": "01100011",
+      "bit_length": 8
+    },
+    {
+      "symbol": 291,
+      "codeword": "01101111",
+      "bit_length": 8
+    },
+    {
+      "symbol": 292,
+      "codeword": "01111100",
+      "bit_length": 8
+    },
+    {
+      "symbol": 293,
+      "codeword": "11000011",
+      "bit_length": 8
+    },
+    {
+      "symbol": 294,
+      "codeword": "11010100",
+      "bit_length": 8
+    },
+    {
+      "symbol": 295,
+      "codeword": "11110010",
+      "bit_length": 8
+    },
+    {
+      "symbol": 296,
+      "codeword": "11111001",
+      "bit_length": 8
+    },
+    {
+      "symbol": 297,
+      "codeword": "000001000",
+      "bit_length": 9
+    },
+    {
+      "symbol": 298,
+      "codeword": "000011000",
+      "bit_length": 9
+    },
+    {
+      "symbol": 299,
+      "codeword": "001100000",
+      "bit_length": 9
+    },
+    {
+      "symbol": 300,
+      "codeword": "001110001",
+      "bit_length": 9
+    },
+    {
+      "symbol": 301,
+      "codeword": "001110111",
+      "bit_length": 9
+    },
+    {
+      "symbol": 302,
+      "codeword": "010011001",
+      "bit_length": 9
+    },
+    {
+      "symbol": 303,
+      "codeword": "010101011",
+      "bit_length": 9
+    },
+    {
+      "symbol": 304,
+      "codeword": "011001100",
+      "bit_length": 9
+    },
+    {
+      "symbol": 305,
+      "codeword": "011101101",
+      "bit_length": 9
+    },
+    {
+      "symbol": 306,
+      "codeword": "011110101",
+      "bit_length": 9
+    },
+    {
+      "symbol": 307,
+      "codeword": "110100010",
+      "bit_length": 9
+    },
+    {
+      "symbol": 308,
+      "codeword": "111100111",
+      "bit_length": 9
+    },
+    {
+      "symbol": 309,
+      "codeword": "111111110",
+      "bit_length": 9
+    },
+    {
+      "symbol": 310,
+      "codeword": "0000010011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 311,
+      "codeword": "0001000100",
+      "bit_length": 10
+    },
+    {
+      "symbol": 312,
+      "codeword": "0011000011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 313,
+      "codeword": "0011110101",
+      "bit_length": 10
+    },
+    {
+      "symbol": 314,
+      "codeword": "0101010100",
+      "bit_length": 10
+    },
+    {
+      "symbol": 315,
+      "codeword": "0101011111",
+      "bit_length": 10
+    },
+    {
+      "symbol": 316,
+      "codeword": "0110001001",
+      "bit_length": 10
+    },
+    {
+      "symbol": 317,
+      "codeword": "0110001011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 318,
+      "codeword": "0110111010",
+      "bit_length": 10
+    },
+    {
+      "symbol": 319,
+      "codeword": "1100001011",
+      "bit_length": 10
+    },
+    {
+      "symbol": 320,
+      "codeword": "1111111001",
+      "bit_length": 10
+    },
+    {
+      "symbol": 321,
+      "codeword": "00000100101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 322,
+      "codeword": "00001100101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 323,
+      "codeword": "00011101011",
+      "bit_length": 11
+    },
+    {
+      "symbol": 324,
+      "codeword": "00111000001",
+      "bit_length": 11
+    },
+    {
+      "symbol": 325,
+      "codeword": "01000100100",
+      "bit_length": 11
+    },
+    {
+      "symbol": 326,
+      "codeword": "01010111100",
+      "bit_length": 11
+    },
+    {
+      "symbol": 327,
+      "codeword": "01011011101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 328,
+      "codeword": "01100010101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 329,
+      "codeword": "01111101000",
+      "bit_length": 11
+    },
+    {
+      "symbol": 330,
+      "codeword": "11000010101",
+      "bit_length": 11
+    },
+    {
+      "symbol": 331,
+      "codeword": "01111101111",
+      "bit_length": 11
+    },
+    {
+      "symbol": 332,
+      "codeword": "11101000110",
+      "bit_length": 11
+    },
+    {
+      "symbol": 333,
+      "codeword": "11111110111",
+      "bit_length": 11
+    },
+    {
+      "symbol": 334,
+      "codeword": "000011001100",
+      "bit_length": 12
+    },
+    {
+      "symbol": 335,
+      "codeword": "000111010101",
+      "bit_length": 12
+    },
+    {
+      "symbol": 336,
+      "codeword": "001110000000",
+      "bit_length": 12
+    },
+    {
+      "symbol": 337,
+      "codeword": "001100001000",
+      "bit_length": 12
+    },
+    {
+      "symbol": 338,
+      "codeword": "010101010110",
+      "bit_length": 12
+    },
+    {
+      "symbol": 339,
+      "codeword": "011001101010",
+      "bit_length": 12
+    },
+    {
+      "symbol": 340,
+      "codeword": "011101100110",
+      "bit_length": 12
+    },
+    {
+      "symbol": 341,
+      "codeword": "110000101001",
+      "bit_length": 12
+    },
+    {
+      "symbol": 342,
+      "codeword": "111010001110",
+      "bit_length": 12
+    },
+    {
+      "symbol": 343,
+      "codeword": "111111100011",
+      "bit_length": 12
+    },
+    {
+      "symbol": 344,
+      "codeword": "0000100110011",
+      "bit_length": 13
+    },
+    {
+      "symbol": 345,
+      "codeword": "0001000101001",
+      "bit_length": 13
+    },
+    {
+      "symbol": 346,
+      "codeword": "0011000010010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 347,
+      "codeword": "0100010000010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 348,
+      "codeword": "0100010000110",
+      "bit_length": 13
+    },
+    {
+      "symbol": 349,
+      "codeword": "0101010101110",
+      "bit_length": 13
+    },
+    {
+      "symbol": 350,
+      "codeword": "0110001000000",
+      "bit_length": 13
+    },
+    {
+      "symbol": 351,
+      "codeword": "0111011000010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 352,
+      "codeword": "0111110111010",
+      "bit_length": 13
+    },
+    {
+      "symbol": 353,
+      "codeword": "1110100010000",
+      "bit_length": 13
+    },
+    {
+      "symbol": 354,
+      "codeword": "1110100011110",
+      "bit_length": 13
+    },
+    {
+      "symbol": 355,
+      "codeword": "00001001100001",
+      "bit_length": 14
+    },
+    {
+      "symbol": 356,
+      "codeword": "00010001010000",
+      "bit_length": 14
+    },
+    {
+      "symbol": 357,
+      "codeword": "00110000100110",
+      "bit_length": 14
+    },
+    {
+      "symbol": 358,
+      "codeword": "01000100000010",
+      "bit_length": 14
+    },
+    {
+      "symbol": 359,
+      "codeword": "01000100001110",
+      "bit_length": 14
+    },
+    {
+      "symbol": 360,
+      "codeword": "01100010000110",
+      "bit_length": 14
+    },
+    {
+      "symbol": 361,
+      "codeword": "01110110011100",
+      "bit_length": 14
+    },
+    {
+      "symbol": 362,
+      "codeword": "01110110011111",
+      "bit_length": 14
+    },
+    {
+      "symbol": 363,
+      "codeword": "11000010100010",
+      "bit_length": 14
+    },
+    {
+      "symbol": 364,
+      "codeword": "11101000100101",
+      "bit_length": 14
+    },
+    {
+      "symbol": 365,
+      "codeword": "11111110110011",
+      "bit_length": 14
+    },
+    {
+      "symbol": 366,
+      "codeword": "000010011000001",
+      "bit_length": 15
+    },
+    {
+      "symbol": 367,
+      "codeword": "000010011011110",
+      "bit_length": 15
+    },
+    {
+      "symbol": 368,
+      "codeword": "000111010100101",
+      "bit_length": 15
+    },
+    {
+      "symbol": 369,
+      "codeword": "001100001001111",
+      "bit_length": 15
+    },
+    {
+      "symbol": 370,
+      "codeword": "010001000001111",
+      "bit_length": 15
+    },
+    {
+      "symbol": 371,
+      "codeword": "011000100001110",
+      "bit_length": 15
+    },
+    {
+      "symbol": 372,
+      "codeword": "011001101000010",
+      "bit_length": 15
+    },
+    {
+      "symbol": 373,
+      "codeword": "011001101000011",
+      "bit_length": 15
+    },
+    {
+      "symbol": 374,
+      "codeword": "111111101100000",
+      "bit_length": 15
+    },
+    {
+      "symbol": 375,
+      "codeword": "0000100110001010",
+      "bit_length": 16
+    },
+    {
+      "symbol": 376,
+      "codeword": "0011000010011100",
+      "bit_length": 16
+    },
+    {
+      "symbol": 377,
+      "codeword": "0100010000011101",
+      "bit_length": 16
+    },
+    {
+      "symbol": 378,
+      "codeword": "0110001000010001",
+      "bit_length": 16
+    },
+    {
+      "symbol": 379,
+      "codeword": "0110011010110110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 380,
+      "codeword": "0111011001110110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 381,
+      "codeword": "1100001010000110",
+      "bit_length": 16
+    },
+    {
+      "symbol": 382,
+      "codeword": "1110100010011011",
+      "bit_length": 16
+    },
+    {
+      "symbol": 383,
+      "codeword": "00001001100000000",
+      "bit_length": 17
+    },
+    {
+      "symbol": 384,
+      "codeword": "00001001100010010",
+      "bit_length": 17
+    },
+    {
+      "symbol": 385,
+      "codeword": "00011101010010001",
+      "bit_length": 17
+    },
+    {
+      "symbol": 386,
+      "codeword": "00011101010011110",
+      "bit_length": 17
+    },
+    {
+      "symbol": 387,
+      "codeword": "01100010000111110",
+      "bit_length": 17
+    },
+    {
+      "symbol": 388,
+      "codeword": "01110110011101110",
+      "bit_length": 17
+    },
+    {
+      "symbol": 389,
+      "codeword": "11111110110000110",
+      "bit_length": 17
+    },
+    {
+      "symbol": 390,
+      "codeword": "11111110110000111",
+      "bit_length": 17
+    },
+    {
+      "symbol": 391,
+      "codeword": "000111010100111001",
+      "bit_length": 18
+    },
+    {
+      "symbol": 392,
+      "codeword": "000111010100111110",
+      "bit_length": 18
+    },
+    {
+      "symbol": 393,
+      "codeword": "010001000011111000",
+      "bit_length": 18
+    },
+    {
+      "symbol": 394,
+      "codeword": "011000100001111111",
+      "bit_length": 18
+    },
+    {
+      "symbol": 395,
+      "codeword": "110000101000011110",
+      "bit_length": 18
+    },
+    {
+      "symbol": 396,
+      "codeword": "011101100111011110",
+      "bit_length": 18
+    },
+    {
+      "symbol": 397,
+      "codeword": "0000100110000000100",
+      "bit_length": 19
+    },
+    {
+      "symbol": 398,
+      "codeword": "0000100110111111000",
+      "bit_length": 19
+    },
+    {
+      "symbol": 399,
+      "codeword": "0001110101001110000",
+      "bit_length": 19
+    },
+    {
+      "symbol": 400,
+      "codeword": "0001110101001111111",
+      "bit_length": 19
+    },
+    {
+      "symbol": 401,
+      "codeword": "0100010000011100101",
+      "bit_length": 19
+    },
+    {
+      "symbol": 402,
+      "codeword": "0110001000011111100",
+      "bit_length": 19
+    },
+    {
+      "symbol": 403,
+      "codeword": "0101010101111011010",
+      "bit_length": 19
+    },
+    {
+      "symbol": 404,
+      "codeword": "0111011001110101101",
+      "bit_length": 19
+    },
+    {
+      "symbol": 405,
+      "codeword": "1110100010011010111",
+      "bit_length": 19
+    },
+    {
+      "symbol": 406,
+      "codeword": "1110100010011010110",
+      "bit_length": 19
+    },
+    {
+      "symbol": 407,
+      "codeword": "01000100000111001100",
+      "bit_length": 20
+    },
+    {
+      "symbol": 408,
+      "codeword": "01000100000111001110",
+      "bit_length": 20
+    },
+    {
+      "symbol": 409,
+      "codeword": "01010101011110110000",
+      "bit_length": 20
+    },
+    {
+      "symbol": 410,
+      "codeword": "01010101011110110001",
+      "bit_length": 20
+    },
+    {
+      "symbol": 411,
+      "codeword": "01110110011101011101",
+      "bit_length": 20
+    },
+    {
+      "symbol": 412,
+      "codeword": "000010011000000010110",
+      "bit_length": 21
+    },
+    {
+      "symbol": 413,
+      "codeword": "000010011011111100111",
+      "bit_length": 21
+    },
+    {
+      "symbol": 414,
+      "codeword": "000111010100111111000",
+      "bit_length": 21
+    },
+    {
+      "symbol": 415,
+      "codeword": "010001000001110011110",
+      "bit_length": 21
+    },
+    {
+      "symbol": 416,
+      "codeword": "0000100110000000101001",
+      "bit_length": 22
+    },
+    {
+      "symbol": 417,
+      "codeword": "011101100111010111101",
+      "bit_length": 21
+    },
+    {
+      "symbol": 418,
+      "codeword": "011101100111010111100",
+      "bit_length": 21
+    },
+    {
+      "symbol": 419,
+      "codeword": "0000100110000000101000",
+      "bit_length": 22
+    },
+    {
+      "symbol": 420,
+      "codeword": "0001110101001111110010",
+      "bit_length": 22
+    },
+    {
+      "symbol": 421,
+      "codeword": "0101010101111011011001",
+      "bit_length": 22
+    },
+    {
+      "symbol": 422,
+      "codeword": "1100001010000111110000",
+      "bit_length": 22
+    },
+    {
+      "symbol": 423,
+      "codeword": "00001001101111110011000",
+      "bit_length": 23
+    },
+    {
+      "symbol": 424,
+      "codeword": "01100010000111111011000",
+      "bit_length": 23
+    },
+    {
+      "symbol": 425,
+      "codeword": "00001001100000001011101",
+      "bit_length": 23
+    },
+    {
+      "symbol": 426,
+      "codeword": "01010101011110110110001",
+      "bit_length": 23
+    },
+    {
+      "symbol": 427,
+      "codeword": "01000100000111001111111",
+      "bit_length": 23
+    },
+    {
+      "symbol": 428,
+      "codeword": "01010101011110110110000",
+      "bit_length": 23
+    },
+    {
+      "symbol": 429,
+      "codeword": "00011101010011111100111",
+      "bit_length": 23
+    },
+    {
+      "symbol": 430,
+      "codeword": "01010101011110110111001",
+      "bit_length": 23
+    },
+    {
+      "symbol": 431,
+      "codeword": "010101010111101101110000",
+      "bit_length": 24
+    },
+    {
+      "symbol": 432,
+      "codeword": "01100010000111111011011",
+      "bit_length": 23
+    },
+    {
+      "symbol": 433,
+      "codeword": "011000100001111110111001",
+      "bit_length": 24
+    },
+    {
+      "symbol": 434,
+      "codeword": "000010011011111100110010",
+      "bit_length": 24
+    },
+    {
+      "symbol": 435,
+      "codeword": "000111010100111111011110",
+      "bit_length": 24
+    },
+    {
+      "symbol": 436,
+      "codeword": "000010011000000010101000",
+      "bit_length": 24
+    },
+    {
+      "symbol": 437,
+      "codeword": "11000010100001111100011",
+      "bit_length": 23
+    },
+    {
+      "symbol": 438,
+      "codeword": "010101010111101101111011",
+      "bit_length": 24
+    },
+    {
+      "symbol": 439,
+      "codeword": "010101010111101101111010",
+      "bit_length": 24
+    },
+    {
+      "symbol": 440,
+      "codeword": "010101010111101101110101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 441,
+      "codeword": "010101010111101101110100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 442,
+      "codeword": "000010011000000010101011",
+      "bit_length": 24
+    },
+    {
+      "symbol": 443,
+      "codeword": "011101100111010111111110",
+      "bit_length": 24
+    },
+    {
+      "symbol": 444,
+      "codeword": "010101010111101101110111",
+      "bit_length": 24
+    },
+    {
+      "symbol": 445,
+      "codeword": "011000100001111110111000",
+      "bit_length": 24
+    },
+    {
+      "symbol": 446,
+      "codeword": "010001000001110011111101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 447,
+      "codeword": "010001000001110011111100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 448,
+      "codeword": "110000101000011111000101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 449,
+      "codeword": "0000100110000000101010010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 450,
+      "codeword": "0001110101001111110110101",
+      "bit_length": 25
+    },
+    {
+      "symbol": 451,
+      "codeword": "110000101000011111000100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 452,
+      "codeword": "010101010111101101110110",
+      "bit_length": 24
+    },
+    {
+      "symbol": 453,
+      "codeword": "011000100001111110110101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 454,
+      "codeword": "011000100001111110110100",
+      "bit_length": 24
+    },
+    {
+      "symbol": 455,
+      "codeword": "0001110101001111110110100",
+      "bit_length": 25
+    },
+    {
+      "symbol": 456,
+      "codeword": "010101010111101101110001",
+      "bit_length": 24
+    },
+    {
+      "symbol": 457,
+      "codeword": "0000100110000000101011011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 458,
+      "codeword": "0101010101111011011111110",
+      "bit_length": 25
+    },
+    {
+      "symbol": 459,
+      "codeword": "000111010100111111011001",
+      "bit_length": 24
+    },
+    {
+      "symbol": 460,
+      "codeword": "0000100110111111001100110",
+      "bit_length": 25
+    },
+    {
+      "symbol": 461,
+      "codeword": "0000100110000000101010101",
+      "bit_length": 25
+    },
+    {
+      "symbol": 462,
+      "codeword": "011000100001111110111101",
+      "bit_length": 24
+    },
+    {
+      "symbol": 463,
+      "codeword": "011000100001111110111011",
+      "bit_length": 24
+    },
+    {
+      "symbol": 464,
+      "codeword": "0001110101001111110011001",
+      "bit_length": 25
+    },
+    {
+      "symbol": 465,
+      "codeword": "0001110101001111110011000",
+      "bit_length": 25
+    },
+    {
+      "symbol": 466,
+      "codeword": "0001110101001111110110111",
+      "bit_length": 25
+    },
+    {
+      "symbol": 467,
+      "codeword": "00001001100000001010111100",
+      "bit_length": 26
+    },
+    {
+      "symbol": 468,
+      "codeword": "0111011001110101111101011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 469,
+      "codeword": "00001001100000001010111111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 470,
+      "codeword": "0101010101111011011111001",
+      "bit_length": 25
+    },
+    {
+      "symbol": 471,
+      "codeword": "00001001100000001010111110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 472,
+      "codeword": "00001001100000001010111001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 473,
+      "codeword": "0101010101111011011111000",
+      "bit_length": 25
+    },
+    {
+      "symbol": 474,
+      "codeword": "00001001100000001010111000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 475,
+      "codeword": "01110110011101011111001000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 476,
+      "codeword": "00011101010011111101100000000",
+      "bit_length": 29
+    },
+    {
+      "symbol": 477,
+      "codeword": "011000100001111110111010",
+      "bit_length": 24
+    },
+    {
+      "symbol": 478,
+      "codeword": "00011101010011111101110110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 479,
+      "codeword": "0001110101001111110110110",
+      "bit_length": 25
+    },
+    {
+      "symbol": 480,
+      "codeword": "0101010101111011011111011",
+      "bit_length": 25
+    },
+    {
+      "symbol": 481,
+      "codeword": "010001000001110011111000100",
+      "bit_length": 27
+    },
+    {
+      "symbol": 482,
+      "codeword": "01110110011101011111001011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 483,
+      "codeword": "00011101010011111101110001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 484,
+      "codeword": "00011101010011111101110000",
+      "bit_length": 26
+    },
+    {
+      "symbol": 485,
+      "codeword": "00001001100000001010111011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 486,
+      "codeword": "00011101010011111101110011",
+      "bit_length": 26
+    },
+    {
+      "symbol": 487,
+      "codeword": "0000100110000000101010100",
+      "bit_length": 25
+    },
+    {
+      "symbol": 488,
+      "codeword": "0001110101001111110110000001",
+      "bit_length": 28
+    },
+    {
+      "symbol": 489,
+      "codeword": "00011101010011111101110010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 490,
+      "codeword": "00011101010011111101111101",
+      "bit_length": 26
+    },
+    {
+      "symbol": 491,
+      "codeword": "010001000001110011111000111",
+      "bit_length": 27
+    },
+    {
+      "symbol": 492,
+      "codeword": "0111011001110101111101010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 493,
+      "codeword": "00011101010011111101111100",
+      "bit_length": 26
+    },
+    {
+      "symbol": 494,
+      "codeword": "00001001100000001010111010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 495,
+      "codeword": "0101010101111011011111010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 496,
+      "codeword": "0110001000011111101111101",
+      "bit_length": 25
+    },
+    {
+      "symbol": 497,
+      "codeword": "0110001000011111101111100",
+      "bit_length": 25
+    },
+    {
+      "symbol": 498,
+      "codeword": "010001000001110011111000110",
+      "bit_length": 27
+    },
+    {
+      "symbol": 499,
+      "codeword": "00011101010011111101111111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 500,
+      "codeword": "0001110101001111110110001",
+      "bit_length": 25
+    },
+    {
+      "symbol": 501,
+      "codeword": "0000100110000000101011010",
+      "bit_length": 25
+    },
+    {
+      "symbol": 502,
+      "codeword": "00011101010011111101111110",
+      "bit_length": 26
+    },
+    {
+      "symbol": 503,
+      "codeword": "01110110011101011111001010",
+      "bit_length": 26
+    },
+    {
+      "symbol": 504,
+      "codeword": "0110001000011111101111111",
+      "bit_length": 25
+    },
+    {
+      "symbol": 505,
+      "codeword": "01110110011101011111110101",
+      "bit_length": 26
+    },
+    {
+      "symbol": 506,
+      "codeword": "00011101010011111101100001",
+      "bit_length": 26
+    },
+    {
+      "symbol": 507,
+      "codeword": "0110001000011111101111110",
+      "bit_length": 25
+    },
+    {
+      "symbol": 508,
+      "codeword": "01110110011101011111110100",
+      "bit_length": 26
+    },
+    {
+      "symbol": 509,
+      "codeword": "01110110011101011111110111",
+      "bit_length": 26
+    },
+    {
+      "symbol": 510,
+      "codeword": "000111010100111111011000001",
+      "bit_length": 27
+    },
+    {
+      "symbol": 511,
+      "codeword": "01110110011101011111110110",
+      "bit_length": 26
+    }
+  ]
+}

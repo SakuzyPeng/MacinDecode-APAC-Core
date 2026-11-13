@@ -1,0 +1,2183 @@
+{
+  "probes": [
+    {
+      "name": "unit-12-48000-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f4870a2c3d02c7484d1659b20fe866eb8a9bcc6d8f802e6de7944cd9946aa839"
+    },
+    {
+      "name": "unit-12-48000-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "7637bf5c8f1beb2d1c5520e8816cfc8d6000233f92487338a50f4ae43b019cc7"
+    },
+    {
+      "name": "unit-12-48000-8",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f5f854bc5da944317ef3f9310d067f8d1978acf9463f53f5ae7815f843917ec2"
+    },
+    {
+      "name": "unit-12-48000-12",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0e0d1b809ea6c19afb9c47e1f5c01bd49a34561482e3aa74331249fbb6073b0d"
+    },
+    {
+      "name": "unit-12-48000-16",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "d5df04d4c0c140084c491bbe30848576f7ce503d39fbbaee49441b57064563e3"
+    },
+    {
+      "name": "unit-12-48000-20",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "bade99b6c1e864edac1b47016c17079381392d8f48277e1cf75c38ab0e66b805"
+    },
+    {
+      "name": "unit-12-48000-24",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "16e7a1b78b71b0bad92a002b5a3414fb1d8aed2912fb1b50f5b550e886680b17"
+    },
+    {
+      "name": "unit-12-48000-28",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "634438fd954f9c39e3d725e8f7d6ab25954d34339e6023fb55c4782310600687"
+    },
+    {
+      "name": "unit-12-48000-32",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "da86f33f1ff049414f52a091340a40ffb2b06e1aa90c59b8b09de15ad6e3378f"
+    },
+    {
+      "name": "unit-12-48000-36",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c42eaabe0fbc03ea933ef598c0c8eaaf5d9ee638d3b069da3fc4e04bb3e22235"
+    },
+    {
+      "name": "unit-12-48000-40",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "22c28e03c1ebb39730f6f8436b392cd898e9e502177631b652ed39eeec33c094"
+    },
+    {
+      "name": "unit-12-48000-44",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "edeea9e450d8cf919a8a6a9b249914bb7f032e618de222951bb91da105de3231"
+    },
+    {
+      "name": "unit-12-48000-48",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "42267dc3068658c1709bfa438fb8eaf51dd0640d9ae22daccad29295b3732e92"
+    },
+    {
+      "name": "unit-12-48000-52",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a6b63d153b3d93b68850bcfdccb65d65786e1b92d2a6fb6cfab1c634555ce6e8"
+    },
+    {
+      "name": "unit-12-48000-56",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "6e9d88f97ed7b8de56512afc5c72044837ce81059dafdbf15dc62373a1c5add5"
+    },
+    {
+      "name": "unit-12-48000-60",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ae78941c48226c458673e021f8643540109e4a4fd821f485293532b336de5421"
+    },
+    {
+      "name": "unit-12-48000-64",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ac4ffdfc6d9110170750ce09ae903cc81a4dd4901e251c9ed1be5fb8355bed34"
+    },
+    {
+      "name": "unit-12-48000-68",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "038645093dea5e2c0dfb24533c3e64bfd92e26e4f19926859461823e2065d5bb"
+    },
+    {
+      "name": "absence-12-48000-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "bfc566ae929e94a08912e2c2b7fd7f105c1b951bf8534126b4abcfc1630853bb"
+    },
+    {
+      "name": "absence-12-48000-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "d15453062966ddc0769a9d340be0faf1d6046634b5c404f2f2dcf7216452da93"
+    },
+    {
+      "name": "absence-12-48000-8",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "fe371cf20982c40d9977cd301676b990037775c053d57e813e35e4323ce23a53"
+    },
+    {
+      "name": "joint_tools-12-48000-0-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "b9a773b065965ddc95dc55940a5f5a2e634167d2375146f3eabff85ec7cec1b3"
+    },
+    {
+      "name": "joint_tools-12-48000-0-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "joint_tools-12-48000-4-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "0f9f8aebeb301f2c4a47331db126aa771f9b323837345f5607296343eeec3170"
+    },
+    {
+      "name": "joint_tools-12-48000-4-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "joint_tools-12-48000-8-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "70e353fa48cac475b4310dc8a77269782c74dd2e4259e87cbc414bd23763a729"
+    },
+    {
+      "name": "joint_tools-12-48000-8-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "joint_tools-12-48000-12-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "4e89e3e7e5e7801353b8956fe0d82d963aaee737f642df307bb730574ab64c07"
+    },
+    {
+      "name": "joint_tools-12-48000-12-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "joint_tools-12-48000-16-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "f6a6e5023a18c15dc3f302ec07ab13e4080a06c7250acdf0148a3eb8e3c41845"
+    },
+    {
+      "name": "joint_tools-12-48000-16-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "joint_tools-12-48000-20-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "f37b4808fb5ffac6e1e7ed628a575a174316d8b6f55ac498c238b2d594cb50d8"
+    },
+    {
+      "name": "joint_tools-12-48000-20-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "9e2485ad9932976a255e3e924a5179da8d16c7483c53f3835febdee2655478f1"
+    },
+    {
+      "name": "metadata_updates-12-48000-0-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "6933cfba04c9bef91f27016cbfe2c57f6a64633a2016a00bd52d04d42a22446a"
+    },
+    {
+      "name": "metadata_updates-12-48000-0-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "1afe70bbc1e1c022ac6613c6284ce95435ec4dcc4e9aedbb25d36e72cbdfa4fa"
+    },
+    {
+      "name": "metadata_updates-12-48000-1-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "72e27ec2ff8a78695e9f785ed37dc81d0f96e2835330859fe8de5b59c379ebc4"
+    },
+    {
+      "name": "metadata_updates-12-48000-1-4",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "ff3cfdcf88c33236c1713a1ca1415e3880c296f4e91cc9b2b9a54964df820ac7"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-0-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "81a2fc9de89096be28a282f2a54d15280e49ad638be5afe827ff03ebd32b60ed"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-1-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "29135864db0f45f5ec95d129f549902cdcb86253c4b7d036d39c4cc4a0c4b6b5"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-2-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "aadac195151b7de75be12b19a3c27c9a66cc939e8cca065d2da0b7c366e28061"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-3-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "6c57da0f43043f092430b5e5f0d6c07d61328d2fcaaeb58f2f4a87bbf7cb3a27"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-4-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "81e20675f892e168858127a10760a49a1cc9cb9dec51e20afd9e2d36ad423144"
+    },
+    {
+      "name": "mixed_element_windows-12-48000-5-0",
+      "channels": 12,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "092e83eec7bb63ccf32c2bf795a7738bcee3aa15e4714ec332313244694572ee"
+    },
+    {
+      "name": "unit-12-44100-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a18778a759c7202b8b5b3c2d0e8261b3618d2c024edcebdd2b495d07da725d4d"
+    },
+    {
+      "name": "unit-12-44100-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "897eb4cdea3e2baf946552234d7759347c38e3ad88897acf091038c952934890"
+    },
+    {
+      "name": "unit-12-44100-8",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "b16e21ed6364bd967bff7709f4087536a7ae5e1ffe1a3ce4c0847e9be5998b51"
+    },
+    {
+      "name": "unit-12-44100-12",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "6a44dc9cbab4825100c02db28b7a7b13af17caf6e43f50d7f87d64a14c6d472e"
+    },
+    {
+      "name": "unit-12-44100-16",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c3493e262a783778b02fe9ebf9376641d474e98a92fbf80d9db5d75470aef035"
+    },
+    {
+      "name": "unit-12-44100-20",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "52abadc567c08958d66d55520a7c57834a30bece2385acd2b570e6bf42ba950c"
+    },
+    {
+      "name": "unit-12-44100-24",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ee22eb2872c379479c2a9c436d332ef55b1a3795215cfa47820ee303af458922"
+    },
+    {
+      "name": "unit-12-44100-28",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "971699eddfe347893ca50e4258df3fc5e3ce3915640d07b77057a1c5c1c9eda5"
+    },
+    {
+      "name": "unit-12-44100-32",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f7452b1e036b77b9510e94da1a593bc352a57607a995027fa6b53a48287c7a95"
+    },
+    {
+      "name": "unit-12-44100-36",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a8a6998bf48c1e0b9e128f1c3c57f1a26bb441103e41ec126a45bb58f238c6b3"
+    },
+    {
+      "name": "unit-12-44100-40",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ab1234c878e1d7206fe3dd13f205b9df42e802b96d50e28ce5db370ecfd59182"
+    },
+    {
+      "name": "unit-12-44100-44",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ffc1273c53373b598b5123e625e60b56400769c2ea5a52306758ffe45efcaa6b"
+    },
+    {
+      "name": "unit-12-44100-48",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "724b0c689ce0fe681fa50d5f825afb42c2314b8ea6251ee5fd001ca3994f1591"
+    },
+    {
+      "name": "unit-12-44100-52",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "614d41dcd910e204416c52a4417933df5ae77b7e6d8089ceec7d086439fb8ae3"
+    },
+    {
+      "name": "unit-12-44100-56",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "3d234e7cf7306372f022f1e177090124f5a7bb99b3e83e31d42645b3ac4b30e9"
+    },
+    {
+      "name": "unit-12-44100-60",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "78453fe50415bc430ce0f776342d6ec842aa1cb865a2af6dc9925e60dc88ad9a"
+    },
+    {
+      "name": "unit-12-44100-64",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "26ffcd85be4fc50d101da263446b54a22e63cc9c687c1a8707241a50dd879888"
+    },
+    {
+      "name": "unit-12-44100-68",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "7bdf29a15b9409542ac91fdf0a9f82995098eb9a6812421283e62e6c270b1abf"
+    },
+    {
+      "name": "absence-12-44100-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "14dcf113392ecf9572c558450ebee88af16a786f8fe836b9b60381250c378185"
+    },
+    {
+      "name": "absence-12-44100-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "36a7aa2ba6fb7385e8030db26a49907f2a5370ef0ad25f80fcfedfa9926190ba"
+    },
+    {
+      "name": "absence-12-44100-8",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "085f3d49360b555a810217a94362416f1a9dcdf6665abb45f6656cb0f9118166"
+    },
+    {
+      "name": "joint_tools-12-44100-0-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "6a5881a257d5114275ce5d65c03e1f081e533acfa1dab5494c3beff92209ce1c"
+    },
+    {
+      "name": "joint_tools-12-44100-0-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "joint_tools-12-44100-4-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "aa153c116187ff97a5ac063edfa8a45f6791987dd77cf876394fa44abb0638a6"
+    },
+    {
+      "name": "joint_tools-12-44100-4-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "joint_tools-12-44100-8-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "473972a144f75d52a679c6db1be69536c5e1fd267e3e993e4c835f27b90abd5e"
+    },
+    {
+      "name": "joint_tools-12-44100-8-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "joint_tools-12-44100-12-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "f9486976127a6e2d0a063b1991629656b85b6b26e51ed43afc8be80938cde64e"
+    },
+    {
+      "name": "joint_tools-12-44100-12-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "joint_tools-12-44100-16-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "033e0377ca52def874d270bdcadb44cbcc7b87245c12c1664fe888170fb8f44d"
+    },
+    {
+      "name": "joint_tools-12-44100-16-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "joint_tools-12-44100-20-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "9835140186552dd14303d5a5737ae2879d53189cd241e2c6682bc9cafdbdd72b"
+    },
+    {
+      "name": "joint_tools-12-44100-20-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "538d927f04b7450f9b98d6e195b652051a644d6ecc9e19c98d17bf735a489074"
+    },
+    {
+      "name": "metadata_updates-12-44100-0-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "603bd690e5b0d6943d81684b4d6c8f48793851c4824b28f1acc157323a99f142"
+    },
+    {
+      "name": "metadata_updates-12-44100-0-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "ca7d2da0dfc6bffa8f1753895319427741a0b77d88b6d474b092233f96578898"
+    },
+    {
+      "name": "metadata_updates-12-44100-1-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "460b6c3abf9e90a054e9e35a09a64ef4b0fe752d831f63e35656d934d01b016b"
+    },
+    {
+      "name": "metadata_updates-12-44100-1-4",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "8fb212a255706cdeb62cff0ca20adc01f2831f915bb9451fd5e34733452c2f04"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-0-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "ab864b3feb30f4fcf9544b87fa6f3a4324a21a34c22fa700ea27d9ffce0ca1fd"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-1-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "68f340f1e757a13c8f3cd5e338b3f986a5a702f39c517f100edcfb9799eec207"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-2-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "5390ade3318de7c050e0fb2bec3b2482fbae95fbd64138296df643c0afe5d66f"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-3-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "035cc54e896978403a3a957e8bd324dfab19908500a2fadf05deb0b3b216bb70"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-4-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "ccfc60c01622b7a62952f3a95dc33c6974e0a0472b35e780756bfbbfebfa1600"
+    },
+    {
+      "name": "mixed_element_windows-12-44100-5-0",
+      "channels": 12,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "cbf934a66ae0f9fbfc387ce12aadb3db6af67e9ffad6b7bf1274a8ce5fde8c90"
+    },
+    {
+      "name": "unit-24-48000-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "709f1702e4c8f9cfccebc5f0ff8453ea5d8a26305b1146a99846bc0e06f92ce7"
+    },
+    {
+      "name": "unit-24-48000-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "091c1c06006fca504c4996e67d08ef2bce6723afef1e2e2127e0893246217ade"
+    },
+    {
+      "name": "unit-24-48000-8",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "882837cb5bc7ecc13800dc664579fc2630ac56db90b1422febe3b348fbb18111"
+    },
+    {
+      "name": "unit-24-48000-12",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "993174cec12d5befbec638705f107ae7bc865cb0c1601148dfad6a989a3beaf8"
+    },
+    {
+      "name": "unit-24-48000-16",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "3b318439eae95af54a8ef8f156f8b431642a3f4b5f504334dd8679370db5a45b"
+    },
+    {
+      "name": "unit-24-48000-20",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c629b0bd39942ad391cac7ca94e229b1c5dd0b4cdd376b9959c2a48e591eb29d"
+    },
+    {
+      "name": "unit-24-48000-24",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a61203d9e01765508ba74b6df7ed98ffa3d3694cc195ef104cf824b69da21293"
+    },
+    {
+      "name": "unit-24-48000-28",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f89a76683618946edccf3d1793bd08af4d72d1fb046eb88965e2b998c37270cf"
+    },
+    {
+      "name": "unit-24-48000-32",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ebf50bd0b70321c86ef07cff9e23ac2d8922860034a2136f661e700c480b7de1"
+    },
+    {
+      "name": "unit-24-48000-36",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "3ca81552bf54e42488ae2d8825f33376df7392c5ee93ff6220fe4a2313ca1c89"
+    },
+    {
+      "name": "unit-24-48000-40",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "5c03ad6f3e3e1290167f24bd1f7e7b4fd47c0417340409e1ff34536e31aafba9"
+    },
+    {
+      "name": "unit-24-48000-44",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f02349d486d3c10ae607d59b36c9c91612fadaf5cd22665fb829983daffb8532"
+    },
+    {
+      "name": "unit-24-48000-48",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "7ce7d08912c6bc02e8ea53b2aee33e28e494b74917af46a64b127fce96390171"
+    },
+    {
+      "name": "unit-24-48000-52",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c6181b9bfb4184d1ecd9f6720934ba50fd4020d616507a6ab6b65daed7e4abb7"
+    },
+    {
+      "name": "unit-24-48000-56",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "d461432de46c35e9e9034d83423e75511778cf08553ca04825198427ad25a788"
+    },
+    {
+      "name": "unit-24-48000-60",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "8302cd96122f10e7f15b17708381cc33febd4d2ab268770365211b79f5c70869"
+    },
+    {
+      "name": "unit-24-48000-64",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f13a22b74d16218c60c8cfbd4af08ba082d1c7c94646661060f5fb85408ecad9"
+    },
+    {
+      "name": "unit-24-48000-68",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "7deb290584ab438d2df07875138611160e4275150a77a2804bc2192da825b5d5"
+    },
+    {
+      "name": "unit-24-48000-72",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "fa6f39cf5234e3d6af6deeef73907c1a25214695350e39becd333d18699f1577"
+    },
+    {
+      "name": "unit-24-48000-76",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "2737fca6402514c2cb6d7c32f4692c6c5b4e8b41c79ee59f3c66fb68a667767e"
+    },
+    {
+      "name": "unit-24-48000-80",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "96cccd7a71b8b9ebc3941bb674871b3dcc7d57a306fed345b69868b4f47ecdaf"
+    },
+    {
+      "name": "unit-24-48000-84",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "80fb87f977ab16a80fd6a329888ec34b496dd93947761ed23ff81c36fe5248ae"
+    },
+    {
+      "name": "unit-24-48000-88",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "aaab2ec5f040f051cfe9bb32ac6cdee2fa15f32c0db57c880e0016310b2cfc28"
+    },
+    {
+      "name": "unit-24-48000-92",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "6eae968866c1bc83e4bebdd03bc5271806493ef517c167d2e0bee7e301645b82"
+    },
+    {
+      "name": "unit-24-48000-96",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "9607a3accf0dcc3c51821bd5230f8a4896d460d67aac0eacea6133f01490fe62"
+    },
+    {
+      "name": "unit-24-48000-100",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "33e9b9d6c163c9582abbfefed2bdfb3828b96d4139047781494869d079de1fde"
+    },
+    {
+      "name": "unit-24-48000-104",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "e5271f9bace5ab3604d98de7bf267a889a17a9d40ba04a70efd218c34fc6aace"
+    },
+    {
+      "name": "unit-24-48000-108",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "9e7e12f19103e275a00a63dc768e12d4ee2a81d29e4ae2a06510d58daf74b0df"
+    },
+    {
+      "name": "unit-24-48000-112",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0aff90f21c12108822e915e809f8a41aae625248f2e11ee618e6506ff78cb819"
+    },
+    {
+      "name": "unit-24-48000-116",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a20d61a9e3909e9d5bcc4c169b2d040fbf711c700a7bcb60408d510659be900a"
+    },
+    {
+      "name": "unit-24-48000-120",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "536246a622a0190e5f27e39d2ca0f072af6dc004b8e89f7595275aba18a58938"
+    },
+    {
+      "name": "unit-24-48000-124",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f65b228918706fbd3bd891e8621055b18986bd8cbd5577e9be0702283d48b00b"
+    },
+    {
+      "name": "unit-24-48000-128",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "568fb06597a61026f9a28ff39adf6dad191fef77f4140c0151180a865cb26459"
+    },
+    {
+      "name": "unit-24-48000-132",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "8c4a32623a8d0b73e595fb5a7f3122452aad8b193a45ba3e71d17cf0b54ccd87"
+    },
+    {
+      "name": "unit-24-48000-136",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "3cc743c181f752b28061ac92bbcedeb837f1747c5f37f083bafd9f197d14ad36"
+    },
+    {
+      "name": "unit-24-48000-140",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "b01341636c6f38e7893cf58588c78b378aa19f285bc8f2ff20c76002238c3585"
+    },
+    {
+      "name": "absence-24-48000-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "7cc135342cc4302674574af7fefc4391eb9b2534603e6f7716ce13d61a96c345"
+    },
+    {
+      "name": "absence-24-48000-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "c6d87683cf544c2a64aa8efc6a4aeaf238c3711fb947d566eedfcbdd95118a05"
+    },
+    {
+      "name": "absence-24-48000-8",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "18a18a60c26d1f66e0d57c507217be83fb514e54e8f07ffb5b5d3ada05fb354a"
+    },
+    {
+      "name": "absence-24-48000-12",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "8e3d5495a84e867b3b81f8e89a57323fc8714835df2bea69b9e62d032e6286e4"
+    },
+    {
+      "name": "absence-24-48000-16",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 2,
+      "hard_unit": false,
+      "input_sha256": "4bb6a97ae3b7837cf6a52fe910c976c09f282ee767ec222878011679064c7792"
+    },
+    {
+      "name": "joint_tools-24-48000-0-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "60beb45c240f282ea43fbc46d79e5cd586df9181855df4364c215544c2425bdf"
+    },
+    {
+      "name": "joint_tools-24-48000-0-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "joint_tools-24-48000-4-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "8639dc7f1941800b5c7f89022a1734119e8135b63911b8cbcb1913eb33780bbd"
+    },
+    {
+      "name": "joint_tools-24-48000-4-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "joint_tools-24-48000-8-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "5b4569706ffdcecbe2c8361e06f4f7ad49c2e965902e8ed85ec82b8b9c44476a"
+    },
+    {
+      "name": "joint_tools-24-48000-8-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "joint_tools-24-48000-12-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "de82cdf81087c548f90eaf63464ad08d6df8aa520f1f4798aa4ddd2a6c799006"
+    },
+    {
+      "name": "joint_tools-24-48000-12-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "joint_tools-24-48000-16-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "7633a79cdf170d60f9fe8c2730befd5fa6510a8abcab0c1ec383ed850f710d70"
+    },
+    {
+      "name": "joint_tools-24-48000-16-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "joint_tools-24-48000-20-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "90cc6e158b4e21afca8c5b221a2437db9cc1efe8d49e212dbeddf6d3e3b61b07"
+    },
+    {
+      "name": "joint_tools-24-48000-20-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "metadata_updates-24-48000-0-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "401c786f500b6f4019427624e2be8b83fa7d56ff4ca8ae93f4b37b4f8bdbbbda"
+    },
+    {
+      "name": "metadata_updates-24-48000-0-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "1307ddffbd9cd0b2f6d0f6720afbfb3674b6f40dafe51d179160ddaf7a621b00"
+    },
+    {
+      "name": "metadata_updates-24-48000-1-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "2a9711c68447500f4d4c7eba8981f6b222ba7b2e3564d56df917af75e5469502"
+    },
+    {
+      "name": "metadata_updates-24-48000-1-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "0f469b404c118f76a657244359c98b92a7420c07152b0ed0ac00daebae669506"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-0-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "c5f6b791e9f1acad0b4363d097697a486c0f6d84bae0af02fc654f39e9b03954"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-1-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "8d4402bcd1947381585a761c53dd43a4d74308a6e6a851b3cda2b67d8f7e8473"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-2-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "9e2149728e56b3e8cb1fa41470e91e8a89205616481e5a8d9f45f945be18b5d6"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-3-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "6682c6eeeefafb968ee38545aebc1119acfd7c49798a557cf4dcbd3bd6983cb1"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-4-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "b45c9b018c0bb49915a9ff23f78f4000781e8c5f543829eb555cf76e9253734e"
+    },
+    {
+      "name": "mixed_element_windows-24-48000-5-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "a5bf10ed7913bc09673a5d75732c8dce50020f148bc1f381250ca1e68118659f"
+    },
+    {
+      "name": "dual_lfe-24-48000-0-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "de1351ae3733ed8bcb7d30dc9c187c79091bc9e9c777edaf060b8eed05457f85"
+    },
+    {
+      "name": "dual_lfe-24-48000-0-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "dual_lfe-24-48000-1-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "8c8523602be290c7976e1ea3381a802736dd794875a925a8d2f488c314424c47"
+    },
+    {
+      "name": "dual_lfe-24-48000-1-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "dual_lfe-24-48000-2-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "c19ea3511101289f301625a9803cba112c7d9cae2c40a5dbdad5d1143cc4339a"
+    },
+    {
+      "name": "dual_lfe-24-48000-2-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "dual_lfe-24-48000-3-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "572a1ca79da5850146947a347c5fb09361794c49e1aa9729f76b5ec8b75969d3"
+    },
+    {
+      "name": "dual_lfe-24-48000-3-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "dual_lfe-24-48000-4-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "295f9e1fef4a9bd9cd306df3ba03b2d3646ff3b20a92996e46bb64588202258b"
+    },
+    {
+      "name": "dual_lfe-24-48000-4-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "dual_lfe-24-48000-5-0",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "d6897fb7f82a25eb245e8317bdae369dd5f17684bee85ee130e154da54f1001c"
+    },
+    {
+      "name": "dual_lfe-24-48000-5-4",
+      "channels": 24,
+      "rate": 48000,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "cd25f331f0f4f0469e3a209386c3de1f15c4560cc2e281ff8b5ac9dee4670720"
+    },
+    {
+      "name": "unit-24-44100-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "04f5cdf1519bd29c67093c2b55e08fd69ae1546c6400ee08c831dbe1ca583152"
+    },
+    {
+      "name": "unit-24-44100-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c3b442227e7084246f8229530d7665d8721a687febe5b394eb0388bb21e966c8"
+    },
+    {
+      "name": "unit-24-44100-8",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ab409130d63e5af7ac741462458941dcb6c1eb0d3d20dca1a255f1ab2308c393"
+    },
+    {
+      "name": "unit-24-44100-12",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "9fddaa780716a8b6861448adfc61c4d66078310793f691ff173c293191acbb89"
+    },
+    {
+      "name": "unit-24-44100-16",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "825f1700c2f4667921ceb99229d0b6aa7afc8b6c68e2e8989524d090bd967cda"
+    },
+    {
+      "name": "unit-24-44100-20",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "04966f285c8acbe878ba383abc202a6f4d3a7fb44d79dcd32efbdd7bb25219e0"
+    },
+    {
+      "name": "unit-24-44100-24",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0f545f1a6121e3f3f8ddc7d2d9ff09723d28559c7228ece340fd3834e6e354b5"
+    },
+    {
+      "name": "unit-24-44100-28",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "36db51d9a7996a29cf17a5c72ef34c567653d77bf97d4093b73d14d5b3ff9d9c"
+    },
+    {
+      "name": "unit-24-44100-32",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a2174585df2db1fa9ccc7c3929405a2cdaaa1a16f09b6b00350f1cafb83624f7"
+    },
+    {
+      "name": "unit-24-44100-36",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f477a62bdb7daba4815beda43bf9ae66c422703f49bbf1930500209efe6a434c"
+    },
+    {
+      "name": "unit-24-44100-40",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "304fae96088bc3415f4f33f8729707456c286b6aea3927ed906a4614c515df2a"
+    },
+    {
+      "name": "unit-24-44100-44",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0e9d73bd78c2c10de643320f79d77c4336b1b87c25d9d9d535be34b227887b7c"
+    },
+    {
+      "name": "unit-24-44100-48",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a2ec964b1667fa06363a61f17079b865b22849ba7356eff104cc5ce6b327f029"
+    },
+    {
+      "name": "unit-24-44100-52",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "2d4f772df5dadcdf25aa78322abfc891ef41e4f56cc7a56f2600eea1d233f5e8"
+    },
+    {
+      "name": "unit-24-44100-56",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "f774b3acbe19dedfe2ff0550a89e2e64d38e21284479a9735aff04f7b14055e6"
+    },
+    {
+      "name": "unit-24-44100-60",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "cf4705127bc68c3fdd31fcdc51c6f51dda6af1450be113e3d2d1d6b0b700c5ee"
+    },
+    {
+      "name": "unit-24-44100-64",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "c7070e0b4b06fdb1af71d896087c053cf65c4791f33cc3f8996859204cfff9e4"
+    },
+    {
+      "name": "unit-24-44100-68",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "abb5153b2cfc58e0fb2d77ed5fe12f4b98d88311363f994a17faefcb7124f220"
+    },
+    {
+      "name": "unit-24-44100-72",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "32c7ab95bedbd37593c10e112d7b5cebb2f602e8a7c807fe4ec6055d10bcdcf5"
+    },
+    {
+      "name": "unit-24-44100-76",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0e2ad873dd1df0808c6d59ecc6bbe48a01b01e85f83b3174a65c49a6ca490ceb"
+    },
+    {
+      "name": "unit-24-44100-80",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "076098a946b429acf074cb20f13aa3c9b886ec4327b4a8b5ceb5b21f146608a3"
+    },
+    {
+      "name": "unit-24-44100-84",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "9f5c26d6967b1c5a8f32d2a22721de47f51573be748c9bf2fbd0fd7b84e38a2c"
+    },
+    {
+      "name": "unit-24-44100-88",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "ec42df78b4270e4575073a9d1c19a72f1698a138d72a60007b7c89ca8fe60383"
+    },
+    {
+      "name": "unit-24-44100-92",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "0d92531cfabe6be736b237e29a7bbbe02cec09963bc022096c0be9e01e80ae31"
+    },
+    {
+      "name": "unit-24-44100-96",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "46bc63bd84d5203d8df002ec6bd55f0a352b745c87ef15440d46f0e6f2f0814a"
+    },
+    {
+      "name": "unit-24-44100-100",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "34eaacbd14de0f60d1faad258dd74ef1a629ac5590ef0254998df2706710ae16"
+    },
+    {
+      "name": "unit-24-44100-104",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "7820475adbd38ae54f723a04d60ddf5e3311c8e4d4062317b7fc106256e20eee"
+    },
+    {
+      "name": "unit-24-44100-108",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "d6bd3a0afb4ab954ae8254622511eee7d4c3336b8296e5200fdae9ba1c4111be"
+    },
+    {
+      "name": "unit-24-44100-112",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "03283c310a52be5f8cd2250576a1af6f1668be7c3da8a841d4031f87981e9872"
+    },
+    {
+      "name": "unit-24-44100-116",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "9ece7992d235e249e91d16266fb9b8df2261fbee942acdb692ee0293daaf8a61"
+    },
+    {
+      "name": "unit-24-44100-120",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "642524e90af38465ac8ceb4eddc35f9acaa8b50139c088b2cf5f733bd98ee87f"
+    },
+    {
+      "name": "unit-24-44100-124",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "e9399c9a4d09141931f4ec5720c187051101f537248a717a3f7c8b333e71f921"
+    },
+    {
+      "name": "unit-24-44100-128",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "45e88f6805cf2239dfe517b04a1b598ba31f5a06e3d43690933c5fa8d5c8984d"
+    },
+    {
+      "name": "unit-24-44100-132",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "80f0ff771e044ef3280332854d8fa2ec38467ea72e28cd0c3a1ec8d77623f1d4"
+    },
+    {
+      "name": "unit-24-44100-136",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "a4eae4b85c9eeae56c2f2b68f72fb1403cad106cb5110d1e70949ebc5c8de550"
+    },
+    {
+      "name": "unit-24-44100-140",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": true,
+      "input_sha256": "3e4f80c6e64c85947f8f7f4c6f6e79a2ae5b36feaad98eca43897cb7f5d96857"
+    },
+    {
+      "name": "absence-24-44100-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "9a8d74bbf3cd7ccd84e753d8ae59ffb2bcb5c67014b6f20ae0925f210e06390b"
+    },
+    {
+      "name": "absence-24-44100-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "899d3357667b2c095717517b19b989f4083b946608398bc824319fc6696e2469"
+    },
+    {
+      "name": "absence-24-44100-8",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "feecd8495dd29f12ca729801700eaa91df118c8656c7e617f39f7fb838868a54"
+    },
+    {
+      "name": "absence-24-44100-12",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "8b10a05af0224cbf43a44cc8acb6907d7cb8b1ca0c5ce09bfe1908f77d038397"
+    },
+    {
+      "name": "absence-24-44100-16",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 2,
+      "hard_unit": false,
+      "input_sha256": "b50bfe3e00e817f7d6c45b20f3130d2e7eac6ca28dff4dbc34c619b50cc57f75"
+    },
+    {
+      "name": "joint_tools-24-44100-0-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "b2d51fed557d45cd6ae3c07ba8440eb25787b77a2719bc07862df5f7f784bb29"
+    },
+    {
+      "name": "joint_tools-24-44100-0-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "joint_tools-24-44100-4-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "c0c6ae310dff62f0f51c1aefe6eea111611fa4bfe72098adf623946acc6ecbd2"
+    },
+    {
+      "name": "joint_tools-24-44100-4-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "joint_tools-24-44100-8-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "d512bdc43e21b8a77ceba0b5ecc7e608aa7a869d9eddffd1c1a4d17ac88d8062"
+    },
+    {
+      "name": "joint_tools-24-44100-8-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "joint_tools-24-44100-12-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "ab78400756911aae41b05acf003a949385628867ecd4c86f6cbb0941502a3fda"
+    },
+    {
+      "name": "joint_tools-24-44100-12-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "joint_tools-24-44100-16-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "6b47c31b989ec83ef514e1a6e8ba4101827f57560a2de4fff28beb13fcf5459a"
+    },
+    {
+      "name": "joint_tools-24-44100-16-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "joint_tools-24-44100-20-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "111713d3b3a1ea74f110c1e8d1a46729d98e60425e347480f92cec78f6211aff"
+    },
+    {
+      "name": "joint_tools-24-44100-20-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "metadata_updates-24-44100-0-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "a801faec6cf77b60ebdffec26b8ae135e02f58150f3c704cb69f791854479d46"
+    },
+    {
+      "name": "metadata_updates-24-44100-0-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "9dc8900a7f3338a9c2245143a26c78d963d3345a7b4fae8510f25a1dbf7e97e0"
+    },
+    {
+      "name": "metadata_updates-24-44100-1-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "ab74e09b9ace57a7200c36e0b433224d1750c98c8fb451d621578f8712a9f860"
+    },
+    {
+      "name": "metadata_updates-24-44100-1-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "6a77ab9380bf639df61e233424b638c7a3b6a0401a748da9c47510cad90a708e"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-0-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "f5161c60bb1fa97b45578d5f32512691b2b6816ee300148151f46a79907755b2"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-1-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "37292f85da66445722a4253c368ff191541b8049048c1d20b6f5d918e4551b99"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-2-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "2c561706d586d593c819d4f992974acacf9cadf34188b15506297b30fb8ed1f7"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-3-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "33b0727737e29412abfa5ccf76226905bef9e8ce74f208b90d25e61b9eeecb8b"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-4-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "49d8bf4328c2fab7ac4cdf0b7d54c5962df523213622dc10fa51a5915c2cbfa4"
+    },
+    {
+      "name": "mixed_element_windows-24-44100-5-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 3,
+      "hard_unit": false,
+      "input_sha256": "99a47f590759c5eee3e1c834aedc00422842e84ffba2fc1cb2e4fa7c10473a31"
+    },
+    {
+      "name": "dual_lfe-24-44100-0-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "2c201baa90e00e671665a77cb729e6c4b1f06426f2cc2bc3afd1cf5ea871f833"
+    },
+    {
+      "name": "dual_lfe-24-44100-0-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "dual_lfe-24-44100-1-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "625aae49da694879bce31a08f9fccff402ec931a1b750b7ebbc5762e214b1b7d"
+    },
+    {
+      "name": "dual_lfe-24-44100-1-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "dual_lfe-24-44100-2-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "da464ca5a1529745a325b95de1821dddc8b8d932f5dfd9199c8006df7f90a506"
+    },
+    {
+      "name": "dual_lfe-24-44100-2-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "dual_lfe-24-44100-3-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "59728049508ff8ec247b3d943147aa145e0e9deeef99aa6a288586543685a300"
+    },
+    {
+      "name": "dual_lfe-24-44100-3-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "dual_lfe-24-44100-4-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "23374960210fdc4ebbcd716ecf0250f3097b5fadc7aa06e1dc6550e8805988fc"
+    },
+    {
+      "name": "dual_lfe-24-44100-4-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    },
+    {
+      "name": "dual_lfe-24-44100-5-0",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 4,
+      "hard_unit": false,
+      "input_sha256": "db4c4ef87fe7e1a76fefd9cddfe7ef3e1528edabf72d278d3f59a1f8392e5ab2"
+    },
+    {
+      "name": "dual_lfe-24-44100-5-4",
+      "channels": 24,
+      "rate": 44100,
+      "packets": 1,
+      "hard_unit": false,
+      "input_sha256": "81ef998d1400186b3cc7db01872bdae6303622f56a911e476c80a8241e2ea67e"
+    }
+  ],
+  "controls": [
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "default",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "default",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "none",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "none",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "music",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "music",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "speech",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "speech",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "movie",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "movie",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "capture",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 48000,
+      "profile": "capture",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "default",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "default",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "none",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "none",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "music",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "music",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "speech",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "speech",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "movie",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "movie",
+      "signal": "impulse"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "capture",
+      "signal": "noise"
+    },
+    {
+      "channels": 12,
+      "rate": 44100,
+      "profile": "capture",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "default",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "default",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "none",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "none",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "music",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "music",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "speech",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "speech",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "movie",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "movie",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "capture",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 48000,
+      "profile": "capture",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "default",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "default",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "none",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "none",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "music",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "music",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "speech",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "speech",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "movie",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "movie",
+      "signal": "impulse"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "capture",
+      "signal": "noise"
+    },
+    {
+      "channels": 24,
+      "rate": 44100,
+      "profile": "capture",
+      "signal": "impulse"
+    }
+  ],
+  "sha256": "d95ec1be982cb850ca942d98b15a0353e698b6847eacca5e965d07940a660ada"
+}

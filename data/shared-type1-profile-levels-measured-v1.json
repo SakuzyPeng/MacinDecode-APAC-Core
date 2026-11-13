@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "profile": "apac-shared-type1-profile-levels-measured-v1",
+  "component_type": 1,
+  "profiles": [
+    {
+      "profile_id": 0,
+      "maximum_output_channels_by_level": [
+        1024
+      ]
+    },
+    {
+      "profile_id": 5,
+      "maximum_output_channels_by_level": [
+        7,
+        32,
+        128
+      ]
+    }
+  ],
+  "source": {
+    "method": "independent public AudioCodec cookie acceptance, current input-format dimensions and complete SQ PCM",
+    "experiment": "shared-config-type1-2026-11-10-v1",
+    "code_base_commit": "311e2064694c8069c77e36b431530d48763d73cf",
+    "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+    "candidate_sha256": "67380bb30cbfd558166040630f5bab0c2288de18b3ea2e33fc2ecdaeab6e9846",
+    "property_validation_sha256": "98b354d2db91a10ce169b750bff83aa62e426566c079c9671891dc39acdca25b",
+    "native_validation_sha256": "4e50cf274f4fba9d4409d5a1e67ebec043353989ab8c78e696ce4b925f84bbc8",
+    "isolated_comparison_sha256": "bac2dff83b44edca0f5f34b61a28a10d556f22a14302631bcbb1e4460db2c668",
+    "old_dictionary_consulted_during_discovery": false,
+    "candidate_frozen_before_heldout": true,
+    "heldout_passed_before_comparison": true,
+    "producer_sha256": {
+      "profile_discovery.py": "633a403389a3c3f082a6add49826bdfb8078c1bb60d87d9f105cd38c39750c1f",
+      "profile_holdout.py": "61adb4a3dbdff1bf17fdca06ccf2d1abefae5c39f58e984ab6e816c90238e0c6",
+      "boundary_holdout.py": "32739f351f776be228d049111db731a7837b9a02621385be300ca1326c61221f",
+      "grammar_pilot.py": "9cc174dab34000f1f17dda12150ffcf00275defe3d27396cc9547b44af02f8e8"
+    },
+    "scope": {
+      "profile_ids": [
+        0,
+        5
+      ],
+      "component_type": 1,
+      "quantification": "decoded transport channels",
+      "complete_type1_syntax_qualified": false
+    },
+    "qualification": {
+      "passed": true,
+      "enumerated_profile_levels": 1024,
+      "discovery_distinct_checks": 2237,
+      "heldout_property_checks": 1243,
+      "heldout_distinct_property_observations": 1239,
+      "heldout_boundary_checks": 16,
+      "heldout_native_decodes": 12,
+      "property_and_native_receipts_verified": 3492,
+      "raw_bytes_verified": 40168239,
+      "all_observation_digests_verified": true,
+      "public_channel_counts_verified": true,
+      "native_isolated_channel_and_overlap_verified": true,
+      "discovery_rate": 48000,
+      "heldout_rate": 44100,
+      "discovery_transport": "single-channel elements",
+      "heldout_transport": "paired elements with optional trailing single-channel element",
+      "discovery_finished_at": 1794305778.97799,
+      "candidate_frozen_at": 1794305779.124928,
+      "heldout_started_at": 1794305782.3590882,
+      "independent_validation_finished_at": 1794306265.637419,
+      "isolated_comparison_at": 1794306387.144373
+    }
+  }
+}

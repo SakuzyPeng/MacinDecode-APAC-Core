@@ -1,0 +1,70 @@
+name: Portable validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - name: Windows x64
+            runner: windows-2022
+            target: x86_64-pc-windows-msvc
+          - name: macOS ARM64
+            runner: macos-26
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      RUSTUP_TOOLCHAIN: '1.98.0'
+      BUILD_TARGET: ${{ matrix.target }}
+    steps:
+      - name: Check out full source history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.13'
+      - name: Install Rust
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component clippy --target "$BUILD_TARGET" --no-self-update
+      - name: Reuse Rust dependencies
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          cache-workspace-crates: false
+          cache-bin: false
+      - name: Audit distributed files and history
+        run: |
+          python -B scripts/check_sources.py --history
+          python -B -m unittest discover -s scripts -p 'test_check_sources.py' -v
+      - name: Test portable libraries and golden snapshots
+        run: cargo test --locked --target "$BUILD_TARGET" -p apac-core -p apac-container -p apac-research -p apac-cac -p apac-no-std-example -p apac-bwe2
+      - name: Test default and minimal CLI configurations
+        run: |
+          cargo test --locked --target "$BUILD_TARGET" -p mapac --test frame_parser --test config_parser
+          cargo test --locked --target "$BUILD_TARGET" -p mapac --no-default-features --test frame_parser
+      - name: Clippy
+        run: cargo clippy --locked --workspace --all-targets --target "$BUILD_TARGET" -- -D warnings
+      - name: Build default decoder
+        run: cargo build --locked --release -p mapac --target "$BUILD_TARGET"

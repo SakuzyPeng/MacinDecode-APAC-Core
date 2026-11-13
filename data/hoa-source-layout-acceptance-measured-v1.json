@@ -1,0 +1,7754 @@
+{
+  "schema_version": 1,
+  "profile": "apac-hoa-source-layout-acceptance-measured-v1",
+  "accepted_layout_tags": [
+    6553601,
+    6619138,
+    7471107,
+    7077892,
+    7602180,
+    7864325,
+    8126470,
+    9240582,
+    9306119,
+    9371655,
+    8323080,
+    11993096,
+    9437192,
+    8060934,
+    12713992,
+    12779530,
+    12845066,
+    12582924,
+    12648464,
+    7405571,
+    7536644,
+    7667717,
+    7929862,
+    8585219,
+    8650756,
+    8192007,
+    8388616,
+    13369368,
+    13434888,
+    13500428,
+    13565962,
+    13631500,
+    13697038,
+    13762572,
+    13828110,
+    4028628997,
+    12451840,
+    4026597376,
+    9633792,
+    0
+  ],
+  "public_labels": [
+    {
+      "tag": 6553601,
+      "channel_labels": [
+        42
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 6619138,
+      "channel_labels": [
+        1,
+        2
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7077892,
+      "channel_labels": [
+        1,
+        2,
+        5,
+        6
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7405571,
+      "channel_labels": [
+        1,
+        2,
+        3
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7471107,
+      "channel_labels": [
+        3,
+        1,
+        2
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7536644,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        9
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7602180,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        9
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7667717,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        5,
+        6
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7864325,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 7929862,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 8060934,
+      "channel_labels": [
+        1,
+        3,
+        2,
+        5,
+        6,
+        4
+      ],
+      "lfe_indices": [
+        5
+      ]
+    },
+    {
+      "tag": 8126470,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        4
+      ],
+      "lfe_indices": [
+        5
+      ]
+    },
+    {
+      "tag": 8192007,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        9
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 8323080,
+      "channel_labels": [
+        3,
+        7,
+        8,
+        1,
+        2,
+        5,
+        6,
+        4
+      ],
+      "lfe_indices": [
+        7
+      ]
+    },
+    {
+      "tag": 8388616,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        33,
+        34
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 8585219,
+      "channel_labels": [
+        1,
+        2,
+        9
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 8650756,
+      "channel_labels": [
+        1,
+        2,
+        5,
+        6
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 9240582,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        9
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 9306119,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        9,
+        4
+      ],
+      "lfe_indices": [
+        6
+      ]
+    },
+    {
+      "tag": 9371655,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        33,
+        34
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 9437192,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        33,
+        34,
+        9
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 11993096,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        33,
+        34,
+        4
+      ],
+      "lfe_indices": [
+        7
+      ]
+    },
+    {
+      "tag": 12058632,
+      "channel_labels": [
+        3,
+        1,
+        2,
+        5,
+        6,
+        4,
+        13,
+        15
+      ],
+      "lfe_indices": [
+        5
+      ]
+    },
+    {
+      "tag": 12517380,
+      "channel_labels": [
+        196608,
+        196609,
+        196610,
+        196611
+      ],
+      "lfe_indices": []
+    },
+    {
+      "tag": 12582924,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        33,
+        34,
+        13,
+        15,
+        52,
+        54
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 12648464,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        33,
+        34,
+        35,
+        36,
+        13,
+        15,
+        49,
+        51,
+        52,
+        54
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 12713992,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        49,
+        51
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 12779530,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        13,
+        15,
+        52,
+        54
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 12845066,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        33,
+        34,
+        49,
+        51
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13369368,
+      "channel_labels": [
+        35,
+        36,
+        3,
+        37,
+        33,
+        34,
+        1,
+        2,
+        9,
+        62,
+        55,
+        56,
+        13,
+        15,
+        14,
+        12,
+        52,
+        54,
+        49,
+        51,
+        53,
+        59,
+        57,
+        58
+      ],
+      "lfe_indices": [
+        3,
+        9
+      ]
+    },
+    {
+      "tag": 13434888,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        13,
+        15
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13500428,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        37,
+        33,
+        34,
+        62,
+        55,
+        56,
+        13,
+        15,
+        53
+      ],
+      "lfe_indices": [
+        3,
+        6
+      ]
+    },
+    {
+      "tag": 13565962,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        13,
+        15,
+        60,
+        61
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13631500,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        13,
+        15,
+        14,
+        60,
+        61,
+        12
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13697038,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        63,
+        64,
+        13,
+        15,
+        14,
+        60,
+        61,
+        12
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13762572,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        33,
+        34,
+        55,
+        56,
+        13,
+        15,
+        52,
+        54
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 13828110,
+      "channel_labels": [
+        1,
+        2,
+        3,
+        4,
+        33,
+        34,
+        55,
+        56,
+        13,
+        15,
+        52,
+        54,
+        65,
+        66
+      ],
+      "lfe_indices": [
+        3
+      ]
+    },
+    {
+      "tag": 4028628997,
+      "channel_labels": [
+        131072,
+        131073,
+        131074,
+        131075,
+        3
+      ],
+      "lfe_indices": []
+    }
+  ],
+  "observations": [
+    {
+      "phase": "discovery",
+      "sample_rate": 48000,
+      "variable_cardinality": 1,
+      "points": [
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              1
+            ],
+            [
+              0
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              1
+            ],
+            [
+              0
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ]
+          ]
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ]
+          ]
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ],
+            [
+              16
+            ],
+            [
+              17
+            ],
+            [
+              18
+            ],
+            [
+              19
+            ],
+            [
+              20
+            ],
+            [
+              21
+            ],
+            [
+              22
+            ],
+            [
+              23
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ],
+            [
+              16
+            ],
+            [
+              17
+            ],
+            [
+              18
+            ],
+            [
+              19
+            ],
+            [
+              20
+            ],
+            [
+              21
+            ],
+            [
+              22
+            ],
+            [
+              23
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451841,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451841,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451841,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451841,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597377,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597377,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597377,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597377,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633793,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633793,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633793,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633793,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        }
+      ]
+    },
+    {
+      "phase": "heldout",
+      "sample_rate": 44100,
+      "variable_cardinality": 3,
+      "points": [
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6553601,
+          "tag": 6553601,
+          "channels": 1,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 6619138,
+          "tag": 6619138,
+          "channels": 2,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7471107,
+          "tag": 7471107,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7077892,
+          "tag": 7077892,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7602180,
+          "tag": 7602180,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7864325,
+          "tag": 7864325,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8126470,
+          "tag": 8126470,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9240582,
+          "tag": 9240582,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9306119,
+          "tag": 9306119,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 9371655,
+          "tag": 9371655,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8323080,
+          "tag": 8323080,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 11993096,
+          "tag": 11993096,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9437192,
+          "tag": 9437192,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              1
+            ],
+            [
+              0
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              1
+            ],
+            [
+              0
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8060934,
+          "tag": 8060934,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12713992,
+          "tag": 12713992,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12779530,
+          "tag": 12779530,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12845066,
+          "tag": 12845066,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 12582924,
+          "tag": 12582924,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ]
+          ]
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ]
+          ]
+        },
+        {
+          "public_tag": 12648464,
+          "tag": 12648464,
+          "channels": 16,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 7405571,
+          "tag": 7405571,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 7536644,
+          "tag": 7536644,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7667717,
+          "tag": 7667717,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 7929862,
+          "tag": 7929862,
+          "channels": 6,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8585219,
+          "tag": 8585219,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ]
+          ]
+        },
+        {
+          "public_tag": 8650756,
+          "tag": 8650756,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 8192007,
+          "tag": 8192007,
+          "channels": 7,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 8388616,
+          "tag": 8388616,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ],
+            [
+              16
+            ],
+            [
+              17
+            ],
+            [
+              18
+            ],
+            [
+              19
+            ],
+            [
+              20
+            ],
+            [
+              21
+            ],
+            [
+              22
+            ],
+            [
+              23
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [
+              14
+            ],
+            [
+              15
+            ],
+            [
+              16
+            ],
+            [
+              17
+            ],
+            [
+              18
+            ],
+            [
+              19
+            ],
+            [
+              20
+            ],
+            [
+              21
+            ],
+            [
+              22
+            ],
+            [
+              23
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13369368,
+          "tag": 13369368,
+          "channels": 24,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 13434888,
+          "tag": 13434888,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13500428,
+          "tag": 13500428,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13565962,
+          "tag": 13565962,
+          "channels": 10,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13631500,
+          "tag": 13631500,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13697038,
+          "tag": 13697038,
+          "channels": 14,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13762572,
+          "tag": 13762572,
+          "channels": 12,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [
+              5
+            ],
+            [
+              6
+            ],
+            [
+              7
+            ],
+            [
+              8
+            ],
+            [
+              9
+            ],
+            [
+              10
+            ],
+            [
+              11
+            ],
+            [
+              12
+            ],
+            [
+              13
+            ],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 13828110,
+          "tag": 13828110,
+          "channels": 14,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            [
+              3
+            ],
+            [
+              4
+            ],
+            [],
+            [],
+            [],
+            []
+          ]
+        },
+        {
+          "public_tag": 4028628997,
+          "tag": 4028628997,
+          "channels": 5,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451843,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451843,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451843,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 12451840,
+          "tag": 12451843,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597379,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597379,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597379,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 4026597376,
+          "tag": 4026597379,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633795,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633795,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633795,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 9633792,
+          "tag": 9633795,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": true,
+          "audio_accepted": true,
+          "native_mapping": [
+            [
+              0
+            ],
+            [
+              1
+            ],
+            [
+              2
+            ],
+            []
+          ]
+        },
+        {
+          "public_tag": 0,
+          "tag": 0,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": true,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12058632,
+          "tag": 12058632,
+          "channels": 8,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 6553602,
+          "tag": 6553602,
+          "channels": 2,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 12517380,
+          "tag": 12517380,
+          "channels": 4,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 0,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 1,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 2,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        },
+        {
+          "public_tag": 4026662915,
+          "tag": 4026662915,
+          "channels": 3,
+          "parameter": 3,
+          "property_accepted": false,
+          "audio_accepted": false,
+          "native_mapping": null
+        }
+      ]
+    }
+  ],
+  "source": {
+    "method": "public AudioCodec properties and calibrated positional PCM",
+    "old_dictionary_consulted_during_discovery": false,
+    "public_source_file": "shared-layout-tags-measured-v1.json",
+    "public_source_sha256": "d42b4af3db095f0fad23e1fd09238e76e332ae67704739815d21d73de9bc9056",
+    "plan_sha256": "0d0a0f1216fe6729392a0ac15a9c8639ba6c4103a2b119c98acf434f851052af",
+    "discovery_sha256": "bba93a6f2ea36a4b4cd447b2279e47f86e0224e3af61f19160fd32fcec3ae694",
+    "candidate_sha256": "cde264fb95b148f23a249425643aee9a3d58423a97a45a6b61264cae6554c2a8",
+    "validation_sha256": "2a51b4d31eacf3aa647448a849bf07eca9109e61d9ff69570932ff3fa2e14b23",
+    "native_identity": {
+      "architecture": "arm64",
+      "binary_sha256": "4c27c3d83f17154de30a0278daf1e29c754b3d524dc3f778a8e7b265ec88f422",
+      "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+      "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123"
+    },
+    "discovery_finished_at": 1794304531.9682748,
+    "candidate_frozen_at": 1794304531.969599,
+    "validation_finished_at": 1794304729.992714,
+    "packaged_at": 1794304790.890563,
+    "qualification": {
+      "passed": true,
+      "all_raw_observations_verified": true,
+      "component_type": 2,
+      "profile_level": [
+        0,
+        0
+      ],
+      "sample_rates": [
+        48000,
+        44100
+      ],
+      "variable_cardinalities": [
+        1,
+        3
+      ],
+      "discovery_points": 176,
+      "heldout_points": 176,
+      "verified_property_observations": 434,
+      "verified_audio_observations": 352,
+      "complete_format_qualified": false
+    }
+  }
+}

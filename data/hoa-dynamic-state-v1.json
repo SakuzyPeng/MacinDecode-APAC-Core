@@ -1,0 +1,1029 @@
+{
+  "fixtures": [
+    {
+      "options": {
+        "rate": 44100,
+        "mixed": false,
+        "selection": null,
+        "transform": 0,
+        "method": 2,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "cookie": "00000060646170610000000008001402002004200b3ce81281c71c71c8000000000000002f80040030060400022081015010000200202a00c22000e00f2a1700808a248c9124648da0104907e2e200801010001001b91891100004020020d280",
+      "first": "481a010a00000495555557a2c95555557a2c95555557a2c95555557a2c95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaaffb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c86ea61d950f72ea61d9472a1700808a248c9124648da0104907e2e200801010001001b91891100004020020d288180",
+      "next": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "embedded_good": "8804e0481a010a00000495555557a2c95555557a2c95555557a2c95555557a2c95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaaffb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c86ea61d950f72ea61d94500004020020ff8010206804280000405006db6db896db6db712db6db6e25b6db6dc4b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a1908000000",
+      "last_element_error": "481a010a0000181401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "late_spatial_error": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbedb6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "dynamic_error": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f550eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "dynamic_error_bit": 695,
+      "internal_end_bit": 690,
+      "bitmap_too_few": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6cff007fc01ff007fd01ffc07ff01ffc0600000",
+      "bitmap_too_many": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dff027fc01ff007fd01ffc07ff01ffc0600000",
+      "late_tail_error": "481a010a0000101401b6db6e25b6db6dc4b6db6db896db6db712db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000004",
+      "embedded_error": "8804e0481a010a00000495555557a2c95555557a2c95555557a2c95555557a2c95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaafff72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c86ea61d950f72ea61d94500004020020ff8010206804280000405006db6db896db6db712db6db6e25b6db6dc4b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a1908000000",
+      "outer_after_embedded_error": "8804e0481a010a00000495555557a2c95555557a2c95555557a2c95555557a2c95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaaffb72ea61ffb72ea443fb72cc843fb550c843dd950c84261d950c86ea61d950f72ea61d94500004020020ff8010206804280000405006db6db896db6db712db6db6e25b6db6dc4b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd543b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a1908000000"
+    },
+    {
+      "options": {
+        "rate": 44100,
+        "mixed": true,
+        "selection": [
+          0,
+          2,
+          4,
+          8
+        ],
+        "transform": 4,
+        "method": 2,
+        "scene": true,
+        "drc": true,
+        "rich": true
+      },
+      "cookie": "00000062646170610000000008001402002004200b3ce812a1c71c71d84478000000000000002f80040030060400022081015010000200202a00c22000e00f2a1700808a248c9124648da0104907e2e200801010001001b91891100004020020d280",
+      "first": "4081a010a0000125555555e8b25555555e8b25555555e8b25555555e8b255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaabfedcba987fedcba910fedcb3210fed543210f76543210987654321ba9876543dcba9876572a1700808a248c9124648da0104907e2e200801010001001b91891100004020020d288180",
+      "next": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a190800000",
+      "embedded_good": "8804e04081a010a0000125555555e8b25555555e8b25555555e8b25555555e8b255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaabfedcba987fedcba910fedcb3210fed543210f76543210987654321ba9876543dcba98765500004020020ff8010020680428000405011b6dc4b6db896db712db6e25b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "last_element_error": "4081a010a0001814046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a190800000",
+      "late_spatial_error": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6fb6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a190800000",
+      "dynamic_error": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd543b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a190800000",
+      "dynamic_error_bit": 457,
+      "internal_end_bit": 452,
+      "bitmap_too_few": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db3fc01ff007fc01ff407ff01ffc07ff0180000",
+      "bitmap_too_many": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db7fc09ff007fc01ff407ff01ffc07ff0180000",
+      "late_tail_error": "4081a010a0001014046db712db6e25b6dc4b6db896db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6dbd4c3b2a1965d4c3b2a76e5d4c3b7f6e5d4c07f6e5d1087f6e219087f32a190843b2a190800004",
+      "embedded_error": "8804e04081a010a0000125555555e8b25555555e8b25555555e8b25555555e8b255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaabffdcba987fedcba910fedcb3210fed543210f76543210987654321ba9876543dcba98765500004020020ff8010020680428000405011b6dc4b6db896db712db6e25b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f530eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000",
+      "outer_after_embedded_error": "8804e04081a010a0000125555555e8b25555555e8b25555555e8b25555555e8b255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaab255555555592aaaaaaaac95555555564aaaaaaaabfedcba987fedcba910fedcb3210fed543210f76543210987654321ba9876543dcba98765500004020020ff8010020680428000405011b6dc4b6db896db712db6e25b6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6db6f550eca86597530eca9db97530edfdb975301fdb974421fdb886421fcca864210eca8642000000"
+    }
+  ],
+  "mapping_cases": [
+    {
+      "cookie": "0000003d646170610000000008001401802004200b38e81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "0ff803fe00ffe03ff80ffe03ff80bfe054",
+      "bits": 129,
+      "truth": {
+        "encoding": "bitmap",
+        "method": 0,
+        "subband_ends": [
+          16,
+          32,
+          48,
+          80,
+          128,
+          216,
+          392,
+          1024
+        ],
+        "lines_per_window": [
+          2,
+          4,
+          6,
+          10,
+          16,
+          27,
+          49,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 129,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 17
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13
+            ],
+            "start_bit_offset": 17,
+            "end_bit_offset": 33
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 33,
+            "end_bit_offset": 49
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              0,
+              1,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 49,
+            "end_bit_offset": 65
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 65,
+            "end_bit_offset": 81
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 81,
+            "end_bit_offset": 97
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              15
+            ],
+            "start_bit_offset": 97,
+            "end_bit_offset": 113
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "start_bit_offset": 113,
+            "end_bit_offset": 129
+          }
+        ]
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401802004200b38e81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "dd4c3b2a1ee5d4c3b2ff6e5d4c3ff6e5d4887f6e599087f6aa19087bb2a19084c3b2a190d4",
+      "bits": 289,
+      "truth": {
+        "encoding": "index_list",
+        "method": 0,
+        "subband_ends": [
+          16,
+          32,
+          48,
+          80,
+          128,
+          216,
+          392,
+          1024
+        ],
+        "lines_per_window": [
+          2,
+          4,
+          6,
+          10,
+          16,
+          27,
+          49,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 289,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 37
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5
+            ],
+            "start_bit_offset": 37,
+            "end_bit_offset": 73
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7
+            ],
+            "start_bit_offset": 73,
+            "end_bit_offset": 109
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              1,
+              0
+            ],
+            "start_bit_offset": 109,
+            "end_bit_offset": 145
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 145,
+            "end_bit_offset": 181
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 181,
+            "end_bit_offset": 217
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              15,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 217,
+            "end_bit_offset": 253
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            "start_bit_offset": 253,
+            "end_bit_offset": 289
+          }
+        ]
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401802004200b3ae81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "0ff803fe00ffe03ff80ffe03ff80bfe054",
+      "bits": 129,
+      "truth": {
+        "encoding": "bitmap",
+        "method": 1,
+        "subband_ends": [
+          24,
+          56,
+          112,
+          208,
+          376,
+          568,
+          768,
+          1024
+        ],
+        "lines_per_window": [
+          3,
+          7,
+          14,
+          26,
+          47,
+          71,
+          96,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 129,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 17
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13
+            ],
+            "start_bit_offset": 17,
+            "end_bit_offset": 33
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 33,
+            "end_bit_offset": 49
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              0,
+              1,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 49,
+            "end_bit_offset": 65
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 65,
+            "end_bit_offset": 81
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 81,
+            "end_bit_offset": 97
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              15
+            ],
+            "start_bit_offset": 97,
+            "end_bit_offset": 113
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "start_bit_offset": 113,
+            "end_bit_offset": 129
+          }
+        ]
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401802004200b3ae81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "dd4c3b2a1ee5d4c3b2ff6e5d4c3ff6e5d4887f6e599087f6aa19087bb2a19084c3b2a190d4",
+      "bits": 289,
+      "truth": {
+        "encoding": "index_list",
+        "method": 1,
+        "subband_ends": [
+          24,
+          56,
+          112,
+          208,
+          376,
+          568,
+          768,
+          1024
+        ],
+        "lines_per_window": [
+          3,
+          7,
+          14,
+          26,
+          47,
+          71,
+          96,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 289,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 37
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5
+            ],
+            "start_bit_offset": 37,
+            "end_bit_offset": 73
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7
+            ],
+            "start_bit_offset": 73,
+            "end_bit_offset": 109
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              1,
+              0
+            ],
+            "start_bit_offset": 109,
+            "end_bit_offset": 145
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 145,
+            "end_bit_offset": 181
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 181,
+            "end_bit_offset": 217
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              15,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 217,
+            "end_bit_offset": 253
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            "start_bit_offset": 253,
+            "end_bit_offset": 289
+          }
+        ]
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401802004200b3ce81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "0ff803fe00ffe03ff80ffe03ff80bfe054",
+      "bits": 129,
+      "truth": {
+        "encoding": "bitmap",
+        "method": 2,
+        "subband_ends": [
+          128,
+          256,
+          384,
+          512,
+          640,
+          768,
+          896,
+          1024
+        ],
+        "lines_per_window": [
+          16,
+          32,
+          48,
+          64,
+          80,
+          96,
+          112,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 129,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 17
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13
+            ],
+            "start_bit_offset": 17,
+            "end_bit_offset": 33
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 33,
+            "end_bit_offset": 49
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              0,
+              1,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 49,
+            "end_bit_offset": 65
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 65,
+            "end_bit_offset": 81
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              13,
+              14,
+              15
+            ],
+            "start_bit_offset": 81,
+            "end_bit_offset": 97
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              15
+            ],
+            "start_bit_offset": 97,
+            "end_bit_offset": 113
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "start_bit_offset": 113,
+            "end_bit_offset": 129
+          }
+        ]
+      }
+    },
+    {
+      "cookie": "0000003d646170610000000008001401802004200b3ce81281c71c71c8000000000000002f80040020060400022081015010000200202a00c22000e000",
+      "bytes": "dd4c3b2a1ee5d4c3b2ff6e5d4c3ff6e5d4887f6e599087f6aa19087bb2a19084c3b2a190d4",
+      "bits": 289,
+      "truth": {
+        "encoding": "index_list",
+        "method": 2,
+        "subband_ends": [
+          128,
+          256,
+          384,
+          512,
+          640,
+          768,
+          896,
+          1024
+        ],
+        "lines_per_window": [
+          16,
+          32,
+          48,
+          64,
+          80,
+          96,
+          112,
+          128
+        ],
+        "start_bit_offset": 0,
+        "end_bit_offset": 289,
+        "mappings": [
+          {
+            "subband_index": 0,
+            "target_acn_indices": [
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3
+            ],
+            "start_bit_offset": 1,
+            "end_bit_offset": 37
+          },
+          {
+            "subband_index": 1,
+            "target_acn_indices": [
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7,
+              6,
+              5
+            ],
+            "start_bit_offset": 37,
+            "end_bit_offset": 73
+          },
+          {
+            "subband_index": 2,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              8,
+              7
+            ],
+            "start_bit_offset": 73,
+            "end_bit_offset": 109
+          },
+          {
+            "subband_index": 3,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              10,
+              9,
+              1,
+              0
+            ],
+            "start_bit_offset": 109,
+            "end_bit_offset": 145
+          },
+          {
+            "subband_index": 4,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              12,
+              11,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 145,
+            "end_bit_offset": 181
+          },
+          {
+            "subband_index": 5,
+            "target_acn_indices": [
+              15,
+              14,
+              13,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 181,
+            "end_bit_offset": 217
+          },
+          {
+            "subband_index": 6,
+            "target_acn_indices": [
+              15,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1,
+              0
+            ],
+            "start_bit_offset": 217,
+            "end_bit_offset": 253
+          },
+          {
+            "subband_index": 7,
+            "target_acn_indices": [
+              9,
+              8,
+              7,
+              6,
+              5,
+              4,
+              3,
+              2,
+              1
+            ],
+            "start_bit_offset": 253,
+            "end_bit_offset": 289
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "profile": "apac-hoa-profile-levels-measured-v1",
+  "component_type": 2,
+  "profiles": [
+    {
+      "maximum_output_channels_by_level": [
+        121
+      ],
+      "profile_id": 0
+    },
+    {
+      "maximum_output_channels_by_level": [
+        16,
+        36,
+        49
+      ],
+      "profile_id": 5
+    }
+  ],
+  "source": {
+    "method": "public AudioConverter cookie acceptance enumeration and complete scalar HOA decode controls",
+    "property_native_identity": {
+      "architecture": "arm64",
+      "binary_sha256": "3a1f077a333905eaac57197c9f2060ed95e05208daf83da4827d92e0474574d8",
+      "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+      "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123"
+    },
+    "decode_native_identity": {
+      "architecture": "arm64",
+      "binary_sha256": "fc075f82b802ee5528ea69e3dbdd83ffb0b1c5a86c2b80523870351ab52f837c",
+      "component_sha256": "5bd433b1cd97b1a93d1b5c389c1b46314757045a51c9e51d3cbf5212cab294b2",
+      "os_version": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123"
+    },
+    "candidate_sha256": "49720d87abf05b132ddd0b7ccc0185d2b3fb5c924a10168209beae75db721ea9",
+    "validation_sha256": "47a5e7b46389bac3389b485d54df33a155cf47984576d7103b7561bb8867a023",
+    "decode_validation_sha256": "36df79f55c75e8355226e88a64049b9e0807423db070463f88eddeca6effc61d",
+    "comparison_sha256": "b9dd165ae2ba3e2443d2e0f40967017664c037ec239a890ed88467565150d063",
+    "discovery_producer_sha256": "36ec1ed11b6f548193419f65c5c5ae3f042c1f3cd176c0fa4d67c302108ede97",
+    "decode_validation_producer_sha256": "11a3b94d4705737b361bca8661cc5e41e3de02895aba06589450736cd413b444",
+    "old_dictionary_consulted_during_discovery": false,
+    "candidate_frozen_before_heldout": true,
+    "heldout_passed_before_comparison": true,
+    "qualification": {
+      "passed": true,
+      "enumerated_profile_levels": 1024,
+      "cardinality_observations": 1016,
+      "channel_range": [
+        1,
+        255
+      ],
+      "heldout_property_checks": 1052,
+      "heldout_native_decodes": 12,
+      "source_layout_families": [
+        147,
+        190
+      ]
+    }
+  }
+}

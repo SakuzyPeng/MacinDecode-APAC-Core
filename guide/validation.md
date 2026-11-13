@@ -7,6 +7,7 @@
 ```sh
 python3 -B scripts/check_sources.py
 python3 -B scripts/check_sources.py --history
+python3 -B scripts/generate_dependency_licenses.py --check
 ```
 
 检查清单内每份数值文件和测试输入的完整 SHA-256、数值来源类别、测量登记、零符号规则对应的消费者身份，以及禁入文件和私有路径。历史检查遍历全部可达对象。测试输入是人工码流和回归数据，不作为独立数学真值。

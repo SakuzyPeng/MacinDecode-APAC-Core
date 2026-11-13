@@ -75,6 +75,8 @@ jobs:
           python -B -m unittest discover -s scripts -p 'test_ci*.py' -v
           python -B -m unittest discover -s scripts -p 'test_*release*.py' -v
           python -B -m unittest discover -s scripts -p 'test_check_sources.py' -v
+          python -B -m unittest discover -s scripts -p 'test_dependency_licenses.py' -v
+          python -B scripts/generate_dependency_licenses.py --check
 
       - name: Test debug workspace and golden snapshots
         run: cargo test --locked -p apac-core -p apac-container -p apac-research -p apac-cac -p apac-no-std-example -p apac-bwe2 --target "$BUILD_TARGET" --no-fail-fast
@@ -176,7 +178,10 @@ jobs:
         run: python -B scripts/ci_catalog.py --check
 
       - name: Test release packaging and tag verification
-        run: python -B -m unittest discover -s scripts -p 'test_*release*.py' -v
+        run: |
+          python -B -m unittest discover -s scripts -p 'test_*release*.py' -v
+          python -B -m unittest discover -s scripts -p 'test_dependency_licenses.py' -v
+          python -B scripts/generate_dependency_licenses.py --check
 
       - name: Build release executable
         run: cargo build --locked --release --package mapac --package apac-research --bin mapac --example layout_presence --target "$BUILD_TARGET"

@@ -79,4 +79,11 @@ Get-Content .\mapac-TARGET-SHA12.zip.sha256
 
 版本发布使用 `vMAJOR.MINOR.PATCH`，须与 workspace 和程序版本一致，并准备 `guide/releases/TAG.md`。指定 `release_tag` 或推送对应标签后，流程核对远端标签与构建提交并生成 Release 草稿。草稿包含三平台程序、文档、许可证、构建信息和校验附件。
 
+`LICENSES/Rust-dependencies.txt` 保留 `Cargo.lock` 中全部外部 Rust 依赖的许可及版权声明，随三平台开发包和版本包分发。更新锁定依赖后重新生成，CI 会核对清单和上游许可文件。
+
+```sh
+python3 -B scripts/generate_dependency_licenses.py
+python3 -B scripts/generate_dependency_licenses.py --check
+```
+
 CI 复用依赖缓存；构建后的内部程序与验收记录保留一天，最终一致性汇总保留七天。完整覆盖与报告规则见 [验证范围](validation.md)。

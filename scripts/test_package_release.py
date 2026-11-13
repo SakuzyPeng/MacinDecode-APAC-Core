@@ -8,6 +8,7 @@ import unittest
 import zipfile
 
 from package_release import TARGETS, create_package
+from generate_dependency_licenses import notice_header
 
 
 class ReleasePackageTests(unittest.TestCase):
@@ -26,6 +27,9 @@ class ReleasePackageTests(unittest.TestCase):
         self.binary.write_bytes(b'synthetic executable')
         self.commit = 'a'*40
         (self.source/'Cargo.toml').write_text('[workspace.package]\nversion = "0.1.0"\n', encoding='utf-8')
+        (self.source/'Cargo.lock').write_text('version = 4\n', encoding='utf-8')
+        (self.source/'LICENSES/Rust-dependencies.txt').write_text(
+            notice_header(self.source) + 'Synthetic dependency license.\n', encoding='utf-8')
 
     def package(self, target, out='dist', commit=None, **kwargs):
         return create_package(self.binary, target, self.root/out, commit or self.commit,
@@ -56,7 +60,10 @@ class ReleasePackageTests(unittest.TestCase):
                                     if item.name.endswith('/'+executable))
                 self.assertEqual(set(files), {executable, 'build-info.json', 'README.md',
                                              'README.en.md', 'LICENSE', 'THIRD_PARTY.md',
-                                             'LICENSES/Apache-2.0.txt', 'guide/commands.md'})
+                                             'LICENSES/Apache-2.0.txt', 'LICENSES/Rust-dependencies.txt',
+                                             'guide/commands.md'})
+                self.assertEqual(files['LICENSES/Rust-dependencies.txt'],
+                                 (self.source/'LICENSES/Rust-dependencies.txt').read_bytes())
                 self.assertEqual(files[executable], self.binary.read_bytes())
                 self.assertEqual(mode & 0o777, 0o755)
                 info = json.loads(files['build-info.json'])
@@ -85,6 +92,17 @@ class ReleasePackageTests(unittest.TestCase):
         self.assertFalse((self.root/'dist').exists())
         (self.source/'LICENSES/Apache-2.0.txt').unlink()
         with self.assertRaises(FileNotFoundError):
+            self.package('aarch64-apple-darwin')
+        self.assertFalse((self.root/'dist').exists())
+
+    def test_missing_or_outdated_dependency_notices_are_rejected(self):
+        notice = self.source/'LICENSES/Rust-dependencies.txt'
+        notice.unlink()
+        with self.assertRaises(FileNotFoundError):
+            self.package('aarch64-apple-darwin')
+        notice.write_text(notice_header(self.source), encoding='utf-8')
+        (self.source/'Cargo.lock').write_text('version = 3\n', encoding='utf-8')
+        with self.assertRaises(ValueError):
             self.package('aarch64-apple-darwin')
         self.assertFalse((self.root/'dist').exists())
 

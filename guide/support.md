@@ -91,6 +91,6 @@ ContentOrigin 的 `values[3]` 在此次对照中记录来源系统的次版本�
 
 全局帧长索引仅 0 已由绑定参考实现，其他索引明确拒绝，不视作已知格式别名。参考未实现 ASP 重配置，也不接受数量 2／3、空内嵌帧或内嵌类型 2。长度按 16 位加可选第二个 16 位读取，受输出声道数乘 2048 字节的已验证容量约束；未知内嵌尾部、截断或缺少当前帧都拒绝。错误不会提交任何组件描述、动态映射、帧内配置、DRC 或 overlap；有效重试与干净解码器一致，`reset()` 恢复初始状态。既有数学标识与有效输入报告保持兼容。
 
-便携验收入口为 Research 中的 `scripts/validate_hoa_asp.py --binary BINARY --report REPORT`，独立输入由 Research 中的 `scripts/hoa_asp_vectors.py` 和 `data/hoa-asp-vectors-v1.json` 固定。原生成功以实际帧数、位终点和 PCM 对照确认；只有返回状态为零不能证明解码成功。
+便携验收入口为本仓库的 `scripts/validate_hoa_asp.py --binary BINARY --report REPORT`，独立输入由 `scripts/hoa_asp_vectors.py` 和 `data/hoa-asp-vectors-v1.json` 固定。原生参考验证记录在 Research 中，以实际帧数、位终点和 PCM 对照确认。
 
 SQ v2 去掉反量化与增益各自的 Float32 中间舍入；它会改变部分频谱及 PCM 的低位。CAC、TNS、BWE2 和 HOA 的阶段间 Float32 接口、Float64 内核及合成顺序保持原规则，尚未改成全链路 Float64。v1 数值表和历史报告保留；旧六构建结论不能直接视为 v2 的跨平台运行证明。

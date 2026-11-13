@@ -13,6 +13,8 @@ import tarfile
 import tomllib
 import zipfile
 
+from generate_dependency_licenses import verify_notice
+
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = {
     'x86_64-unknown-linux-gnu': ('mapac', '.tar.gz'),
@@ -63,6 +65,7 @@ def create_package(binary, target, out, commit, *, binary_version, rust_version,
     sources += sorted((root/'guide').rglob('*.md'))
     if not (root/'LICENSES/Apache-2.0.txt').is_file():
         raise FileNotFoundError('required Apache-2.0 license is missing')
+    verify_notice(root)
     for source in sources:
         if source.is_symlink():
             raise ValueError('release documentation must not be a symlink: ' + str(source))

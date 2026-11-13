@@ -2,6 +2,8 @@
 
 The project's own code is licensed under the MIT License (`LICENSE`). The data below keeps its own terms.
 
+The full license and copyright notices for every external Rust dependency in `Cargo.lock` are included in `LICENSES/Rust-dependencies.txt` and in the CLI archives. Regenerate this file with `python3 -B scripts/generate_dependency_licenses.py` after changing the lockfile. CI checks it against the locked crates' bundled license files.
+
 `data/sq-codebooks.json` contains the AAC spectral and scale-factor Huffman codewords and code lengths and the 44.1/48 kHz scale-factor band offsets, taken from vo-aacenc `aacenc/src/aac_rom.c`, commit `a277487e051e92e99a532294eed3c673f4d879f2` (https://github.com/mstorsjo/vo-aacenc).
 
 `data/aac-sfb-tns-v1.json` contains the SFB offsets and Main/LC TNS band limits for all 12 upstream sampling rates, independently regenerated from the same commit's `aac_rom.c` and `tns.c`. Its source record pins both files by SHA-256 and records the copyright, license and JSON conversion. `data/hoa-shared-config-format-v2.json` combines these licensed constants with the qualified shared-profile and layout measurements. The 7350 Hz configuration uses the 8000 Hz table bucket.

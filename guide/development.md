@@ -49,3 +49,34 @@ cargo +1.98.0 check --locked -p apac-core --target wasm32v1-none --features serd
 ```
 
 除 AudioToolbox FFI crate 外，workspace 禁止 unsafe。保持固定数学配置和逐次浮点舍入；运行时行为变化须同步相应验证。测试及来源规则见 [验证](validation.md) 与 [数值来源](source-provenance.md)。
+
+## CI 与构建产物
+
+[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 默认执行单个 Linux debug 开发检查。手动 `full_validation` 启动三平台 debug／release 构建、独立数学验收和六构建一致性检查。
+
+完整运行的 **Artifacts** 提供 `mapac-TARGET`。其中包含 `mapac-TARGET-SHA12` 压缩包和相邻 `.sha256`，开发包保留三天。Linux 与 macOS 使用 `.tar.gz`，Windows 使用 `.zip`。
+
+解压 Artifacts 下载文件后，在包含压缩包和校验文件的目录核验下载。
+
+Linux
+
+```sh
+sha256sum --check mapac-TARGET-SHA12.tar.gz.sha256
+```
+
+macOS
+
+```sh
+shasum -a 256 -c mapac-TARGET-SHA12.tar.gz.sha256
+```
+
+Windows PowerShell
+
+```powershell
+Get-FileHash .\mapac-TARGET-SHA12.zip -Algorithm SHA256
+Get-Content .\mapac-TARGET-SHA12.zip.sha256
+```
+
+版本发布使用 `vMAJOR.MINOR.PATCH`，须与 workspace 和程序版本一致，并准备 `guide/releases/TAG.md`。指定 `release_tag` 或推送对应标签后，流程核对远端标签与构建提交并生成 Release 草稿。草稿包含三平台程序、文档、许可证、构建信息和校验附件。
+
+CI 复用依赖缓存；构建后的内部程序与验收记录保留一天，最终一致性汇总保留七天。完整覆盖与报告规则见 [验证范围](validation.md)。

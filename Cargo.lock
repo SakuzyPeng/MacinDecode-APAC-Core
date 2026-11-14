@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "apac-bwe2"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libm",
  "serde",
@@ -64,7 +64,7 @@ dependencies = [
 
 [[package]]
 name = "apac-cac"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "apac-container"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-core",
  "serde_json",
@@ -81,7 +81,7 @@ dependencies = [
 
 [[package]]
 name = "apac-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-bwe2",
  "apac-cac",
@@ -94,7 +94,7 @@ dependencies = [
 
 [[package]]
 name = "apac-native"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-core",
  "apac-research",
@@ -106,7 +106,7 @@ dependencies = [
 
 [[package]]
 name = "apac-no-std-example"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-core",
  "serde_json",
@@ -114,7 +114,7 @@ dependencies = [
 
 [[package]]
 name = "apac-research"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-container",
  "apac-core",
@@ -312,7 +312,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "mapac"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "apac-core",
  "apac-native",

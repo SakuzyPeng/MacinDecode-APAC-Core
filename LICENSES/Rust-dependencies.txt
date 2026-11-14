@@ -1,6 +1,6 @@
 Rust dependency notices
 
-Cargo.lock SHA-256 49b6125f9e91e2275a18432058d0e78e69c0b7e10e98f5b5f27b43600efed31c
+Cargo.lock SHA-256 5b6c6fed2d2c1517eced9d5d3d13c06f585452da03e3f33ee2d73da61b1030c7
 
 Includes all locked external workspace dependencies across supported targets,
 including build and test dependencies. Each package retains its own license terms.

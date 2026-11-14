@@ -11,7 +11,7 @@ Windows, Linux and macOS, and exports **WAV/RF64 or CAF files** containing Float
 It accepts APAC `.m4a`, `.mp4` and `.caf` files, plus exported packet bundles. Output preserves the
 channels or HOA coefficients for further analysis, processing or integration into a player. The CLI itself does not play audio.
 
-This page covers getting started and building. **See the [command reference](guide/commands.md)
+This page covers downloading, getting started and building. **See the [command reference](guide/commands.md)
 for all commands and options, and the [decoding guide](guide/decoding.md) for decoding modes and Rust APIs.**
 The detailed guides are in Chinese; this quickstart is available in English.
 
@@ -39,21 +39,22 @@ The detailed guides are in Chinese; this quickstart is available in English.
 
 ## Getting the CLI
 
-[Build from the current `main` branch](#building-from-source), or download a development package from a successful full [Build workflow](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) run.
-Maintainers can select `full_validation` under **Run workflow**. Its **Artifacts** section contains one `mapac-TARGET` package per platform.
+Versioned CLI packages and release notes are distributed through GitHub Releases. Open the version's **Assets** section and choose the archive for your computer. [GitHub Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases)
 
-| Your computer | Development archive name | Built executable |
-| --- | --- | --- |
-| Windows, 64-bit Intel / AMD PC | `mapac-x86_64-pc-windows-msvc-SHA12.zip` | `target/release/mapac.exe` |
-| Linux, 64-bit Intel / AMD PC | `mapac-x86_64-unknown-linux-gnu-SHA12.tar.gz` | `target/release/mapac` |
-| Apple silicon Mac (M1 or newer) | `mapac-aarch64-apple-darwin-SHA12.tar.gz` | `target/release/mapac` |
+| Your computer | v0.2.0 archive |
+| --- | --- |
+| Windows 10/11, 64-bit Intel / AMD PC | `mapac-v0.2.0-x86_64-pc-windows-msvc.zip` |
+| Linux, 64-bit Intel / AMD PC, glibc 2.35 or later (such as Ubuntu 22.04) | `mapac-v0.2.0-x86_64-unknown-linux-gnu.tar.gz` |
+| Apple silicon Mac (M1 or newer, tested on macOS 26) | `mapac-v0.2.0-aarch64-apple-darwin.tar.gz` |
 
-Extract the archive and run the executable from a terminal. Packages include documentation, licenses,
-`build-info.json` and an adjacent `.sha256` checksum file. See [development](guide/development.md#ci-与构建产物) for build, checksum and versioned-release steps.
+Extract the archive and run the executable from a terminal. Packages run without installing Rust or an additional decoder. Documentation, licenses and `build-info.json` are included, with an adjacent `.sha256` checksum file.
+v0.2.0 supports HOA orders zero through ten. Distributed binaries return `bwe2-unavailable` for active BWE2 frames. See the release notes for features and limits, and development for checksum commands. [v0.2.0 release notes](guide/releases/v0.2.0.md) · [Download verification](guide/development.md#ci-与构建产物)
+
+Development packages are available under **Artifacts** in successful full Build runs as `mapac-TARGET`, containing a `mapac-TARGET-SHA12` archive. You can also build the current `main` branch. [Build workflow](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) · [Source build](#building-from-source)
 
 ## Your first decode
 
-1. Extract a development package or follow the [source build steps](#building-from-source), then open a terminal in the executable directory.
+1. Extract the download or follow the [source build steps](#building-from-source), then open a terminal in the executable directory.
 2. Run `--version` or `--help` to check that the program starts.
 3. Replace `input.m4a` below with the path to your APAC file and export a WAV.
 
@@ -153,6 +154,7 @@ The macOS 27.2 reference backend limits some higher-order HOA dynamic-selection 
 - **Output retains its channel meaning:** HOA coefficients need spatial rendering before speaker playback. Use CAF for HOA, 9.1.6 and 22.2. The CLI does not render spatial audio, play sound or encode compressed formats such as AAC or FLAC.
 - **DRC, loudness and EQ are not applied:** their metadata is parsed without processing the output audio.
 - **Some APAC paths are not implemented:** LRVQ, outer ASP reconfiguration and nonzero frame-length indices fail explicitly. See [support boundaries](guide/support.md) for layout and sample-rate requirements.
+- Distributed binaries enable CAC by default. Active BWE2 frames return `bwe2-unavailable`, including during fast-access scans and embedded preroll.
 - **Results follow this project's numeric model:** comparisons with Apple's AudioToolbox reference use a tolerance and are not bit-identical by design. See the [numeric relationship](guide/support.md#与苹果参考的数值关系).
 - **Existing output is never overwritten:** file exports use an adjacent temporary file until successful, cleaning up on failure. Research-directory output with `.incomplete.json` or `.incomplete` is unfinished and must not be treated as a valid result.
 
@@ -212,7 +214,7 @@ Detailed guides are in Chinese.
 
 | Document | Contents |
 | --- | --- |
-| [CLI version notes](guide/releases/v0.1.0.md) | Features and distribution scope for v0.1.0 |
+| [CLI version notes](guide/releases/v0.2.0.md) | Downloads, features and distribution scope for v0.2.0 |
 | [Command reference](guide/commands.md) | All subcommands, options, output files and exit codes |
 | [Decoding and library APIs](guide/decoding.md) | PCM output, range decoding, `Decoder`, `Reader` and `Playback` |
 | [Support boundaries](guide/support.md) | Supported paths, rejection conditions and numeric relationship to Apple's reference |

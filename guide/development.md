@@ -77,7 +77,24 @@ Get-FileHash .\mapac-TARGET-SHA12.zip -Algorithm SHA256
 Get-Content .\mapac-TARGET-SHA12.zip.sha256
 ```
 
-版本发布使用 `vMAJOR.MINOR.PATCH`，须与 workspace 和程序版本一致，并准备 `guide/releases/TAG.md`。指定 `release_tag` 或推送对应标签后，流程核对远端标签与构建提交并生成 Release 草稿。草稿包含三平台程序、文档、许可证、构建信息和校验附件。
+版本包使用 `mapac-vVERSION-TARGET`，下载和上手说明随版本保存。[v0.2.0 发布说明](releases/v0.2.0.md)
+
+### 准备 CLI Release
+
+1. 更新根 `Cargo.toml` 的 workspace 版本及 `Cargo.lock`，重新生成依赖许可清单，并准备 `guide/releases/vVERSION.md`。v0.2.0 对应标签为 `v0.2.0`，程序版本为 `mapac 0.2.0`。
+2. 提交并推送待发布代码。在 Build 的 **Run workflow** 中选择对应分支，填写 `release_tag=v0.2.0`。该输入会启动三平台完整验收，也可通过推送同名标签触发。[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml)
+3. 构建、完整数学与六构建一致性、来源及全历史审计通过后，工作流核对版本和远端标签指向，检查三个安装包的 SHA-256，并创建带六个附件的 Release 草稿。
+4. 审阅中英文说明、三个安装包及三个校验附件后，在 GitHub 发布草稿。手动输入产生的草稿绑定工作流完整提交 SHA，发布时 GitHub 将尚不存在的标签创建到该提交。
+
+同版本草稿更新串行执行。已有远端标签的最终提交必须等于构建提交。已发布版本的标签推送运行核对成功后跳过草稿操作，手动运行遇到同名正式版时失败。
+
+本地打包也会校验版本标签格式、workspace、程序版本和说明文件。复用共享构建目录，并显式提供完整代码提交。
+
+```sh
+python3 -B scripts/package_release.py --target aarch64-apple-darwin \
+  --binary /path/to/shared-target/release/mapac \
+  --commit FULL_COMMIT_SHA --release-tag v0.2.0 --out artifacts/release
+```
 
 `LICENSES/Rust-dependencies.txt` 保留 `Cargo.lock` 中全部外部 Rust 依赖的许可及版权声明，随三平台开发包和版本包分发。更新锁定依赖后重新生成，CI 会核对清单和上游许可文件。
 

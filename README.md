@@ -11,7 +11,7 @@
 支持含 APAC 音轨的 `.m4a`、`.mp4` 和 `.caf`，以及本工具导出的包目录。输出保留声道或 HOA 系数，
 供后续分析、处理或接入播放器使用；CLI 本身不播放声音。
 
-本文介绍上手和构建。**全部命令和参数见[命令行参考](guide/commands.md)，
+本文介绍下载、上手和构建。**全部命令和参数见[命令行参考](guide/commands.md)，
 解码方式与 Rust 接口见[使用指南](guide/decoding.md)。**
 
 ## 目录
@@ -38,21 +38,22 @@
 
 ## 获取 CLI
 
-可以[从当前 `main` 分支构建](#从源码构建)，或下载 [Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) 完整验收运行中的开发包。
-维护者可在 **Run workflow** 中勾选 `full_validation`，成功后从该次运行的 **Artifacts** 下载对应平台的 `mapac-TARGET`。
+版本化 CLI 和发布说明通过 GitHub Releases 分发。进入对应版本的 **Assets**，按电脑选择压缩包。[GitHub Releases](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/releases)
 
-| 你的电脑 | 开发包文件名示例 | 源码构建后的程序 |
-| --- | --- | --- |
-| Windows，Intel / AMD 64 位电脑 | `mapac-x86_64-pc-windows-msvc-SHA12.zip` | `target/release/mapac.exe` |
-| Linux，Intel / AMD 64 位电脑 | `mapac-x86_64-unknown-linux-gnu-SHA12.tar.gz` | `target/release/mapac` |
-| Apple 芯片 Mac（M1 及更新机型） | `mapac-aarch64-apple-darwin-SHA12.tar.gz` | `target/release/mapac` |
+| 你的电脑 | v0.2.0 下载文件 |
+| --- | --- |
+| Windows 10／11，Intel / AMD 64 位电脑 | `mapac-v0.2.0-x86_64-pc-windows-msvc.zip` |
+| Linux，Intel / AMD 64 位电脑，glibc 2.35 或更新（如 Ubuntu 22.04） | `mapac-v0.2.0-x86_64-unknown-linux-gnu.tar.gz` |
+| Apple 芯片 Mac（M1 及更新机型；在 macOS 26 验证） | `mapac-v0.2.0-aarch64-apple-darwin.tar.gz` |
 
-解压后在终端中运行。开发包附带使用文档、许可证、`build-info.json` 和同名 `.sha256` 校验文件。
-完整的构建、校验和版本发布步骤见[开发说明](guide/development.md#ci-与构建产物)。
+解压后在终端中运行，无需安装 Rust 或其他解码器。包内附带使用文档、许可证和 `build-info.json`，相邻 `.sha256` 文件用于核验下载。
+v0.2.0 支持零至十阶 HOA，发行包遇到活跃 BWE2 帧时返回 `bwe2-unavailable`。功能和使用边界见发布说明，下载校验见开发说明。[v0.2.0 发布说明](guide/releases/v0.2.0.md) · [下载校验](guide/development.md#ci-与构建产物)
+
+开发包可从 Build 工作流完整验收运行的 **Artifacts** 下载，名称为 `mapac-TARGET`，内部压缩包使用 `mapac-TARGET-SHA12`。也可从当前 `main` 分支构建。[Build 工作流](https://github.com/SakuzyPeng/MacinDecode-APAC-Core/actions/workflows/build.yml) · [源码构建](#从源码构建)
 
 ## 第一次解码
 
-1. 解压开发包，或按[源码构建步骤](#从源码构建)生成 CLI，在终端中进入程序所在目录。
+1. 解压下载的压缩包，或按[源码构建步骤](#从源码构建)生成 CLI，在终端中进入程序所在目录。
 2. 运行 `--version` 或 `--help`，确认程序可用。
 3. 把下面的 `input.m4a` 换成你的 APAC 文件路径，导出 WAV。
 
@@ -144,6 +145,7 @@ macOS 27.2 的苹果参考后端对部分高阶 HOA 动态选择配置有限制�
 - **输出保留原始声道含义**：HOA 系数仍需空间渲染，不能直接当作普通扬声器声道播放。HOA、9.1.6、22.2 等布局请输出 CAF；CLI 不提供空间渲染、播放或 AAC／FLAC 等压缩编码。
 - **不施加 DRC、响度或 EQ 处理**：相关元数据会被解析，但不会改变输出音频。
 - **部分 APAC 路径尚未实现**：LRVQ、外层 ASP 重配置和非零帧长索引会明确报错。各布局和采样率的完整条件见[支持边界](guide/support.md)。
+- 发行包默认启用 CAC。活跃 BWE2 帧返回 `bwe2-unavailable`，包括快速定位扫描和内嵌 preroll。
 - **数值结果按本项目模型定义**：与苹果 AudioToolbox 参考按容差比较，设计上不逐位一致，原因见[数值关系](guide/support.md#与苹果参考的数值关系)。
 - **输出不会覆盖现有文件**：文件导出成功前只写同目录临时文件，失败时清理。研究目录中带 `.incomplete.json` 或 `.incomplete` 的输出尚未完成，不能当作有效结果。
 
@@ -196,7 +198,7 @@ cargo +1.98.0 doc --no-deps -p apac-core -p apac-container --open
 
 | 文档 | 说明 |
 | --- | --- |
-| [CLI 版本说明](guide/releases/v0.1.0.md) | v0.1.0 的功能和分发范围 |
+| [CLI 版本说明](guide/releases/v0.2.0.md) | v0.2.0 的下载、功能和分发范围 |
 | [命令行参考](guide/commands.md) | 全部子命令、参数、输出和退出码 |
 | [解码与库接口](guide/decoding.md) | PCM 输出、范围解码、`Decoder`、`Reader` 与 `Playback` |
 | [支持边界](guide/support.md) | 已实现路径、拒绝条件及与苹果参考的数值关系 |
